@@ -9,11 +9,18 @@ test("material catalog plumbing on isolated PostgreSQL", async (t) => {
   try {
     const owner = await f.account();
     const staff = await f.account("STAFF");
+    const admin = await f.account("ADMIN");
     await t.test("roles receive material permissions", () => {
       assert.ok(owner.principal.permissions.includes("material:create:self"));
       assert.ok(owner.principal.permissions.includes("material:access"));
       assert.ok(!owner.principal.permissions.includes("material:moderate"));
       assert.ok(staff.principal.permissions.includes("material:moderate"));
+      assert.ok(
+        !staff.principal.permissions.includes("material-review:moderate"),
+      );
+      assert.ok(
+        admin.principal.permissions.includes("material-review:moderate"),
+      );
     });
     await t.test("MATERIAL_PAID 5% policy is seeded once", async () => {
       // The fixture already seeded once; a second run must be a no-op.

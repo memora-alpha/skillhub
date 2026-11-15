@@ -37,6 +37,7 @@ import { CreditModule } from "./modules/credit/credit.module";
 import { PaymentsModule } from "./modules/payments/payments.module";
 import { MaterialsModule } from "./modules/materials/materials.module";
 import { AdminQaAdjustmentsModule } from "./modules/admin-qa-adjustments/admin-qa-adjustments.module";
+import { AdministrationModule } from "./modules/administration/administration.module";
 import { AdminDashboardModule } from "./modules/admin-dashboard/admin-dashboard.module";
 
 @Module({
@@ -91,6 +92,7 @@ import { AdminDashboardModule } from "./modules/admin-dashboard/admin-dashboard.
     MaterialsModule,
     AdminQaAdjustmentsModule,
     AdminDashboardModule,
+    AdministrationModule,
   ],
   controllers: [HealthController],
   providers: [

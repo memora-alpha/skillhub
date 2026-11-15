@@ -5,7 +5,7 @@ import { FileStorageError } from "./file.types";
 type Binding = {
   type: string;
   id: string;
-  purpose?: "EVIDENCE" | "REPORT" | "MATERIAL";
+  purpose?: "EVIDENCE" | "REPORT" | "MATERIAL" | "MATERIAL_COVER";
 };
 @Injectable()
 export class FileAttachmentService {
@@ -82,7 +82,8 @@ export class FileAttachmentService {
       row?.uploadedBy !== actor.userId ||
       (row.purpose !== "EVIDENCE" &&
         row.purpose !== "REPORT" &&
-        row.purpose !== "MATERIAL")
+        row.purpose !== "MATERIAL" &&
+        row.purpose !== "MATERIAL_COVER")
     )
       throw new FileStorageError("FILE_NOT_FOUND", 404);
     return { fileId: row.id, state: row.state, generation: row.generation };

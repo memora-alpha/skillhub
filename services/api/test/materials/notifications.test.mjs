@@ -25,12 +25,48 @@ const event = (type, payload, eventId = randomUUID()) => ({
   correlationId: randomUUID(),
 });
 
-test("registers material moderation, purchase and refund events", () => {
+test("registers material lifecycle and review events", () => {
   assert.deepEqual(setup().types, [
     "material.moderated",
     "material.purchased",
     "material.refunded",
+    "material.review.created",
+    "material.review.updated",
+    "material.review.deleted",
+    "material.review.reported",
+    "material.review.hidden",
+    "material.review.restored",
   ]);
+});
+
+test("material review creation and moderation notify the affected user", async () => {
+  const { handler, sent } = setup();
+  const materialId = randomUUID();
+  const reviewId = randomUUID();
+  const ownerId = randomUUID();
+  const authorId = randomUUID();
+  await handler.publish(
+    event("material.review.created", {
+      materialId,
+      reviewId,
+      ownerId,
+      authorId,
+    }),
+  );
+  await handler.publish(
+    event("material.review.hidden", { materialId, reviewId, authorId }),
+  );
+  await handler.publish(
+    event("material.review.restored", { materialId, reviewId, authorId }),
+  );
+  assert.deepEqual(
+    sent.map(({ userIds, type }) => [userIds, type]),
+    [
+      [[ownerId], "material.review.created"],
+      [[authorId], "material.review.hidden"],
+      [[authorId], "material.review.restored"],
+    ],
+  );
 });
 
 test("material.moderated tells the owner the decision", async () => {

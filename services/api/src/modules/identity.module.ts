@@ -31,6 +31,8 @@ import { AuditService } from "./audit/application/services/audit.service";
 import { SkillActorService } from "./users/application/services/skill-actor.service";
 import { PublicSkillReader } from "./users/application/services/public-skill-reader";
 import { ProfileReader } from "./users/application/services/profile-reader.service";
+import { AdminUserMetricsReaderPort } from "./users/application/ports/admin-user-metrics.reader";
+import { AdminUserMetricsReader } from "./users/application/services/admin-user-metrics.reader";
 
 // Composition root wires owner contracts without circular module imports.
 @Module({
@@ -61,6 +63,11 @@ import { ProfileReader } from "./users/application/services/profile-reader.servi
     IdentityGuard,
     IdentityThrottle,
     SharedRequestGuard,
+    AdminUserMetricsReader,
+    {
+      provide: AdminUserMetricsReaderPort,
+      useExisting: AdminUserMetricsReader,
+    },
     ...IDENTITY_APPLICATION_PROVIDERS,
     AvatarWorker,
     AvatarScheduler,
@@ -78,6 +85,7 @@ import { ProfileReader } from "./users/application/services/profile-reader.servi
     AuditService,
     IdentityConfig,
     SharedRequestGuard,
+    AdminUserMetricsReaderPort,
   ],
 })
 export class IdentityModule {}

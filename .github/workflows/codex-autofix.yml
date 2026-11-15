@@ -1,0 +1,139 @@
+name: Codex auto-fix on API CI failure
+
+on:
+  workflow_run:
+    workflows: ["API CI"]
+    types: [completed]
+
+concurrency:
+  group: codex-autofix-${{ github.event.workflow_run.id }}
+  cancel-in-progress: true
+
+jobs:
+  generate_fix:
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    outputs:
+      has_patch: ${{ steps.diff.outputs.has_patch }}
+    env:
+      CI: true
+      HUSKY: "0"
+      DATABASE_URL: postgresql://connections_test:local_test_only@127.0.0.1:55433/connections_test
+      TEST_DATABASE_URL: postgresql://connections_test:local_test_only@127.0.0.1:55433/connections_test
+      TEST_MONGODB_URI: mongodb://127.0.0.1:27028/connections_test?replicaSet=rs0&directConnection=true
+    steps:
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@ab5d408e9d066b8ffe7503f789d50fd7e35c0c92
+        with:
+          version: 10.24.0
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "22"
+          cache: pnpm
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Start disposable test stores
+        run: docker compose -f services/api/test/connections/compose.yaml up -d --wait --wait-timeout 120
+      - name: Generate Prisma client
+        run: pnpm --filter api db:generate
+      - name: Run Codex
+        uses: openai/codex-action@bdf19a4a223ec2549a3e2274a0cf61556bc07675
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          safety-strategy: drop-sudo
+          sandbox: workspace-write
+          prompt: |
+            The API CI workflow failed for the checked-out SkillHub commit.
+
+            Read AGENTS.md and the scoped services/api guidance. Reproduce the failure
+            with the relevant commands from .github/workflows/api-checks.yml. Implement
+            the smallest safe fix for the CI failure, add or update a regression test
+            when appropriate, and rerun the affected checks. Do not change product
+            behavior, public contracts, migrations, generated files, or unrelated code
+            unless the failure proves that change is required. Do not commit or push.
+      - name: Create patch artifact
+        id: diff
+        shell: bash
+        run: |
+          git add -N .
+          git diff --binary HEAD > codex.patch
+          if [ -s codex.patch ]; then
+            echo "has_patch=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_patch=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Upload patch artifact
+        if: steps.diff.outputs.has_patch == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: codex-fix-patch-${{ github.event.workflow_run.id }}
+          path: codex.patch
+          if-no-files-found: error
+          retention-days: 1
+
+  open_pr:
+    needs: generate_fix
+    if: >-
+      needs.generate_fix.outputs.has_patch == 'true' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: codex-fix-patch-${{ github.event.workflow_run.id }}
+      - name: Check out failed internal commit without executing it
+        env:
+          FAILED_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          git fetch --no-tags --depth=1 origin "$FAILED_HEAD_SHA"
+          git switch --detach "$FAILED_HEAD_SHA"
+      - name: Apply Codex patch
+        run: git apply --index codex.patch
+      - name: Open auto-fix pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FAILED_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          FAILED_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          FAILED_RUN_URL: ${{ github.event.workflow_run.html_url }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          branch="codex/auto-fix-$RUN_ID"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git commit -m "fix(api): auto-fix failing CI"
+          git push origin "$branch"
+
+          {
+            echo "Codex generated this patch after API CI failed for \`$FAILED_HEAD_SHA\`."
+            echo
+            echo "Failed run: $FAILED_RUN_URL"
+            echo
+            echo "Review and merge this PR into \`$FAILED_HEAD_BRANCH\`; the original PR CI will rerun afterwards."
+          } > pr-body.md
+
+          gh pr create \
+            --base "$FAILED_HEAD_BRANCH" \
+            --head "$branch" \
+            --title "fix(api): auto-fix failing CI" \
+            --body-file pr-body.md

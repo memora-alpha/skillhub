@@ -171,6 +171,22 @@ function scheduleDetails(status: number, text: string, detail: unknown) {
 }
 
 function publicErrorDetails(status: number, text: string, detail: unknown) {
+  if (
+    status === 409 &&
+    text === "MATERIAL_REVIEW_NOT_ALLOWED" &&
+    isRecord(detail) &&
+    typeof detail.reason === "string" &&
+    [
+      "MATERIAL_NOT_PUBLISHED",
+      "MATERIAL_OWNER_CANNOT_REVIEW",
+      "MATERIAL_ACCESS_REQUIRED",
+      "MATERIAL_PURCHASE_REQUIRED",
+      "MATERIAL_ENTITLEMENT_REVOKED",
+      "MATERIAL_REVIEW_ALREADY_EXISTS",
+      "MATERIAL_REVIEW_HIDDEN",
+    ].includes(detail.reason)
+  )
+    return { reason: detail.reason };
   if (text === "INVALID_SCHEDULE_ITEMS")
     return invalidScheduleDetails(status, text, detail);
   const schedule = scheduleDetails(status, text, detail);
@@ -215,6 +231,24 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
     const detail =
       exception instanceof HttpException ? exception.getResponse() : undefined;
+    if (status === 429 && isRecord(detail) && isRecord(detail.rateLimit)) {
+      const limit = detail.rateLimit.limit;
+      const remaining = detail.rateLimit.remaining;
+      const resetSeconds = detail.rateLimit.resetSeconds;
+      if (
+        Number.isSafeInteger(limit) &&
+        (limit as number) > 0 &&
+        Number.isSafeInteger(remaining) &&
+        (remaining as number) >= 0 &&
+        Number.isSafeInteger(resetSeconds) &&
+        (resetSeconds as number) > 0
+      ) {
+        response.setHeader("Retry-After", String(resetSeconds));
+        response.setHeader("RateLimit-Limit", String(limit));
+        response.setHeader("RateLimit-Remaining", String(remaining));
+        response.setHeader("RateLimit-Reset", String(resetSeconds));
+      }
+    }
     const text = messageText(clientMessage(status, exception, detail));
     response
       .status(status)

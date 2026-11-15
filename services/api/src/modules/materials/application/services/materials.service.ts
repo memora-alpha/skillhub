@@ -15,6 +15,7 @@ import { TransactionRunner } from "../../../../infrastructure/database/transacti
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
 import { FileAttachmentService } from "../../../../infrastructure/storage/file-attachment.service";
 import { FileStorageService } from "../../../../infrastructure/storage/file-storage.service";
+import { FileStorageError } from "../../../../infrastructure/storage/file.types";
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import { formatCredit } from "../../../credit/domain/money";
 import {
@@ -40,6 +41,7 @@ export type CreateMaterialInput = {
   priceCredit: string;
   distributionRightsConfirmed: boolean;
   fileId?: string;
+  coverFileId?: string;
 };
 
 export type UpdateMaterialInput = {
@@ -50,6 +52,7 @@ export type UpdateMaterialInput = {
   accessType?: MaterialAccess;
   priceCredit?: string;
   fileId?: string;
+  coverFileId?: string | null;
   distributionRightsConfirmed?: boolean;
 };
 
@@ -76,6 +79,26 @@ export class MaterialsService {
     return this.storage.upload({
       actor: storageActor(principal),
       purpose: "MATERIAL",
+      name: input.name,
+      claimedMime: input.claimedMime,
+      body: input.body,
+      context: { correlationId: input.correlationId },
+    });
+  }
+
+  async uploadCover(
+    principal: Principal,
+    input: {
+      name: string;
+      claimedMime: string;
+      body: Readable;
+      correlationId: string;
+    },
+  ) {
+    requirePermission(principal, "material:create:self");
+    return this.storage.upload({
+      actor: storageActor(principal),
+      purpose: "MATERIAL_COVER",
       name: input.name,
       claimedMime: input.claimedMime,
       body: input.body,
@@ -119,6 +142,9 @@ export class MaterialsService {
       const file = input.fileId
         ? await this.attachFile(tx, principal, input.fileId, id)
         : {};
+      const cover = input.coverFileId
+        ? await this.attachCover(tx, principal, input.coverFileId, id)
+        : null;
       const created = await tx.material.create({
         data: {
           id,
@@ -132,8 +158,11 @@ export class MaterialsService {
           status: "DRAFT",
           distributionRightsConfirmedAt: new Date(),
           ...file,
+          coverFileId: cover?.id ?? null,
+          coverGeneration: cover ? 1 : 0,
         },
       });
+      if (cover) await this.requestThumbnail(tx, created.id, cover.id, 1);
       return ownerMaterialView(created);
     });
   }
@@ -163,6 +192,25 @@ export class MaterialsService {
             distributionRightsConfirmedAt: new Date(),
           }
         : {};
+      const coverChanged =
+        input.coverFileId !== undefined &&
+        input.coverFileId !== current.coverFileId;
+      const cover =
+        coverChanged && input.coverFileId
+          ? await this.attachCover(tx, principal, input.coverFileId, id)
+          : null;
+      const coverGeneration = coverChanged
+        ? current.coverGeneration + 1
+        : current.coverGeneration;
+      if (coverChanged) {
+        await tx.materialThumbnail.updateMany({
+          where: {
+            materialId: id,
+            status: { in: ["PENDING", "READY", "FAILED"] },
+          },
+          data: { status: "SUPERSEDED" },
+        });
+      }
       const updated = await tx.material.update({
         where: { id },
         data: {
@@ -171,6 +219,12 @@ export class MaterialsService {
           accessType,
           priceCredit,
           ...file,
+          ...(coverChanged
+            ? {
+                coverFileId: cover?.id ?? null,
+                coverGeneration,
+              }
+            : {}),
           status,
           listingVersion: { increment: 1 },
           ...(current.status === "PUBLISHED"
@@ -182,6 +236,7 @@ export class MaterialsService {
             : {}),
         },
       });
+      if (cover) await this.requestThumbnail(tx, id, cover.id, coverGeneration);
       return ownerMaterialView(updated);
     });
   }
@@ -235,6 +290,53 @@ export class MaterialsService {
       scanStatus: "CLEAN",
       uploadedAt: file.uploadedAt,
     };
+  }
+
+  private async attachCover(
+    tx: TransactionContext,
+    principal: Principal,
+    fileId: string,
+    materialId: string,
+  ) {
+    try {
+      return await this.attachments.attachReady(tx, principal, fileId, {
+        type: "MATERIAL_COVER",
+        id: materialId,
+        purpose: "MATERIAL_COVER",
+      });
+    } catch (error) {
+      if (error instanceof FileStorageError && error.code === "FILE_NOT_READY")
+        throw new ConflictException("MATERIAL_COVER_NOT_READY");
+      throw error;
+    }
+  }
+
+  private async requestThumbnail(
+    tx: TransactionContext,
+    materialId: string,
+    sourceFileId: string,
+    generation: number,
+  ) {
+    const thumbnail = await tx.materialThumbnail.create({
+      data: {
+        id: randomUUID(),
+        materialId,
+        sourceFileId,
+        sourceGeneration: generation,
+        status: "PENDING",
+      },
+    });
+    await tx.outboxEvent.create({
+      data: {
+        aggregateType: "MATERIAL_THUMBNAIL",
+        aggregateId: thumbnail.id,
+        version: 1,
+        type: "material.thumbnail.requested",
+        payload: { thumbnailId: thumbnail.id, materialId, generation },
+        dedupeKey: `material-thumbnail:${thumbnail.id}:${generation}`,
+        correlationId: randomUUID(),
+      },
+    });
   }
 }
 

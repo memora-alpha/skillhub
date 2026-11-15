@@ -267,6 +267,25 @@ model("OutboxEvent", (block) =>
 schema +=
   "\n\n// Support retained for implemented foundation and Learning Request services.\n" +
   readFileSync(new URL("runtime-support.prisma", root), "utf8");
+model("Material", (block) =>
+  fields(
+    block,
+    '  coverFileRecord StoredFile? @relation("Material_cover_file", fields: [coverFileId], references: [id], onDelete: Restrict, onUpdate: Restrict)',
+  ),
+);
+model("MaterialThumbnail", (block) =>
+  fields(
+    block,
+    '  sourceFile StoredFile @relation("MaterialThumbnail_source_file_id", fields: [sourceFileId], references: [id], onDelete: Restrict, onUpdate: Restrict)',
+  ),
+);
+model("StoredFile", (block) =>
+  fields(
+    block,
+    `  materialCover Material? @relation("Material_cover_file")
+  materialThumbnailSources MaterialThumbnail[] @relation("MaterialThumbnail_source_file_id")`,
+  ),
+);
 // Financial entry order is assigned under the owning wallet lock by a DB trigger.
 model("CreditWallet", (block) =>
   fields(

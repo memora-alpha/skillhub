@@ -24,6 +24,8 @@ export class IdentityConfig {
   readonly ipLimit: number;
   readonly deviceLimit: number;
   readonly requestLimit: number;
+  readonly trustProxyHops: number;
+  readonly deviceHmacKey: string;
   readonly deliveryAttempts: number;
   readonly deliveryRetentionSeconds: number;
   readonly notificationSeconds: number;
@@ -74,6 +76,22 @@ export class IdentityConfig {
     this.ipLimit = seconds("IDENTITY_IP_RATE_LIMIT");
     this.deviceLimit = seconds("IDENTITY_DEVICE_RATE_LIMIT");
     this.requestLimit = seconds("IDENTITY_REQUEST_RATE_LIMIT");
+    const trustProxyHops = Number(
+      env.get<number | string>("TRUST_PROXY_HOPS") ?? 0,
+    );
+    if (
+      !Number.isSafeInteger(trustProxyHops) ||
+      trustProxyHops < 0 ||
+      trustProxyHops > 10
+    )
+      throw new Error("Invalid identity configuration: TRUST_PROXY_HOPS");
+    this.trustProxyHops = trustProxyHops;
+    this.deviceHmacKey =
+      env.get<string>("RATE_LIMIT_DEVICE_HMAC_KEY")?.trim() || this.jwtKey;
+    if (Buffer.byteLength(this.deviceHmacKey) < 32)
+      throw new Error(
+        "RATE_LIMIT_DEVICE_HMAC_KEY must contain at least 32 bytes",
+      );
     this.deliveryAttempts = seconds("IDENTITY_DELIVERY_ATTEMPTS");
     this.deliveryRetentionSeconds = seconds(
       "IDENTITY_DELIVERY_RETENTION_SECONDS",

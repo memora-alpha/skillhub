@@ -1,18 +1,20 @@
 import { createHash } from "node:crypto";
 import { createReadStream, createWriteStream } from "node:fs";
-import { mkdtemp, open, rm } from "node:fs/promises";
+import { mkdtemp, open, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { createInflateRaw } from "node:zlib";
 import * as CFB from "cfb";
+import sharp from "sharp";
 import { FileStorageError, type FilePurpose } from "./file.types";
 import { validateFile } from "./file-policy";
 
 const MAX_ENTRIES = 1_000;
 const MAX_CENTRAL_DIRECTORY = 512_000;
 const MAX_EXPANDED = 100_000_000;
+const OOXML_EXPANSION_RATIO = 50;
 const MAX_CAPTURED_XML = 256_000;
 const CONTENT_TYPES = "[Content_Types].xml";
 const ROOT_RELATIONSHIPS = "_rels/.rels";
@@ -62,6 +64,8 @@ type CentralDirectory = {
 };
 
 const unsupported = () => new FileStorageError("FILE_FORMAT_UNSUPPORTED", 415);
+const archiveLimit = () =>
+  new FileStorageError("FILE_ARCHIVE_EXPANSION_LIMIT_EXCEEDED", 413);
 
 const ascii = (bytes: Buffer, start: number, end: number) =>
   bytes.subarray(start, end).toString("ascii");
@@ -154,11 +158,9 @@ async function readCentralDirectory(
   const count = tail.readUInt16LE(eocd + 10);
   const centralSize = tail.readUInt32LE(eocd + 12);
   const centralOffset = tail.readUInt32LE(eocd + 16);
-  const withinLimits =
-    count > 0 &&
-    count <= MAX_ENTRIES &&
-    centralSize <= MAX_CENTRAL_DIRECTORY &&
-    centralOffset + centralSize <= size;
+  if (count > MAX_ENTRIES || centralSize > MAX_CENTRAL_DIRECTORY)
+    throw archiveLimit();
+  const withinLimits = count > 0 && centralOffset + centralSize <= size;
   const singleDisk =
     tail.readUInt16LE(eocd + 8) === count &&
     tail.readUInt16LE(eocd + 4) === 0 &&
@@ -166,7 +168,7 @@ async function readCentralDirectory(
   if (!withinLimits || !singleDisk) throw unsupported();
 
   const central = await readAt(path, centralOffset, centralSize);
-  const expandedLimit = Math.min(MAX_EXPANDED, size * 10);
+  const expandedLimit = Math.min(MAX_EXPANDED, size * OOXML_EXPANSION_RATIO);
   const entries: ZipEntry[] = [];
   const names = new Set<string>();
   let offset = 0;
@@ -174,8 +176,8 @@ async function readCentralDirectory(
   for (let i = 0; i < count; i++) {
     const { entry, end } = parseCentralEntry(central, offset);
     expandedTotal += entry.expanded;
-    if (names.has(entry.name) || expandedTotal > expandedLimit)
-      throw unsupported();
+    if (names.has(entry.name)) throw unsupported();
+    if (expandedTotal > expandedLimit) throw archiveLimit();
     names.add(entry.name);
     entries.push(entry);
     offset = end;
@@ -233,8 +235,8 @@ async function readEntry(
   const capture =
     entry.name === CONTENT_TYPES || entry.name === ROOT_RELATIONSHIPS;
   const oversizedCapture = capture && entry.expanded > MAX_CAPTURED_XML;
-  if (start + entry.compressed > centralOffset || oversizedCapture)
-    throw unsupported();
+  if (oversizedCapture) throw archiveLimit();
+  if (start + entry.compressed > centralOffset) throw unsupported();
 
   const chunks: Buffer[] = [];
   let actual = 0;
@@ -477,6 +479,26 @@ async function detect(
   throw unsupported();
 }
 
+async function assertMaterialCover(path: string): Promise<void> {
+  try {
+    const metadata = await sharp(await readFile(path), {
+      animated: false,
+      failOn: "error",
+      limitInputPixels: 40_000_000,
+    }).metadata();
+    if (
+      !metadata.width ||
+      !metadata.height ||
+      metadata.width < 640 ||
+      metadata.height < 360 ||
+      (metadata.pages ?? 1) !== 1
+    )
+      throw new Error("Invalid cover dimensions");
+  } catch {
+    throw new FileStorageError("MATERIAL_COVER_INVALID", 415);
+  }
+}
+
 export class FileFormatDetector {
   async inspect(input: {
     body: Readable;
@@ -516,6 +538,7 @@ export class FileFormatDetector {
         throw new FileStorageError("FILE_EMPTY_OR_INVALID", 400);
       const extension = input.name.split(".").at(-1)?.toLowerCase() ?? "";
       const detectedMime = await detect(path, sizeBytes, extension);
+      if (input.purpose === "MATERIAL_COVER") await assertMaterialCover(path);
       // Final policy validation is repeated by the caller with claimed MIME.
       validateFile({
         ...input,

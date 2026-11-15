@@ -54,6 +54,8 @@ jobs:
           fi
       - name: Generate Prisma client
         run: pnpm --filter api db:generate
+      - name: Deploy migrations to disposable PostgreSQL
+        run: pnpm --filter api db:deploy
       - name: Lint API
         run: pnpm --filter api lint
       - name: Check API types

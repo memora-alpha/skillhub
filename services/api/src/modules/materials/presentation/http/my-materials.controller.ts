@@ -66,6 +66,37 @@ export class MyMaterialsController {
     );
   }
 
+  @Post("cover-files")
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["file"],
+      properties: { file: { type: "string", format: "binary" } },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor("file", {
+      limits: { fileSize: 10_000_000, files: 1, fields: 0 },
+    }),
+  )
+  async uploadCover(
+    @Req() req: IdentityRequest,
+    @CurrentIdentity() actor: Principal,
+    @UploadedFile() file: Express.Multer.File | undefined,
+  ) {
+    if (!file) throw new BadRequestException("FILE_REQUIRED");
+    return success(
+      await this.materials.uploadCover(actor, {
+        name: file.originalname,
+        claimedMime: file.mimetype,
+        body: Readable.from(file.buffer),
+        correlationId: getOrCreateRequestContext(req).correlationId,
+      }),
+      "Material cover upload accepted.",
+    );
+  }
+
   @Get("files/:fileId")
   async fileStatus(
     @CurrentIdentity() actor: Principal,

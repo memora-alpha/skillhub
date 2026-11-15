@@ -31,6 +31,9 @@ import { FileAttachmentService } from "../../dist/infrastructure/storage/file-at
 import { PrismaStoredFileRepository } from "../../dist/infrastructure/storage/prisma-stored-file.repository.js";
 import { FileStorageService } from "../../dist/infrastructure/storage/file-storage.service.js";
 import { SkillNotificationHandler } from "../../dist/modules/notifications/infrastructure/events/skill-notification.handler.js";
+import { configureIdentityTestEnvironment } from "../identity/test-environment.mjs";
+
+configureIdentityTestEnvironment("skills-test");
 
 export async function createSkillFixture(
   beforeSkillsMigration,

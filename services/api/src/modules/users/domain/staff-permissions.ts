@@ -14,6 +14,7 @@ export const STAFF_DELEGABLE_PERMISSIONS = [
   "report:communicate",
   "learning-path:terminate",
   "material:moderate",
+  "material-review:moderate",
   "profile:moderate",
   "review:moderate",
 ] as const;

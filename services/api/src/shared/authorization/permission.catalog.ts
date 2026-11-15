@@ -182,6 +182,14 @@ export const PERMISSION_CATALOG = [
     code: "material:moderate",
     description: "Review, hide and restore learning materials",
   },
+  {
+    code: "material-review:moderate",
+    description: "Read reports and hide or restore material reviews",
+  },
+  {
+    code: "learning-path:read:admin",
+    description: "Read administrative learning path projections",
+  },
 ] as const;
 
 export type PermissionCode = (typeof PERMISSION_CATALOG)[number]["code"];

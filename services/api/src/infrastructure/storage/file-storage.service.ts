@@ -3,7 +3,11 @@ import { Readable, Transform } from "node:stream";
 import type { Actor } from "../../shared/authorization/authorization.types";
 import type { SystemConfigurationService } from "../../modules/system-configuration/application/services/system-configuration.service";
 import { FileFormatDetector } from "./file-format-detector";
-import { MATERIAL_MAX_BYTES, validateFile } from "./file-policy";
+import {
+  MATERIAL_COVER_MAX_BYTES,
+  MATERIAL_MAX_BYTES,
+  validateFile,
+} from "./file-policy";
 import { FileStorageError, type FilePurpose } from "./file.types";
 import type { ObjectStorage } from "./object-storage.port";
 import type { StoredFileRepository } from "./stored-file.repository";
@@ -164,6 +168,7 @@ export class FileStorageService {
   private async configuredCapBytes(purpose: FilePurpose) {
     if (purpose === "CHAT") return 15_000_000;
     if (purpose === "MATERIAL") return MATERIAL_MAX_BYTES;
+    if (purpose === "MATERIAL_COVER") return MATERIAL_COVER_MAX_BYTES;
     const snapshot = await this.configuration.getSnapshot([
       "storage.evidenceMaxBytes",
     ]);

@@ -337,6 +337,10 @@ model User {
   materialOrderBuyerIdRecords               MaterialOrder[]         @relation("MaterialOrder_buyer_id")
   materialOrderSellerIdRecords              MaterialOrder[]         @relation("MaterialOrder_seller_id")
   materialEntitlementUserIdRecords          MaterialEntitlement[]   @relation("MaterialEntitlement_user_id")
+  materialDownloadGrantRequestedByRecords   MaterialDownloadGrant[] @relation("MaterialDownloadGrant_requested_by")
+  materialReviewAuthorIdRecords             MaterialReview[]        @relation("MaterialReview_author_id")
+  materialReviewReportReporterIdRecords     MaterialReviewReport[]  @relation("MaterialReviewReport_reporter_id")
+  materialReviewReportResolvedByIdRecords   MaterialReviewReport[]  @relation("MaterialReviewReport_resolved_by_id")
   userRestrictionUserIdRecords              UserRestriction[]       @relation("UserRestriction_user_id")
   userRestrictionAppliedByUserIdRecords     UserRestriction[]       @relation("UserRestriction_applied_by_user_id")
 
@@ -1494,15 +1498,22 @@ model Material {
   reviewedByUserId              String?            @map("reviewed_by_user_id") @db.Uuid
   reviewedAt                    DateTime?          @map("reviewed_at") @db.Timestamptz(3)
   rejectReason                  String?            @map("reject_reason") @db.Text
+  coverFileId                   String?            @unique @map("cover_file_id") @db.Uuid
+  coverGeneration               Int                @default(0) @map("cover_generation")
   createdAt                     DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt                     DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  reportCaseRelatedMaterialIdRecords   ReportCase[]          @relation("ReportCase_related_material_id")
-  ownerIdRecord                        User                  @relation("Material_owner_id", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  skillIdRecord                        Skill                 @relation("Material_skill_id", fields: [skillId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  reviewedByUserIdRecord               User?                 @relation("Material_reviewed_by_user_id", fields: [reviewedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  materialOrderMaterialIdRecords       MaterialOrder[]       @relation("MaterialOrder_material_id")
-  materialEntitlementMaterialIdRecords MaterialEntitlement[] @relation("MaterialEntitlement_material_id")
+  reportCaseRelatedMaterialIdRecords     ReportCase[]            @relation("ReportCase_related_material_id")
+  ownerIdRecord                          User                    @relation("Material_owner_id", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  skillIdRecord                          Skill                   @relation("Material_skill_id", fields: [skillId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  reviewedByUserIdRecord                 User?                   @relation("Material_reviewed_by_user_id", fields: [reviewedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  materialOrderMaterialIdRecords         MaterialOrder[]         @relation("MaterialOrder_material_id")
+  materialEntitlementMaterialIdRecords   MaterialEntitlement[]   @relation("MaterialEntitlement_material_id")
+  materialDownloadGrantMaterialIdRecords MaterialDownloadGrant[] @relation("MaterialDownloadGrant_material_id")
+  materialReviewMaterialIdRecords        MaterialReview[]        @relation("MaterialReview_material_id")
+  materialRatingSummary                  MaterialRatingSummary?
+  materialThumbnailMaterialIdRecords     MaterialThumbnail[]     @relation("MaterialThumbnail_material_id")
+  coverFileRecord                        StoredFile?             @relation("Material_cover_file", fields: [coverFileId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
   @@index([ownerId])
   @@index([skillId])
@@ -1531,13 +1542,15 @@ model MaterialOrder {
   idempotencyKey        String    @unique @map("idempotency_key") @db.VarChar(255)
   createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  reportCaseRelatedOrderIdRecords         ReportCase[]         @relation("ReportCase_related_order_id")
-  buyerIdRecord                           User                 @relation("MaterialOrder_buyer_id", fields: [buyerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  sellerIdRecord                          User                 @relation("MaterialOrder_seller_id", fields: [sellerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  materialIdRecord                        Material             @relation("MaterialOrder_material_id", fields: [materialId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  feePolicyIdRecord                       FeePolicyVersion     @relation("MaterialOrder_fee_policy_id", fields: [feePolicyId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  operationIdRecord                       CreditOperation      @relation("MaterialOrder_operation_id", fields: [operationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  materialEntitlementSourceOrderIdRecords MaterialEntitlement? @relation("MaterialEntitlement_source_order_id")
+  reportCaseRelatedOrderIdRecords         ReportCase[]            @relation("ReportCase_related_order_id")
+  buyerIdRecord                           User                    @relation("MaterialOrder_buyer_id", fields: [buyerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  sellerIdRecord                          User                    @relation("MaterialOrder_seller_id", fields: [sellerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  materialIdRecord                        Material                @relation("MaterialOrder_material_id", fields: [materialId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  feePolicyIdRecord                       FeePolicyVersion        @relation("MaterialOrder_fee_policy_id", fields: [feePolicyId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  operationIdRecord                       CreditOperation         @relation("MaterialOrder_operation_id", fields: [operationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  materialEntitlementSourceOrderIdRecords MaterialEntitlement?    @relation("MaterialEntitlement_source_order_id")
+  materialDownloadGrantOrderIdRecords     MaterialDownloadGrant[] @relation("MaterialDownloadGrant_order_id")
+  materialReviewSourceOrderIdRecords      MaterialReview[]        @relation("MaterialReview_source_order_id")
 
   @@index([buyerId])
   @@index([sellerId])
@@ -1546,6 +1559,120 @@ model MaterialOrder {
   @@index([operationId])
   @@index([buyerId, createdAt(sort: Desc), id(sort: Desc)], map: "material_orders_buyer_page_idx")
   @@map("material_orders")
+}
+
+model MaterialDownloadGrant {
+  id           String    @id @default(uuid()) @map("grant_id") @db.Uuid
+  materialId   String    @map("material_id") @db.Uuid
+  orderId      String?   @map("order_id") @db.Uuid
+  requestedBy  String    @map("requested_by") @db.Uuid
+  accessSource String    @map("access_source") @db.Text
+  status       String    @map("status") @db.Text
+  expiresAt    DateTime  @map("expires_at") @db.Timestamptz(3)
+  issuedAt     DateTime? @map("issued_at") @db.Timestamptz(3)
+  failedAt     DateTime? @map("failed_at") @db.Timestamptz(3)
+  failureCode  String?   @map("failure_code") @db.Text
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  materialIdRecord  Material       @relation("MaterialDownloadGrant_material_id", fields: [materialId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  orderIdRecord     MaterialOrder? @relation("MaterialDownloadGrant_order_id", fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  requestedByRecord User           @relation("MaterialDownloadGrant_requested_by", fields: [requestedBy], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([orderId, status, expiresAt], map: "material_download_grants_order_status_expiry_idx")
+  @@index([materialId, requestedBy, status], map: "material_download_grants_material_requester_status_idx")
+  @@index([status, expiresAt], map: "material_download_grants_status_expiry_idx")
+  @@index([requestedBy])
+  @@map("material_download_grants")
+}
+
+model MaterialReview {
+  id                String    @id @default(uuid()) @map("review_id") @db.Uuid
+  materialId        String    @map("material_id") @db.Uuid
+  authorId          String    @map("author_id") @db.Uuid
+  rating            Int       @db.SmallInt
+  comment           String?   @db.VarChar(2000)
+  status            String    @map("status") @db.Text
+  eligibilitySource String    @map("eligibility_source") @db.Text
+  sourceOrderId     String?   @map("source_order_id") @db.Uuid
+  version           Int       @default(1)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt         DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  materialIdRecord    Material               @relation("MaterialReview_material_id", fields: [materialId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  authorIdRecord      User                   @relation("MaterialReview_author_id", fields: [authorId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  sourceOrderIdRecord MaterialOrder?         @relation("MaterialReview_source_order_id", fields: [sourceOrderId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  reports             MaterialReviewReport[]
+
+  @@index([materialId, status, createdAt(sort: Desc), id(sort: Desc)], map: "material_reviews_public_page_idx")
+  @@index([authorId, createdAt(sort: Desc)], map: "material_reviews_author_idx")
+  @@map("material_reviews")
+}
+
+model MaterialRatingSummary {
+  materialId   String   @id @map("material_id") @db.Uuid
+  visibleCount Int      @default(0) @map("visible_count")
+  star1        Int      @default(0) @map("star_1")
+  star2        Int      @default(0) @map("star_2")
+  star3        Int      @default(0) @map("star_3")
+  star4        Int      @default(0) @map("star_4")
+  star5        Int      @default(0) @map("star_5")
+  ratingSum    Int      @default(0) @map("rating_sum")
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  material Material @relation(fields: [materialId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@map("material_rating_summaries")
+}
+
+model MaterialReviewReport {
+  id             String    @id @default(uuid()) @map("report_id") @db.Uuid
+  reviewId       String    @map("review_id") @db.Uuid
+  reporterId     String    @map("reporter_id") @db.Uuid
+  reasonCode     String    @map("reason_code") @db.VarChar(80)
+  description    String    @db.VarChar(2000)
+  status         String    @db.Text
+  resolvedById   String?   @map("resolved_by_id") @db.Uuid
+  decisionReason String?   @map("decision_reason") @db.VarChar(2000)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  resolvedAt     DateTime? @map("resolved_at") @db.Timestamptz(3)
+
+  review     MaterialReview @relation(fields: [reviewId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  reporter   User           @relation("MaterialReviewReport_reporter_id", fields: [reporterId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  resolvedBy User?          @relation("MaterialReviewReport_resolved_by_id", fields: [resolvedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([reviewId, status, createdAt(sort: Desc)], map: "material_review_reports_review_status_idx")
+  @@index([status, createdAt(sort: Desc), id(sort: Desc)], map: "material_review_reports_queue_idx")
+  @@index([reporterId, createdAt(sort: Desc)], map: "material_review_reports_reporter_idx")
+  @@map("material_review_reports")
+}
+
+model MaterialThumbnail {
+  id               String   @id @default(uuid()) @map("thumbnail_id") @db.Uuid
+  materialId       String   @map("material_id") @db.Uuid
+  sourceFileId     String   @map("source_file_id") @db.Uuid
+  sourceGeneration Int      @map("source_generation")
+  status           String   @db.Text
+  smallObjectKey   String?  @map("small_object_key") @db.Text
+  largeObjectKey   String?  @map("large_object_key") @db.Text
+  smallSizeBytes   Int?     @map("small_size_bytes")
+  largeSizeBytes   Int?     @map("large_size_bytes")
+  smallChecksum    String?  @map("small_checksum") @db.Char(64)
+  largeChecksum    String?  @map("large_checksum") @db.Char(64)
+  attempts         Int      @default(0)
+  failureCode      String?  @map("failure_code") @db.VarChar(100)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  material   Material   @relation("MaterialThumbnail_material_id", fields: [materialId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  sourceFile StoredFile @relation("MaterialThumbnail_source_file_id", fields: [sourceFileId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([materialId, sourceGeneration])
+  @@index([materialId, status, sourceGeneration(sort: Desc)], map: "material_thumbnails_current_idx")
+  @@index([status, updatedAt], map: "material_thumbnails_status_idx")
+  @@map("material_thumbnails")
 }
 
 model MaterialEntitlement {
@@ -1785,32 +1912,34 @@ model SystemConfigurationRevision {
 }
 
 model StoredFile {
-  id                    String                @id @db.Uuid
-  purpose               String
-  uploadedBy            String                @map("uploaded_by") @db.Uuid
-  objectKey             String                @unique @map("object_key")
-  generation            Int                   @default(1)
-  originalName          String                @map("original_name")
-  detectedMime          String?               @map("detected_mime")
-  sizeBytes             Int?                  @map("size_bytes")
-  sha256                String?
-  state                 String
-  scanAttempts          Int                   @default(0) @map("scan_attempts")
-  scanVerdict           String?               @map("scan_verdict")
-  scannerVersion        String?               @map("scanner_version")
-  scannedAt             DateTime?             @map("scanned_at") @db.Timestamptz(3)
-  scanLeaseToken        String?               @map("scan_lease_token") @db.Uuid
-  scanLeaseUntil        DateTime?             @map("scan_lease_until") @db.Timestamptz(3)
-  providerVersionId     String?               @map("provider_version_id")
-  failureCode           String?               @map("failure_code")
-  createdAt             DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt             DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
-  scanEvents            StoredFileScanEvent[]
-  attachedAt            DateTime?             @map("attached_at") @db.Timestamptz(3)
-  resourceType          String?               @map("resource_type")
-  resourceId            String?               @map("resource_id") @db.Uuid
-  evidence              SkillEvidence?
-  privateReportEvidence ReportEvidence?
+  id                       String                @id @db.Uuid
+  purpose                  String
+  uploadedBy               String                @map("uploaded_by") @db.Uuid
+  objectKey                String                @unique @map("object_key")
+  generation               Int                   @default(1)
+  originalName             String                @map("original_name")
+  detectedMime             String?               @map("detected_mime")
+  sizeBytes                Int?                  @map("size_bytes")
+  sha256                   String?
+  state                    String
+  scanAttempts             Int                   @default(0) @map("scan_attempts")
+  scanVerdict              String?               @map("scan_verdict")
+  scannerVersion           String?               @map("scanner_version")
+  scannedAt                DateTime?             @map("scanned_at") @db.Timestamptz(3)
+  scanLeaseToken           String?               @map("scan_lease_token") @db.Uuid
+  scanLeaseUntil           DateTime?             @map("scan_lease_until") @db.Timestamptz(3)
+  providerVersionId        String?               @map("provider_version_id")
+  failureCode              String?               @map("failure_code")
+  createdAt                DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+  scanEvents               StoredFileScanEvent[]
+  attachedAt               DateTime?             @map("attached_at") @db.Timestamptz(3)
+  resourceType             String?               @map("resource_type")
+  resourceId               String?               @map("resource_id") @db.Uuid
+  evidence                 SkillEvidence?
+  materialCover            Material?             @relation("Material_cover_file")
+  materialThumbnailSources MaterialThumbnail[]   @relation("MaterialThumbnail_source_file_id")
+  privateReportEvidence    ReportEvidence?
 
   @@index([state, createdAt])
   @@index([scanLeaseUntil])

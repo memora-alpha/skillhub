@@ -84,6 +84,80 @@ test("PAID material purchase on isolated PostgreSQL", async (t) => {
       assert.equal(await available(f, racer), 3000n);
     });
     await t.test(
+      "refund then repurchase reactivates the same entitlement",
+      async () => {
+        const returning = await f.account();
+        await f.fund(returning, 5000n);
+        const firstPurchase = await buy(returning, "refund-repurchase-1");
+        const entitlementBefore =
+          await f.db.materialEntitlement.findUniqueOrThrow({
+            where: {
+              userId_materialId: {
+                userId: returning.user.id,
+                materialId: paid.id,
+              },
+            },
+          });
+        await f.purchases.refund(returning.principal, firstPurchase.order.id);
+        const secondPurchase = await buy(returning, "refund-repurchase-2");
+        const entitlementAfter =
+          await f.db.materialEntitlement.findUniqueOrThrow({
+            where: {
+              userId_materialId: {
+                userId: returning.user.id,
+                materialId: paid.id,
+              },
+            },
+          });
+        assert.notEqual(secondPurchase.order.id, firstPurchase.order.id);
+        assert.equal(entitlementAfter.id, entitlementBefore.id);
+        assert.equal(entitlementAfter.sourceOrderId, secondPurchase.order.id);
+        assert.equal(entitlementAfter.status, "ACTIVE");
+      },
+    );
+    await t.test(
+      "a failed concurrent signing attempt cannot reopen refund",
+      async () => {
+        const downloader = await f.account();
+        await f.fund(downloader, 5000n);
+        const purchase = await buy(downloader, "download-race");
+        const original = f.objectStorage.signGet;
+        let calls = 0;
+        f.objectStorage.signGet = async (...args) => {
+          calls += 1;
+          if (calls === 1) {
+            await new Promise((resolve) => setImmediate(resolve));
+            throw new Error("fixture signing failure");
+          }
+          return original(...args);
+        };
+        try {
+          const results = await Promise.allSettled([
+            f.catalog.download(downloader.principal, paid.id),
+            f.catalog.download(downloader.principal, paid.id),
+          ]);
+          assert.equal(
+            results.filter((result) => result.status === "fulfilled").length,
+            1,
+          );
+          assert.equal(
+            results.filter((result) => result.status === "rejected").length,
+            1,
+          );
+          const order = await f.db.materialOrder.findUniqueOrThrow({
+            where: { id: purchase.order.id },
+          });
+          assert.ok(order.consumedAt);
+          await assert.rejects(
+            f.purchases.refund(downloader.principal, purchase.order.id),
+            /MATERIAL_ALREADY_CONSUMED/,
+          );
+        } finally {
+          f.objectStorage.signGet = original;
+        }
+      },
+    );
+    await t.test(
       "insufficient balance fails without order or entitlement",
       async () => {
         const poor = await f.account();

@@ -20,6 +20,8 @@ import {
   PaymentCursor,
   ReadPaymentsUseCase,
 } from "./application/use-cases/read-payments.use-case";
+import { AdminPaymentReaderPort } from "./application/ports/admin-payment.reader";
+import { AdminPaymentSourceReader } from "./application/services/admin-payment-source.reader";
 import {
   PaymentsController,
   PayosWebhookController,
@@ -40,6 +42,8 @@ import {
   ],
   providers: [
     AdminPaymentsReader,
+    AdminPaymentSourceReader,
+    { provide: AdminPaymentReaderPort, useExisting: AdminPaymentSourceReader },
     {
       provide: PaymentReconciliationReader,
       inject: [TransactionRunner, PayosTransport],
@@ -60,5 +64,6 @@ import {
         new PaymentCursor(`payments:${config.jwtKey}`),
     },
   ],
+  exports: [AdminPaymentReaderPort],
 })
 export class PaymentsModule {}

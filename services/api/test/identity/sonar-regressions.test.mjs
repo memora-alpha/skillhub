@@ -61,19 +61,33 @@ test("request guard exempts health and preserves throttle 429/503 exceptions", a
   class HealthController {}
   class UsersController {}
   let calls = 0;
+  const headers = {};
   const context = (controller) => ({
     getClass: () => controller,
-    switchToHttp: () => ({ getRequest: () => ({ ip: "127.0.0.1" }) }),
+    switchToHttp: () => ({
+      getRequest: () => ({ ip: "127.0.0.1" }),
+      getResponse: () => ({
+        setHeader: (name, value) => {
+          headers[name] = value;
+        },
+      }),
+    }),
   });
   const guard = new SharedRequestGuard({
     request: async () => {
       calls++;
+      return { limit: 100, remaining: 99, resetSeconds: 60 };
     },
   });
   assert.equal(await guard.canActivate(context(HealthController)), true);
   assert.equal(calls, 0);
   assert.equal(await guard.canActivate(context(UsersController)), true);
   assert.equal(calls, 1);
+  assert.deepEqual(headers, {
+    "RateLimit-Limit": "100",
+    "RateLimit-Remaining": "99",
+    "RateLimit-Reset": "60",
+  });
   for (const status of [429, 503]) {
     const denied = new SharedRequestGuard({
       request: async () => {

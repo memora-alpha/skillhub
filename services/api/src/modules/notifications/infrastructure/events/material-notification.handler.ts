@@ -52,6 +52,12 @@ export class MaterialNotificationHandler
     this.registry.register("material.moderated", this);
     this.registry.register("material.purchased", this);
     this.registry.register("material.refunded", this);
+    this.registry.register("material.review.created", this);
+    this.registry.register("material.review.updated", this);
+    this.registry.register("material.review.deleted", this);
+    this.registry.register("material.review.reported", this);
+    this.registry.register("material.review.hidden", this);
+    this.registry.register("material.review.restored", this);
   }
 
   async publish(event: OutboxMessage): Promise<void> {
@@ -65,6 +71,10 @@ export class MaterialNotificationHandler
     )
       throw new Error("INVALID_MATERIAL_EVENT");
     const materialId = data.materialId;
+    if (event.type.startsWith("material.review.")) {
+      await this.publishReview(event, data, materialId);
+      return;
+    }
     if (event.type === "material.refunded") {
       if (
         typeof data.orderId !== "string" ||
@@ -130,6 +140,49 @@ export class MaterialNotificationHandler
       body: "A buyer purchased your learning material.",
       payload,
     });
+  }
+
+  private async publishReview(
+    event: OutboxMessage,
+    data: Record<string, unknown>,
+    materialId: string,
+  ): Promise<void> {
+    if (typeof data.reviewId !== "string")
+      throw new Error("INVALID_MATERIAL_EVENT");
+    const payload = { materialId, reviewId: data.reviewId };
+    if (event.type === "material.review.created") {
+      if (typeof data.ownerId !== "string")
+        throw new Error("INVALID_MATERIAL_EVENT");
+      await this.dispatcher.dispatch({
+        eventId: event.eventId,
+        type: event.type,
+        userIds: [data.ownerId],
+        title: "New material review",
+        body: "A learner reviewed your material.",
+        payload,
+      });
+      return;
+    }
+    if (
+      event.type === "material.review.hidden" ||
+      event.type === "material.review.restored"
+    ) {
+      if (typeof data.authorId !== "string")
+        throw new Error("INVALID_MATERIAL_EVENT");
+      const hidden = event.type === "material.review.hidden";
+      await this.dispatcher.dispatch({
+        eventId: event.eventId,
+        type: event.type,
+        userIds: [data.authorId],
+        title: hidden ? "Material review hidden" : "Material review restored",
+        body: hidden
+          ? "Your material review was hidden after moderation."
+          : "Your material review is visible again.",
+        payload,
+      });
+    }
+    // Update/delete/report events are retained for audit integrations but do not
+    // create user-facing notifications in v1.
   }
 }
 

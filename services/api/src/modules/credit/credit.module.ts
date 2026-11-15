@@ -26,6 +26,8 @@ import { CreditOperationsService } from "./application/services/credit-operation
 import { CreditProvenanceService } from "./application/services/credit-provenance.service";
 import { PathTerminationPort } from "./application/ports/path-termination.port";
 import { PathTerminationLedgerService } from "./application/services/path-termination-ledger.service";
+import { AdminCreditReaderPort } from "./application/ports/admin-credit.reader";
+import { AdminCreditSourceReader } from "./application/services/admin-credit-source.reader";
 
 @Module({
   imports: [DatabaseModule, IdentityModule],
@@ -36,6 +38,8 @@ import { PathTerminationLedgerService } from "./application/services/path-termin
   ],
   providers: [
     AdminCreditReader,
+    AdminCreditSourceReader,
+    { provide: AdminCreditReaderPort, useExisting: AdminCreditSourceReader },
     FeePolicyAdminService,
     CreditWalletReader,
     CreditProvenanceService,
@@ -68,6 +72,7 @@ import { PathTerminationLedgerService } from "./application/services/path-termin
     PathSettlementPort,
     CreditAdjustmentPort,
     PathTerminationPort,
+    AdminCreditReaderPort,
   ],
 })
 export class CreditModule {}

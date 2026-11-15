@@ -1,0 +1,90 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import sharp from "sharp";
+import { MaterialThumbnailProcessor } from "../../dist/modules/materials/infrastructure/jobs/material-thumbnail.processor.js";
+import { createMaterialFixture } from "./fixture.mjs";
+
+test("material cover lifecycle on isolated PostgreSQL", async () => {
+  const f = await createMaterialFixture();
+  try {
+    const owner = await f.account();
+    const processor = new MaterialThumbnailProcessor(f.db, f.objectStorage);
+    const makeCover = async (color) => {
+      const bytes = await sharp({
+        create: {
+          width: 960,
+          height: 540,
+          channels: 3,
+          background: color,
+        },
+      })
+        .png()
+        .toBuffer();
+      const file = await f.readyFile(owner, {
+        purpose: "MATERIAL_COVER",
+        originalName: "cover.png",
+        detectedMime: "image/png",
+        sizeBytes: bytes.length,
+      });
+      f.objects.set(file.objectKey, bytes);
+      return file;
+    };
+
+    const firstCover = await makeCover({ r: 20, g: 60, b: 100 });
+    const material = await f.publishedMaterial(owner, {
+      title: "Material with a custom cover",
+      coverFileId: firstCover.id,
+    });
+    const firstThumbnail = await f.db.materialThumbnail.findFirstOrThrow({
+      where: { materialId: material.id, sourceGeneration: 1 },
+    });
+    assert.equal(
+      await processor.process(
+        firstThumbnail.id,
+        firstThumbnail.sourceGeneration,
+      ),
+      "READY",
+    );
+    const detail = await f.catalog.detail(material.id);
+    assert.equal(detail.thumbnail.kind, "GENERATED");
+    assert.equal("smallObjectKey" in detail.thumbnail, false);
+    assert.equal("largeObjectKey" in detail.thumbnail, false);
+
+    const secondCover = await makeCover({ r: 100, g: 40, b: 10 });
+    const replaced = await f.materials.update(owner.principal, material.id, {
+      expectedListingVersion: material.listingVersion,
+      coverFileId: secondCover.id,
+    });
+    assert.equal(replaced.status, "PENDING_REVIEW");
+    assert.equal(replaced.listingVersion, material.listingVersion + 1);
+    assert.equal(
+      await f.db.materialThumbnail.count({
+        where: { materialId: material.id, status: "SUPERSEDED" },
+      }),
+      1,
+    );
+    const secondThumbnail = await f.db.materialThumbnail.findFirstOrThrow({
+      where: { materialId: material.id, sourceGeneration: 2 },
+    });
+    assert.equal(await processor.process(secondThumbnail.id, 2), "READY");
+
+    const approved = await f.moderation.moderate(
+      f.moderator.principal,
+      material.id,
+      "approve",
+      { expectedListingVersion: replaced.listingVersion },
+    );
+    const removed = await f.materials.update(owner.principal, material.id, {
+      expectedListingVersion: approved.listingVersion,
+      coverFileId: null,
+    });
+    assert.equal(removed.status, "PENDING_REVIEW");
+    assert.equal(
+      (await f.db.material.findUniqueOrThrow({ where: { id: material.id } }))
+        .coverFileId,
+      null,
+    );
+  } finally {
+    await f.dispose();
+  }
+});

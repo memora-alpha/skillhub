@@ -60,6 +60,9 @@ export class MaterialPurchaseService {
         return { order: orderView(replay), replayed: true };
       }
       const material = await lockMaterial(tx, materialId);
+      await tx.$queryRaw`SELECT entitlement_id FROM material_entitlements
+        WHERE user_id = ${principal.userId}::uuid AND material_id = ${materialId}::uuid
+        FOR UPDATE`;
       const owned = await tx.materialEntitlement.findUnique({
         where: { userId_materialId: { userId: principal.userId, materialId } },
         include: { sourceOrderIdRecord: true },
@@ -95,16 +98,35 @@ export class MaterialPurchaseService {
           idempotencyKey: key,
         },
       });
-      await tx.materialEntitlement.create({
-        data: {
-          userId: principal.userId,
-          materialId,
-          sourceOrderId: orderId,
-          sourceType: "PURCHASE",
-          status: "ACTIVE",
-          grantedAt: new Date(),
-        },
-      });
+      const [clock] = await tx.$queryRaw<
+        { now: Date }[]
+      >`SELECT CURRENT_TIMESTAMP AS now`;
+      if (!(clock?.now instanceof Date))
+        throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
+      if (owned) {
+        await tx.materialEntitlement.update({
+          where: { id: owned.id },
+          data: {
+            sourceOrderId: orderId,
+            sourceType: "PURCHASE",
+            status: "ACTIVE",
+            grantedAt: clock.now,
+            revokedAt: null,
+            revokedReason: null,
+          },
+        });
+      } else {
+        await tx.materialEntitlement.create({
+          data: {
+            userId: principal.userId,
+            materialId,
+            sourceOrderId: orderId,
+            sourceType: "PURCHASE",
+            status: "ACTIVE",
+            grantedAt: clock.now,
+          },
+        });
+      }
       await this.audit.append(tx, {
         actor: {
           kind: "HUMAN",
@@ -164,6 +186,26 @@ export class MaterialPurchaseService {
       )
         throw new ConflictException("MATERIAL_REFUND_WINDOW_CLOSED");
       if (order.consumedAt)
+        throw new ConflictException("MATERIAL_ALREADY_CONSUMED");
+      await tx.materialDownloadGrant.updateMany({
+        where: {
+          orderId: order.id,
+          status: "PENDING",
+          expiresAt: { lte: clock.now },
+        },
+        data: { status: "EXPIRED" },
+      });
+      const blockingGrant = await tx.materialDownloadGrant.findFirst({
+        where: {
+          orderId: order.id,
+          OR: [
+            { status: "ISSUED" },
+            { status: "PENDING", expiresAt: { gt: clock.now } },
+          ],
+        },
+        select: { id: true },
+      });
+      if (blockingGrant)
         throw new ConflictException("MATERIAL_ALREADY_CONSUMED");
       const entitlement = await tx.materialEntitlement.findUnique({
         where: { sourceOrderId: order.id },

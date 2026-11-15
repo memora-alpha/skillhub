@@ -21,6 +21,8 @@ import { PathSettlementStatusService } from "./application/services/path-settlem
 import { PathSettlementStatusController } from "./presentation/http/path-settlement-status.controller";
 import { LearningChangeReviewController } from "./presentation/http/learning-change-review.controller";
 import { PathTerminationRecoveryWorker } from "./infrastructure/jobs/path-termination-recovery.worker";
+import { AdminLearningPathReaderPort } from "./application/ports/admin-learning-path.reader";
+import { AdminLearningPathSourceReader } from "./application/services/admin-learning-path-source.reader";
 
 @Module({
   imports: [
@@ -50,7 +52,12 @@ import { PathTerminationRecoveryWorker } from "./infrastructure/jobs/path-termin
     PathTerminationService,
     PathSettlementStatusService,
     PathTerminationRecoveryWorker,
+    AdminLearningPathSourceReader,
+    {
+      provide: AdminLearningPathReaderPort,
+      useExisting: AdminLearningPathSourceReader,
+    },
   ],
-  exports: [LearningPathsService],
+  exports: [LearningPathsService, AdminLearningPathReaderPort],
 })
 export class LearningPathsModule {}

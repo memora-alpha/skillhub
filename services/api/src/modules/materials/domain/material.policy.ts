@@ -11,7 +11,12 @@ export type ModerationAction = "approve" | "reject" | "hide" | "unhide";
 export const MATERIAL_PERMISSIONS = {
   USER: ["material:create:self", "material:access"],
   STAFF: ["material:create:self", "material:access", "material:moderate"],
-  ADMIN: ["material:create:self", "material:access", "material:moderate"],
+  ADMIN: [
+    "material:create:self",
+    "material:access",
+    "material:moderate",
+    "material-review:moderate",
+  ],
 } satisfies Record<RoleCode, readonly PermissionCode[]>;
 
 /**
