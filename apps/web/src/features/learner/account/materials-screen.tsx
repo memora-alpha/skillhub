@@ -1,5 +1,6 @@
 "use client";
 import { MaterialThumbnail } from "./material-cover";
+import { MaterialRating } from "./material-reviews";
 import { SearchInput } from "@/components/search-input";
 import Link from "next/link";
 import { useState } from "react";
@@ -122,6 +123,7 @@ export function MaterialsScreen() {
                 </Link>
               </h2>
               <p className="learner-clamp">{material.description}</p>
+              <MaterialRating summary={material.ratingSummary} />
               <div className="learner-card-top">
                 <strong className="product-price">
                   {material.accessType === "FREE"

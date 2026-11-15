@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useState } from "react";
 import {
   Card,
@@ -14,6 +15,7 @@ import { OperationReference } from "./operation-reference";
 import { StaffUserProfile } from "./user-profile";
 import { fmtDateTime } from "@/lib/console/format";
 import styles from "./operations.module.css";
+import { MaterialReviewModeration } from "./material-review-moderation";
 type Review = {
   id: string;
   reviewerId: string;
@@ -58,29 +60,25 @@ export function ContentModerationScreen({
           value={tab}
           onChange={setTab}
           options={[
-            { id: "reviews", label: "Đánh giá" },
+            { id: "reviews", label: "Đánh giá lộ trình" },
+            { id: "material-reviews", label: "Đánh giá tài liệu" },
             { id: "profile", label: "Hồ sơ người dùng" },
           ]}
         />
       </div>
-      {tab === "profile" ? (
+      {tab === "profile" && (
         <div className={styles.workspace}>
           <Card title="Tìm hồ sơ người dùng">
             <p className={styles.hint}>
               Tra cứu bằng mã người dùng từ báo cáo hoặc danh sách người dùng.
             </p>
-            <form
-              className={styles.filters}
-              onSubmit={(e) => {
-                e.preventDefault();
-                setUserId(draft);
-              }}
-            >
-              <Identifier value={draft} onChange={setDraft} />
-              <button className="btn btn-primary" type="submit">
-                Xem hồ sơ
-              </button>
-            </form>
+            <div className={styles.filters}>
+              <Identifier
+                value={draft}
+                onChange={setDraft}
+                onSearch={setUserId}
+              />
+            </div>
             {!userId && (
               <div className={styles.lookupEmpty}>
                 <strong>Chọn hồ sơ để xem thông tin</strong>Tên, ảnh, kỹ năng và
@@ -96,9 +94,11 @@ export function ContentModerationScreen({
               />
               <Card title="Kiểm duyệt hồ sơ">
                 {userId === actor?.userId ? (
-                  <p role="status" className={styles.hint}>
-                    Bạn có thể xem hồ sơ của mình. Việc kiểm duyệt cần một nhân
-                    viên khác xử lý.
+                  <p className={styles.hint}>
+                    <output>
+                      Bạn có thể xem hồ sơ của mình. Việc kiểm duyệt cần một
+                      nhân viên khác xử lý.
+                    </output>
                   </p>
                 ) : (
                   <>
@@ -117,11 +117,29 @@ export function ContentModerationScreen({
             </>
           )}
         </div>
-      ) : (
-        <ReviewModeration onProfile={openProfile} />
       )}
+      {tab === "material-reviews" && <MaterialReviewModeration />}
+      {tab === "reviews" && <ReviewModeration onProfile={openProfile} />}
     </>
   );
+}
+function ProfileFieldValue({
+  field,
+  profile,
+}: Readonly<{ field: "BIO" | "AVATAR"; profile: Profile }>) {
+  if (field === "BIO") return <p>{profile.bio || "Chưa có giới thiệu."}</p>;
+  if (profile.avatarUrl)
+    return (
+      <a
+        className="link"
+        href={profile.avatarUrl}
+        target="_blank"
+        rel="noreferrer"
+      >
+        Mở ảnh đại diện ↗
+      </a>
+    );
+  return <p className={styles.hint}>Chưa có ảnh đại diện để hiển thị.</p>;
 }
 function ProfileModeration({
   userId,
@@ -149,22 +167,7 @@ function ProfileModeration({
             {(["BIO", "AVATAR"] as const).map((field) => (
               <section className={styles.profileField} key={field}>
                 <h3>{field === "BIO" ? "Giới thiệu" : "Ảnh đại diện"}</h3>
-                {field === "BIO" ? (
-                  <p>{resource.data!.bio || "Chưa có giới thiệu."}</p>
-                ) : resource.data!.avatarUrl ? (
-                  <a
-                    className="link"
-                    href={resource.data!.avatarUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Mở ảnh đại diện ↗
-                  </a>
-                ) : (
-                  <p className={styles.hint}>
-                    Chưa có ảnh đại diện để hiển thị.
-                  </p>
-                )}
+                <ProfileFieldValue field={field} profile={resource.data!} />
                 <ProfileDecision
                   value={
                     field === "BIO"
@@ -246,7 +249,7 @@ function ProfileDecision({ value }: Readonly<{ value?: ModerationRecord }>) {
 function ReviewModeration({
   onProfile,
 }: Readonly<{ onProfile: (id: string) => void }>) {
-  const { api, actor } = useStaffSession();
+  const { api, actor, portal } = useStaffSession();
   const reviews = useStaffList<Review>("reviews?limit=20");
   const [selected, setSelected] = useState<Review>();
   return (
@@ -254,6 +257,7 @@ function ReviewModeration({
       title="Đánh giá từ các lộ trình"
       actions={
         <button
+          type="button"
           className="btn"
           disabled={reviews.loading}
           onClick={() => void reviews.reload()}
@@ -291,13 +295,19 @@ function ReviewModeration({
                   <td data-label="Người tham gia">
                     <div className={styles.person}>
                       <small>Người đánh giá</small>
-                      <button onClick={() => onProfile(r.reviewerId)}>
+                      <button
+                        type="button"
+                        onClick={() => onProfile(r.reviewerId)}
+                      >
                         Xem hồ sơ #{r.reviewerId.slice(0, 8)}
                       </button>
                     </div>
                     <div className={styles.person}>
                       <small>Người nhận</small>
-                      <button onClick={() => onProfile(r.revieweeId)}>
+                      <button
+                        type="button"
+                        onClick={() => onProfile(r.revieweeId)}
+                      >
                         Xem hồ sơ #{r.revieweeId.slice(0, 8)}
                       </button>
                     </div>
@@ -309,12 +319,21 @@ function ReviewModeration({
                     </div>
                     <small>{fmtDateTime(r.createdAt)}</small>
                     <OperationReference id={r.pathId} label="Lộ trình" />
+                    {portal === "admin" && (
+                      <Link
+                        className="link"
+                        href={`/admin/learning-paths/${r.pathId}`}
+                      >
+                        Xem chi tiết lộ trình →
+                      </Link>
+                    )}
                   </td>
                   <td data-label="Trạng thái">
                     <StatusBadge status={r.hiddenAt ? "HIDDEN" : "PUBLISHED"} />
                   </td>
                   <td data-label="Thao tác">
                     <button
+                      type="button"
                       className="btn"
                       disabled={[r.reviewerId, r.revieweeId].includes(
                         actor?.userId ?? "",
