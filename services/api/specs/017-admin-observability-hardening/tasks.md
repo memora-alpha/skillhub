@@ -12,7 +12,7 @@
 
 ## Phase 2: Foundational readers
 
-- [ ] T004 Define exported owner-reader ports for finance, reports, paths, verification and tag requests in their owning `src/modules/*/application/ports/` directories
+- [x] T004 Define exported owner-reader ports for finance, reports, paths, verification and tag requests in their owning `src/modules/*/application/ports/` directories
 - [x] T005 Implement shared `[from,to)`/IANA local-day bucket policy in `src/modules/administration/domain/admin-reporting-window.ts`
 - [x] T006 Implement stable filter-bound cursor policy in `src/modules/administration/domain/admin-work-item-cursor.ts`
 - [x] T007 Add audit actions/projections for Admin detail reads in `src/modules/audit/domain/audit-action.catalog.ts`
@@ -33,7 +33,7 @@
 **Independent Test**: One item of every allowed kind is paginated/filterable without inferred severity and detail reads are audited.
 
 - [x] T014 [P] [US2] Add work-item normalization/cursor tests in `test/admin-work-items.test.mjs`
-- [ ] T015 [P] [US2] Add mixed-source PostgreSQL tests in `test/admin-work-items.integration.test.mjs`
+- [x] T015 [P] [US2] Add mixed-source PostgreSQL tests in `test/admin-work-items.integration.test.mjs`
 - [x] T016 [US2] Implement allowlisted source adapters in `src/modules/administration/application/services/admin-work-items.reader.ts`
 - [x] T017 [US2] Implement deterministic merge, filters and cursor pagination in `src/modules/administration/application/services/admin-work-items.reader.ts`
 - [x] T018 [US2] Implement list/detail endpoints and minimal detail audit in `src/modules/administration/presentation/http/admin-operations.controller.ts`
@@ -43,7 +43,7 @@
 **Independent Test**: Every lifecycle state returns a safe projection with no token, chat, evidence, email or storage key.
 
 - [x] T019 [P] [US3] Add projection privacy/permission HTTP tests in `test/admin-learning-paths.test.mjs`
-- [ ] T020 [P] [US3] Add historical plan/session PostgreSQL tests in `test/admin-learning-paths.integration.test.mjs`
+- [x] T020 [P] [US3] Add historical plan/session PostgreSQL tests in `test/admin-learning-paths.integration.test.mjs`
 - [x] T021 [US3] Implement bounded list/detail reader in `src/modules/administration/application/services/admin-learning-paths.reader.ts`
 - [x] T022 [US3] Implement list/detail endpoints and minimal detail audit in `src/modules/administration/presentation/http/admin-operations.controller.ts`
 
@@ -61,7 +61,7 @@
 ## Phase 7: QA and rollout
 
 - [x] T029 Add SH-120–125/127–128 automated/provider matrix and focused scripts in `test/backend-hardening/` and `package.json`
-- [ ] T030 Run lint, typecheck, build, focused PostgreSQL suites and fresh Sonar analysis; record exact evidence in `specs/017-admin-observability-hardening/validation.md`
+- [x] T030 Run lint, typecheck, build, focused PostgreSQL suites and fresh Sonar analysis; record exact evidence in `specs/017-admin-observability-hardening/validation.md`
 
 ## Dependencies and delivery
 
