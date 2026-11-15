@@ -13,6 +13,8 @@ import {
 import { UploadControl } from "../components/upload-control";
 import { ReportEvidence } from "./report-evidence";
 import { safeDownloadUrl } from "./view-policy";
+import type { CaseCapabilities } from "./case-capabilities";
+import { userErrorText } from "../api/client";
 type Message = {
   id: string;
   senderId: string;
@@ -27,21 +29,32 @@ type Evidence = {
 };
 export function PrivateCaseThread({
   caseId,
-  closed = false,
-}: Readonly<{ caseId: string; closed?: boolean }>) {
+  capabilities,
+  onRefresh,
+}: Readonly<{
+  caseId: string;
+  capabilities: CaseCapabilities;
+  onRefresh: () => void;
+}>) {
   const { actor } = useUserSession();
   return (
     <CaseThreadContent
       key={`${actor.userId}:${caseId}`}
       caseId={caseId}
-      closed={closed}
+      capabilities={capabilities}
+      onRefresh={onRefresh}
     />
   );
 }
 function CaseThreadContent({
   caseId,
-  closed = false,
-}: Readonly<{ caseId: string; closed?: boolean }>) {
+  capabilities,
+  onRefresh,
+}: Readonly<{
+  caseId: string;
+  capabilities: CaseCapabilities;
+  onRefresh: () => void;
+}>) {
   const { actor, request } = useUserSession();
   const base = `reports/support/cases/${caseId}/parties/${actor.userId}`;
   const messages = useUserList<Message>(base + "/messages?limit=20"),
@@ -64,6 +77,7 @@ function CaseThreadContent({
     [],
   );
   async function send() {
+    if (!capabilities.canSendMessage) return;
     const body = pending.current ?? {
       clientMessageId: crypto.randomUUID(),
       text: text.trim(),
@@ -77,6 +91,7 @@ function CaseThreadContent({
       setText("");
       messages.reload();
     }
+    onRefresh();
   }
   return (
     <section className={"learner-stack " + styles.thread}>
@@ -107,7 +122,18 @@ function CaseThreadContent({
           void messages.more();
         }}
       />
-      {!closed && (
+      {!capabilities.canSendMessage && (
+        <p className="learner-notice">
+          {userErrorText(
+            409,
+            capabilities.messageBlockedReason ?? "REPORT_CASE_CLOSED",
+          )}{" "}
+          <button type="button" className="btn" onClick={onRefresh}>
+            Cập nhật vụ việc
+          </button>
+        </p>
+      )}
+      {capabilities.canSendMessage && (
         <form
           className="learner-form"
           onSubmit={(e) => {
@@ -148,7 +174,11 @@ function CaseThreadContent({
         </form>
       )}
       <details>
-        <summary>Bằng chứng riêng ({evidence.data?.length ?? 0})</summary>
+        <summary>
+          Bằng chứng riêng (
+          {Math.max(evidence.data?.length ?? 0, capabilities.ownEvidenceCount)}
+          /5)
+        </summary>
         <Feedback
           loading={evidence.loading}
           error={evidence.error}
@@ -182,7 +212,15 @@ function CaseThreadContent({
             Mở bằng chứng ↗
           </a>
         )}
-        {!closed && (
+        {!capabilities.canAttachEvidence && (
+          <p className="muted">
+            {userErrorText(
+              409,
+              capabilities.evidenceBlockedReason ?? "REPORT_CASE_CLOSED",
+            )}
+          </p>
+        )}
+        {capabilities.canAttachEvidence && (
           <>
             <UploadControl
               endpoint="reports/evidence-files"
@@ -194,7 +232,10 @@ function CaseThreadContent({
                 fileCommand.pending ||
                 fileCommand.uncertain ||
                 !!file ||
-                (evidence.data?.length ?? 0) >= 5
+                Math.max(
+                  evidence.data?.length ?? 0,
+                  capabilities.ownEvidenceCount,
+                ) >= 5
               }
               onBusyChange={setBusy}
               onUploaded={(id) => setFile({ id, state: "PENDING" })}
@@ -224,6 +265,7 @@ function CaseThreadContent({
                         }),
                       )
                       .then((receipt) => {
+                        onRefresh();
                         if (receipt) {
                           setFile(undefined);
                           evidence.reload();

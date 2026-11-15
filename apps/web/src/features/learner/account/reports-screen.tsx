@@ -189,8 +189,11 @@ function ReportSubmission({
               const fresh = (
                 await request<LearningSession>("sessions/" + sessionId)
               ).data;
-              if (fresh.status === "CANCELLED")
-                throw new UserApiError(409, "SESSION_NOT_REPORTABLE");
+              if (!fresh.reporting?.canReport)
+                throw new UserApiError(
+                  409,
+                  fresh.reporting?.blockedReason ?? "REPORT_POLICY_UNAVAILABLE",
+                );
               if (files.some((file) => file.state !== "READY"))
                 throw new UserApiError(409, "FILE_NOT_CLEAN");
             }
@@ -205,7 +208,14 @@ function ReportSubmission({
           Tài liệu: <strong>{target.title}</strong>
         </p>
       ) : (
-        <p>Buổi học: {formatTime(target.startAt)}</p>
+        <div>
+          <p>Buổi học: {formatTime(target.startAt)}</p>
+          {target.reporting?.reportBy && (
+            <p className="muted">
+              Hạn gửi báo cáo: {formatTime(target.reporting.reportBy)}
+            </p>
+          )}
+        </div>
       )}
       <label>
         <span>Lý do báo cáo</span>
@@ -318,6 +328,31 @@ export function ReportForm({
           <Link href={"/learn/reports/" + sent}>Theo dõi báo cáo</Link>
         </output>
       </p>
+    );
+  else if (
+    target.data &&
+    sessionId &&
+    "startAt" in target.data &&
+    !target.data.reporting?.canReport
+  )
+    content = (
+      <div className="learner-stack">
+        <p>
+          <output>
+            {
+              new UserApiError(
+                409,
+                target.data.reporting?.blockedReason ??
+                  "REPORT_POLICY_UNAVAILABLE",
+              ).message
+            }
+          </output>
+        </p>
+        <Link href="/learn/reports">Theo dõi báo cáo đã gửi →</Link>
+        <button type="button" className="btn" onClick={target.reload}>
+          Kiểm tra lại điều kiện
+        </button>
+      </div>
     );
   else if (target.data)
     content = (

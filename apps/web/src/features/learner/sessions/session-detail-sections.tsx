@@ -309,13 +309,26 @@ export function SessionActionCard({
               Theo dõi vụ việc trong lộ trình
             </Link>
           )}
-        {session.status !== "CANCELLED" && (
+        {session.reporting?.canReport && (
           <Link
             className={reportPrimary ? "btn btn-primary" : styles.link}
             href={`/learn/reports/new?sessionId=${session.id}`}
           >
             Báo sự cố kỹ thuật / vấn đề khác
           </Link>
+        )}
+        {session.reporting?.reportBy && (
+          <small className="muted">
+            Hạn báo sự cố: {formatTime(session.reporting.reportBy)}
+          </small>
+        )}
+        {session.reporting && !session.reporting.canReport && (
+          <small className="muted">
+            {userErrorText(
+              409,
+              session.reporting.blockedReason ?? "REPORT_POLICY_UNAVAILABLE",
+            )}
+          </small>
         )}
         <details>
           <summary className={styles.link}>
