@@ -25,6 +25,8 @@ import {
   TagsController,
   CatalogController,
 } from "./presentation/http/skills.controller";
+import { AdminTagRequestReaderPort } from "./application/ports/admin-tag-request.reader";
+import { AdminTagRequestSourceReader } from "./application/services/admin-tag-request-source.reader";
 @Module({
   imports: [DatabaseModule, IdempotencyModule, AuditModule, IdentityModule],
   providers: [
@@ -35,6 +37,11 @@ import {
     TagsService,
     TagRequestsService,
     LearningRequestTagsService,
+    AdminTagRequestSourceReader,
+    {
+      provide: AdminTagRequestReaderPort,
+      useExisting: AdminTagRequestSourceReader,
+    },
   ],
   controllers: [
     AdminTagsController,
@@ -47,6 +54,10 @@ import {
     SkillLevelsController,
     AdminSkillLevelsController,
   ],
-  exports: [SkillsService, LearningRequestTagsService],
+  exports: [
+    SkillsService,
+    LearningRequestTagsService,
+    AdminTagRequestReaderPort,
+  ],
 })
 export class SkillsModule {}

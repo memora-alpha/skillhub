@@ -19,6 +19,8 @@ const names = [
   "test:learning-paths",
   "test:public-reviews",
   "test:admin-finance",
+  "test:admin-operations",
+  "test:admin-operations:integration",
   "test:completion-gaps",
   "test:completion-gaps:integration",
 ];

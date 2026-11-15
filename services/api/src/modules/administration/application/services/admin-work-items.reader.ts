@@ -3,7 +3,6 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { PrismaService } from "../../../../infrastructure/database/prisma.service";
 import { TransactionRunner } from "../../../../infrastructure/database/transaction-runner";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
 import { auditContext } from "../../../materials/application/services/material-support";
@@ -15,6 +14,12 @@ import {
   encodeWorkCursor,
 } from "../../domain/admin-work-item-cursor";
 import type { WORK_ITEM_KINDS } from "../../presentation/http/admin-operations.dto";
+import { AdminPaymentReaderPort } from "../../../payments/application/ports/admin-payment.reader";
+import { AdminCreditReaderPort } from "../../../credit/application/ports/admin-credit.reader";
+import { AdminReportReaderPort } from "../../../reports/application/ports/admin-report.reader";
+import { AdminLearningPathReaderPort } from "../../../learning-paths/application/ports/admin-learning-path.reader";
+import { AdminVerificationReaderPort } from "../../../verifications/application/ports/admin-verification.reader";
+import { AdminTagRequestReaderPort } from "../../../skills/application/ports/admin-tag-request.reader";
 
 type WorkKind = (typeof WORK_ITEM_KINDS)[number];
 type WorkItem = {
@@ -38,9 +43,14 @@ type WorkItem = {
 @Injectable()
 export class AdminWorkItemsReader {
   constructor(
-    private readonly db: PrismaService,
     private readonly transactions: TransactionRunner,
     private readonly audit: AuditWriter,
+    private readonly payments: AdminPaymentReaderPort,
+    private readonly credit: AdminCreditReaderPort,
+    private readonly reports: AdminReportReaderPort,
+    private readonly paths: AdminLearningPathReaderPort,
+    private readonly verifications: AdminVerificationReaderPort,
+    private readonly tags: AdminTagRequestReaderPort,
   ) {}
 
   async list(query: {
@@ -69,27 +79,35 @@ export class AdminWorkItemsReader {
     ]);
     const cursor = decodeWorkCursor(query.cursor, scope);
     const newest = query.sort === "newest";
-    const now = await this.databaseNow();
-    const items = (await this.sources(query.kind, cursor, newest)).filter(
-      (item) => {
-        if (query.severity && item.severity !== query.severity) return false;
-        if (query.waitingOn && item.waitingOn !== query.waitingOn) return false;
-        if (query.assignee && item.assignee !== query.assignee) return false;
-        if (
-          query.minAgeHours !== undefined &&
-          now.getTime() - item.waitingSince.getTime() <
-            query.minAgeHours * 3_600_000
-        )
-          return false;
-        const q = query.q?.trim().toLowerCase();
-        return (
-          !q ||
-          `${item.displayCode} ${item.title} ${item.reason ?? ""}`
-            .toLowerCase()
-            .includes(q)
-        );
-      },
-    );
+    const { now, sourceItems } = await this.transactions.run(async (tx) => {
+      const [clock] = await tx.$queryRaw<
+        { now: Date }[]
+      >`SELECT CURRENT_TIMESTAMP AS now`;
+      if (!(clock?.now instanceof Date))
+        throw new Error("DATABASE_TIME_UNAVAILABLE");
+      return {
+        now: clock.now,
+        sourceItems: await this.sources(tx, query.kind, cursor, newest),
+      };
+    });
+    const items = sourceItems.filter((item) => {
+      if (query.severity && item.severity !== query.severity) return false;
+      if (query.waitingOn && item.waitingOn !== query.waitingOn) return false;
+      if (query.assignee && item.assignee !== query.assignee) return false;
+      if (
+        query.minAgeHours !== undefined &&
+        now.getTime() - item.waitingSince.getTime() <
+          query.minAgeHours * 3_600_000
+      )
+        return false;
+      const q = query.q?.trim().toLowerCase();
+      return (
+        !q ||
+        `${item.displayCode} ${item.title} ${item.reason ?? ""}`
+          .toLowerCase()
+          .includes(q)
+      );
+    });
     items.sort((left, right) => compareWorkKey(left, right, newest));
     const after = cursor
       ? items.filter((item) => compareWorkKey(item, cursor, newest) > 0)
@@ -122,7 +140,7 @@ export class AdminWorkItemsReader {
 
   detail(principal: Principal, kind: WorkKind, id: string) {
     return this.transactions.run(async (tx) => {
-      const data = await readDetail(tx, kind, id);
+      const data = await this.readDetail(tx, kind, id);
       if (!data) throw new NotFoundException("ADMIN_WORK_ITEM_NOT_FOUND");
       await this.audit.append(tx, {
         actor: {
@@ -141,18 +159,19 @@ export class AdminWorkItemsReader {
   }
 
   private async sources(
+    tx: TransactionContext,
     kind: WorkKind | undefined,
     cursor: ReturnType<typeof decodeWorkCursor>,
     newest: boolean,
   ): Promise<WorkItem[]> {
     const selected = <T>(source: WorkKind, read: () => Promise<T[]>) =>
       !kind || kind === source ? read() : Promise.resolve([]);
-    const dateBoundary = cursor
-      ? newest
-        ? { lte: cursor.receivedAt }
-        : { gte: cursor.receivedAt }
-      : undefined;
     const order = newest ? ("desc" as const) : ("asc" as const);
+    const page = {
+      ...(cursor ? { receivedAt: cursor.receivedAt } : {}),
+      order,
+      take: 101,
+    };
     const [
       payments,
       settlements,
@@ -163,13 +182,7 @@ export class AdminWorkItemsReader {
       tags,
     ] = await Promise.all([
       selected("PAYMENT_REVIEW", async () =>
-        (
-          await this.db.payment.findMany({
-            where: { status: "REVIEW", createdAt: dateBoundary },
-            orderBy: [{ createdAt: order }, { id: "asc" }],
-            take: 101,
-          })
-        ).map((row) =>
+        (await this.payments.reviewWork(tx, page)).map((row) =>
           item(
             "PAYMENT_REVIEW",
             row.id,
@@ -185,13 +198,7 @@ export class AdminWorkItemsReader {
         ),
       ),
       selected("SETTLEMENT_REVIEW", async () =>
-        (
-          await this.db.pathSettlementAttempt.findMany({
-            where: { errorCode: { not: null }, checkedAt: dateBoundary },
-            orderBy: [{ checkedAt: order }, { pathId: "asc" }],
-            take: 101,
-          })
-        ).map((row) =>
+        (await this.credit.settlementWork(tx, page)).map((row) =>
           item(
             "SETTLEMENT_REVIEW",
             row.pathId,
@@ -207,13 +214,7 @@ export class AdminWorkItemsReader {
         ),
       ),
       selected("REPORT_CASE", async () =>
-        (
-          await this.db.reportCase.findMany({
-            where: { status: { not: "RESOLVED" }, createdAt: dateBoundary },
-            orderBy: [{ createdAt: order }, { id: "asc" }],
-            take: 101,
-          })
-        ).map((row) =>
+        (await this.reports.caseWork(tx, page)).map((row) =>
           item(
             "REPORT_CASE",
             row.id,
@@ -230,13 +231,7 @@ export class AdminWorkItemsReader {
         ),
       ),
       selected("REPORT_INCIDENT", async () =>
-        (
-          await this.db.reportIncident.findMany({
-            where: { status: "OPEN", createdAt: dateBoundary },
-            orderBy: [{ createdAt: order }, { id: "asc" }],
-            take: 101,
-          })
-        ).map((row) =>
+        (await this.reports.incidentWork(tx, page)).map((row) =>
           item(
             "REPORT_INCIDENT",
             row.id,
@@ -252,17 +247,7 @@ export class AdminWorkItemsReader {
         ),
       ),
       selected("PATH_TERMINATION", async () =>
-        (
-          await this.db.learningChangeRequest.findMany({
-            where: {
-              kind: "PATH_TERMINATION",
-              status: { in: ["PENDING", "STAFF_REVIEW"] },
-              createdAt: dateBoundary,
-            },
-            orderBy: [{ createdAt: order }, { id: "asc" }],
-            take: 101,
-          })
-        ).map((row) =>
+        (await this.paths.terminationWork(tx, page)).map((row) =>
           item(
             "PATH_TERMINATION",
             row.id,
@@ -279,13 +264,7 @@ export class AdminWorkItemsReader {
         ),
       ),
       selected("SKILL_VERIFICATION", async () =>
-        (
-          await this.db.skillVerification.findMany({
-            where: { status: "PENDING", submittedAt: dateBoundary },
-            orderBy: [{ submittedAt: order }, { id: "asc" }],
-            take: 101,
-          })
-        ).map((row) =>
+        (await this.verifications.pendingWork(tx, page)).map((row) =>
           item(
             "SKILL_VERIFICATION",
             row.id,
@@ -301,13 +280,7 @@ export class AdminWorkItemsReader {
         ),
       ),
       selected("TAG_REQUEST", async () =>
-        (
-          await this.db.tagCreationRequest.findMany({
-            where: { status: "PENDING", createdAt: dateBoundary },
-            orderBy: [{ createdAt: order }, { id: "asc" }],
-            take: 101,
-          })
-        ).map((row) =>
+        (await this.tags.pendingWork(tx, page)).map((row) =>
           item(
             "TAG_REQUEST",
             row.id,
@@ -334,16 +307,19 @@ export class AdminWorkItemsReader {
     ];
   }
 
-  private async databaseNow() {
-    const [row] = await this.db.$queryRaw<
-      { now: Date }[]
-    >`SELECT CURRENT_TIMESTAMP AS now`;
-    if (!(row?.now instanceof Date))
-      throw new Error("DATABASE_TIME_UNAVAILABLE");
-    return row.now;
+  private readDetail(tx: TransactionContext, kind: WorkKind, id: string) {
+    if (kind === "PAYMENT_REVIEW") return this.payments.reviewDetail(tx, id);
+    if (kind === "SETTLEMENT_REVIEW")
+      return this.credit.settlementDetail(tx, id);
+    if (kind === "REPORT_CASE") return this.reports.caseDetail(tx, id);
+    if (kind === "REPORT_INCIDENT") return this.reports.incidentDetail(tx, id);
+    if (kind === "PATH_TERMINATION")
+      return this.paths.terminationDetail(tx, id);
+    if (kind === "SKILL_VERIFICATION") return this.verifications.detail(tx, id);
+    if (kind === "TAG_REQUEST") return this.tags.detail(tx, id);
+    return Promise.resolve(null);
   }
 }
-
 function item(
   kind: WorkKind,
   id: string,
@@ -374,93 +350,4 @@ function item(
     openTarget,
     allowedActions: [],
   };
-}
-
-async function readDetail(tx: TransactionContext, kind: WorkKind, id: string) {
-  if (kind === "PAYMENT_REVIEW")
-    return tx.payment.findUnique({
-      where: { id },
-      select: {
-        status: true,
-        creditAmount: true,
-        paymentAmountVnd: true,
-        currency: true,
-        gateway: true,
-        createdAt: true,
-      },
-    });
-  if (kind === "SETTLEMENT_REVIEW")
-    return tx.pathSettlementAttempt.findUnique({
-      where: { pathId: id },
-      select: {
-        outcome: true,
-        errorCode: true,
-        attemptCount: true,
-        checkedAt: true,
-      },
-    });
-  if (kind === "REPORT_CASE")
-    return tx.reportCase.findUnique({
-      where: { id },
-      select: {
-        status: true,
-        severity: true,
-        reasonCode: true,
-        description: true,
-        handlerId: true,
-        relatedPathId: true,
-        createdAt: true,
-        version: true,
-      },
-    });
-  if (kind === "REPORT_INCIDENT")
-    return tx.reportIncident.findUnique({
-      where: { id },
-      select: {
-        status: true,
-        severity: true,
-        reason: true,
-        handlerId: true,
-        createdAt: true,
-        version: true,
-      },
-    });
-  if (kind === "PATH_TERMINATION")
-    return tx.learningChangeRequest.findUnique({
-      where: { id },
-      select: {
-        pathId: true,
-        status: true,
-        reason: true,
-        requesterId: true,
-        createdAt: true,
-        expiresAt: true,
-        version: true,
-      },
-    });
-  if (kind === "SKILL_VERIFICATION")
-    return tx.skillVerification.findUnique({
-      where: { id },
-      select: {
-        sharingSkillId: true,
-        status: true,
-        reviewerId: true,
-        note: true,
-        submittedAt: true,
-        version: true,
-      },
-    });
-  if (kind === "TAG_REQUEST")
-    return tx.tagCreationRequest.findUnique({
-      where: { id },
-      select: {
-        label: true,
-        status: true,
-        requestedByUserId: true,
-        reviewedByUserId: true,
-        createdAt: true,
-        version: true,
-      },
-    });
-  return null;
 }

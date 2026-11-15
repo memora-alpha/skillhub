@@ -10,6 +10,8 @@ import { VerificationsRepository } from "./infrastructure/persistence/verificati
 import { VerificationsService } from "./application/services/verifications.service";
 import { VerificationsController } from "./presentation/http/verifications.controller";
 import { StaffVerificationsController } from "./presentation/http/staff-verifications.controller";
+import { AdminVerificationReaderPort } from "./application/ports/admin-verification.reader";
+import { AdminVerificationSourceReader } from "./application/services/admin-verification-source.reader";
 @Module({
   imports: [
     DatabaseModule,
@@ -20,8 +22,16 @@ import { StaffVerificationsController } from "./presentation/http/staff-verifica
     IdentityModule,
     SharingSkillsModule,
   ],
-  providers: [VerificationsRepository, VerificationsService],
+  providers: [
+    VerificationsRepository,
+    VerificationsService,
+    AdminVerificationSourceReader,
+    {
+      provide: AdminVerificationReaderPort,
+      useExisting: AdminVerificationSourceReader,
+    },
+  ],
   controllers: [VerificationsController, StaffVerificationsController],
-  exports: [VerificationsService],
+  exports: [VerificationsService, AdminVerificationReaderPort],
 })
 export class VerificationsModule {}

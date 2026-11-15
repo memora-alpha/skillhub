@@ -14,6 +14,8 @@ import { ReputationModule } from "../reputation/reputation.module";
 import { ReportsController } from "./presentation/http/reports.controller";
 import { ReportsService } from "./application/services/reports.service";
 import { SessionChangesModule } from "../learning-sessions/session-changes.module";
+import { AdminReportReaderPort } from "./application/ports/admin-report.reader";
+import { AdminReportSourceReader } from "./application/services/admin-report-source.reader";
 
 @Module({
   imports: [
@@ -33,7 +35,9 @@ import { SessionChangesModule } from "../learning-sessions/session-changes.modul
     ReportSupportService,
     CaseMessagesService,
     CaseMessageRepository,
+    AdminReportSourceReader,
+    { provide: AdminReportReaderPort, useExisting: AdminReportSourceReader },
   ],
-  exports: [ReportsService, ParticipantCasesReader],
+  exports: [ReportsService, ParticipantCasesReader, AdminReportReaderPort],
 })
 export class ReportsModule {}
