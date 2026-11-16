@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -39,6 +40,7 @@ import {
   DeleteMaterialQueryDto,
   OwnerMaterialListQueryDto,
   UpdateMaterialDto,
+  WithdrawMaterialDto,
 } from "./materials.dto";
 
 @ApiTags("materials")
@@ -161,6 +163,9 @@ export class MyMaterialsController {
   }
 
   @Post(":materialId/submit")
+  @ApiOperation({
+    summary: "Submit an owned DRAFT or ARCHIVED material for review",
+  })
   async submit(
     @CurrentIdentity() actor: Principal,
     @Param("materialId", ParseUUIDPipe) id: string,
@@ -168,6 +173,25 @@ export class MyMaterialsController {
     return success(
       await this.materials.submit(actor, id),
       "Material submitted for review.",
+    );
+  }
+
+  @Post(":materialId/withdraw")
+  @HttpCode(200)
+  @ApiOperation({ summary: "Withdraw an owned material from review" })
+  @ApiNotFoundResponse({ description: "MATERIAL_NOT_FOUND" })
+  @ApiConflictResponse({
+    description:
+      "MATERIAL_VERSION_CONFLICT or MATERIAL_TRANSITION_INVALID. Details include currentStatus and currentListingVersion for the owner.",
+  })
+  async withdraw(
+    @CurrentIdentity() actor: Principal,
+    @Param("materialId", ParseUUIDPipe) id: string,
+    @Body() body: WithdrawMaterialDto,
+  ) {
+    return success(
+      await this.materials.withdraw(actor, id, body.expectedListingVersion),
+      "Material withdrawn from review.",
     );
   }
 

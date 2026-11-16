@@ -1,8 +1,13 @@
-import { ForbiddenException, NotFoundException } from "@nestjs/common";
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
 import type { PermissionCode } from "../../../../shared/authorization/permission.catalog";
 import type { Principal } from "../../../auth/application/services/sessions.service";
+import { assertPublishableFile } from "../../domain/material.policy";
 
 // Re-exported so the materials services keep a single support import.
 export {
@@ -40,4 +45,23 @@ export async function lockMaterial(tx: TransactionContext, id: string) {
   const material = await tx.material.findUnique({ where: { id } });
   if (!material) throw new NotFoundException("MATERIAL_NOT_FOUND");
   return material;
+}
+
+export async function assertReadyMaterialFile(
+  tx: TransactionContext,
+  material: Parameters<typeof assertPublishableFile>[0] & { id: string },
+) {
+  const objectKey = assertPublishableFile(material);
+  const file = await tx.storedFile.findUnique({
+    where: {
+      objectKey,
+      purpose: "MATERIAL",
+      resourceType: "MATERIAL",
+      resourceId: material.id,
+      state: "READY",
+      scanVerdict: "CLEAN",
+    },
+    select: { id: true },
+  });
+  if (!file) throw new ConflictException("MATERIAL_FILE_REQUIRED");
 }

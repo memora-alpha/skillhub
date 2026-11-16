@@ -54,7 +54,7 @@ test("editing a live listing sends it back to review", () => {
   assert.equal(statusAfterEdit("DRAFT"), "DRAFT");
   assert.equal(statusAfterEdit("PENDING_REVIEW"), "PENDING_REVIEW");
   assert.throws(() => statusAfterEdit("HIDDEN"), /MATERIAL_NOT_EDITABLE/);
-  assert.throws(() => statusAfterEdit("ARCHIVED"), /MATERIAL_NOT_EDITABLE/);
+  assert.equal(statusAfterEdit("ARCHIVED"), "ARCHIVED");
 });
 
 test("only a published material can stop sharing", () => {

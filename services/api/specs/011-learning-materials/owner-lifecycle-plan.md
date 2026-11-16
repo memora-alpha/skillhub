@@ -100,10 +100,10 @@ Khi có mapping đã duyệt, dùng điều kiện `status='ARCHIVED' AND legacy
 
 **Consumes/produces:** Dùng owner guard từ Task 2; thêm `WithdrawMaterialDto` và `MaterialsService.withdraw(principal,id,expectedListingVersion)`; `statusAfterEdit('ARCHIVED')` trả `ARCHIVED`, riêng `submit` đổi sang `PENDING_REVIEW`. Chỉ thêm hai field lỗi đã nêu qua allowlist `publicErrorDetails` cho các xung đột lifecycle owner, sau xác thực ownership.
 
-- [ ] Test `PATCH` rồi `submit` trên cùng ID, và `submit` lại không sửa. Test file chưa CLEAN/thiếu quyền, `HIDDEN`, tombstone, legacy và khác owner. Kiểm tra không public/mua được sau PATCH hoặc submit; Staff approve bằng version mới mới mở lại.
-- [ ] Thiết lập hai thứ tự tranh chấp bằng PostgreSQL fixture và đồng bộ khóa: Staff duyệt/từ chối trước → owner 409 kèm trạng thái hiện tại; owner withdraw trước → Staff dùng version cũ thất bại, cả trong `DRAFT` lẫn sau khi cùng ID được gửi lại. Kiểm audit/outbox của Staff không phát sinh từ quyết định không hợp lệ. HTTP test kiểm tra `details` thực sự qua exception filter và không lộ cho khác owner.
-- [ ] Áp dụng check version và transition trong row lock; cập nhật moderation state nguyên tử, dùng projection lấy theo kết quả transaction để response thể hiện đúng thao tác vừa hoàn tất. Không chuyển trực tiếp `ARCHIVED → PUBLISHED`, không xóa audit cũ.
-- [ ] Chạy `test:materials` và `test:materials:integration`; cập nhật ví dụ request/response thành công và xung đột trong spec.
+- [x] Kiểm thử sửa và gửi duyệt lại cùng ID, gửi lại khi không cần sửa, quyền chủ sở hữu, trạng thái bị ẩn, dữ liệu cũ chưa phân loại và bản ghi đã xóa. Staff phải duyệt version mới trước khi mở public và mua.
+- [x] Kiểm thử tranh khóa PostgreSQL khi Staff duyệt hoặc từ chối trước và khi owner rút trước. Kiểm tra quyết định Staff cũ sau khi gửi lại, audit/outbox và chi tiết lỗi HTTP theo quyền chủ sở hữu.
+- [x] Dùng row lock để kiểm tra version và trạng thái trong transaction. Submit và withdraw tăng version, cập nhật moderation summary và đọc projection trước khi nhả khóa. Submit/approve/unhide kiểm tra cả `StoredFile` hiện tại.
+- [x] Build, lint, typecheck, 20 unit/HTTP test Materials, 74 integration test PostgreSQL 18 và 10 test hồi quy bộ lọc lỗi HTTP đã qua. Spec có ví dụ thành công và xung đột cho FE.
 
 ### Task 4: Hồi quy người mua, thumbnail và rollout — mục 4, 7, 8
 

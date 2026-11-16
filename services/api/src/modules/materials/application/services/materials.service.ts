@@ -21,7 +21,6 @@ import type { Principal } from "../../../auth/application/services/sessions.serv
 import { formatCredit } from "../../../credit/domain/money";
 import {
   assertArchivable,
-  assertPublishableFile,
   listingText,
   priceUnits,
   statusAfterEdit,
@@ -31,6 +30,7 @@ import {
 import { ownerMaterialView } from "../contracts/material-view";
 import { MaterialThumbnailsService } from "./material-thumbnails.service";
 import {
+  assertReadyMaterialFile,
   lockMaterial,
   requirePermission,
   storageActor,
@@ -239,7 +239,7 @@ export class MaterialsService {
           data: { status: "SUPERSEDED" },
         });
       }
-      const updated = await tx.material.update({
+      await tx.material.update({
         where: { id },
         data: {
           ...text,
@@ -265,25 +265,59 @@ export class MaterialsService {
         },
       });
       if (cover) await this.requestThumbnail(tx, id, cover.id, coverGeneration);
-      return updated;
+      return tx.material.findUniqueOrThrow({
+        where: { id },
+        include: ownerProjectionInclude,
+      });
     });
-    return this.ownerProjection(updated.id);
+    return this.ownerProjectionFromRow(updated);
   }
 
   async submit(principal: Principal, id: string) {
     requirePermission(principal, "material:create:self");
     const updated = await this.transactions.run(async (tx) => {
       const current = await lockOwned(tx, id, principal.userId);
-      if (current.status !== "DRAFT")
+      if (current.status !== "DRAFT" && current.status !== "ARCHIVED")
         throw new ConflictException("MATERIAL_TRANSITION_INVALID");
-      assertPublishableFile(current);
-      const updated = await tx.material.update({
+      await assertReadyMaterialFile(tx, current);
+      return tx.material.update({
         where: { id },
-        data: { status: "PENDING_REVIEW", moderationStatus: "PENDING" },
+        data: {
+          ...clearReviewDecision,
+          status: "PENDING_REVIEW",
+          moderationStatus: "PENDING",
+          listingVersion: { increment: 1 },
+        },
+        include: ownerProjectionInclude,
       });
-      return updated;
     });
-    return this.ownerProjection(updated.id);
+    return this.ownerProjectionFromRow(updated);
+  }
+
+  async withdraw(
+    principal: Principal,
+    id: string,
+    expectedListingVersion: number,
+  ) {
+    requirePermission(principal, "material:create:self");
+    const updated = await this.transactions.run(async (tx) => {
+      const current = await lockOwned(tx, id, principal.userId);
+      if (current.listingVersion !== expectedListingVersion)
+        throw withdrawalConflict("MATERIAL_VERSION_CONFLICT", current);
+      if (current.status !== "PENDING_REVIEW")
+        throw withdrawalConflict("MATERIAL_TRANSITION_INVALID", current);
+      return tx.material.update({
+        where: { id },
+        data: {
+          ...clearReviewDecision,
+          status: "DRAFT",
+          moderationStatus: "NONE",
+          listingVersion: { increment: 1 },
+        },
+        include: ownerProjectionInclude,
+      });
+    });
+    return this.ownerProjectionFromRow(updated);
   }
 
   async archive(principal: Principal, id: string) {
@@ -452,6 +486,25 @@ const ownerManageableWhere = {
   deletedAt: null,
   legacyArchiveUnclassified: false,
 } satisfies Prisma.MaterialWhereInput;
+
+const clearReviewDecision = {
+  rejectReason: null,
+  reviewedAt: null,
+  reviewedByUserId: null,
+};
+
+function withdrawalConflict(
+  message: "MATERIAL_VERSION_CONFLICT" | "MATERIAL_TRANSITION_INVALID",
+  material: { status: MaterialState; listingVersion: number },
+) {
+  return new ConflictException({
+    message,
+    details: {
+      currentStatus: material.status,
+      currentListingVersion: material.listingVersion,
+    },
+  });
+}
 
 const ownerProjectionInclude = {
   coverFileRecord: {

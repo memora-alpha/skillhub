@@ -69,6 +69,13 @@ export class DeleteMaterialQueryDto {
   expectedListingVersion!: number;
 }
 
+export class WithdrawMaterialDto {
+  @ApiProperty({ minimum: 1 })
+  @IsInt()
+  @Min(1)
+  expectedListingVersion!: number;
+}
+
 export class OwnerMaterialListQueryDto extends ListPageQuery {
   @ApiPropertyOptional({
     enum: MATERIAL_STATES,

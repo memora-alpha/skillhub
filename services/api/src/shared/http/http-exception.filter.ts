@@ -170,6 +170,38 @@ function scheduleDetails(status: number, text: string, detail: unknown) {
     : undefined;
 }
 
+function materialLifecycleDetails(
+  status: number,
+  text: string,
+  detail: unknown,
+) {
+  if (
+    status !== 409 ||
+    (text !== "MATERIAL_VERSION_CONFLICT" &&
+      text !== "MATERIAL_TRANSITION_INVALID") ||
+    !isRecord(detail) ||
+    !isRecord(detail.details)
+  )
+    return undefined;
+  const { currentStatus, currentListingVersion } = detail.details;
+  if (
+    typeof currentStatus !== "string" ||
+    ![
+      "DRAFT",
+      "PENDING_REVIEW",
+      "PUBLISHED",
+      "REJECTED",
+      "HIDDEN",
+      "ARCHIVED",
+    ].includes(currentStatus) ||
+    typeof currentListingVersion !== "number" ||
+    !Number.isSafeInteger(currentListingVersion) ||
+    currentListingVersion < 1
+  )
+    return undefined;
+  return { currentStatus, currentListingVersion };
+}
+
 function publicErrorDetails(status: number, text: string, detail: unknown) {
   if (
     status === 409 &&
@@ -191,6 +223,8 @@ function publicErrorDetails(status: number, text: string, detail: unknown) {
     return invalidScheduleDetails(status, text, detail);
   const schedule = scheduleDetails(status, text, detail);
   if (schedule) return schedule;
+  const material = materialLifecycleDetails(status, text, detail);
+  if (material) return material;
   if (status === 409 && text === "INSUFFICIENT_AVAILABLE_CREDIT") {
     const userIds = (detail as { userIds?: unknown } | undefined)?.userIds;
     if (

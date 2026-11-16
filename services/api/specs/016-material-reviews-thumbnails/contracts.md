@@ -58,6 +58,19 @@ currentReview:null|MaterialReview}`. `canEdit` is re-evaluated from the same liv
     A current version in any other state returns `409 MATERIAL_DELETE_NOT_ALLOWED`.
 - `PATCH /me/materials/:materialId` rejects `fileId:null` with
   `MATERIAL_FILE_REMOVAL_UNSUPPORTED`; omission still preserves the current file.
+  Editing a manageable `ARCHIVED` material keeps that status and increments its
+  `listingVersion`.
+- `POST /me/materials/:materialId/submit` accepts `DRAFT` or manageable `ARCHIVED`
+  with no body. It checks the bound file's current `READY` and `CLEAN` state and
+  the recorded rights confirmation, then returns `PENDING_REVIEW` and a new
+  `listingVersion` on the same ID. A file or rights failure returns
+  `409 MATERIAL_FILE_REQUIRED`.
+- `POST /me/materials/:materialId/withdraw` accepts `{expectedListingVersion}`
+  for an owned `PENDING_REVIEW` material. It returns HTTP 200 and the owner
+  projection with `DRAFT` and an incremented `listingVersion`. A stale version
+  or changed state returns HTTP 409 with `details.currentStatus` and
+  `details.currentListingVersion`. A request outside the caller's management
+  scope returns `404 MATERIAL_NOT_FOUND`.
 
 ## Reporting and moderation
 

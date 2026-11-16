@@ -63,6 +63,7 @@ const EDITABLE: ReadonlySet<MaterialState> = new Set([
   "PENDING_REVIEW",
   "PUBLISHED",
   "REJECTED",
+  "ARCHIVED",
 ]);
 
 /** D3: a live listing goes back to review; a rejected one becomes a draft again. */
@@ -111,13 +112,14 @@ export function assertPublishableFile(material: {
   storageKey: string | null;
   scanStatus: string | null;
   distributionRightsConfirmedAt: Date | null;
-}): void {
+}): string {
   if (
     !material.storageKey ||
     material.scanStatus !== "CLEAN" ||
     !material.distributionRightsConfirmedAt
   )
     throw new ConflictException("MATERIAL_FILE_REQUIRED");
+  return material.storageKey;
 }
 
 /** D2: the fee floors to hundredths and the seller receives the remainder. */
