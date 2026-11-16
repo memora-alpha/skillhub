@@ -136,29 +136,29 @@ export class MaterialCatalogService {
     ]);
     const { limit, cursor } = listInput(query, scope);
     const boundary = cursor
-      ? Prisma.sql`HAVING (MAX(grant.issued_at), grant.material_id) < (${new Date(
+      ? Prisma.sql`HAVING (MAX(access_grant.issued_at), access_grant.material_id) < (${new Date(
           cursor.value,
         )}, ${cursor.id}::uuid)`
       : Prisma.empty;
     const result = await this.transactions.run(
       async (tx) => {
         const accessRows = await tx.$queryRaw<FreeAccessRow[]>`
-          SELECT grant.material_id AS id,
-                 MIN(grant.issued_at) AS "firstAccessedAt",
-                 MAX(grant.issued_at) AS "lastAccessedAt"
-          FROM material_download_grants AS grant
+          SELECT access_grant.material_id AS id,
+                 MIN(access_grant.issued_at) AS "firstAccessedAt",
+                 MAX(access_grant.issued_at) AS "lastAccessedAt"
+          FROM material_download_grants AS access_grant
           INNER JOIN materials AS material
-            ON material.material_id = grant.material_id
-          WHERE grant.requested_by = ${principal.userId}::uuid
-            AND grant.access_source = 'FREE_PUBLIC'
-            AND grant.status = 'ISSUED'
-            AND grant.issued_at IS NOT NULL
+            ON material.material_id = access_grant.material_id
+          WHERE access_grant.requested_by = ${principal.userId}::uuid
+            AND access_grant.access_source = 'FREE_PUBLIC'
+            AND access_grant.status = 'ISSUED'
+            AND access_grant.issued_at IS NOT NULL
             AND material.access_type = 'FREE'
             AND material.status = 'PUBLISHED'
             AND material.scan_status = 'CLEAN'
-          GROUP BY grant.material_id
+          GROUP BY access_grant.material_id
           ${boundary}
-          ORDER BY MAX(grant.issued_at) DESC, grant.material_id DESC
+          ORDER BY MAX(access_grant.issued_at) DESC, access_grant.material_id DESC
           LIMIT ${limit + 1}`;
         const page = listResult(
           accessRows,
