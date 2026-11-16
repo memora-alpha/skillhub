@@ -86,7 +86,7 @@ and require API CI checks. Add only these environment secrets:
 | `COOLIFY_TOKEN` | Team token with `deploy` permission |
 
 There is no self-hosted runner, registry credential, release env file, image UUID
-variable, or write/read API token required. The workflow sends a GET with Bearer
+variable, or write/read API token required. The workflow sends a POST with Bearer
 authentication; redirect and multi-resource/tag webhooks are rejected. No external
 configuration is changed by the repository work.
 

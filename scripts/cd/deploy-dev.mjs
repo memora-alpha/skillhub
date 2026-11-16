@@ -17,7 +17,7 @@ export async function triggerDeployment({ webhook, token }, request = fetch) {
       "Configure an authenticated webhook for one Coolify application",
     );
   const response = await request(url.href, {
-    method: "GET",
+    method: "POST",
     redirect: "error",
     signal: AbortSignal.timeout(15000),
     headers: { Authorization: `Bearer ${token}` },
