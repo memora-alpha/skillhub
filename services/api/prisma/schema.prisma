@@ -1517,6 +1517,9 @@ model Material {
   materialFavoriteMaterialIdRecords      MaterialFavorite[]      @relation("MaterialFavorite_material_id")
   coverFileRecord                        StoredFile?             @relation("Material_cover_file", fields: [coverFileId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
+  deletedAt                 DateTime? @map("deleted_at") @db.Timestamptz(3)
+  legacyArchiveUnclassified Boolean   @default(false) @map("legacy_archive_unclassified")
+
   @@index([ownerId])
   @@index([skillId])
   @@index([reviewedByUserId])

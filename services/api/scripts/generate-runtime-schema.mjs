@@ -554,6 +554,8 @@ model("Material", (block) =>
   fields(
     block,
     `
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  legacyArchiveUnclassified Boolean @default(false) @map("legacy_archive_unclassified")
   @@index([ownerId, updatedAt(sort: Desc), id(sort: Desc)], map: "materials_owner_page_idx")
   @@index([status, updatedAt, id], map: "materials_staff_page_idx")
 `,
