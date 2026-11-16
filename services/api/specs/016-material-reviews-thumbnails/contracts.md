@@ -56,6 +56,10 @@ currentReview:null|MaterialReview}`. `canEdit` is re-evaluated from the same liv
     `404 MATERIAL_NOT_FOUND`.
   - Before deletion, a stale version returns `409 MATERIAL_VERSION_CONFLICT`.
     A current version in any other state returns `409 MATERIAL_DELETE_NOT_ALLOWED`.
+  - A regular owner download for a deleted or unclassified legacy row returns
+    `404 MATERIAL_NOT_FOUND`. Buyers with active entitlements retain access to
+    their purchase snapshot under the existing moderation policy. Moderators
+    retain access to the current file under their moderation permission.
 - `PATCH /me/materials/:materialId` rejects `fileId:null` with
   `MATERIAL_FILE_REMOVAL_UNSUPPORTED`; omission still preserves the current file.
   Editing a manageable `ARCHIVED` material keeps that status and increments its
@@ -71,6 +75,10 @@ currentReview:null|MaterialReview}`. `canEdit` is re-evaluated from the same liv
   or changed state returns HTTP 409 with `details.currentStatus` and
   `details.currentListingVersion`. A request outside the caller's management
   scope returns `404 MATERIAL_NOT_FOUND`.
+
+Thumbnail processing continues for manageable `ARCHIVED` materials. If a
+verified legacy row has a `SUPERSEDED` thumbnail, the owner sees a placeholder
+and can attach a new cover to request a new generation.
 
 ## Reporting and moderation
 

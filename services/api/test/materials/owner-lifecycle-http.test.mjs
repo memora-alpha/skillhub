@@ -65,6 +65,11 @@ test("owner material HTTP validates the status filter and routes detail and soft
           throw new NotFoundException("MATERIAL_NOT_FOUND");
         return material;
       },
+      archive: (principal, materialId) => {
+        assert.equal(principal, actor);
+        assert.equal(materialId, id);
+        return material;
+      },
       remove: (principal, materialId, version) => {
         assert.equal(principal, actor);
         assert.equal(materialId, id);
@@ -100,6 +105,9 @@ test("owner material HTTP validates the status filter and routes detail and soft
     const detail = await fetch(`${root}/${id}`);
     assert.equal(detail.status, 200);
     assert.deepEqual((await detail.json()).data, material);
+    const archive = await fetch(`${root}/${id}/archive`, { method: "POST" });
+    assert.equal(archive.status, 201);
+    assert.deepEqual((await archive.json()).data, material);
     const missing = await fetch(`${root}/${unknownId}`);
     assert.equal(missing.status, 404);
     assert.deepEqual(await missing.json(), {

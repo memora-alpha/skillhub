@@ -86,12 +86,13 @@ trạng thái cùng version hiện tại. FE cập nhật màn hình theo `detai
 
 ## Quyền tải (mỗi lần tải đều authorize ở backend)
 
-| Người gọi                                                | Điều kiện                                                                                                 | File                                                        |
-| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| Owner hoặc moderator (`material:moderate` + STAFF/ADMIN) | mọi trạng thái                                                                                            | file hiện tại                                               |
-| User, FREE                                               | `PUBLISHED`                                                                                               | file hiện tại                                               |
-| User, PAID                                               | entitlement ACTIVE và trạng thái khác `HIDDEN` (kể cả khi listing đã chuyển FREE hoặc đang chờ duyệt lại) | `purchasedFileSnapshot.storageKey`                          |
-| Còn lại                                                  | —                                                                                                         | 403 `MATERIAL_ACCESS_DENIED` / 409 `MATERIAL_NOT_PUBLISHED` |
+| Người gọi                                     | Điều kiện                                                                          | File                                                        |
+| --------------------------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Owner                                         | Tài liệu còn trong phạm vi quản lý, gồm `ARCHIVED` đã xác minh                     | file hiện tại                                               |
+| Moderator (`material:moderate` + STAFF/ADMIN) | Theo quyền kiểm duyệt, gồm tài liệu đã xóa mềm hoặc chưa phân loại                 | file hiện tại                                               |
+| User, FREE                                    | `PUBLISHED`                                                                        | file hiện tại                                               |
+| Buyer                                         | Entitlement ACTIVE và trạng thái khác `HIDDEN`, kể cả đã xóa mềm hay đổi sang FREE | `purchasedFileSnapshot.storageKey`                          |
+| Còn lại                                       | —                                                                                  | 403 `MATERIAL_ACCESS_DENIED` / 409 `MATERIAL_NOT_PUBLISHED` |
 
 StoredFile tương ứng phải đang READY + CLEAN tại thời điểm tải; URL do `FileStorageService.issueDownload` cấp với TTL `storage.downloadTtlSeconds`.
 
