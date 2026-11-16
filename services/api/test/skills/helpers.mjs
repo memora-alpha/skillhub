@@ -39,6 +39,7 @@ export async function createSkillFixture(
   beforeSkillsMigration,
   beforeLevelMigration,
   beforeTagMigration,
+  { afterMigration } = {},
 ) {
   const schema = `skills_test_${randomUUID().replaceAll("-", "")}`;
   if (!/^skills_test_[a-f0-9]{32}$/.test(schema))
@@ -97,6 +98,7 @@ export async function createSkillFixture(
               "utf8",
             ),
           );
+          await afterMigration?.(client, name);
         }),
       Promise.resolve(),
     );

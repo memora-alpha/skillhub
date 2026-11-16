@@ -1,4 +1,5 @@
 import { ListPageQuery } from "../../../../shared/http/list-page";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
   IsBoolean,
@@ -14,6 +15,10 @@ import {
   ValidateIf,
 } from "class-validator";
 import { REPORT_REASON_CODES } from "../../../reports/presentation/http/reports.dto";
+import {
+  MATERIAL_STATES,
+  type MaterialState,
+} from "../../domain/material.policy";
 
 const ACCESS = ["FREE", "PAID"] as const;
 /** Staff review queue; DRAFTs stay private to their owner. */
@@ -57,10 +62,29 @@ export class UpdateMaterialDto {
 }
 
 export class DeleteMaterialQueryDto {
+  @ApiProperty({ minimum: 1 })
   @Type(() => Number)
   @IsInt()
   @Min(1)
   expectedListingVersion!: number;
+}
+
+export class WithdrawMaterialDto {
+  @ApiProperty({ minimum: 1 })
+  @IsInt()
+  @Min(1)
+  expectedListingVersion!: number;
+}
+
+export class OwnerMaterialListQueryDto extends ListPageQuery {
+  @ApiPropertyOptional({
+    enum: MATERIAL_STATES,
+    description:
+      "Filter by status. Omit to list materials other than ARCHIVED.",
+  })
+  @IsOptional()
+  @IsIn(MATERIAL_STATES)
+  status?: MaterialState;
 }
 
 export class MaterialQueryDto {

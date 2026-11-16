@@ -352,9 +352,9 @@ export class MaterialCatalogService {
   }
 
   /**
-   * Owner/moderator: current file. An ACTIVE purchase entitlement outranks the current
-   * accessType and serves the purchased snapshot unless HIDDEN (D4, D5, D9). Everyone
-   * else: FREE needs PUBLISHED and gets the current file; PAID is denied.
+   * Owners of manageable listings and moderators get the current file. An ACTIVE
+   * purchase entitlement serves the purchased snapshot unless HIDDEN (D4, D5, D9).
+   * Other users can download the current file when it is FREE and PUBLISHED.
    */
   private async downloadKey(
     tx: TransactionContext,
@@ -365,7 +365,13 @@ export class MaterialCatalogService {
     orderId: string | null;
     accessSource: "FREE_PUBLIC" | "PAID_ENTITLEMENT" | null;
   }> {
-    if (material.ownerId === principal.userId || isModerator(principal)) {
+    const moderator = isModerator(principal);
+    if (material.ownerId === principal.userId || moderator) {
+      if (
+        !moderator &&
+        (material.deletedAt !== null || material.legacyArchiveUnclassified)
+      )
+        throw new NotFoundException("MATERIAL_NOT_FOUND");
       if (!material.storageKey)
         throw new ConflictException("MATERIAL_FILE_REQUIRED");
       return {

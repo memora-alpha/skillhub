@@ -25,10 +25,14 @@ DRAFT --submit--> PENDING_REVIEW --approve--> PUBLISHED
                        |  \--reject(reason)--> REJECTED --edit--> DRAFT
 PUBLISHED --edit--> PENDING_REVIEW
 PUBLISHED|PENDING_REVIEW --hide(reason)--> HIDDEN --unhide(reason)--> PUBLISHED
-DRAFT|PENDING_REVIEW|PUBLISHED|REJECTED --archive--> ARCHIVED
+PUBLISHED --archive--> ARCHIVED (deletedAt = null)
+ARCHIVED --edit--> ARCHIVED --submit--> PENDING_REVIEW
+PENDING_REVIEW --withdraw--> DRAFT
+DRAFT|ARCHIVED --delete--> ARCHIVED (deletedAt có giá trị)
 ```
 
-Submit/approve/unhide yêu cầu file đã gắn, `scanStatus=CLEAN`, `distributionRightsConfirmedAt` có giá trị.
+Submit/approve/unhide yêu cầu `scanStatus=CLEAN`, xác nhận quyền phân phối và tệp
+đang gắn có trạng thái `READY` với kết quả quét `CLEAN`.
 
 ## HTTP API (`/api/v1`)
 
@@ -38,11 +42,14 @@ Submit/approve/unhide yêu cầu file đã gắn, `scanStatus=CLEAN`, `distribut
 | GET    | `/materials/:id`               | public    | Metadata/preview của PUBLISHED; không có storageKey                                                                           |
 | POST   | `/me/materials/files`          | owner     | Upload multipart (purpose MATERIAL, ≤20MB, pdf/docx/pptx/xlsx) → QUARANTINED                                                  |
 | GET    | `/me/materials/files/:fileId`  | owner     | Trạng thái scan                                                                                                               |
-| GET    | `/me/materials`                | owner     | Tài liệu của tôi (mọi trạng thái)                                                                                             |
+| GET    | `/me/materials`                | owner     | Danh sách quản lý theo `status`, `limit`, `cursor`. Mặc định loại `ARCHIVED`.                                                 |
+| GET    | `/me/materials/:id`            | owner     | Chi tiết quản lý, gồm tài liệu `ARCHIVED` còn quản lý được.                                                                   |
 | POST   | `/me/materials`                | owner     | Tạo DRAFT (fileId tùy chọn, `distributionRightsConfirmed: true`)                                                              |
 | PATCH  | `/me/materials/:id`            | owner     | Sửa, bắt buộc `expectedListingVersion`                                                                                        |
-| POST   | `/me/materials/:id/submit`     | owner     | DRAFT → PENDING_REVIEW                                                                                                        |
-| POST   | `/me/materials/:id/archive`    | owner     | → ARCHIVED                                                                                                                    |
+| POST   | `/me/materials/:id/submit`     | owner     | `DRAFT` hoặc `ARCHIVED` còn quản lý được → `PENDING_REVIEW`. Body rỗng, trả version mới.                                      |
+| POST   | `/me/materials/:id/withdraw`   | owner     | `PENDING_REVIEW → DRAFT` với body `expectedListingVersion`.                                                                   |
+| POST   | `/me/materials/:id/archive`    | owner     | `PUBLISHED → ARCHIVED`. Body rỗng. Trả `listingVersion` mới.                                                                  |
+| DELETE | `/me/materials/:id`            | owner     | Xóa mềm `DRAFT` hoặc `ARCHIVED` còn quản lý được với query `expectedListingVersion`.                                          |
 | GET    | `/materials/:id/download`      | user      | Authorize rồi trả signed URL ngắn hạn                                                                                         |
 | POST   | `/materials/:id/purchase`      | user      | Header `Idempotency-Key`; body `expectedListingVersion`; 201 mới / 200 replay                                                 |
 | GET    | `/me/material-orders`          | user      | Đơn đã mua                                                                                                                    |
@@ -52,14 +59,40 @@ Submit/approve/unhide yêu cầu file đã gắn, `scanStatus=CLEAN`, `distribut
 
 Report material được xử lý tiếp bằng queue `/reports/staff/*` sẵn có.
 
+Sau khi ngừng chia sẻ thành công, FE tải trang đầu của `GET /me/materials?status=ARCHIVED`.
+Nếu mất response, dùng `GET /me/materials/:id` để đọc `status` và `listingVersion`
+hiện tại. Chi tiết trả 404 với tài liệu khác chủ, không tồn tại, đã xóa hoặc `ARCHIVED`
+cũ chưa phân loại. Xem [contract xóa mềm](../016-material-reviews-thumbnails/contracts.md#buyer-library-and-owner-material-management).
+
+Owner có thể sửa tài liệu đã ngừng chia sẻ và gửi duyệt lại với cùng `materialId`.
+Mỗi lần gửi tạo một `listingVersion` mới. Trang công khai chỉ mở lại sau khi Staff duyệt version đó.
+
+Ví dụ rút duyệt bằng `POST /me/materials/:id/withdraw` với body
+`{"expectedListingVersion":7}`. Thành công trả HTTP 200 với owner projection gồm
+`status: "DRAFT"`, `moderationStatus: "NONE"` và `listingVersion: 8`. Lịch sử
+duyệt vẫn nằm trong audit. Nếu Staff đã duyệt version 7 trước khi owner rút, API trả HTTP 409.
+
+```json
+{
+  "success": false,
+  "statusCode": 409,
+  "message": "MATERIAL_TRANSITION_INVALID",
+  "details": { "currentStatus": "PUBLISHED", "currentListingVersion": 7 }
+}
+```
+
+Nếu version đã đổi, `message` là `MATERIAL_VERSION_CONFLICT` và `details` chứa
+trạng thái cùng version hiện tại. FE cập nhật màn hình theo `details` hoặc tải lại chi tiết.
+
 ## Quyền tải (mỗi lần tải đều authorize ở backend)
 
-| Người gọi                                                | Điều kiện                                                                                                 | File                                                        |
-| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| Owner hoặc moderator (`material:moderate` + STAFF/ADMIN) | mọi trạng thái                                                                                            | file hiện tại                                               |
-| User, FREE                                               | `PUBLISHED`                                                                                               | file hiện tại                                               |
-| User, PAID                                               | entitlement ACTIVE và trạng thái khác `HIDDEN` (kể cả khi listing đã chuyển FREE hoặc đang chờ duyệt lại) | `purchasedFileSnapshot.storageKey`                          |
-| Còn lại                                                  | —                                                                                                         | 403 `MATERIAL_ACCESS_DENIED` / 409 `MATERIAL_NOT_PUBLISHED` |
+| Người gọi                                     | Điều kiện                                                                          | File                                                        |
+| --------------------------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Owner                                         | Tài liệu còn trong phạm vi quản lý, gồm `ARCHIVED` đã xác minh                     | file hiện tại                                               |
+| Moderator (`material:moderate` + STAFF/ADMIN) | Theo quyền kiểm duyệt, gồm tài liệu đã xóa mềm hoặc chưa phân loại                 | file hiện tại                                               |
+| User, FREE                                    | `PUBLISHED`                                                                        | file hiện tại                                               |
+| Buyer                                         | Entitlement ACTIVE và trạng thái khác `HIDDEN`, kể cả đã xóa mềm hay đổi sang FREE | `purchasedFileSnapshot.storageKey`                          |
+| Còn lại                                       | —                                                                                  | 403 `MATERIAL_ACCESS_DENIED` / 409 `MATERIAL_NOT_PUBLISHED` |
 
 StoredFile tương ứng phải đang READY + CLEAN tại thời điểm tải; URL do `FileStorageService.issueDownload` cấp với TTL `storage.downloadTtlSeconds`.
 

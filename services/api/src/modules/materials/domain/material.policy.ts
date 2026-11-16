@@ -4,8 +4,15 @@ import type { PermissionCode } from "../../../shared/authorization/permission.ca
 import { parseCredit } from "../../credit/domain/money";
 
 export type MaterialAccess = "FREE" | "PAID";
-export type MaterialState =
-  "DRAFT" | "PENDING_REVIEW" | "PUBLISHED" | "REJECTED" | "HIDDEN" | "ARCHIVED";
+export const MATERIAL_STATES = [
+  "DRAFT",
+  "PENDING_REVIEW",
+  "PUBLISHED",
+  "REJECTED",
+  "HIDDEN",
+  "ARCHIVED",
+] as const;
+export type MaterialState = (typeof MATERIAL_STATES)[number];
 export type ModerationAction = "approve" | "reject" | "hide" | "unhide";
 
 export const MATERIAL_PERMISSIONS = {
@@ -56,6 +63,7 @@ const EDITABLE: ReadonlySet<MaterialState> = new Set([
   "PENDING_REVIEW",
   "PUBLISHED",
   "REJECTED",
+  "ARCHIVED",
 ]);
 
 /** D3: a live listing goes back to review; a rejected one becomes a draft again. */
@@ -67,9 +75,9 @@ export function statusAfterEdit(status: MaterialState): MaterialState {
   return status;
 }
 
-/** Owners may stop distributing anything they could still edit; HIDDEN stays with Staff. */
+/** Stop sharing a published listing. */
 export function assertArchivable(status: MaterialState): void {
-  if (!EDITABLE.has(status))
+  if (status !== "PUBLISHED")
     throw new ConflictException("MATERIAL_TRANSITION_INVALID");
 }
 
@@ -104,13 +112,14 @@ export function assertPublishableFile(material: {
   storageKey: string | null;
   scanStatus: string | null;
   distributionRightsConfirmedAt: Date | null;
-}): void {
+}): string {
   if (
     !material.storageKey ||
     material.scanStatus !== "CLEAN" ||
     !material.distributionRightsConfirmedAt
   )
     throw new ConflictException("MATERIAL_FILE_REQUIRED");
+  return material.storageKey;
 }
 
 /** D2: the fee floors to hundredths and the seller receives the remainder. */

@@ -279,3 +279,145 @@ test("material search, preview and download rules on isolated PostgreSQL", async
     await f.dispose();
   }
 });
+
+test("buyers retain the purchased file and history after the owner replaces or deletes the listing", async () => {
+  const f = await createMaterialFixture();
+  try {
+    const owner = await f.account();
+    const buyer = await f.account();
+    const visitor = await f.account();
+    for (const deleteFrom of ["DRAFT", "ARCHIVED"]) {
+      await f.fund(buyer, 5000n);
+      const original = await f.materialFile(owner);
+      let material = await f.publishedMaterial(owner, {
+        fileId: original.id,
+        accessType: "PAID",
+        priceCredit: "20",
+      });
+      const { id } = material;
+      const purchase = await f.purchases.purchase(
+        buyer.principal,
+        id,
+        material.listingVersion,
+        `purchase-${deleteFrom}`,
+      );
+      const { review } = await f.reviews.create(
+        buyer.principal,
+        id,
+        { rating: 5 },
+        `review-${deleteFrom}`,
+      );
+      const readHistory = async () =>
+        Promise.all([
+          f.db.materialOrder.findUniqueOrThrow({
+            where: { id: purchase.order.id },
+          }),
+          f.db.materialEntitlement.findUniqueOrThrow({
+            where: { sourceOrderId: purchase.order.id },
+          }),
+          f.db.materialReview.findUniqueOrThrow({ where: { id: review.id } }),
+          f.db.materialRatingSummary.findUniqueOrThrow({
+            where: { materialId: id },
+          }),
+          f.db.creditTransaction.findMany({ orderBy: { id: "asc" } }),
+        ]);
+      const checkBuyer = async () => {
+        const { url } = await f.catalog.download(buyer.principal, id);
+        assert.equal(new URL(url).searchParams.get("key"), original.objectKey);
+      };
+      const checkUnavailable = async () => {
+        await checkBuyer();
+        await assert.rejects(f.catalog.detail(id), /MATERIAL_NOT_FOUND/);
+        await assert.rejects(
+          f.catalog.download(visitor.principal, id),
+          /MATERIAL_NOT_PUBLISHED|MATERIAL_ACCESS_DENIED/,
+        );
+        await assert.rejects(
+          f.purchases.purchase(
+            visitor.principal,
+            id,
+            material.listingVersion,
+            `unavailable-${deleteFrom}`,
+          ),
+          material.accessType === "PAID"
+            ? /MATERIAL_NOT_PUBLISHED/
+            : /MATERIAL_NOT_PAID/,
+        );
+      };
+      await checkBuyer();
+      // The first signed download starts the existing consumption policy.
+      const history = await readHistory();
+      assert.ok(history[0].consumedAt instanceof Date);
+      assert.equal(
+        history[0].purchasedFileSnapshot.storageKey,
+        original.objectKey,
+      );
+      material = await f.materials.archive(owner.principal, id);
+      await checkUnavailable();
+      if (deleteFrom === "ARCHIVED") {
+        await f.db.material.update({
+          where: { id },
+          data: { legacyArchiveUnclassified: true },
+        });
+        await assert.rejects(
+          f.catalog.download(owner.principal, id),
+          /MATERIAL_NOT_FOUND/,
+        );
+        await checkBuyer();
+        await f.db.material.update({
+          where: { id },
+          data: { legacyArchiveUnclassified: false },
+        });
+      }
+      const replacement = await f.materialFile(owner);
+      material = await f.materials.update(owner.principal, id, {
+        expectedListingVersion: material.listingVersion,
+        fileId: replacement.id,
+        distributionRightsConfirmed: true,
+        accessType: "FREE",
+        priceCredit: "0",
+      });
+      await checkUnavailable();
+      material = await f.materials.submit(owner.principal, id);
+      await checkUnavailable();
+      if (deleteFrom === "DRAFT") {
+        material = await f.materials.withdraw(
+          owner.principal,
+          id,
+          material.listingVersion,
+        );
+      } else {
+        material = await f.moderation.moderate(
+          f.moderator.principal,
+          id,
+          "approve",
+          { expectedListingVersion: material.listingVersion },
+        );
+        await checkBuyer();
+        const { url } = await f.catalog.download(visitor.principal, id);
+        assert.equal(
+          new URL(url).searchParams.get("key"),
+          replacement.objectKey,
+        );
+        assert.equal((await f.reviews.list(id, {})).summary.total, 1);
+        material = await f.materials.archive(owner.principal, id);
+      }
+      assert.equal(material.status, deleteFrom);
+      await checkUnavailable();
+      await f.materials.remove(owner.principal, id, material.listingVersion);
+      await checkUnavailable();
+      await assert.rejects(
+        f.catalog.download(owner.principal, id),
+        /MATERIAL_NOT_FOUND/,
+      );
+      const staffDownload = await f.catalog.download(f.moderator.principal, id);
+      assert.equal(
+        new URL(staffDownload.url).searchParams.get("key"),
+        replacement.objectKey,
+      );
+      assert.deepEqual(await readHistory(), history);
+    }
+  } finally {
+    await f.dispose();
+  }
+});

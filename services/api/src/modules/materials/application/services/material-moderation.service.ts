@@ -14,13 +14,13 @@ import { TransactionRunner } from "../../../../infrastructure/database/transacti
 import { AuditWriter } from "../../../audit/application/services/audit-writer";
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import {
-  assertPublishableFile,
   moderationTransition,
   type MaterialState,
   type ModerationAction,
 } from "../../domain/material.policy";
 import { ownerMaterialView } from "../contracts/material-view";
 import {
+  assertReadyMaterialFile,
   auditContext,
   lockMaterial,
   requireModerator,
@@ -80,7 +80,8 @@ export class MaterialModerationService {
       if (current.listingVersion !== input.expectedListingVersion)
         throw new ConflictException("MATERIAL_VERSION_CONFLICT");
       const next = moderationTransition(action, current.status);
-      if (next.status === "PUBLISHED") assertPublishableFile(current);
+      if (next.status === "PUBLISHED")
+        await assertReadyMaterialFile(tx, current);
       const updated = await tx.material.update({
         where: { id },
         data: {

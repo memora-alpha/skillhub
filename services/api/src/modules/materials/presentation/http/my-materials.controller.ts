@@ -1,10 +1,10 @@
-import { ListPageQuery } from "../../../../shared/http/list-page";
 import {
   BadRequestException,
   Body,
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -20,6 +20,8 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
+  ApiConflictResponse,
+  ApiNotFoundResponse,
   ApiOperation,
   ApiTags,
 } from "@nestjs/swagger";
@@ -36,7 +38,9 @@ import { MaterialsService } from "../../application/services/materials.service";
 import {
   CreateMaterialDto,
   DeleteMaterialQueryDto,
+  OwnerMaterialListQueryDto,
   UpdateMaterialDto,
+  WithdrawMaterialDto,
 } from "./materials.dto";
 
 @ApiTags("materials")
@@ -119,10 +123,20 @@ export class MyMaterialsController {
   @Get()
   async mine(
     @CurrentIdentity() actor: Principal,
-    @Query() query: ListPageQuery,
+    @Query() query: OwnerMaterialListQueryDto,
   ) {
     const result = await this.materials.listMine(actor, query);
     return paginated(result.data, result.pagination);
+  }
+
+  @Get(":materialId")
+  @ApiOperation({ summary: "Read an owned material for management" })
+  @ApiNotFoundResponse({ description: "MATERIAL_NOT_FOUND" })
+  async getMine(
+    @CurrentIdentity() actor: Principal,
+    @Param("materialId", ParseUUIDPipe) id: string,
+  ) {
+    return success(await this.materials.getMine(actor, id));
   }
 
   @Post()
@@ -149,6 +163,9 @@ export class MyMaterialsController {
   }
 
   @Post(":materialId/submit")
+  @ApiOperation({
+    summary: "Submit an owned DRAFT or ARCHIVED material for review",
+  })
   async submit(
     @CurrentIdentity() actor: Principal,
     @Param("materialId", ParseUUIDPipe) id: string,
@@ -159,7 +176,29 @@ export class MyMaterialsController {
     );
   }
 
+  @Post(":materialId/withdraw")
+  @HttpCode(200)
+  @ApiOperation({ summary: "Withdraw an owned material from review" })
+  @ApiNotFoundResponse({ description: "MATERIAL_NOT_FOUND" })
+  @ApiConflictResponse({
+    description:
+      "MATERIAL_VERSION_CONFLICT or MATERIAL_TRANSITION_INVALID. Details include currentStatus and currentListingVersion for the owner.",
+  })
+  async withdraw(
+    @CurrentIdentity() actor: Principal,
+    @Param("materialId", ParseUUIDPipe) id: string,
+    @Body() body: WithdrawMaterialDto,
+  ) {
+    return success(
+      await this.materials.withdraw(actor, id, body.expectedListingVersion),
+      "Material withdrawn from review.",
+    );
+  }
+
   @Post(":materialId/archive")
+  @ApiOperation({ summary: "Stop sharing an owned PUBLISHED material" })
+  @ApiNotFoundResponse({ description: "MATERIAL_NOT_FOUND" })
+  @ApiConflictResponse({ description: "MATERIAL_TRANSITION_INVALID" })
   async archive(
     @CurrentIdentity() actor: Principal,
     @Param("materialId", ParseUUIDPipe) id: string,
@@ -171,15 +210,22 @@ export class MyMaterialsController {
   }
 
   @Delete(":materialId")
-  @ApiOperation({ summary: "Soft-delete an owned DRAFT by listing version" })
-  async removeDraft(
+  @ApiOperation({
+    summary:
+      "Soft-delete an owned DRAFT or ARCHIVED material by listing version",
+  })
+  @ApiNotFoundResponse({ description: "MATERIAL_NOT_FOUND" })
+  @ApiConflictResponse({
+    description: "MATERIAL_VERSION_CONFLICT or MATERIAL_DELETE_NOT_ALLOWED",
+  })
+  async remove(
     @CurrentIdentity() actor: Principal,
     @Param("materialId", ParseUUIDPipe) id: string,
     @Query() query: DeleteMaterialQueryDto,
   ) {
     return success(
-      await this.materials.removeDraft(actor, id, query.expectedListingVersion),
-      "Material draft deleted.",
+      await this.materials.remove(actor, id, query.expectedListingVersion),
+      "Material deleted.",
     );
   }
 }
