@@ -24,7 +24,7 @@ export function SectionHeading({
   title,
   action,
   onPress,
-  margin = 12,
+  margin = 8,
   accent = colors.orange,
 }: {
   title: string;
@@ -57,7 +57,7 @@ export function SectionHeading({
   );
 }
 export const homeStyles = StyleSheet.create({
-  stack: { gap: 28 },
+  stack: { gap: 16 },
   section: { gap: 0 },
   sectionTitle: {
     flex: 1,

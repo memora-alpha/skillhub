@@ -70,11 +70,6 @@ function PurchaseContent({ id }: Readonly<{ id: string }>) {
           ) : (
             <>
               <View style={styles.payment}>
-                <Text style={styles.sectionTitle}>Thanh toán bằng Credit</Text>
-                <View style={styles.row}>
-                  <Text style={styles.meta}>Giá tài liệu</Text>
-                  <Text style={styles.price}>{materialPrice(material)}</Text>
-                </View>
                 <View style={styles.row}>
                   <Text style={styles.meta}>Số dư khả dụng</Text>
                   <HomeWalletBalance />

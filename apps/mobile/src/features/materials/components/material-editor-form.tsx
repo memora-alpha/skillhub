@@ -149,11 +149,6 @@ export function MaterialEditorForm({
               <Text style={styles.title}>
                 {value === "FREE" ? "Miễn phí" : "Trả phí"}
               </Text>
-              <Text style={styles.meta}>
-                {value === "FREE"
-                  ? "Cùng nhau học tập"
-                  : "Thanh toán bằng Credit"}
-              </Text>
             </Pressable>
           ))}
         </View>

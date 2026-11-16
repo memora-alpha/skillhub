@@ -11,6 +11,8 @@ export function filePickerError(
   if (error instanceof FileSelectionError) return error.message;
   if (error instanceof AppError) {
     switch (error.code) {
+      case "FILE_ARCHIVE_EXPANSION_LIMIT_EXCEEDED":
+        return "Tệp Office vượt giới hạn an toàn khi giải nén. Hãy tối ưu hoặc xuất lại tệp, hoặc chuyển sang PDF rồi tải lại.";
       case "FILE_STORAGE_UNAVAILABLE":
         return "Kho lưu trữ tệp đang không khả dụng. Vui lòng thử lại sau.";
       case "FILE_POLICY_UNAVAILABLE":

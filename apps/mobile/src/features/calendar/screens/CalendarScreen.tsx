@@ -70,8 +70,10 @@ export function CalendarScreen() {
               setDay(null);
             }}
           />
-          <Text accessibilityRole="header" style={styles.heading}>
-            Buổi học
+          <Text style={styles.summary}>
+            {query.data
+              ? `${day === null ? "Trong tháng" : `Ngày ${day}/${month + 1}`} · ${visible.length} buổi học`
+              : "Buổi học"}
           </Text>
           <SessionFeedback
             {...query}
@@ -112,14 +114,19 @@ const styles = StyleSheet.create({
     ...typography.heading,
     color: colors.ink,
   },
+  summary: {
+    fontFamily: fonts.semibold,
+    ...typography.secondary,
+    color: colors.ink,
+  },
   background: { backgroundColor: colors.background },
   page: {
     width: "100%",
     maxWidth: 640,
     alignSelf: "center",
-    padding: 16,
+    padding: 12,
     paddingTop: 8,
     paddingBottom: 28,
-    gap: 16,
+    gap: 12,
   },
 });

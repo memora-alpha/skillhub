@@ -1,10 +1,5 @@
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
-import {
-  appColors as colors,
-  appRadius,
-  fonts,
-  typography,
-} from "@/constants/theme";
+import { appColors as colors, fonts, typography } from "@/constants/theme";
 
 export const reviewTabs = [
   { value: "received", label: "Nhận được" },
@@ -75,10 +70,8 @@ export function ReviewTabs({
 const styles = StyleSheet.create({
   tabs: {
     flexDirection: "row",
-    gap: 4,
-    padding: 4,
-    borderRadius: appRadius.control,
-    backgroundColor: colors.surfaceInset,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   tab: {
     flex: 1,
@@ -88,9 +81,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: appRadius.button,
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
   },
-  selected: { backgroundColor: colors.surface },
+  selected: { borderBottomColor: colors.primary },
   pressed: { opacity: 0.7 },
   label: {
     fontFamily: fonts.semibold,

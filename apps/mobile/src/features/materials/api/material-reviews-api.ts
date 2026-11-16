@@ -57,13 +57,25 @@ const eligibility = z
   .object({
     canReview: z.boolean(),
     reasonCode: materialReviewReasons.nullable(),
+    canEdit: z.boolean().optional(),
+    editReasonCode: materialReviewReasons
+      .or(z.literal("MATERIAL_REVIEW_NOT_FOUND"))
+      .nullable()
+      .optional(),
     currentReview: ownMaterialReview.nullable(),
   })
   .refine((value) =>
     value.canReview
       ? value.reasonCode === null && value.currentReview === null
       : value.reasonCode !== null,
-  );
+  )
+  .refine((value) => {
+    if (value.canEdit === undefined) return value.editReasonCode === undefined;
+    return value.canEdit
+      ? value.currentReview?.status === "VISIBLE" &&
+          value.editReasonCode === null
+      : typeof value.editReasonCode === "string";
+  });
 export const materialReviewInput = z.object({
   rating,
   comment: comment.optional(),

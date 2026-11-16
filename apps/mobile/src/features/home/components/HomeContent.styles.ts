@@ -3,17 +3,12 @@ import { fonts, typography } from "@/constants/theme";
 import { homeCardShadow, homeColors as colors } from "../constants/theme";
 
 export const styles = StyleSheet.create({
-  columns: { gap: 24 },
+  columns: { gap: 16 },
   wideColumns: { flexDirection: "row", alignItems: "flex-start" },
   wideColumn: { flex: 1 },
-  primary: { minWidth: 0, gap: 28 },
-  secondary: { minWidth: 0, gap: 24 },
+  primary: { minWidth: 0, gap: 16 },
+  secondary: { minWidth: 0, gap: 16 },
   pressed: { opacity: 0.75 },
-  greeting: {
-    fontFamily: fonts.medium,
-    ...typography.secondary,
-    color: colors.muted,
-  },
   wallet: {
     flexDirection: "row",
     alignItems: "center",
@@ -37,13 +32,8 @@ export const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.muted,
   },
-  credit: {
-    fontFamily: fonts.bold,
-    ...typography.body,
-    color: colors.ink,
-  },
   session: {
-    padding: 20,
+    padding: 16,
     gap: 12,
     borderRadius: 24,
     boxShadow: "0 6px 18px rgba(214, 114, 66, 0.12)",
@@ -57,27 +47,7 @@ export const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: "#FFFAF5",
   },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.green,
-  },
   statusLabel: {
-    fontFamily: fonts.semibold,
-    ...typography.caption,
-    color: colors.body,
-  },
-  meetingBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: "rgba(255, 255, 255, 0.45)",
-  },
-  meetingLabel: {
     fontFamily: fonts.semibold,
     ...typography.caption,
     color: colors.body,
@@ -119,28 +89,6 @@ export const styles = StyleSheet.create({
     gap: 10,
     marginTop: 16,
   },
-  sessionSchedule: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    flexShrink: 1,
-  },
-  sessionTime: {
-    fontFamily: fonts.medium,
-    ...typography.secondary,
-    color: colors.body,
-  },
-  sessionButton: {
-    minHeight: 36,
-    gap: 4,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-  },
-  sessionButtonLabel: {
-    fontFamily: fonts.bold,
-    ...typography.secondary,
-    color: colors.orange,
-  },
   card: {
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -157,18 +105,6 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: colors.yellowSoft,
   },
-  courseCount: {
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: "#F7F8FA",
-  },
-  courseCountLabel: {
-    fontFamily: fonts.bold,
-    ...typography.caption,
-    color: colors.ink,
-  },
-  progress: { height: 6, overflow: "hidden", borderRadius: 3 },
   stats: { flexDirection: "row", gap: 12 },
   stat: {
     flex: 1,
@@ -199,11 +135,6 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.yellowSoft,
     alignItems: "center",
     justifyContent: "center",
-  },
-  achievementPercent: {
-    fontFamily: fonts.bold,
-    ...typography.secondary,
-    color: colors.orange,
   },
   request: { padding: 16, gap: 10 },
   match: {
@@ -251,49 +182,5 @@ export const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     ...typography.caption,
     color: colors.orange,
-  },
-  messages: { paddingHorizontal: 16 },
-  message: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 14,
-  },
-  messageDivider: { borderTopWidth: 1, borderTopColor: colors.border },
-  messageAvatar: { position: "relative" },
-  onlineDot: {
-    position: "absolute",
-    right: 0,
-    bottom: 0,
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    backgroundColor: colors.green,
-    borderWidth: 2,
-    borderColor: colors.surface,
-  },
-  emptyMessages: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 16,
-  },
-  time: {
-    fontFamily: fonts.medium,
-    ...typography.caption,
-    color: colors.muted,
-  },
-  unread: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: colors.orange,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  unreadLabel: {
-    fontFamily: fonts.bold,
-    ...typography.caption,
-    color: colors.surface,
   },
 });

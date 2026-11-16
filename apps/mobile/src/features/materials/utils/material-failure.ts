@@ -1,6 +1,10 @@
 import { connectionError } from "@/features/connections";
 import { AppError } from "@/lib/http/errors";
 const messages: Readonly<Record<string, string>> = {
+  MATERIAL_DELETE_REQUIRES_DRAFT:
+    "Chỉ có thể xóa tài liệu còn là bản nháp. Tải lại để kiểm tra trạng thái.",
+  MATERIAL_FILE_REMOVAL_UNSUPPORTED:
+    "Chưa thể gỡ tệp nội dung đã lưu. Bạn có thể chọn tệp thay thế.",
   MATERIAL_REVIEW_NOT_ALLOWED:
     "Bạn chưa đủ điều kiện đánh giá. Tải lại để xem quyền hiện tại.",
   MATERIAL_REVIEW_VERSION_CONFLICT:

@@ -26,6 +26,9 @@ function AccessContent({ id }: Readonly<{ id: string }>) {
   const cache = useQueryClient();
   const download = useMaterialDownload(id, () => {
     void cache.invalidateQueries({
+      queryKey: [...runtime.key, "materials", "free-library"],
+    });
+    void cache.invalidateQueries({
       queryKey: [...runtime.key, "materials", "orders"],
     });
   });
@@ -97,9 +100,6 @@ function AccessContent({ id }: Readonly<{ id: string }>) {
               ? "Mua tài liệu"
               : "Tải tài liệu"}
         </Button>
-        <Text style={styles.caption}>
-          Quyền truy cập được hệ thống kiểm tra ở mỗi lần tải.
-        </Text>
       </View>
     </FeaturePage>
   );

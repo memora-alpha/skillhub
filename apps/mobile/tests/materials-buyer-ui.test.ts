@@ -19,7 +19,7 @@ function nodes(value: unknown): Node[] {
 const jsx = (type: unknown, props: unknown) => ({ type, props });
 const at = "2026-11-16T03:00:00Z";
 
-test("purchased cards use order metadata and review state without per-row reads, and refund locks never prevent downloading", async () => {
+test("purchased cards open details from snapshots, bound extra reads and preserve download/refund guards", async () => {
   const local = createRequire(
     new URL(
       "../src/features/materials/components/material-order-card.tsx",
@@ -30,6 +30,8 @@ test("purchased cards use order metadata and review state without per-row reads,
     reviewEnabled: boolean | undefined,
     route: string | undefined;
   let issued: (() => void) | undefined;
+  let publicMaterial: ReturnType<typeof fixtureMaterial> | undefined;
+  const downloads: boolean[] = [];
   const invalidations: unknown[] = [];
   const contexts = Object.entries({
     "react/jsx-runtime": { jsx, jsxs: jsx },
@@ -54,7 +56,7 @@ test("purchased cards use order metadata and review state without per-row reads,
     "../hooks/use-materials": {
       usePublicMaterial: (_id: string, enabled: boolean) => {
         publicEnabled = enabled;
-        return { data: fixtureMaterial({ title: "Tên phiên bản mới" }) };
+        return { data: publicMaterial };
       },
     },
     "../hooks/use-material-reviews": {
@@ -69,7 +71,9 @@ test("purchased cards use order metadata and review state without per-row reads,
         return {
           pending: false,
           awaitingConfirmation: false,
-          start: async () => {},
+          start: async (confirm: boolean) => {
+            downloads.push(confirm);
+          },
         };
       },
     },
@@ -140,6 +144,21 @@ test("purchased cards use order metadata and review state without per-row reads,
     );
     assert.equal(button("Hoàn tiền").props.disabled, true);
     assert.equal(button("Tải tài liệu").props.disabled, false);
+    (
+      tree.find((node) => node.type === "Pressable")!.props
+        .onPress as () => void
+    )();
+    assert.equal(route, `/materials/${order.materialId}`);
+    assert.deepEqual(downloads, [], "opening details never issues a download");
+    await (button("Tải tài liệu").props.onPress as () => Promise<void>)();
+    assert.deepEqual(downloads, [true]);
+    publicMaterial = fixtureMaterial({ title: "Tên phiên bản mới" });
+    tree = render();
+    (
+      tree.find((node) => node.type === "Pressable")!.props
+        .onPress as () => void
+    )();
+    assert.equal(route, `/materials/${order.materialId}`);
     (button("Viết đánh giá").props.onPress as () => void)();
     assert.equal(route, `/materials/${order.materialId}/review`);
     issued?.();
@@ -166,6 +185,11 @@ test("purchased cards use order metadata and review state without per-row reads,
     };
     order.status = "REFUNDED";
     tree = render();
+    (
+      tree.find((node) => node.type === "Pressable")!.props
+        .onPress as () => void
+    )();
+    assert.equal(route, `/materials/${order.materialId}`);
     assert.ok(button("Xem đánh giá"));
     assert.equal(
       tree.some(

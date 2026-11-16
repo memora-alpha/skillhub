@@ -7,13 +7,6 @@ import {
 } from "@/constants/theme";
 
 export const achievementStyles = StyleSheet.create({
-  headingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    flexWrap: "wrap",
-    gap: 8,
-  },
   heading: { fontFamily: fonts.bold, ...typography.heading, color: colors.ink },
   meta: {
     fontFamily: fonts.body,
@@ -56,7 +49,6 @@ export const achievementStyles = StyleSheet.create({
     justifyContent: "center",
   },
   hideAction: { paddingHorizontal: 4, gap: 4 },
-  filters: { gap: 8, flexDirection: "row" },
   grid: { gap: 8 },
   tile: {
     width: "100%",

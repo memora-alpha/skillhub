@@ -1,4 +1,7 @@
+import { useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Button } from "@/components/Button";
+import { signedInChrome } from "@/constants/theme";
 import { FeaturePage } from "@/components/feature-page";
 import { useConnections } from "@/features/connections";
 import { MyMaterialTabs, myMaterialTab } from "../components/my-material-tabs";
@@ -8,18 +11,37 @@ import { SavedMaterialsContent } from "./saved-materials-content";
 
 export function MyMaterialsScreen() {
   const runtime = useConnections();
-  return <MyMaterialsContent key={JSON.stringify(runtime.key)} />;
+  return (
+    <MyMaterialsContent
+      key={JSON.stringify(runtime.key)}
+      enabled={runtime.enabled}
+    />
+  );
 }
-function MyMaterialsContent() {
+function MyMaterialsContent({ enabled }: Readonly<{ enabled: boolean }>) {
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const router = useRouter();
   const selected = myMaterialTab(tab);
+  const [postedCreateDisabled, setPostedCreateDisabled] = useState(true);
   return (
     <FeaturePage
       title="Tài liệu của tôi"
       back="/profile"
       backBehavior="history"
       scrollable={false}
+      rightAction={
+        <Button
+          variant="craft"
+          size="sm"
+          style={{ backgroundColor: signedInChrome.accent }}
+          leadingIcon="plus"
+          accessibilityLabel="Đăng tài liệu"
+          disabled={!enabled || (selected === "posted" && postedCreateDisabled)}
+          onPress={() => router.push("/materials/new")}
+        >
+          Đăng tài liệu
+        </Button>
+      }
     >
       <MyMaterialTabs
         value={selected}
@@ -28,7 +50,9 @@ function MyMaterialsContent() {
       {selected === "library" ? (
         <MaterialLibraryContent />
       ) : selected === "posted" ? (
-        <PostedMaterialsContent />
+        <PostedMaterialsContent
+          onCreateDisabledChange={setPostedCreateDisabled}
+        />
       ) : (
         <SavedMaterialsContent />
       )}

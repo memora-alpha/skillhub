@@ -80,12 +80,6 @@ export const reviewStyles = StyleSheet.create({
     gap: 8,
   },
   submit: { flexGrow: 1, minWidth: 140 },
-  formHeading: {
-    fontFamily: fonts.bold,
-    ...typography.title,
-    color: colors.ink,
-    textAlign: "center",
-  },
   ratingPanel: { alignItems: "center", paddingVertical: 12 },
   counter: {
     fontFamily: fonts.body,

@@ -22,8 +22,8 @@ export function HomeDashboard() {
             width: "100%",
             maxWidth: 1040,
             alignSelf: "center",
-            padding: 20,
-            paddingBottom: 32,
+            padding: 12,
+            paddingBottom: 24,
           }}
           keyboardShouldPersistTaps="handled"
           refreshing={refresh.refreshing}

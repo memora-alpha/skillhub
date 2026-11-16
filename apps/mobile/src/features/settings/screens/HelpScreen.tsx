@@ -92,7 +92,7 @@ export function HelpScreen() {
 }
 
 const styles = StyleSheet.create({
-  question: { padding: 18, justifyContent: "space-between", gap: 16 },
+  question: { padding: 14, justifyContent: "space-between", gap: 12 },
   questionText: { flex: 1 },
   answer: { paddingHorizontal: 18, paddingBottom: 20, color: colors.inkSoft },
 });

@@ -30,7 +30,6 @@ export const ownerMaterialStyles = StyleSheet.create({
     color: colors.muted,
   },
   grow: { flex: 1, minWidth: 0, gap: 4 },
-  filters: { flexDirection: "row", gap: 8 },
   separator: { height: 10 },
   footer: { gap: 10, paddingTop: 12 },
   card: {

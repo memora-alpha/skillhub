@@ -42,6 +42,9 @@ function DetailContent({ id }: Readonly<{ id: string }>) {
   const ownership = useMaterialOwnership(id, !!material && !own);
   const download = useMaterialDownload(id, () => {
     void cache.invalidateQueries({
+      queryKey: [...runtime.key, "materials", "free-library"],
+    });
+    void cache.invalidateQueries({
       queryKey: [...runtime.key, "materials", "orders"],
     });
     void cache.invalidateQueries({

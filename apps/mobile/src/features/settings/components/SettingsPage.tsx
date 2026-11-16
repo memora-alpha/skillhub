@@ -49,9 +49,9 @@ const styles = StyleSheet.create({
   page: { flex: 1, minHeight: 0 },
   scroll: { flex: 1 },
   content: {
-    padding: 20,
-    paddingBottom: 32,
-    gap: 24,
+    padding: 12,
+    paddingBottom: 24,
+    gap: 16,
     width: "100%",
     maxWidth: 640,
     alignSelf: "center",
@@ -62,8 +62,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   footerContent: {
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     width: "100%",
     maxWidth: 640,
     alignSelf: "center",

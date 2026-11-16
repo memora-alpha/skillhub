@@ -1,10 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import {
-  appColors as colors,
-  appRadius,
-  fonts,
-  typography,
-} from "@/constants/theme";
+import { appColors as colors, fonts, typography } from "@/constants/theme";
 
 const tabs = [
   { value: "received", label: "Đề xuất nhận được" },
@@ -53,9 +48,10 @@ const styles = StyleSheet.create({
     maxWidth: 640,
     alignSelf: "center",
     flexDirection: "row",
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   tab: {
     flex: 1,
@@ -63,10 +59,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 4,
-    borderRadius: appRadius.button,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
   },
   label: {
     ...typography.secondary,
@@ -75,8 +69,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   selected: {
-    borderColor: colors.primaryMuted,
-    backgroundColor: colors.primarySoft,
+    borderBottomColor: colors.primary,
   },
   active: { color: colors.primary, fontFamily: fonts.bold },
 });

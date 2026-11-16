@@ -1,7 +1,7 @@
 import { Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { FeaturePage } from "@/components/feature-page";
-import { Button } from "@/components/Button";
+import { IconAction } from "@/components/icon-action";
 import { EmptyState } from "@/components/EmptyState";
 import { FormNotice } from "@/components/FormNotice";
 import { ConnectionFeedback } from "@/features/connections";
@@ -39,19 +39,13 @@ function ReviewPaths() {
   return (
     <>
       <View style={styles.row}>
-        <Text accessibilityRole="header" style={styles.sectionTitle}>
-          Lộ trình đã hoàn tất
-        </Text>
-        <Button
-          variant="paper"
-          size="sm"
-          leadingIcon="refresh"
+        <Text style={styles.meta}>Lộ trình đã hoàn tất</Text>
+        <IconAction
+          icon="refresh"
+          label="Làm mới lộ trình"
           disabled={query.isFetching}
-          accessibilityLabel="Làm mới lộ trình"
           onPress={() => void query.refetch()}
-        >
-          Làm mới
-        </Button>
+        />
       </View>
       <ConnectionFeedback loading={query.isLoading} error={query.error} />
       {query.denied && (

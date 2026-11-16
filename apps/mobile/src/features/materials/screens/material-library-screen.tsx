@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Text, View } from "react-native";
-import { Redirect, useRouter } from "expo-router";
+import { Redirect } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { RefreshableFlatList } from "@/components/RefreshableFlatList";
 import { useVisibleListRows } from "@/components/use-visible-list-rows";
@@ -18,6 +18,11 @@ import { useMaterialOrderPages, useMaterialsApi } from "../hooks/use-materials";
 import type { MaterialOrder } from "../api/material-contracts";
 import { materialFailure } from "../utils/material-failure";
 import { MaterialOrderCard } from "../components/material-order-card";
+import {
+  MaterialLibraryHeader,
+  type MaterialLibraryFilter,
+} from "../components/material-library-header";
+import { FreeMaterialsContent } from "./free-materials-content";
 import { materialStyles as styles } from "../components/material.styles";
 
 export function MaterialLibraryScreen() {
@@ -31,15 +36,27 @@ function Separator() {
   return <View style={styles.separator} />;
 }
 export function MaterialLibraryContent() {
+  const [filter, setFilter] = useState<MaterialLibraryFilter>("ALL");
+  return filter === "FREE" ? (
+    <FreeMaterialsContent onChange={setFilter} />
+  ) : (
+    <PurchasedMaterialsContent filter={filter} onChange={setFilter} />
+  );
+}
+function PurchasedMaterialsContent({
+  filter,
+  onChange,
+}: Readonly<{
+  filter: Exclude<MaterialLibraryFilter, "FREE">;
+  onChange: (filter: MaterialLibraryFilter) => void;
+}>) {
   const runtime = useConnections();
   const query = useMaterialOrderPages();
   const api = useMaterialsApi();
   const cache = useQueryClient();
   const refreshWallet = useRefreshWallet();
-  const router = useRouter();
   const command = useConnectionCommand<MaterialOrder>([["materials"]]);
   const { visibleIds, ...viewability } = useVisibleListRows();
-  const [filter, setFilter] = useState<"ALL" | "SUCCESS" | "REFUNDED">("ALL");
   const [confirm, setConfirm] = useState<string>();
   const [notice, setNotice] = useState<string>();
   const [refreshing, setRefreshing] = useState(false);
@@ -84,39 +101,11 @@ export function MaterialLibraryContent() {
         onRefresh={() => void refresh()}
         ListHeaderComponent={
           <View style={styles.header}>
-            <View style={styles.row}>
-              <Text style={styles.heading}>Thư viện của bạn</Text>
-              <Button
-                variant="paper"
-                size="sm"
-                leadingIcon="search"
-                onPress={() =>
-                  router.push({
-                    pathname: "/discover",
-                    params: { tab: "materials" },
-                  })
-                }
-              >
-                Khám phá
-              </Button>
-            </View>
-            <View style={[styles.row, { justifyContent: "flex-start" }]}>
-              {(["ALL", "SUCCESS", "REFUNDED"] as const).map((value) => (
-                <Button
-                  key={value}
-                  size="sm"
-                  variant={filter === value ? "craft" : "paper"}
-                  accessibilityState={{ selected: filter === value }}
-                  onPress={() => setFilter(value)}
-                >
-                  {value === "ALL"
-                    ? "Tất cả"
-                    : value === "SUCCESS"
-                      ? "Đã mua"
-                      : "Đã hoàn tiền"}
-                </Button>
-              ))}
-            </View>
+            <MaterialLibraryHeader
+              value={filter}
+              onChange={onChange}
+              disabled={command.pending || command.uncertain}
+            />
             <ConnectionFeedback
               loading={query.isLoading}
               error={query.error}

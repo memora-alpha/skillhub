@@ -33,14 +33,18 @@ const leaf = () => null;
 const jsx = (type: unknown, props: Record<string, unknown>) =>
   typeof type === "function" && type !== leaf ? type(props) : { props };
 const contexts = Object.entries({
+  react: { useRef: (value: unknown) => ({ current: value }), useEffect() {} },
   "react/jsx-runtime": { jsx, jsxs: jsx },
   "react-native": {
     View: leaf,
     Text: leaf,
     Pressable: leaf,
+    ScrollView: leaf,
+    Platform: { OS: "ios" },
     StyleSheet: { create: (value: unknown) => value, hairlineWidth: 1 },
   },
   "@/constants/theme": {
+    appColors: {},
     appRadius: { control: 12 },
     fonts: {},
     typography: {},
@@ -148,8 +152,11 @@ test("visible filter segments keep backend type/reference semantics and ignore r
     ["Tất cả", "Nạp Credit", "Học tập"],
   );
   assert.deepEqual(
-    options.map((option) => option.props.accessibilityState),
-    [{ selected: true }, { selected: false }, { selected: false }],
+    options.map(
+      (option) =>
+        (option.props.accessibilityState as { selected: boolean }).selected,
+    ),
+    [true, false, false],
   );
   press(options[0]!);
   press(options[1]!);
