@@ -56,6 +56,9 @@ test("detail waits for ownership even on free listings and confirms a purchased 
     "../components/material-detail-skeleton": {
       MaterialDetailSkeleton: "MaterialDetailSkeleton",
     },
+    "../components/material-favorite-button": {
+      MaterialFavoriteButton: "MaterialFavoriteButton",
+    },
     "../hooks/use-materials": {
       useMaterial: () => ({ data: material, isFetching: false }),
       useMaterialOwnership: () => ownership,

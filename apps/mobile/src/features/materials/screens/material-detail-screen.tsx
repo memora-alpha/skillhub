@@ -23,6 +23,7 @@ import { MaterialDownloadFeedback } from "../components/material-download-feedba
 import { RelatedMaterials } from "../components/material-detail-sections";
 import { MaterialReviews } from "../components/material-reviews";
 import { MaterialDetailSkeleton } from "../components/material-detail-skeleton";
+import { MaterialFavoriteButton } from "../components/material-favorite-button";
 
 export function MaterialDetailScreen() {
   const params = useLocalSearchParams<{ id: string }>();
@@ -40,6 +41,9 @@ function DetailContent({ id }: Readonly<{ id: string }>) {
   const own = material?.ownerId === runtime.userId;
   const ownership = useMaterialOwnership(id, !!material && !own);
   const download = useMaterialDownload(id, () => {
+    void cache.invalidateQueries({
+      queryKey: [...runtime.key, "materials", "orders"],
+    });
     void cache.invalidateQueries({
       queryKey: [...runtime.key, "materials", "review-eligibility", id],
       exact: true,
@@ -175,6 +179,9 @@ function DetailContent({ id }: Readonly<{ id: string }>) {
             })}
           />
           <MaterialPublisher material={material} />
+          {material.status === "PUBLISHED" && (
+            <MaterialFavoriteButton materialId={material.id} />
+          )}
           <View style={styles.divider} />
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Nội dung</Text>

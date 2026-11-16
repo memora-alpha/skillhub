@@ -1,5 +1,6 @@
 import { Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { FeaturePage } from "@/components/feature-page";
 import { Button } from "@/components/Button";
 import { useConnections, ConnectionFeedback } from "@/features/connections";
@@ -21,8 +22,13 @@ export function MaterialAccessScreen() {
 }
 function AccessContent({ id }: Readonly<{ id: string }>) {
   const router = useRouter();
-  const download = useMaterialDownload(id);
   const runtime = useConnections();
+  const cache = useQueryClient();
+  const download = useMaterialDownload(id, () => {
+    void cache.invalidateQueries({
+      queryKey: [...runtime.key, "materials", "orders"],
+    });
+  });
   const preview = usePublicMaterial(id);
   const ownership = useMaterialOwnership(id);
   const needsPurchase =
@@ -44,11 +50,20 @@ function AccessContent({ id }: Readonly<{ id: string }>) {
           />
           <View style={styles.grow}>
             <Text style={styles.heading}>
-              {preview.data?.title ?? "Tệp tài liệu"}
+              {ownership.data?.purchasedMaterial
+                ? (ownership.data.purchasedMaterial.title ??
+                  ownership.data.purchasedMaterial.originalFilename ??
+                  "Tài liệu đã mua")
+                : (preview.data?.title ?? "Tệp tài liệu")}
             </Text>
             {ownership.data && (
               <Text style={styles.meta}>
                 Phiên bản đã mua: {ownership.data.listingVersion}
+              </Text>
+            )}
+            {!!ownership.data?.purchasedMaterial?.originalFilename && (
+              <Text style={styles.meta}>
+                {ownership.data.purchasedMaterial.originalFilename}
               </Text>
             )}
           </View>

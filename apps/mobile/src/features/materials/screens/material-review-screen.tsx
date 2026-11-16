@@ -7,7 +7,10 @@ import { EmptyState } from "@/components/EmptyState";
 import { ConnectionFeedback, useConnections } from "@/features/connections";
 import { uuid } from "@/lib/http/contracts";
 import { useMaterialReviewEligibility } from "../hooks/use-material-reviews";
-import { usePublicMaterial } from "../hooks/use-materials";
+import {
+  useMaterialOwnership,
+  usePublicMaterial,
+} from "../hooks/use-materials";
 import { MaterialReviewEditor } from "../components/material-review-editor";
 import { MaterialCover } from "../components/material-cover";
 import { materialStyles as styles } from "../components/material.styles";
@@ -35,8 +38,23 @@ function ReviewContent({ id }: Readonly<{ id: string }>) {
   const metadata = usePublicMaterial(id);
   const [epoch, setEpoch] = useState(0);
   const current = query.data?.currentReview;
+  const paidReview = !!current && metadata.data?.accessType === "PAID";
+  const ownership = useMaterialOwnership(id, paidReview);
+  const canEdit =
+    !current ||
+    (!!metadata.data &&
+      !metadata.error &&
+      !metadata.isFetching &&
+      (!paidReview ||
+        (!!ownership.data && !ownership.error && !ownership.isFetching)));
+  const read = () =>
+    Promise.all([
+      query.refetch(),
+      metadata.refetch(),
+      ...(paidReview ? [ownership.refetch()] : []),
+    ]);
   const refresh = async (preserveMissing = false) => {
-    const result = await query.refetch();
+    const [result] = await read();
     if (!runtime.isCurrent() || result.error || !result.data) return;
     if (!preserveMissing || result.data.currentReview)
       setEpoch((value) => value + 1);
@@ -47,18 +65,35 @@ function ReviewContent({ id }: Readonly<{ id: string }>) {
         key={JSON.stringify([runtime.key, id, current?.id, epoch])}
         materialId={id}
         current={current ?? null}
+        canEdit={canEdit}
         ready={
           runtime.enabled && !query.error && !query.isFetching && !query.denied
         }
         reconcile={refresh}
-        refreshing={query.isFetching}
+        refreshing={
+          query.isFetching ||
+          metadata.isFetching ||
+          (paidReview && ownership.isFetching)
+        }
         onRefresh={() => {
-          void query.refetch();
+          void read();
         }}
         onDone={() => router.dismissTo("/materials/mine?tab=library")}
         context={
           <>
             <ConnectionFeedback error={query.error} retry={query.refetch} />
+            {!!current && !canEdit && (
+              <>
+                <FormNotice tone="info" compact>
+                  Đánh giá được giữ lại. Bạn cần quyền truy cập đang có hiệu lực
+                  và tài liệu đang được chia sẻ để chỉnh sửa.
+                </FormNotice>
+                <ConnectionFeedback
+                  error={metadata.error || (paidReview && ownership.error)}
+                  retry={() => void read()}
+                />
+              </>
+            )}
             <View style={[styles.fileRow, { marginBottom: 12 }]}>
               {metadata.data && <MaterialCover material={metadata.data} />}
               <View style={styles.grow}>

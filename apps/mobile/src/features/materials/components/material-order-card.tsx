@@ -1,5 +1,7 @@
 import { Pressable, Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { useConnections } from "@/features/connections";
 import { Button } from "@/components/Button";
 import { Icon } from "@/components/Icon";
 import { appColors } from "@/constants/theme";
@@ -11,6 +13,7 @@ import { materialStyles as styles } from "./material.styles";
 import { useMaterialDownload } from "../hooks/use-material-download";
 import { MaterialDownloadFeedback } from "./material-download-feedback";
 import { useMaterialReviewEligibility } from "../hooks/use-material-reviews";
+import { materialRefundReason } from "../utils/material-failure";
 
 export function MaterialOrderCard({
   order,
@@ -23,15 +26,45 @@ export function MaterialOrderCard({
   disabled: boolean;
   onRefund: () => void;
 }>) {
-  const query = usePublicMaterial(order.materialId, visible);
-  const eligibility = useMaterialReviewEligibility(order.materialId, visible);
+  // New order pages carry purchase snapshots and review state. Only older
+  // responses need the separate eligibility read; public metadata is optional.
+  const query = usePublicMaterial(
+    order.materialId,
+    visible && !order.purchasedMaterial,
+  );
+  const eligibility = useMaterialReviewEligibility(
+    order.materialId,
+    visible && !order.review,
+  );
   const router = useRouter();
-  const download = useMaterialDownload(order.materialId);
+  const cache = useQueryClient();
+  const runtime = useConnections();
+  const download = useMaterialDownload(order.materialId, () => {
+    void cache.invalidateQueries({
+      queryKey: [...runtime.key, "materials", "orders"],
+    });
+    void cache.invalidateQueries({
+      queryKey: [
+        ...runtime.key,
+        "materials",
+        "review-eligibility",
+        order.materialId,
+      ],
+    });
+  });
+  const title = order.purchasedMaterial
+    ? (order.purchasedMaterial.title ??
+      order.purchasedMaterial.originalFilename ??
+      "Tài liệu đã mua")
+    : (query.data?.title ?? "Tài liệu đã mua");
+  const hasReview =
+    order.review?.hasReview ?? !!eligibility.data?.currentReview;
+  const canReview = order.review?.canReview ?? eligibility.data?.canReview;
   return (
     <View style={styles.card}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Xem đơn mua ${query.data?.title ?? materialDate(order.createdAt)}`}
+        accessibilityLabel={`Xem đơn mua ${title}`}
         onPress={() =>
           router.push(
             order.status === "SUCCESS" && !query.data
@@ -44,8 +77,13 @@ export function MaterialOrderCard({
         <MaterialFileBadge />
         <View style={styles.grow}>
           <Text style={styles.title} numberOfLines={2}>
-            {query.data?.title ?? "Tài liệu đã mua"}
+            {title}
           </Text>
+          {!!order.purchasedMaterial?.originalFilename && (
+            <Text style={styles.meta} numberOfLines={1}>
+              {order.purchasedMaterial.originalFilename}
+            </Text>
+          )}
           <Text style={styles.meta}>
             {materialDate(order.createdAt)} · Phiên bản {order.listingVersion}
           </Text>
@@ -84,7 +122,10 @@ export function MaterialOrderCard({
             size="sm"
             style={styles.action}
             disabled={
-              disabled || download.pending || download.awaitingConfirmation
+              disabled ||
+              download.pending ||
+              download.awaitingConfirmation ||
+              order.refundEligibility?.canRefund === false
             }
             onPress={onRefund}
           >
@@ -92,19 +133,29 @@ export function MaterialOrderCard({
           </Button>
         </View>
       )}
-      {(eligibility.data?.currentReview ||
-        eligibility.data?.canReview ||
-        eligibility.error) && (
+      {order.status === "SUCCESS" &&
+        order.refundEligibility?.canRefund === false && (
+          <Text style={styles.caption}>
+            {materialRefundReason(order.refundEligibility.reasonCode)}
+          </Text>
+        )}
+      {order.status === "SUCCESS" && order.refundEligibility?.canRefund && (
+        <Text style={styles.caption}>
+          Hạn yêu cầu hoàn tiền:{" "}
+          {new Date(order.refundEligibility.deadline).toLocaleString("vi-VN")}
+        </Text>
+      )}
+      {(hasReview || canReview || (!order.review && eligibility.error)) && (
         <Button
           variant="paper"
           size="sm"
           leadingIcon="star"
-          disabled={disabled || eligibility.isFetching}
+          disabled={disabled || (!order.review && eligibility.isFetching)}
           onPress={() => router.push(`/materials/${order.materialId}/review`)}
         >
-          {eligibility.data?.currentReview
+          {hasReview
             ? "Xem đánh giá"
-            : eligibility.data?.canReview
+            : canReview
               ? "Viết đánh giá"
               : "Đánh giá tài liệu"}
         </Button>

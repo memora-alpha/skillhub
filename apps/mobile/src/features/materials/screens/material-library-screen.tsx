@@ -100,9 +100,6 @@ export function MaterialLibraryContent() {
                 Khám phá
               </Button>
             </View>
-            <Text style={styles.caption}>
-              Tài liệu miễn phí đã tải sẽ được bổ sung sau.
-            </Text>
             <View style={[styles.row, { justifyContent: "flex-start" }]}>
               {(["ALL", "SUCCESS", "REFUNDED"] as const).map((value) => (
                 <Button
@@ -152,6 +149,7 @@ export function MaterialLibraryContent() {
             visible={visibleIds.has(item.id)}
             disabled={locked}
             onRefund={() => {
+              if (item.refundEligibility?.canRefund === false) return;
               setConfirm(item.id);
               setNotice(undefined);
             }}
@@ -210,7 +208,10 @@ export function MaterialLibraryContent() {
               variant="craft"
               disabled={
                 command.pending ||
-                (!command.uncertain && (query.isFetching || !!query.error))
+                (!command.uncertain && (query.isFetching || !!query.error)) ||
+                (!command.uncertain &&
+                  query.items.find((row) => row.id === confirm)
+                    ?.refundEligibility?.canRefund === false)
               }
               onPress={() => {
                 if (command.uncertain) void command.retry().then(finish);

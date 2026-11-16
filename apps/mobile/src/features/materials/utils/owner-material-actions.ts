@@ -5,6 +5,7 @@ import type { createMaterialsApi } from "../api/materials-api";
 import {
   canArchiveMaterial,
   canSubmitMaterial,
+  materialArchivePresentation,
 } from "./owner-material-presentation";
 
 export type OwnerMaterialAction = "submit" | "archive";
@@ -53,7 +54,7 @@ export function createOwnerMaterialActions(deps: {
           notice:
             action === "submit"
               ? "Đã gửi tài liệu để duyệt."
-              : "Đã ngừng chia sẻ tài liệu.",
+              : materialArchivePresentation(row).notice,
         });
         return result;
       } catch (error) {

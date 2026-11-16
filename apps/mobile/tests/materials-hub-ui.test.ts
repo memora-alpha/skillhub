@@ -10,7 +10,7 @@ function nodes(value: unknown): Node[] {
   const node = value as Node;
   return [node, ...nodes(node.props.children)];
 }
-test("my materials opens the library, separates posted and unavailable saved, and scopes its content to the account", () => {
+test("my materials opens the library, separates posted and server saved lists, and scopes its content to the account", () => {
   const local = createRequire(
     new URL(
       "../src/features/materials/screens/my-materials-screen.tsx",
@@ -48,6 +48,7 @@ test("my materials opens the library, separates posted and unavailable saved, an
     },
     "./posted-materials-content": { PostedMaterialsContent: "Posted" },
     "./material-library-screen": { MaterialLibraryContent: "Library" },
+    "./saved-materials-content": { SavedMaterialsContent: "Saved" },
   }).map(([name, namedExports]) =>
     mock.module(pathToFileURL(local.resolve(name)), { namedExports }),
   );
@@ -80,8 +81,8 @@ test("my materials opens the library, separates posted and unavailable saved, an
     tab = "saved";
     const saved = render().tree;
     assert.equal(
-      saved.find((node) => node.type === "EmptyState")?.props.title,
-      "Lưu yêu thích chưa khả dụng",
+      saved.some((node) => node.type === "Saved"),
+      true,
     );
     assert.equal(
       saved.some((node) => node.type === "Library" || node.type === "Posted"),

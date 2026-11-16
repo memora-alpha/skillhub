@@ -18,6 +18,12 @@ Owner list đã nối cursor/submit/archive nhưng dùng Panel và nhiều nút 
 
 ## Task
 
+- [x] Đưa bookmark Đã lưu lên góc phải thẻ, bỏ nút dài; giữ chevron mở thông tin trên thẻ bản nháp. Lưu trữ nằm trong hộp thông tin, dùng icon archive; hủy đăng dùng ×, ngừng chia sẻ dùng eye-off, đồng bộ cả hộp xác nhận. Giữ xác nhận/lỗi/session; xóa draft chưa có API BE.
+
+- [x] Làm gọn preview ảnh bìa đã lưu/mới: không hiện tên/link, nút × trên ảnh, Hoàn tác và giữ upload/session/version guards.
+
+- [x] Làm rõ thay tệp đã lưu/giữ bản hiện tại; hiện trạng thái BE trong editor và phân biệt hủy đăng khi chờ duyệt với ngừng chia sẻ khi đã đăng, giữ archive không khôi phục.
+
 - [x] Rà trước commit: bỏ style placeholder/chế độ review inline cũ/state gỡ cover không còn UI và return dư; kiểm không có mock/fixture trong runtime, giữ test isolation và chạy lại checks/bundle.
 - [x] Chặn form edit khởi tạo từ owner cache cũ: fresh read trước mount, giữ draft khi refresh sau đó và khóa lưu lúc read pending/error; khôi phục quyền phân phối theo timestamp BE, không tự bật/tắt khi người dùng đang sửa, dùng thông báo version conflict trung tính.
 - [x] Giảm trễ đọc trạng thái scan ở app: đọc1s trong10s đầu,2s tới30s rồi5s; tách nhãn chờ hàng đợi/quét thực, kiểm regression phát hiện READY nhanh và giữ bounded timeout/terminal guards. Không coi tối ưu polling là rút ngắn thời gian quét BE.
@@ -25,7 +31,10 @@ Owner list đã nối cursor/submit/archive nhưng dùng Panel và nhiều nút 
 - [x] Đồng bộ các tiêu đề empty/dialog của phần tài liệu sang Nunito và typography chung; bỏ fallback Fraunces ở Đã lưu, invalid review, xóa/báo cáo review và xác nhận tải.
 - [x] Đổi Tài liệu của tôi thành hub Thư viện/Đã đăng/Đã lưu; mặc định Thư viện, giữ route library cũ bằng redirect, save/back owner trở về Đã đăng và đổi archive thành Ngừng chia sẻ.
 - [x] Đưa viết/xem/sửa/xóa review vào route riêng mở từ thư viện; detail chỉ đọc nhận xét, bao gồm own review VISIBLE và không cho tự report. Giữ policy/version/idempotency/recovery.
-- [ ] Danh sách tài liệu miễn phí đã tải và lưu yêu thích: chờ BE bổ sung API; người dùng đã chọn không lưu cục bộ. Tab Đã lưu nêu chưa khả dụng, thư viện hiện chỉ có orders thật.
+- [x] Nối API yêu thích mới theo tài khoản: detail lưu/bỏ lưu, tab Đã lưu có cursor/loading/error/retry; không lưu cục bộ, không suy trạng thái từ trang đầu.
+- [x] Nhận purchasedMaterial/review/refundEligibility trên orders; hiển thị bản đã mua, khóa hoàn tiền theo BE, giảm đọc từng dòng và cập nhật sau cấp URL; giữ policy review sau hoàn tiền/mua lại.
+- [x] Nhận owner cover projection, hiển thị bìa đã lưu, đổi/gỡ khi Lưu và giữ draft/version/recovery.
+- [ ] Danh sách tài liệu miễn phí đã tải và gỡ file nội dung đã gắn: vẫn chưa có API BE; không lưu cục bộ hoặc giả gỡ file.
 - [x] Gom loading chi tiết tài liệu: skeleton chung khi mở, bỏ spinner từng section, tải nền review/đề xuất và giữ nội dung khi refresh; giữ khóa quyền mua/tải và error/retry.
 - [x] Rút gọn UI đánh giá: summary một cụm, form đóng mặc định, hàng nhận xét phẳng có avatar; bỏ nhãn/ngày/nút tải lại/banner lặp và không hiện review của mình hai lần. Giữ error/recovery, version/idempotency và xác nhận xóa.
 - [x] Kiểm tác động compact rating picker tới consumer cũ, browser nhỏ/chữ lớn và cập nhật contract/status.

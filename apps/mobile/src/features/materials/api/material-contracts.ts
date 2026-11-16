@@ -46,6 +46,26 @@ export const materialSchema = z.object({
   rejectReason: z.string().nullable().optional(),
   reviewedAt: timestamp.nullable().optional(),
   distributionRightsConfirmedAt: timestamp.nullable().optional(),
+  cover: z
+    .object({
+      attached: z.boolean(),
+      generation: z.number().int().nonnegative(),
+      file: z
+        .object({
+          id: uuid,
+          originalFilename: z.string(),
+          mimeType: z.string().nullable(),
+          sizeBytes: z.string().regex(/^\d+$/).nullable(),
+          state: z.string(),
+          scanVerdict: z.string().nullable(),
+        })
+        .nullable(),
+      processingStatus: z.string(),
+      failureCode: z.string().nullable(),
+      preview: materialThumbnail,
+    })
+    .refine((value) => value.attached === (value.file !== null))
+    .optional(),
 });
 export const orderSchema = z.object({
   id: uuid,
@@ -57,6 +77,44 @@ export const orderSchema = z.object({
   sellerNetCredit: credit,
   status: z.enum(["SUCCESS", "REFUNDED"]),
   createdAt: timestamp,
+  purchasedMaterial: z
+    .object({
+      title: z.string().nullable(),
+      originalFilename: z.string().nullable(),
+      mimeType: z.string().nullable(),
+      sizeBytes: z.string().regex(/^\d+$/).nullable(),
+    })
+    .optional(),
+  review: z
+    .object({
+      hasReview: z.boolean(),
+      reviewId: uuid.nullable(),
+      status: z.enum(["VISIBLE", "HIDDEN"]).nullable(),
+      version: version.nullable(),
+      sourceOrderId: uuid.nullable(),
+      canReview: z.boolean(),
+      reasonCode: z.string().nullable(),
+    })
+    .refine((value) =>
+      value.hasReview
+        ? !!value.reviewId &&
+          !!value.status &&
+          value.version !== null &&
+          !value.canReview
+        : value.reviewId === null &&
+          value.status === null &&
+          value.version === null,
+    )
+    .optional(),
+  refundEligibility: z
+    .object({
+      canRefund: z.boolean(),
+      deadline: timestamp,
+      reasonCode: z.string().nullable(),
+      evaluatedAt: timestamp,
+    })
+    .refine((value) => value.canRefund === (value.reasonCode === null))
+    .optional(),
 });
 export const materialInput = z
   .object({

@@ -19,6 +19,9 @@ import Plus from "lucide-react-native/icons/plus";
 import LogOut from "lucide-react-native/icons/log-out";
 import Clock from "lucide-react-native/icons/clock-3";
 import BookOpenText from "lucide-react-native/icons/book-open-text";
+import Bookmark from "lucide-react-native/icons/bookmark";
+import BookmarkCheck from "lucide-react-native/icons/bookmark-check";
+import Archive from "lucide-react-native/icons/archive";
 import X from "lucide-react-native/icons/x";
 import Wallet from "lucide-react-native/icons/wallet";
 import QrCode from "lucide-react-native/icons/qr-code";
@@ -75,6 +78,9 @@ export const iconComponents = {
   logout: LogOut,
   clock: Clock,
   book: BookOpenText,
+  bookmark: Bookmark,
+  "bookmark-check": BookmarkCheck,
+  archive: Archive,
   close: X,
   wallet: Wallet,
   "qr-code": QrCode,

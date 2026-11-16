@@ -19,10 +19,9 @@ export function MaterialCover({
 }: Readonly<{ material: ApiMaterial; large?: boolean }>) {
   const [failedUrl, setFailedUrl] = useState<string>();
   const [now, setNow] = useState(Date.now);
+  const thumbnail = material.cover?.preview ?? material.thumbnail;
   const expiresAt =
-    material.thumbnail?.kind === "GENERATED"
-      ? material.thumbnail.expiresAt
-      : undefined;
+    thumbnail?.kind === "GENERATED" ? thumbnail.expiresAt : undefined;
   useEffect(() => {
     if (!expiresAt) return;
     const delay = Date.parse(expiresAt) - Date.now();

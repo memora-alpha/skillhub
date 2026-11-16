@@ -10,6 +10,7 @@ import {
   materialFileSize,
   materialFileType,
   materialPrice,
+  materialArchivePresentation,
 } from "../utils/owner-material-presentation";
 import { MaterialStatusBadge } from "./owner-material-card";
 import { ownerMaterialStyles as styles } from "./owner-material.styles";
@@ -49,11 +50,11 @@ export function OwnerMaterialDetails({
               <Button
                 variant="ghost"
                 size="sm"
-                leadingIcon="book"
+                leadingIcon={materialArchivePresentation(material).icon}
                 disabled={disabled}
                 onPress={onArchive}
               >
-                Ngừng chia sẻ
+                {materialArchivePresentation(material).label}
               </Button>
             )}
           </View>
@@ -110,7 +111,7 @@ export function OwnerMaterialDetails({
           )}
           {material.status === "ARCHIVED" && (
             <Text style={styles.meta}>
-              Tài liệu đã ngừng phân phối và không thể chỉnh sửa.
+              Tài liệu đã dừng đăng, không thể chỉnh sửa hoặc gửi duyệt lại.
             </Text>
           )}
           {material.status === "HIDDEN" && (
@@ -144,7 +145,7 @@ export function ArchiveMaterialDialog({
 }>) {
   return (
     <InfoModal
-      title={material ? "Ngừng chia sẻ tài liệu?" : null}
+      title={material ? materialArchivePresentation(material).title : null}
       titleStyle={styles.heading}
       onClose={onClose}
       busy={busy}
@@ -159,15 +160,28 @@ export function ArchiveMaterialDialog({
               {busy ? "Đang kiểm tra…" : "Kiểm tra kết quả"}
             </Button>
           ) : (
-            <Button variant="craft" disabled={disabled} onPress={onConfirm}>
-              {busy ? "Đang xử lý…" : "Ngừng chia sẻ"}
+            <Button
+              variant="craft"
+              leadingIcon={
+                material
+                  ? materialArchivePresentation(material).icon
+                  : undefined
+              }
+              disabled={disabled}
+              onPress={onConfirm}
+            >
+              {busy
+                ? "Đang xử lý…"
+                : material
+                  ? materialArchivePresentation(material).label
+                  : "Xác nhận"}
             </Button>
           )}
         </View>
       }
     >
       <Text style={styles.text}>
-        “{material?.title}” sẽ ngừng phân phối và không thể chỉnh sửa.
+        {material && materialArchivePresentation(material).description}
       </Text>
       {!!error && (
         <FormNotice tone="error" compact>
