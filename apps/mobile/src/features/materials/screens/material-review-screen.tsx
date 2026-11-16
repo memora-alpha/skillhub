@@ -7,10 +7,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { ConnectionFeedback, useConnections } from "@/features/connections";
 import { uuid } from "@/lib/http/contracts";
 import { useMaterialReviewEligibility } from "../hooks/use-material-reviews";
-import {
-  useMaterialOwnership,
-  usePublicMaterial,
-} from "../hooks/use-materials";
+import { usePublicMaterial } from "../hooks/use-materials";
 import { MaterialReviewEditor } from "../components/material-review-editor";
 import { MaterialCover } from "../components/material-cover";
 import { materialStyles as styles } from "../components/material.styles";
@@ -23,6 +20,8 @@ const reasons: Record<string, string> = {
   MATERIAL_ENTITLEMENT_REVOKED:
     "Quyền truy cập của bạn không còn hiệu lực để viết đánh giá.",
   MATERIAL_NOT_PUBLISHED: "Tài liệu hiện không nhận đánh giá.",
+  MATERIAL_REVIEW_HIDDEN: "Đánh giá đang bị ẩn nên chưa thể chỉnh sửa.",
+  MATERIAL_REVIEW_NOT_FOUND: "Chưa có đánh giá để chỉnh sửa.",
 };
 export function MaterialReviewScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -38,21 +37,8 @@ function ReviewContent({ id }: Readonly<{ id: string }>) {
   const metadata = usePublicMaterial(id);
   const [epoch, setEpoch] = useState(0);
   const current = query.data?.currentReview;
-  const paidReview = !!current && metadata.data?.accessType === "PAID";
-  const ownership = useMaterialOwnership(id, paidReview);
-  const canEdit =
-    !current ||
-    (!!metadata.data &&
-      !metadata.error &&
-      !metadata.isFetching &&
-      (!paidReview ||
-        (!!ownership.data && !ownership.error && !ownership.isFetching)));
-  const read = () =>
-    Promise.all([
-      query.refetch(),
-      metadata.refetch(),
-      ...(paidReview ? [ownership.refetch()] : []),
-    ]);
+  const canEdit = !current || query.data?.canEdit === true;
+  const read = () => Promise.all([query.refetch(), metadata.refetch()]);
   const refresh = async (preserveMissing = false) => {
     const [result] = await read();
     if (!runtime.isCurrent() || result.error || !result.data) return;
@@ -70,11 +56,7 @@ function ReviewContent({ id }: Readonly<{ id: string }>) {
           runtime.enabled && !query.error && !query.isFetching && !query.denied
         }
         reconcile={refresh}
-        refreshing={
-          query.isFetching ||
-          metadata.isFetching ||
-          (paidReview && ownership.isFetching)
-        }
+        refreshing={query.isFetching || metadata.isFetching}
         onRefresh={() => {
           void read();
         }}
@@ -85,11 +67,11 @@ function ReviewContent({ id }: Readonly<{ id: string }>) {
             {!!current && !canEdit && (
               <>
                 <FormNotice tone="info" compact>
-                  Đánh giá được giữ lại. Bạn cần quyền truy cập đang có hiệu lực
-                  và tài liệu đang được chia sẻ để chỉnh sửa.
+                  {reasons[query.data.editReasonCode ?? ""] ??
+                    "Chưa xác minh được quyền chỉnh sửa. Tải lại để kiểm tra quyền hiện tại."}
                 </FormNotice>
                 <ConnectionFeedback
-                  error={metadata.error || (paidReview && ownership.error)}
+                  error={metadata.error}
                   retry={() => void read()}
                 />
               </>
@@ -99,9 +81,6 @@ function ReviewContent({ id }: Readonly<{ id: string }>) {
               <View style={styles.grow}>
                 <Text style={styles.title}>
                   {metadata.data?.title ?? "Tài liệu trong thư viện"}
-                </Text>
-                <Text style={styles.meta}>
-                  Chia sẻ trải nghiệm sử dụng của bạn
                 </Text>
               </View>
             </View>

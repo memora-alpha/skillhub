@@ -64,14 +64,8 @@ export function MaterialOrderCard({
     <View style={styles.card}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Xem đơn mua ${title}`}
-        onPress={() =>
-          router.push(
-            order.status === "SUCCESS" && !query.data
-              ? `/materials/${order.materialId}/access`
-              : `/materials/${order.materialId}`,
-          )
-        }
+        accessibilityLabel={`Xem ${title}`}
+        onPress={() => router.push(`/materials/${order.materialId}`)}
         style={styles.fileRow}
       >
         <MaterialFileBadge />

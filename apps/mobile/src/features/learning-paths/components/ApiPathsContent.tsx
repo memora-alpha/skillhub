@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { FilterBar } from "@/components/filter-bar";
 import { useIsFocused } from "expo-router";
 import { RefreshableFlatList } from "@/components/RefreshableFlatList";
 import { useVisibleListRows } from "@/components/use-visible-list-rows";
@@ -14,7 +15,6 @@ import {
   appColors as colors,
   appRadius,
   fonts,
-  signedInChrome,
   typography,
 } from "@/constants/theme";
 import { useLearningPathPages } from "../hooks/use-learning-paths-api";
@@ -152,41 +152,13 @@ export function ApiPathsContent() {
         <PathReadFeedback query={{ ...query, refetch: refresh }} />
       )}
       {paths.length > 0 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filters}
-        >
-          <View
-            style={styles.filters}
-            accessibilityRole="radiogroup"
-            accessibilityLabel="Lọc trạng thái lộ trình"
-          >
-            {pathListFilters.map((item) => {
-              const checked = item.value === filter;
-              return (
-                <Pressable
-                  key={item.value}
-                  accessibilityRole="radio"
-                  accessibilityLabel={item.label}
-                  accessibilityState={{ checked }}
-                  aria-checked={checked}
-                  onPress={() => setFilter(item.value)}
-                  style={[styles.filter, checked && styles.selectedFilter]}
-                >
-                  <Text
-                    style={[
-                      styles.filterText,
-                      checked && styles.selectedFilterText,
-                    ]}
-                  >
-                    {item.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </ScrollView>
+        <FilterBar
+          options={pathListFilters}
+          value={filter}
+          onChange={setFilter}
+          label="Lọc trạng thái lộ trình"
+          role="radio"
+        />
       )}
       {filter !== "all" && hasMore && (
         <Text accessibilityLiveRegion="polite" style={styles.filterHint}>
@@ -299,34 +271,10 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     color: colors.muted,
   },
-  filters: { flexDirection: "row", alignItems: "center", gap: 8 },
   filterHint: {
     marginTop: 8,
     ...typography.secondary,
     fontFamily: fonts.body,
     color: colors.muted,
   },
-  filter: {
-    minHeight: 44,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: appRadius.full,
-    borderWidth: 1,
-    borderColor: signedInChrome.border,
-    backgroundColor: colors.surface,
-  },
-  selectedFilter: {
-    backgroundColor: colors.primarySoft,
-    borderColor: signedInChrome.accent,
-  },
-  filterText: {
-    ...typography.secondary,
-    fontFamily: fonts.semibold,
-    color: colors.body,
-  },
-  selectedFilterText: { color: signedInChrome.accent },
 });

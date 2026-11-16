@@ -9,7 +9,7 @@ import {
 export const policyScreenStyles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.canvas },
   header: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     flexDirection: "row",
     alignItems: "center",
@@ -29,7 +29,7 @@ export const policyScreenStyles = StyleSheet.create({
   headerBalance: { width: 44 },
   tabs: {
     flexDirection: "row",
-    paddingHorizontal: 24,
+    paddingHorizontal: 12,
     width: "100%",
     maxWidth: 640,
     alignSelf: "center",
@@ -52,10 +52,10 @@ export const policyScreenStyles = StyleSheet.create({
   activeTabLabel: { color: colors.primary, fontFamily: fonts.bold },
   scroll: { flex: 1 },
   content: {
-    paddingHorizontal: 24,
-    paddingTop: 28,
-    paddingBottom: 32,
-    gap: 24,
+    paddingHorizontal: 12,
+    paddingTop: 16,
+    paddingBottom: 24,
+    gap: 16,
     width: "100%",
     maxWidth: 640,
     alignSelf: "center",

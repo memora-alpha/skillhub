@@ -1,6 +1,7 @@
 import { reportDescriptionText } from "@/constants/system-text";
 import { useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { FilterBar } from "@/components/filter-bar";
 import { useLocalSearchParams } from "expo-router";
 import { Icon } from "@/components/Icon";
 import { Button } from "@/components/Button";
@@ -39,50 +40,15 @@ export function ReportsScreen() {
       back="/profile"
       onRefresh={() => query.refetch()}
     >
-      <View style={s.hero}>
-        <View style={s.row}>
-          <View style={s.heroIcon}>
-            <Icon name="shield" size={22} color={colors.forest} />
-          </View>
-          <View style={s.grow}>
-            <Text style={s.heading}>Theo dõi yêu cầu hỗ trợ</Text>
-            <Text style={s.meta}>
-              Xem phản hồi và bổ sung thông tin tại đây.
-            </Text>
-          </View>
-        </View>
-        {query.data && (
-          <Text style={s.filterLabel}>{query.data.length} báo cáo đã gửi</Text>
-        )}
-      </View>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={s.filters}
-        accessibilityLabel="Lọc trạng thái báo cáo"
-      >
-        {["ALL", ...reportStatuses].map((code) => (
-          <Pressable
-            key={code}
-            accessibilityRole="button"
-            accessibilityState={{ selected: filter === code }}
-            aria-selected={filter === code}
-            accessibilityLabel={
-              code === "ALL" ? "Tất cả" : reportStatusLabel(code)
-            }
-            onPress={() => setFilter(code)}
-            style={({ pressed }) => [
-              s.chip,
-              filter === code && s.chipActive,
-              pressed && { opacity: 0.8 },
-            ]}
-          >
-            <Text style={[s.chipText, filter === code && s.chipActiveText]}>
-              {code === "ALL" ? "Tất cả" : reportStatusLabel(code)}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+      <FilterBar
+        options={["ALL", ...reportStatuses].map((code) => ({
+          value: code,
+          label: code === "ALL" ? "Tất cả" : reportStatusLabel(code),
+        }))}
+        value={filter}
+        onChange={setFilter}
+        label="Lọc trạng thái báo cáo"
+      />
       <ConnectionFeedback
         loading={query.isLoading}
         error={query.error}

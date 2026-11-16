@@ -179,9 +179,6 @@ export function MaterialReviewEditor({
       )}
       {editing && !hidden && (
         <>
-          <Text style={styles.formHeading}>
-            {displayed ? "Sửa đánh giá" : "Viết đánh giá"}
-          </Text>
           <View style={styles.ratingPanel}>
             <ReviewRatingPicker
               value={rating}
@@ -257,7 +254,13 @@ export function MaterialReviewEditor({
   );
   return (
     <FeaturePage
-      title="Đánh giá tài liệu"
+      title={
+        editing
+          ? current
+            ? "Sửa đánh giá"
+            : "Viết đánh giá"
+          : "Đánh giá tài liệu"
+      }
       back="/materials/mine?tab=library"
       backBehavior="history"
       keyboardDismissMode="on-drag"

@@ -26,7 +26,8 @@ const editable = new Set<MaterialStatus>([
   "REJECTED",
 ]);
 export const canEditMaterial = (row: ApiMaterial) => editable.has(row.status);
-export const canArchiveMaterial = canEditMaterial;
+export const canArchiveMaterial = (row: ApiMaterial) =>
+  row.status !== "DRAFT" && canEditMaterial(row);
 export function materialArchivePresentation(row: ApiMaterial) {
   if (row.status === "PUBLISHED")
     return {
@@ -48,8 +49,8 @@ export function materialArchivePresentation(row: ApiMaterial) {
     };
   return {
     icon: "archive" as const,
-    label: row.status === "DRAFT" ? "Lưu trữ bản nháp" : "Lưu trữ tài liệu",
-    title: row.status === "DRAFT" ? "Lưu trữ bản nháp?" : "Lưu trữ tài liệu?",
+    label: "Lưu trữ tài liệu",
+    title: "Lưu trữ tài liệu?",
     description:
       "Tài liệu sẽ chuyển sang trạng thái đã dừng đăng. Sau thao tác này, bạn không thể chỉnh sửa hoặc gửi duyệt lại tài liệu.",
     notice: "Đã lưu trữ tài liệu.",

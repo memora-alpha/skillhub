@@ -1,17 +1,12 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Icon } from "@/components/Icon";
-import {
-  appColors as colors,
-  appRadius,
-  fonts,
-  typography,
-} from "@/constants/theme";
+import { Button } from "@/components/Button";
+import { FilterBar } from "@/components/filter-bar";
+import { IconAction } from "@/components/icon-action";
 import type { Proposal } from "../api/proposals-api";
 import { proposalStatusLabels } from "../constants/proposal-status";
 
 export type ProposalListTab = "all" | Proposal["status"];
-const statuses: ProposalListTab[] = [
+const statuses: readonly ProposalListTab[] = [
   "all",
   "PENDING",
   "ACCEPTED",
@@ -38,173 +33,63 @@ export function ProposalListFilters({
   statusOnly?: boolean;
 }>) {
   const [expanded, setExpanded] = useState(false);
-  return (
-    <View style={styles.container}>
-      {!statusOnly && <Text style={styles.eyebrow}>Đề xuất của bạn</Text>}
-      <View style={styles.row}>
-        {statusOnly ? (
-          <Text style={[styles.caption, { flex: 1 }]}>
-            {value === "all"
+  if (statusOnly || expanded)
+    return (
+      <FilterBar
+        options={statuses.map((status) => ({
+          value: status,
+          label:
+            status === "all"
               ? "Tất cả trạng thái"
-              : proposalStatusLabels[value]}
-          </Text>
-        ) : (
-          <View
-            accessibilityRole="tablist"
-            accessibilityLabel="Chiều đề xuất"
-            style={styles.tabs}
-          >
-            {directions.map((item) => (
-              <Pressable
-                key={item.value}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: direction === item.value }}
-                aria-selected={direction === item.value}
-                onPress={() => onDirectionChange(item.value)}
-                style={[
-                  styles.tab,
-                  direction === item.value && styles.selected,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.label,
-                    direction === item.value && styles.active,
-                  ]}
-                >
-                  {item.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        )}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Lọc theo trạng thái"
-          accessibilityState={{ expanded, selected: value !== "all" }}
-          aria-expanded={expanded}
-          onPress={() => setExpanded(!expanded)}
-          style={[
-            styles.filter,
-            (expanded || value !== "all") && styles.selected,
-          ]}
-        >
-          <Icon
-            name="filter"
-            size={18}
-            color={expanded || value !== "all" ? colors.primary : colors.body}
+              : proposalStatusLabels[status],
+        }))}
+        value={value}
+        onChange={(status) => {
+          onChange(status);
+          setExpanded(false);
+        }}
+        label="Bộ lọc trạng thái đề xuất"
+        role="tab"
+        action={
+          !statusOnly ? (
+            <IconAction
+              icon="close"
+              label="Đóng bộ lọc trạng thái"
+              onPress={() => setExpanded(false)}
+            />
+          ) : undefined
+        }
+      />
+    );
+  return (
+    <FilterBar
+      options={directions}
+      value={direction}
+      onChange={onDirectionChange}
+      label="Chiều đề xuất"
+      role="tab"
+      action={
+        value === "all" ? (
+          <IconAction
+            icon="filter"
+            label="Lọc theo trạng thái"
+            expanded={expanded}
+            onPress={() => setExpanded(true)}
           />
-          {value !== "all" && <View style={styles.dot} />}
-        </Pressable>
-      </View>
-      {!statusOnly && !expanded && value !== "all" && (
-        <Text style={styles.caption}>
-          Trạng thái: {proposalStatusLabels[value]}
-        </Text>
-      )}
-      {expanded && (
-        <View
-          accessibilityRole="tablist"
-          accessibilityLabel="Bộ lọc trạng thái đề xuất"
-          style={styles.options}
-        >
-          {statuses.map((status) => (
-            <Pressable
-              key={status}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: value === status }}
-              aria-selected={value === status}
-              onPress={() => {
-                onChange(status);
-                setExpanded(false);
-              }}
-              style={[styles.option, value === status && styles.selected]}
-            >
-              <Text style={[styles.label, value === status && styles.active]}>
-                {status === "all"
-                  ? "Tất cả trạng thái"
-                  : proposalStatusLabels[status]}
-              </Text>
-              {value === status && (
-                <Icon name="check" size={16} color={colors.primary} />
-              )}
-            </Pressable>
-          ))}
-        </View>
-      )}
-    </View>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            leadingIcon="filter"
+            accessibilityLabel={`Lọc theo trạng thái: ${proposalStatusLabels[value]}`}
+            accessibilityState={{ expanded, selected: true }}
+            style={{ minHeight: 44 }}
+            onPress={() => setExpanded(true)}
+          >
+            {proposalStatusLabels[value]}
+          </Button>
+        )
+      }
+    />
   );
 }
-const styles = StyleSheet.create({
-  container: { gap: 12 },
-  eyebrow: {
-    ...typography.secondary,
-    fontFamily: fonts.semibold,
-    color: colors.muted,
-  },
-  row: { flexDirection: "row", alignItems: "center", gap: 8 },
-  tabs: { flexDirection: "row", flex: 1, gap: 6 },
-  tab: {
-    flex: 1,
-    minHeight: 44,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 4,
-    borderRadius: appRadius.button,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  label: {
-    ...typography.secondary,
-    fontFamily: fonts.semibold,
-    color: colors.body,
-  },
-  selected: {
-    borderColor: colors.primaryMuted,
-    backgroundColor: colors.primarySoft,
-  },
-  active: { color: colors.primary, fontFamily: fonts.bold },
-  filter: {
-    width: 44,
-    minHeight: 44,
-    borderRadius: appRadius.button,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.surface,
-  },
-  dot: {
-    position: "absolute",
-    right: 7,
-    top: 7,
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: colors.primary,
-  },
-  caption: {
-    ...typography.secondary,
-    fontFamily: fonts.body,
-    color: colors.muted,
-  },
-  options: {
-    padding: 6,
-    gap: 2,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: appRadius.control,
-    backgroundColor: colors.surface,
-  },
-  option: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 10,
-    minHeight: 44,
-    borderWidth: 1,
-    borderColor: "transparent",
-    borderRadius: appRadius.button,
-  },
-});

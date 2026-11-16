@@ -7,7 +7,7 @@ import {
 } from "@/features/learning-requests";
 import { MaterialsCatalogContent } from "@/features/materials";
 import { Button } from "@/components/Button";
-import { appColors } from "@/constants/theme";
+import { appColors, signedInChrome } from "@/constants/theme";
 import { ScreenLoadingBoundary } from "@/components/ScreenLoadingBoundary";
 import { DiscoverTabs } from "../components/discover-tabs";
 
@@ -22,9 +22,11 @@ export function DiscoverScreen() {
       rightAction={
         materials ? (
           <Button
+            leadingIcon="plus"
+            accessibilityLabel="Đăng tài liệu"
             variant="craft"
             size="sm"
-            leadingIcon="plus"
+            style={{ backgroundColor: signedInChrome.accent }}
             onPress={() => router.push("/materials/new")}
           >
             Đăng tài liệu

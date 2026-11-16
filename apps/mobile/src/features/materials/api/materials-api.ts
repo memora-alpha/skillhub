@@ -2,6 +2,7 @@ import { createMaterialCatalogApi } from "./material-catalog-api";
 import { createMaterialOrdersApi } from "./material-orders-api";
 import { createMaterialReviewsApi } from "./material-reviews-api";
 import { createMaterialFavoritesApi } from "./material-favorites-api";
+import { createMaterialLibraryApi } from "./material-library-api";
 import { z } from "zod";
 import { readCursorPages } from "@/lib/http/cursor-pages";
 import type { RequestOptions } from "@/lib/http/client";
@@ -11,6 +12,7 @@ import {
   pageQuery,
   resourcePath,
   uuid,
+  version,
 } from "@/lib/http/contracts";
 import { uploadedFileSchema } from "@/lib/http/file-upload";
 import { AppError } from "@/lib/http/errors";
@@ -98,6 +100,25 @@ export function createMaterialsApi(
         throw new AppError("protocol");
       return row;
     },
+    async deleteDraft(id: string, expectedListingVersion: number) {
+      parse(version, expectedListingVersion);
+      const receipt = parse(
+        z.object({
+          id: uuid,
+          deleted: z.literal(true),
+          replayed: z.boolean(),
+        }),
+        await call(
+          `${root(id)}?expectedListingVersion=${expectedListingVersion}`,
+          {
+            method: "DELETE",
+            replayAfterRenewal: false,
+          },
+        ),
+      );
+      if (receipt.id !== id) throw new AppError("protocol");
+      return receipt;
+    },
     async upload(body: FormData) {
       return parse(
         uploadedFileSchema,
@@ -139,6 +160,7 @@ export function createMaterialsApi(
     ...createMaterialOrdersApi(call),
     ...createMaterialReviewsApi(call),
     ...createMaterialFavoritesApi(call),
+    ...createMaterialLibraryApi(call),
     ...createMaterialCatalogApi(call, mine),
   };
 }

@@ -1,5 +1,6 @@
 import { Text, View } from "react-native";
 import { Button } from "@/components/Button";
+import { IconAction } from "@/components/icon-action";
 import { EmptyState } from "@/components/EmptyState";
 import { FormNotice } from "@/components/FormNotice";
 import { ConnectionFeedback, useConnections } from "@/features/connections";
@@ -18,26 +19,20 @@ export function MyReviewHistory({
     <>
       {direction === "received" && query.summary && (
         <View style={styles.form}>
-          <Text accessibilityRole="header" style={styles.sectionTitle}>
-            Đánh giá về bạn
-          </Text>
           <ReviewSummary {...query.summary} expanded />
         </View>
       )}
       <View style={styles.row}>
-        <Text accessibilityRole="header" style={styles.sectionTitle}>
-          {direction === "received" ? "Nhận xét" : "Bạn đã đánh giá"}
+        <Text style={styles.meta}>
+          {query.items.length}
+          {query.hasNextPage ? "+" : ""} nhận xét
         </Text>
-        <Button
-          variant="paper"
-          size="sm"
-          leadingIcon="refresh"
-          accessibilityLabel="Làm mới đánh giá"
+        <IconAction
+          icon="refresh"
+          label="Làm mới đánh giá"
           disabled={query.isFetching}
           onPress={() => void query.refetch()}
-        >
-          Làm mới
-        </Button>
+        />
       </View>
       <ConnectionFeedback
         loading={query.isLoading}

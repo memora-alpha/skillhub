@@ -15,7 +15,11 @@ import {
 } from "../src/features/materials/utils/owner-material-presentation";
 import { fixtureMaterial } from "./fixtures/materials-data";
 
-test("owner actions match BE lifecycle, including editable pending and read-only hidden listings", () => {
+test("owner controls omit draft archive while retaining edit, submit and supported listing transitions", () => {
+  assert.equal(canArchiveMaterial(fixtureMaterial()), false);
+  assert.equal(canEditMaterial(fixtureMaterial()), true);
+  for (const status of ["PUBLISHED", "REJECTED"] as const)
+    assert.equal(canArchiveMaterial(fixtureMaterial({ status })), true);
   assert.equal(
     canEditMaterial(fixtureMaterial({ status: "PENDING_REVIEW" })),
     true,
@@ -61,6 +65,11 @@ test("unknown submission locks all writes until a read reconciles current status
   let current = material;
   const actions = createOwnerMaterialActions({
     api: {
+      deleteDraft: async (id: string) => ({
+        id,
+        deleted: true as const,
+        replayed: false,
+      }),
       submit: async () => {
         sends++;
         current = { ...material, status: "PENDING_REVIEW" };
@@ -81,13 +90,18 @@ test("unknown submission locks all writes until a read reconciles current status
     },
     onResult: async () => {},
     onFailure() {},
+    onDeleted: async () => {},
   });
   await actions.run("submit", material);
   assert.equal(state.uncertain?.action, "submit");
   actions.resetFeedback();
   await actions.run("archive", current);
   assert.equal(sends, 1);
-  assert.equal((await actions.reconcile())?.status, "PENDING_REVIEW");
+  const reconciled = await actions.reconcile();
+  assert.equal(
+    reconciled && "status" in reconciled ? reconciled.status : undefined,
+    "PENDING_REVIEW",
+  );
   assert.equal(state.uncertain, undefined);
   assert.equal(reads, 1);
   assert.equal(sends, 1);
@@ -102,6 +116,11 @@ test("duplicate dispatches and completions from an old session cannot write cach
   const states: OwnerActionState[] = [];
   const actions = createOwnerMaterialActions({
     api: {
+      deleteDraft: async (id: string) => ({
+        id,
+        deleted: true as const,
+        replayed: false,
+      }),
       submit: async () => {
         sends++;
         return new Promise((resolve) => {
@@ -119,6 +138,7 @@ test("duplicate dispatches and completions from an old session cannot write cach
       results++;
     },
     onFailure() {},
+    onDeleted: async () => {},
   });
   const first = actions.run("submit", fixtureMaterial());
   await actions.run("submit", fixtureMaterial());
@@ -136,6 +156,11 @@ test("known conflicts stay retryable; failed reconciliation retains uncertain st
   const currentState = (): OwnerActionState => state;
   const actions = createOwnerMaterialActions({
     api: {
+      deleteDraft: async (id: string) => ({
+        id,
+        deleted: true as const,
+        replayed: false,
+      }),
       submit: async () => {
         sends++;
         throw sends === 1
@@ -153,6 +178,7 @@ test("known conflicts stay retryable; failed reconciliation retains uncertain st
     },
     onResult: async () => {},
     onFailure() {},
+    onDeleted: async () => {},
   });
   await actions.run("submit", fixtureMaterial());
   assert.equal(state.uncertain, undefined);

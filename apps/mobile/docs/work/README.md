@@ -9,6 +9,7 @@
 | Work tiếp nhận                                                                       | Plan                                                 | Hiện trạng và bước tiếp                                  |
 | ------------------------------------------------------------------------------------ | ---------------------------------------------------- | -------------------------------------------------------- |
 | Dọn mock/code thừa và rà soát logic mobile | [plan](mobile-cleanup/plan.md) | [status](mobile-cleanup/status.md) |
+| Làm gọn giao diện toàn mobile | [plan](mobile-ui-density/plan.md) | [status](mobile-ui-density/status.md) |
 | Tài liệu — Discover, đăng/chỉnh sửa, mua và thư viện | [plan](materials-ui/plan.md) | [status](materials-ui/status.md) |
 | Đồng nhất giao diện Thành tích và danh hiệu | [plan](achievements-ui/plan.md) | [status](achievements-ui/status.md) |
 | Đồng nhất giao diện Uy tín — hạn chế, lịch sử và phục hồi | [plan](reputation-ui/plan.md) | [status](reputation-ui/status.md) |

@@ -7,7 +7,7 @@ import {
 } from "@/constants/theme";
 
 export const reviewStyles = StyleSheet.create({
-  stack: { gap: 16 },
+  stack: { gap: 12 },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -32,8 +32,8 @@ export const reviewStyles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: appRadius.card,
     borderCurve: "continuous",
-    padding: 18,
-    gap: 16,
+    padding: 14,
+    gap: 12,
   },
   cardTitle: {
     fontFamily: fonts.bold,
@@ -72,8 +72,8 @@ export const reviewStyles = StyleSheet.create({
   },
   pressed: { opacity: 0.75, backgroundColor: colors.surfaceLow },
   form: {
-    padding: 18,
-    gap: 20,
+    padding: 14,
+    gap: 12,
     borderRadius: appRadius.card,
     borderCurve: "continuous",
     borderWidth: 1,

@@ -61,7 +61,7 @@ export function VerifiedBadge() {
 }
 export const profileStyles = StyleSheet.create({
   section: {
-    padding: 16,
+    padding: 14,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: profileColors.border,

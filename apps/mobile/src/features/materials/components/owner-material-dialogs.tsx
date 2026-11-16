@@ -21,12 +21,14 @@ export function OwnerMaterialDetails({
   onClose,
   onEdit,
   onArchive,
+  onDelete,
 }: Readonly<{
   material?: ApiMaterial;
   disabled: boolean;
   onClose: () => void;
   onEdit: () => void;
   onArchive: () => void;
+  onDelete: () => void;
 }>) {
   return (
     <InfoModal
@@ -55,6 +57,17 @@ export function OwnerMaterialDetails({
                 onPress={onArchive}
               >
                 {materialArchivePresentation(material).label}
+              </Button>
+            )}
+            {material.status === "DRAFT" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                leadingIcon="trash"
+                disabled={disabled}
+                onPress={onDelete}
+              >
+                Xóa bản nháp
               </Button>
             )}
           </View>
@@ -126,6 +139,7 @@ export function OwnerMaterialDetails({
 }
 export function ArchiveMaterialDialog({
   material,
+  deletingDraft = false,
   busy,
   disabled,
   uncertain,
@@ -135,6 +149,7 @@ export function ArchiveMaterialDialog({
   onReconcile,
 }: Readonly<{
   material?: ApiMaterial;
+  deletingDraft?: boolean;
   busy: boolean;
   disabled: boolean;
   uncertain: boolean;
@@ -143,9 +158,20 @@ export function ArchiveMaterialDialog({
   onConfirm: () => void;
   onReconcile: () => void;
 }>) {
+  const presentation = deletingDraft
+    ? {
+        title: "Xóa bản nháp?",
+        label: "Xóa bản nháp",
+        icon: "trash" as const,
+        description:
+          "Bản nháp sẽ được gỡ khỏi danh sách tài liệu của bạn. Tệp đã gắn vẫn được hệ thống giữ lại.",
+      }
+    : material
+      ? materialArchivePresentation(material)
+      : undefined;
   return (
     <InfoModal
-      title={material ? materialArchivePresentation(material).title : null}
+      title={material ? (presentation?.title ?? null) : null}
       titleStyle={styles.heading}
       onClose={onClose}
       busy={busy}
@@ -162,27 +188,17 @@ export function ArchiveMaterialDialog({
           ) : (
             <Button
               variant="craft"
-              leadingIcon={
-                material
-                  ? materialArchivePresentation(material).icon
-                  : undefined
-              }
+              leadingIcon={presentation?.icon}
               disabled={disabled}
               onPress={onConfirm}
             >
-              {busy
-                ? "Đang xử lý…"
-                : material
-                  ? materialArchivePresentation(material).label
-                  : "Xác nhận"}
+              {busy ? "Đang xử lý…" : (presentation?.label ?? "Xác nhận")}
             </Button>
           )}
         </View>
       }
     >
-      <Text style={styles.text}>
-        {material && materialArchivePresentation(material).description}
-      </Text>
+      <Text style={styles.text}>{material && presentation?.description}</Text>
       {!!error && (
         <FormNotice tone="error" compact>
           {error}

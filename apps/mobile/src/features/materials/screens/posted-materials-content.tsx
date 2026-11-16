@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Text, View } from "react-native";
+import { FilterBar } from "@/components/filter-bar";
 import { useRouter } from "expo-router";
 import { RefreshableFlatList } from "@/components/RefreshableFlatList";
 import { Button } from "@/components/Button";
@@ -8,13 +9,10 @@ import { Icon } from "@/components/Icon";
 import { EmptyState } from "@/components/EmptyState";
 import { FormNotice } from "@/components/FormNotice";
 import { appColors } from "@/constants/theme";
-import {
-  useConnections,
-  ConnectionFeedback,
-  connectionError,
-} from "@/features/connections";
+import { useConnections, ConnectionFeedback } from "@/features/connections";
 import { useMyMaterialPages } from "../hooks/use-materials";
 import { useOwnerMaterialActions } from "../hooks/use-owner-material-actions";
+import { materialFailure } from "../utils/material-failure";
 import {
   filterOwnerMaterials,
   materialFilters,
@@ -31,7 +29,9 @@ import { ownerMaterialStyles as styles } from "../components/owner-material.styl
 function Separator() {
   return <View style={styles.separator} />;
 }
-export function PostedMaterialsContent() {
+export function PostedMaterialsContent({
+  onCreateDisabledChange,
+}: Readonly<{ onCreateDisabledChange: (disabled: boolean) => void }>) {
   const runtime = useConnections();
   const query = useMyMaterialPages();
   const command = useOwnerMaterialActions();
@@ -40,6 +40,7 @@ export function PostedMaterialsContent() {
   const [filter, setFilter] = useState<MaterialFilter>("ALL");
   const [selectedId, setSelectedId] = useState<string>();
   const [archiveId, setArchiveId] = useState<string>();
+  const [deletingDraft, setDeletingDraft] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const filtered = filterOwnerMaterials(query.items, filter, search);
   const selected = query.items.find((row) => row.id === selectedId);
@@ -50,10 +51,14 @@ export function PostedMaterialsContent() {
     query.isFetching ||
     !!query.error ||
     !runtime.enabled;
+  useEffect(() => {
+    onCreateDisabledChange(disabled);
+    return () => onCreateDisabledChange(true);
+  }, [disabled, onCreateDisabledChange]);
   const error = command.uncertain
     ? "Chưa xác nhận được kết quả. Kiểm tra trạng thái trước khi tiếp tục."
     : command.error
-      ? connectionError(command.error)
+      ? materialFailure(command.error)
       : undefined;
   const refresh = async () => {
     if (command.pending || refreshing || query.isFetching || !runtime.enabled)
@@ -89,31 +94,6 @@ export function PostedMaterialsContent() {
         }}
         ListHeaderComponent={
           <View style={styles.header}>
-            <View style={styles.row}>
-              <View style={styles.grow}>
-                <Text style={styles.heading}>Tài liệu đã đăng</Text>
-                {query.data && (
-                  <Text style={styles.meta}>
-                    {query.items.length}
-                    {query.hasNextPage ? "+" : ""} tài liệu
-                  </Text>
-                )}
-              </View>
-              <Button
-                variant="craft"
-                size="sm"
-                leadingIcon="plus"
-                disabled={disabled}
-                onPress={() => router.push("/materials/new")}
-              >
-                Đăng tài liệu
-              </Button>
-            </View>
-            {!runtime.enabled && (
-              <Text style={styles.meta}>
-                Đăng nhập để quản lý tài liệu của bạn.
-              </Text>
-            )}
             <Input
               hideLabel
               label="Tìm tài liệu"
@@ -129,24 +109,22 @@ export function PostedMaterialsContent() {
                 <Icon name="search" size={18} color={appColors.muted} />
               }
             />
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.filters}
-            >
-              {materialFilters.map((status) => (
-                <Button
-                  key={status}
-                  size="sm"
-                  variant={filter === status ? "craft" : "paper"}
-                  accessibilityLabel={`Lọc tài liệu: ${status === "ALL" ? "Tất cả" : materialStatuses[status].label}`}
-                  accessibilityState={{ selected: filter === status }}
-                  onPress={() => setFilter(status)}
-                >
-                  {status === "ALL" ? "Tất cả" : materialStatuses[status].label}
-                </Button>
-              ))}
-            </ScrollView>
+            {!runtime.enabled && (
+              <Text style={styles.meta}>
+                Đăng nhập để quản lý tài liệu của bạn.
+              </Text>
+            )}
+            <FilterBar
+              options={materialFilters.map((status) => ({
+                value: status,
+                label:
+                  status === "ALL" ? "Tất cả" : materialStatuses[status].label,
+                accessibilityLabel: `Lọc tài liệu: ${status === "ALL" ? "Tất cả" : materialStatuses[status].label}`,
+              }))}
+              value={filter}
+              onChange={setFilter}
+              label="Lọc tài liệu đã đăng"
+            />
             <ConnectionFeedback
               loading={query.isLoading}
               error={query.error}
@@ -248,12 +226,19 @@ export function PostedMaterialsContent() {
         onClose={() => setSelectedId(undefined)}
         onEdit={() => selected && edit(selected.id)}
         onArchive={() => {
+          setDeletingDraft(false);
+          setArchiveId(selectedId);
+          setSelectedId(undefined);
+        }}
+        onDelete={() => {
+          setDeletingDraft(true);
           setArchiveId(selectedId);
           setSelectedId(undefined);
         }}
       />
       <ArchiveMaterialDialog
         material={archive}
+        deletingDraft={deletingDraft}
         busy={!!command.pending}
         disabled={disabled}
         uncertain={!!command.uncertain}
@@ -261,9 +246,11 @@ export function PostedMaterialsContent() {
         onClose={() => setArchiveId(undefined)}
         onConfirm={() => {
           if (archive)
-            void command.run("archive", archive).then((result) => {
-              if (result && runtime.isCurrent()) setArchiveId(undefined);
-            });
+            void command
+              .run(deletingDraft ? "delete" : "archive", archive)
+              .then((result) => {
+                if (result && runtime.isCurrent()) setArchiveId(undefined);
+              });
         }}
         onReconcile={() => void reconcile()}
       />

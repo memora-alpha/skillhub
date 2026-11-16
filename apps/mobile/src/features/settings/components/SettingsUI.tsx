@@ -210,7 +210,7 @@ export const settingsStyles = StyleSheet.create({
 
 const styles = StyleSheet.create({
   intro: { gap: 8, paddingTop: 4 },
-  title: { ...typography.title, fontFamily: fonts.bold, color: colors.ink },
+  title: { ...typography.heading, fontFamily: fonts.bold, color: colors.ink },
   description: {
     ...typography.secondary,
     fontFamily: fonts.body,
@@ -246,9 +246,9 @@ const styles = StyleSheet.create({
   choice: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
-    padding: 18,
-    minHeight: 82,
+    gap: 12,
+    padding: 14,
+    minHeight: 64,
   },
   selectedChoice: { backgroundColor: colors.primarySoft },
   choiceCopy: { flex: 1, minWidth: 0, gap: 4 },
@@ -277,6 +277,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 12,
-    padding: 18,
+    padding: 14,
   },
 });

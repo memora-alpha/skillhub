@@ -87,6 +87,7 @@ export function ApiMessagesScreen() {
           variant="secondary"
           size="sm"
           style={styles.proposalAction}
+          accessibilityLabel="Đề xuất"
           onPress={() => router.push("/proposals")}
         >
           <Text style={styles.proposalLabel}>Đề xuất</Text>
@@ -200,7 +201,7 @@ function ConversationSeparator() {
 const styles = StyleSheet.create({
   background: { backgroundColor: colors.background },
   proposalAction: {
-    minHeight: 36,
+    minHeight: 44,
     paddingHorizontal: 12,
     paddingVertical: 0,
     borderRadius: appRadius.button,
@@ -217,7 +218,7 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 640,
     alignSelf: "center",
-    padding: 16,
+    padding: 12,
     paddingBottom: 24,
   },
   separator: { height: 10 },

@@ -18,7 +18,21 @@ Owner list đã nối cursor/submit/archive nhưng dùng Panel và nhiều nút 
 
 ## Task
 
-- [x] Đưa bookmark Đã lưu lên góc phải thẻ, bỏ nút dài; giữ chevron mở thông tin trên thẻ bản nháp. Lưu trữ nằm trong hộp thông tin, dùng icon archive; hủy đăng dùng ×, ngừng chia sẻ dùng eye-off, đồng bộ cả hộp xác nhận. Giữ xác nhận/lỗi/session; xóa draft chưa có API BE.
+- [x] Đổi phản hồi xóa bản nháp thành toast dùng chung, bỏ banner thành công trong danh sách; chỉ thông báo sau receipt hợp lệ, giữ recovery và scope phiên.
+
+- [x] Bỏ lưu trữ ở bản nháp trên mobile, chặn cả dispatch archive DRAFT; giữ sửa/gửi duyệt/xóa có xác nhận và các thao tác ở trạng thái khác.
+
+- [x] Khôi phục card nhóm trong form đăng/chỉnh sửa; thẻ đơn mua ở Thư viện mở trang chi tiết, giữ thao tác tải explicit và snapshot/eligibility; kiểm màn nhỏ/chữ lớn và điều hướng.
+
+- [x] Bỏ tiêu đề Thư viện của bạn và gom nguồn/trạng thái thành một thanh lọc ngang; thu gọn Khám phá thành icon, giữ lọc đơn/chuyển miễn phí/khóa mutation và kiểm màn nhỏ/chữ lớn/keyboard.
+
+- [ ] Đóng lỗi API thư viện miễn phí trên bản triển khai: xác minh BE có GET `/api/v1/me/material-library/free`, kiểm tra có đăng nhập nhận200 và nghiệm thu tab/list/empty/pagination/refresh. Bằng chứng404 và điều kiện đóng lỗi tại [status](status.md#lỗi-đang-mở--api-thư-viện-miễn-phí-chưa-khả-dụng-trên-bản-triển-khai).
+
+- [x] Phân biệt route thư viện miễn phí chưa triển khai (404 không mã nghiệp vụ) với lỗi quyền thật; giữ retry và không fallback dữ liệu local. Probe API cấu hình ghi trong status, nghiệm thu có đăng nhập chờ BE triển khai route.
+
+- [x] Đồng bộ BE `origin/dev@8a8230aa`: thư viện miễn phí phân trang theo grant, canEdit/editReasonCode cho đánh giá, xóa DRAFT theo version và thông báo lỗi mới; kiểm retry/session/cache và UI nhỏ. Thẻ miễn phí vẫn đọc ownership và xác nhận purchased snapshot khi có đơn mua.
+
+- [x] Đưa bookmark Đã lưu lên góc phải thẻ, bỏ nút dài; giữ chevron mở thông tin trên thẻ bản nháp. Lưu trữ REJECTED nằm trong hộp thông tin, dùng icon archive; hủy đăng dùng ×, ngừng chia sẻ dùng eye-off, đồng bộ cả hộp xác nhận. DRAFT chỉ giữ xóa có xác nhận qua DELETE/version, không có lưu trữ.
 
 - [x] Làm gọn preview ảnh bìa đã lưu/mới: không hiện tên/link, nút × trên ảnh, Hoàn tác và giữ upload/session/version guards.
 
@@ -34,7 +48,8 @@ Owner list đã nối cursor/submit/archive nhưng dùng Panel và nhiều nút 
 - [x] Nối API yêu thích mới theo tài khoản: detail lưu/bỏ lưu, tab Đã lưu có cursor/loading/error/retry; không lưu cục bộ, không suy trạng thái từ trang đầu.
 - [x] Nhận purchasedMaterial/review/refundEligibility trên orders; hiển thị bản đã mua, khóa hoàn tiền theo BE, giảm đọc từng dòng và cập nhật sau cấp URL; giữ policy review sau hoàn tiền/mua lại.
 - [x] Nhận owner cover projection, hiển thị bìa đã lưu, đổi/gỡ khi Lưu và giữ draft/version/recovery.
-- [ ] Danh sách tài liệu miễn phí đã tải và gỡ file nội dung đã gắn: vẫn chưa có API BE; không lưu cục bộ hoặc giả gỡ file.
+- [x] Danh sách tài liệu miễn phí đã tải dùng API BE theo grant ISSUED, có phân trang/refresh/loading/error/retry; không lưu cục bộ.
+- [ ] Gỡ file nội dung đã gắn: BE từ chối fileId:null bằng MATERIAL_FILE_REMOVAL_UNSUPPORTED; giữ khả năng thay tệp, không thêm thao tác gỡ chưa được hỗ trợ.
 - [x] Gom loading chi tiết tài liệu: skeleton chung khi mở, bỏ spinner từng section, tải nền review/đề xuất và giữ nội dung khi refresh; giữ khóa quyền mua/tải và error/retry.
 - [x] Rút gọn UI đánh giá: summary một cụm, form đóng mặc định, hàng nhận xét phẳng có avatar; bỏ nhãn/ngày/nút tải lại/banner lặp và không hiện review của mình hai lần. Giữ error/recovery, version/idempotency và xác nhận xóa.
 - [x] Kiểm tác động compact rating picker tới consumer cũ, browser nhỏ/chữ lớn và cập nhật contract/status.

@@ -6,12 +6,7 @@ import {
   RequestCreateButton,
 } from "@/features/learning-requests";
 import { ApiPathsContent } from "@/features/learning-paths";
-import {
-  appColors as colors,
-  appRadius,
-  fonts,
-  typography,
-} from "@/constants/theme";
+import { appColors as colors, fonts, typography } from "@/constants/theme";
 
 const tabs = [
   {
@@ -86,16 +81,14 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 640,
     alignSelf: "center",
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    gap: 16,
+    paddingHorizontal: 12,
+    paddingTop: 4,
+    gap: 12,
   },
   tabs: {
     flexDirection: "row",
-    backgroundColor: colors.surfaceInset,
-    borderRadius: appRadius.control,
-    padding: 4,
-    gap: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   tab: {
     flex: 1,
@@ -103,11 +96,12 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: appRadius.control,
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
     paddingHorizontal: 8,
     paddingVertical: 10,
   },
-  selected: { backgroundColor: colors.surface },
+  selected: { borderBottomColor: colors.primary },
   pressed: { opacity: 0.7 },
   tabLabel: {
     ...typography.body,

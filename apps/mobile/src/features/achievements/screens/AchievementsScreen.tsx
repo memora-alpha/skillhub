@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { FilterBar } from "@/components/filter-bar";
 import { LoadingIndicator } from "@/components/LoadingIndicator";
 import { Button } from "@/components/Button";
 import { Icon } from "@/components/Icon";
@@ -97,7 +98,9 @@ export function AchievementsScreen() {
                 />
               </View>
               <View style={styles.grow}>
-                <Text style={styles.meta}>Danh hiệu trên hồ sơ</Text>
+                <Text style={styles.meta}>
+                  Danh hiệu trên hồ sơ · {items.length} thành tích
+                </Text>
                 <Text selectable style={styles.displayTitle}>
                   {data.selectedTitle
                     ? achievementTitleLabel(data.selectedTitle)
@@ -119,19 +122,6 @@ export function AchievementsScreen() {
               )}
             </View>
           )}
-          <View style={styles.headingRow}>
-            <Text accessibilityRole="header" style={styles.heading}>
-              Bộ sưu tập
-            </Text>
-            {data && (
-              <Text
-                style={styles.meta}
-                accessibilityLabel={`${items.length} thành tích đã mở khóa`}
-              >
-                {items.length} đã mở khóa
-              </Text>
-            )}
-          </View>
           {data && !items.length && (
             <EmptyState
               icon="award"
@@ -142,24 +132,16 @@ export function AchievementsScreen() {
           )}
           {data && items.length > 0 && (
             <>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.filters}
-              >
-                {groups.map((group) => (
-                  <Button
-                    key={group}
-                    variant={selectedGroup === group ? "craft" : "paper"}
-                    size="sm"
-                    accessibilityLabel={`Lọc thành tích: ${group}`}
-                    accessibilityState={{ selected: selectedGroup === group }}
-                    onPress={() => setFilter(group)}
-                  >
-                    {group}
-                  </Button>
-                ))}
-              </ScrollView>
+              <FilterBar
+                options={groups.map((group) => ({
+                  value: group,
+                  label: group,
+                  accessibilityLabel: `Lọc thành tích: ${group}`,
+                }))}
+                value={selectedGroup}
+                onChange={setFilter}
+                label="Lọc thành tích"
+              />
               <View style={styles.grid}>
                 {visible.map((item) => (
                   <AchievementCard
