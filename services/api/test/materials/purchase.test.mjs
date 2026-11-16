@@ -57,6 +57,29 @@ test("PAID material purchase on isolated PostgreSQL", async (t) => {
       assert.equal(await available(f, buyer), 3000n);
       assert.equal(await f.db.materialOrder.count(), 1);
     });
+    await t.test(
+      "a no-op purchase key remains idempotent after the existing order is refunded",
+      async () => {
+        const returning = await f.account();
+        await f.fund(returning, 5000n);
+        const purchased = await buy(returning, "owned-key-a");
+        const alreadyOwned = await buy(returning, "owned-key-b");
+        assert.equal(alreadyOwned.replayed, true);
+        assert.equal(alreadyOwned.order.id, purchased.order.id);
+        await f.purchases.refund(returning.principal, purchased.order.id);
+        const replay = await buy(returning, "owned-key-b");
+        assert.equal(replay.replayed, true);
+        assert.equal(replay.order.id, purchased.order.id);
+        assert.equal(replay.order.status, "REFUNDED");
+        assert.equal(await available(f, returning), 5000n);
+        assert.equal(
+          await f.db.materialOrder.count({
+            where: { buyerId: returning.user.id, materialId: paid.id },
+          }),
+          1,
+        );
+      },
+    );
     await t.test("a key reused for another material is rejected", async () => {
       const other = await f.publishedMaterial(seller, {
         title: "Another paid material",

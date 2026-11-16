@@ -29,6 +29,10 @@ test("saved materials and buyer order projections on isolated PostgreSQL", async
           page.data[0].material.title,
           "Historical Kubernetes handbook",
         );
+        assert.deepEqual(page.data[0].material.thumbnail, {
+          kind: "PLACEHOLDER",
+          format: "PDF",
+        });
         assert.equal(
           (await f.favorites.remove(buyer.principal, paid.id)).removed,
           true,

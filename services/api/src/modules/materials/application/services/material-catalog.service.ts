@@ -5,12 +5,13 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-import type { Material, Prisma } from "../../../../generated/prisma/client";
+import { Prisma, type Material } from "../../../../generated/prisma/client";
 import { TransactionRunner } from "../../../../infrastructure/database/transaction-runner";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
 import { FileAttachmentService } from "../../../../infrastructure/storage/file-attachment.service";
 import { FileStorageService } from "../../../../infrastructure/storage/file-storage.service";
 import type { Principal } from "../../../auth/application/services/sessions.service";
+import { listInput, listResult } from "../../../../shared/http/list-page";
 import {
   snapshotStorageKey,
   type MaterialAccess,
@@ -120,6 +121,88 @@ export class MaterialCatalogService {
         material.mimeType,
         material.materialThumbnailMaterialIdRecords[0],
       ),
+    };
+  }
+
+  /** Successful FREE grants are durable access history and back the mobile library. */
+  async listFreeAccesses(
+    principal: Principal,
+    query: { limit?: number; cursor?: string } = {},
+  ) {
+    requirePermission(principal, "material:access");
+    const scope = JSON.stringify([
+      "material-library-free-v1",
+      principal.userId,
+    ]);
+    const { limit, cursor } = listInput(query, scope);
+    const boundary = cursor
+      ? Prisma.sql`HAVING (MAX(access_grant.issued_at), access_grant.material_id) < (${new Date(
+          cursor.value,
+        )}, ${cursor.id}::uuid)`
+      : Prisma.empty;
+    const result = await this.transactions.run(
+      async (tx) => {
+        const accessRows = await tx.$queryRaw<FreeAccessRow[]>`
+          SELECT access_grant.material_id AS id,
+                 MIN(access_grant.issued_at) AS "firstAccessedAt",
+                 MAX(access_grant.issued_at) AS "lastAccessedAt"
+          FROM material_download_grants AS access_grant
+          INNER JOIN materials AS material
+            ON material.material_id = access_grant.material_id
+          WHERE access_grant.requested_by = ${principal.userId}::uuid
+            AND access_grant.access_source = 'FREE_PUBLIC'
+            AND access_grant.status = 'ISSUED'
+            AND access_grant.issued_at IS NOT NULL
+            AND material.access_type = 'FREE'
+            AND material.status = 'PUBLISHED'
+            AND material.scan_status = 'CLEAN'
+          GROUP BY access_grant.material_id
+          ${boundary}
+          ORDER BY MAX(access_grant.issued_at) DESC, access_grant.material_id DESC
+          LIMIT ${limit + 1}`;
+        const page = listResult(
+          accessRows,
+          limit,
+          scope,
+          (row) => row.lastAccessedAt,
+        );
+        const materials = await tx.material.findMany({
+          where: { id: { in: page.data.map((row) => row.id) } },
+          include: {
+            materialThumbnailMaterialIdRecords: {
+              where: { status: "READY" },
+              orderBy: { sourceGeneration: "desc" },
+              take: 1,
+            },
+          },
+        });
+        return { page, materials };
+      },
+      { isolationLevel: "ReadCommitted" },
+    );
+    const materialById = new Map(
+      result.materials.map((material) => [material.id, material]),
+    );
+    return {
+      data: await Promise.all(
+        result.page.data.map(async (access) => {
+          const material = materialById.get(access.id);
+          if (!material) throw new NotFoundException("MATERIAL_NOT_FOUND");
+          return {
+            accessSource: "FREE_PUBLIC" as const,
+            firstAccessedAt: access.firstAccessedAt,
+            lastAccessedAt: access.lastAccessedAt,
+            material: {
+              ...publicMaterialView(material),
+              thumbnail: await this.thumbnails.publicProjection(
+                material.mimeType,
+                material.materialThumbnailMaterialIdRecords[0],
+              ),
+            },
+          };
+        }),
+      ),
+      pagination: result.page.pagination,
     };
   }
 
@@ -323,6 +406,12 @@ export class MaterialCatalogService {
     };
   }
 }
+
+type FreeAccessRow = {
+  id: string;
+  firstAccessedAt: Date;
+  lastAccessedAt: Date;
+};
 
 function downloadFailureCode(error: unknown): string {
   if (

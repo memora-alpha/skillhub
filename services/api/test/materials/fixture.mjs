@@ -79,6 +79,7 @@ export async function createMaterialFixture() {
     f.transactions,
     credits,
     f.audit,
+    f.commands,
   );
   const reports = new MaterialReportsService(f.transactions);
   const reviews = new MaterialReviewsService(
@@ -92,7 +93,10 @@ export async function createMaterialFixture() {
     f.actors,
     f.audit,
   );
-  const favorites = new MaterialFavoritesService(f.transactions);
+  const favorites = new MaterialFavoritesService(
+    f.transactions,
+    new MaterialThumbnailsService(f.objectStorage),
+  );
   const moderator = await f.account("STAFF");
   /** Create → attach file → submit → approve, through the real services. */
   async function publishedMaterial(owner, overrides = {}) {

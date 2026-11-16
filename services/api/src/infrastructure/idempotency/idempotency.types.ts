@@ -8,4 +8,5 @@ export type IdempotencyInput = {
   operation: string;
   key: string;
   command: JsonValue;
+  conflictMessage?: string;
 };

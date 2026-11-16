@@ -99,7 +99,9 @@ export class MaterialReviewsController {
         example: {
           data: {
             canReview: false,
-            reasonCode: "ALREADY_REVIEWED",
+            reasonCode: "MATERIAL_REVIEW_ALREADY_EXISTS",
+            canEdit: true,
+            editReasonCode: null,
             currentReview: { id: "5f3df64e-8a0d-49df-9303-6ece008695e0" },
           },
         },

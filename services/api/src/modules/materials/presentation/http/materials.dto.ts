@@ -49,11 +49,18 @@ export class UpdateMaterialDto {
   description?: string;
   @IsOptional() @IsIn(ACCESS) accessType?: (typeof ACCESS)[number];
   @IsOptional() @IsString() @MaxLength(13) priceCredit?: string;
-  @IsOptional() @IsUUID("4") fileId?: string;
+  @IsOptional() @IsUUID("4") fileId?: string | null;
   @ValidateIf((_object, value) => value !== undefined && value !== null)
   @IsUUID("4")
   coverFileId?: string | null;
   @IsOptional() @IsBoolean() distributionRightsConfirmed?: boolean;
+}
+
+export class DeleteMaterialQueryDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  expectedListingVersion!: number;
 }
 
 export class MaterialQueryDto {

@@ -24,10 +24,11 @@ export class MaterialThumbnailProcessor {
       return "MISSING";
     const material = await this.db.material.findUnique({
       where: { id: thumbnail.materialId },
-      select: { coverFileId: true, coverGeneration: true },
+      select: { coverFileId: true, coverGeneration: true, status: true },
     });
     if (
       !material ||
+      material.status === "ARCHIVED" ||
       material.coverFileId !== thumbnail.sourceFileId ||
       material.coverGeneration !== generation
     ) {
@@ -87,9 +88,10 @@ export class MaterialThumbnailProcessor {
         await tx.$queryRaw`SELECT material_id FROM materials WHERE material_id = ${thumbnail.materialId}::uuid FOR UPDATE`;
         const current = await tx.material.findUnique({
           where: { id: thumbnail.materialId },
-          select: { coverFileId: true, coverGeneration: true },
+          select: { coverFileId: true, coverGeneration: true, status: true },
         });
         if (
+          current?.status === "ARCHIVED" ||
           current?.coverFileId !== thumbnail.sourceFileId ||
           current.coverGeneration !== generation
         ) {

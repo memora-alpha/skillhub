@@ -110,7 +110,8 @@ export class IdempotencyService {
         throw new ServiceUnavailableException("Idempotency record unavailable");
       if (record.fingerprint !== fingerprint) {
         throw new ConflictException(
-          "Idempotency key belongs to a different command",
+          input.conflictMessage ??
+            "Idempotency key belongs to a different command",
         );
       }
       if (inserted === 0) {

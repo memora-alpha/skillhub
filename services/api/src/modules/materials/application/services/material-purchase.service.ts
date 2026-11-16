@@ -9,10 +9,11 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { Material } from "../../../../generated/prisma/client";
 import { TransactionRunner } from "../../../../infrastructure/database/transaction-runner";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
+import { IdempotencyService } from "../../../../infrastructure/idempotency/idempotency.service";
 import { AuditWriter } from "../../../audit/application/services/audit-writer";
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import { CreditOperationsService } from "../../../credit/application/services/credit-operations.service";
@@ -35,6 +36,7 @@ export class MaterialPurchaseService {
     private readonly transactions: TransactionRunner,
     private readonly credit: CreditOperationsService,
     private readonly audit: AuditWriter,
+    private readonly idempotency: IdempotencyService,
   ) {}
 
   /**
@@ -50,118 +52,136 @@ export class MaterialPurchaseService {
   ) {
     requirePermission(principal, "material:access");
     const key = orderKey(principal.userId, idempotencyKey);
-    return this.transactions.run(async (tx) => {
-      const replay = await tx.materialOrder.findUnique({
-        where: { idempotencyKey: key },
-      });
-      if (replay) {
-        if (replay.materialId !== materialId)
-          throw new ConflictException("IDEMPOTENCY_KEY_REUSED");
-        return { order: orderView(replay), replayed: true };
-      }
-      const material = await lockMaterial(tx, materialId);
-      await tx.$queryRaw`SELECT entitlement_id FROM material_entitlements
-        WHERE user_id = ${principal.userId}::uuid AND material_id = ${materialId}::uuid
-        FOR UPDATE`;
-      const owned = await tx.materialEntitlement.findUnique({
-        where: { userId_materialId: { userId: principal.userId, materialId } },
-        include: { sourceOrderIdRecord: true },
-      });
-      if (owned?.status === "ACTIVE" && owned.sourceOrderIdRecord)
-        return { order: orderView(owned.sourceOrderIdRecord), replayed: true };
-      assertPurchasable(material, principal.userId, expectedListingVersion);
-      const policy = await activeFeePolicy(tx);
-      const { fee, net } = materialFee(material.priceCredit, policy.feeBps);
-      const orderId = randomUUID();
-      const { operationId } = await this.credit.purchaseMaterial(tx, {
-        orderId,
-        buyerId: principal.userId,
-        sellerId: material.ownerId,
-        gross: material.priceCredit,
-        fee,
-      });
-      const order = await tx.materialOrder.create({
-        data: {
-          id: orderId,
+    const result = await this.idempotency.execute(
+      {
+        scope: `material-purchase:${principal.userId}`,
+        operation: "purchase",
+        key: idempotencyRecordKey(key),
+        command: { materialId },
+        conflictMessage: "IDEMPOTENCY_KEY_REUSED",
+      },
+      async (tx) => {
+        const replay = await tx.materialOrder.findUnique({
+          where: { idempotencyKey: key },
+        });
+        if (replay) {
+          if (replay.materialId !== materialId)
+            throw new ConflictException("IDEMPOTENCY_KEY_REUSED");
+          return { id: replay.id, status: "EXISTING" };
+        }
+        const material = await lockMaterial(tx, materialId);
+        await tx.$queryRaw`SELECT entitlement_id FROM material_entitlements
+          WHERE user_id = ${principal.userId}::uuid AND material_id = ${materialId}::uuid
+          FOR UPDATE`;
+        const owned = await tx.materialEntitlement.findUnique({
+          where: {
+            userId_materialId: { userId: principal.userId, materialId },
+          },
+          include: { sourceOrderIdRecord: true },
+        });
+        if (owned?.status === "ACTIVE" && owned.sourceOrderIdRecord)
+          return { id: owned.sourceOrderIdRecord.id, status: "EXISTING" };
+        assertPurchasable(material, principal.userId, expectedListingVersion);
+        const policy = await activeFeePolicy(tx);
+        const { fee, net } = materialFee(material.priceCredit, policy.feeBps);
+        const orderId = randomUUID();
+        const { operationId } = await this.credit.purchaseMaterial(tx, {
+          orderId,
           buyerId: principal.userId,
           sellerId: material.ownerId,
-          materialId,
-          purchasedFileSnapshot: fileSnapshot(material),
-          listingVersion: material.listingVersion,
-          grossCredit: material.priceCredit,
-          feeAmount: fee,
-          sellerNetCredit: net,
-          feePolicyId: policy.id,
-          feeSnapshot: policy.snapshot,
-          operationId,
-          status: "SUCCESS",
-          idempotencyKey: key,
-        },
-      });
-      const [clock] = await tx.$queryRaw<
-        { now: Date }[]
-      >`SELECT CURRENT_TIMESTAMP AS now`;
-      if (!(clock?.now instanceof Date))
-        throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
-      if (owned) {
-        await tx.materialEntitlement.update({
-          where: { id: owned.id },
-          data: {
-            sourceOrderId: orderId,
-            sourceType: "PURCHASE",
-            status: "ACTIVE",
-            grantedAt: clock.now,
-            revokedAt: null,
-            revokedReason: null,
-          },
+          gross: material.priceCredit,
+          fee,
         });
-      } else {
-        await tx.materialEntitlement.create({
+        await tx.materialOrder.create({
           data: {
-            userId: principal.userId,
-            materialId,
-            sourceOrderId: orderId,
-            sourceType: "PURCHASE",
-            status: "ACTIVE",
-            grantedAt: clock.now,
-          },
-        });
-      }
-      await this.audit.append(tx, {
-        actor: {
-          kind: "HUMAN",
-          userId: principal.userId,
-          roles: roleCodes(principal),
-        },
-        action: "MATERIAL_PURCHASE",
-        target: { type: "MATERIAL_ORDER", id: orderId },
-        after: {
-          materialId,
-          grossCredit: material.priceCredit.toString(),
-          feeAmount: fee.toString(),
-          operationId,
-        },
-        reason: "Material purchase",
-        context: auditContext(),
-      });
-      await tx.outboxEvent.create({
-        data: {
-          aggregateType: "MATERIAL_ORDER",
-          aggregateId: orderId,
-          version: 1,
-          type: "material.purchased",
-          payload: {
-            orderId,
-            materialId,
+            id: orderId,
             buyerId: principal.userId,
             sellerId: material.ownerId,
+            materialId,
+            purchasedFileSnapshot: fileSnapshot(material),
+            listingVersion: material.listingVersion,
+            grossCredit: material.priceCredit,
+            feeAmount: fee,
+            sellerNetCredit: net,
+            feePolicyId: policy.id,
+            feeSnapshot: policy.snapshot,
+            operationId,
+            status: "SUCCESS",
+            idempotencyKey: key,
           },
-          dedupeKey: `material-purchased:${orderId}`,
-          correlationId: randomUUID(),
-        },
-      });
-      return { order: orderView(order), replayed: false };
-    });
+        });
+        const [clock] = await tx.$queryRaw<
+          { now: Date }[]
+        >`SELECT CURRENT_TIMESTAMP AS now`;
+        if (!(clock?.now instanceof Date))
+          throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
+        if (owned) {
+          await tx.materialEntitlement.update({
+            where: { id: owned.id },
+            data: {
+              sourceOrderId: orderId,
+              sourceType: "PURCHASE",
+              status: "ACTIVE",
+              grantedAt: clock.now,
+              revokedAt: null,
+              revokedReason: null,
+            },
+          });
+        } else {
+          await tx.materialEntitlement.create({
+            data: {
+              userId: principal.userId,
+              materialId,
+              sourceOrderId: orderId,
+              sourceType: "PURCHASE",
+              status: "ACTIVE",
+              grantedAt: clock.now,
+            },
+          });
+        }
+        await this.audit.append(tx, {
+          actor: {
+            kind: "HUMAN",
+            userId: principal.userId,
+            roles: roleCodes(principal),
+          },
+          action: "MATERIAL_PURCHASE",
+          target: { type: "MATERIAL_ORDER", id: orderId },
+          after: {
+            materialId,
+            grossCredit: material.priceCredit.toString(),
+            feeAmount: fee.toString(),
+            operationId,
+          },
+          reason: "Material purchase",
+          context: auditContext(),
+        });
+        await tx.outboxEvent.create({
+          data: {
+            aggregateType: "MATERIAL_ORDER",
+            aggregateId: orderId,
+            version: 1,
+            type: "material.purchased",
+            payload: {
+              orderId,
+              materialId,
+              buyerId: principal.userId,
+              sellerId: material.ownerId,
+            },
+            dedupeKey: `material-purchased:${orderId}`,
+            correlationId: randomUUID(),
+          },
+        });
+        return { id: orderId, status: "CREATED" };
+      },
+    );
+    const order = await this.transactions.run((tx) =>
+      tx.materialOrder.findUniqueOrThrow({ where: { id: result.value.id } }),
+    );
+    return {
+      order: orderView(order),
+      replayed: result.replayed || result.value.status === "EXISTING",
+    };
   }
 
   async refund(principal: Principal, orderId: string) {
@@ -368,6 +388,10 @@ function orderKey(buyerId: string, key: string | undefined): string {
   if (!value || value.length > 200 || !/^[\x21-\x7e]+$/u.test(value))
     throw new BadRequestException("IDEMPOTENCY_KEY_REQUIRED");
   return `${buyerId}:${value}`;
+}
+
+function idempotencyRecordKey(key: string): string {
+  return createHash("sha256").update(key).digest("hex");
 }
 
 function assertPurchasable(

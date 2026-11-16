@@ -208,11 +208,23 @@ test("material review lifecycle on isolated PostgreSQL", async (t) => {
           { rating: 5 },
           "paid-review",
         );
+        const editable = await f.reviews.eligibility(
+          paidReviewer.principal,
+          paid.id,
+        );
+        assert.equal(editable.canEdit, true);
+        assert.equal(editable.editReasonCode, null);
         assert.equal(
           (await f.reviews.list(paid.id, {})).data[0].verifiedPurchase,
           true,
         );
         await f.purchases.refund(paidReviewer.principal, purchase.order.id);
+        const locked = await f.reviews.eligibility(
+          paidReviewer.principal,
+          paid.id,
+        );
+        assert.equal(locked.canEdit, false);
+        assert.equal(locked.editReasonCode, "MATERIAL_ENTITLEMENT_REVOKED");
         assert.equal(
           (await f.reviews.list(paid.id, {})).data[0].verifiedPurchase,
           false,
