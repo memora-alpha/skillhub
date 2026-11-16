@@ -39,6 +39,7 @@ export function useMaterialEditor(
   const [uploadBusy, setUploadBusy] = useState(false);
   const [coverFiles, setCoverFiles] = useState<UploadedFile[]>([]);
   const [coverBusy, setCoverBusy] = useState(false);
+  const [removeCover, setRemoveCover] = useState(false);
   const form = useForm<MaterialEditorValues>({
     resolver: zodResolver(materialEditorSchema),
     defaultValues: editorValues(material),
@@ -65,11 +66,15 @@ export function useMaterialEditor(
       form.reset(editorValues(latest));
       setFiles([]);
       setCoverFiles([]);
+      setRemoveCover(false);
     }
   };
   const save = form.handleSubmit(async (values) => {
     if (blocked || !runtime.isCurrent()) return;
-    const body = editorMaterialInput(values, files[0], coverFiles[0]);
+    const body = {
+      ...editorMaterialInput(values, files[0], coverFiles[0]),
+      ...(removeCover && !coverFiles.length ? { coverFileId: null } : {}),
+    };
     const saved = await command.run(
       JSON.stringify({
         id: material?.id,
@@ -100,6 +105,8 @@ export function useMaterialEditor(
     setCoverFiles,
     coverBusy,
     setCoverBusy,
+    removeCover,
+    setRemoveCover,
     disabled,
     blocked,
     save,

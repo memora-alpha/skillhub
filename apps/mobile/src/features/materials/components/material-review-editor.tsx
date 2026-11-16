@@ -18,6 +18,7 @@ export function MaterialReviewEditor({
   materialId,
   current,
   ready,
+  canEdit = true,
   reconcile,
   context,
   refreshing,
@@ -27,6 +28,7 @@ export function MaterialReviewEditor({
   materialId: string;
   current: OwnMaterialReview | null;
   ready: boolean;
+  canEdit?: boolean;
   reconcile: (preserveMissing?: boolean) => Promise<void>;
   context?: ReactNode;
   refreshing?: boolean;
@@ -48,7 +50,13 @@ export function MaterialReviewEditor({
   const busy = command.pending || command.uncertain || !ready || changed;
   const hidden = current?.status === "HIDDEN";
   const submit = async () => {
-    if (busy || hidden || rating < 1 || [...comment.trim()].length > 2000)
+    if (
+      busy ||
+      hidden ||
+      !canEdit ||
+      rating < 1 ||
+      [...comment.trim()].length > 2000
+    )
       return;
     const body = { rating, comment: comment.trim() };
     const result = await command.run(
@@ -97,7 +105,9 @@ export function MaterialReviewEditor({
       <Button
         variant="craft"
         style={styles.submit}
-        disabled={busy || rating < 1 || [...comment.trim()].length > 2000}
+        disabled={
+          busy || !canEdit || rating < 1 || [...comment.trim()].length > 2000
+        }
         onPress={() => void submit()}
       >
         {command.pending
@@ -143,7 +153,7 @@ export function MaterialReviewEditor({
                   size="sm"
                   style={styles.smallAction}
                   accessibilityLabel="Chỉnh sửa đánh giá"
-                  disabled={busy}
+                  disabled={busy || !canEdit}
                   onPress={() => setEditing(true)}
                 >
                   Sửa

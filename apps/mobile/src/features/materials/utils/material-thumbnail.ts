@@ -5,7 +5,7 @@ export function materialThumbnailUrl(
   large = false,
   now = Date.now(),
 ) {
-  const thumbnail = material.thumbnail;
+  const thumbnail = material.cover?.preview ?? material.thumbnail;
   if (thumbnail?.kind !== "GENERATED" || Date.parse(thumbnail.expiresAt) <= now)
     return undefined;
   return large ? thumbnail.largeUrl : thumbnail.smallUrl;

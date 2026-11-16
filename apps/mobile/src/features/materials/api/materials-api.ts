@@ -1,6 +1,7 @@
 import { createMaterialCatalogApi } from "./material-catalog-api";
 import { createMaterialOrdersApi } from "./material-orders-api";
 import { createMaterialReviewsApi } from "./material-reviews-api";
+import { createMaterialFavoritesApi } from "./material-favorites-api";
 import { z } from "zod";
 import { readCursorPages } from "@/lib/http/cursor-pages";
 import type { RequestOptions } from "@/lib/http/client";
@@ -137,6 +138,7 @@ export function createMaterialsApi(
     },
     ...createMaterialOrdersApi(call),
     ...createMaterialReviewsApi(call),
+    ...createMaterialFavoritesApi(call),
     ...createMaterialCatalogApi(call, mine),
   };
 }

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { StyleSheet, Text, View } from "react-native";
@@ -91,6 +91,7 @@ export function ServerFilePicker({
   autoCheck = false,
   showHint = true,
   pickerLabel,
+  renderFile,
   types = [
     "application/pdf",
     "application/msword",
@@ -122,6 +123,12 @@ export function ServerFilePicker({
   autoCheck?: boolean;
   showHint?: boolean;
   pickerLabel?: string;
+  renderFile?: (options: {
+    file: UploadedFile;
+    remove: () => void;
+    disabled: boolean;
+    statusLabel: string;
+  }) => ReactNode;
   types?: string[];
 }>) {
   const lock = useRef(false);
@@ -178,7 +185,19 @@ export function ServerFilePicker({
   return (
     <>
       {files.map((file) =>
-        compact ? (
+        renderFile ? (
+          <View key={file.fileId}>
+            {renderFile({
+              file,
+              disabled: disabled || pending,
+              statusLabel: fileStatusLabel(file.state, checkOnSubmit, disabled),
+              remove: () => {
+                if (!disabled && !pending && isCurrent())
+                  onChange(files.filter((item) => item.fileId !== file.fileId));
+              },
+            })}
+          </View>
+        ) : compact ? (
           <View key={file.fileId} style={styles.file}>
             <Icon name="file" size={20} color={colors.forest} />
             <View style={styles.grow}>

@@ -19,6 +19,7 @@ import { MaterialSkillPicker } from "./material-skill-picker";
 import { MaterialFieldError } from "./material-field-error";
 import { MaterialEditorConflict } from "./material-editor-conflict";
 import { MaterialCoverEditor } from "./material-cover-editor";
+import { MaterialStatusBadge } from "./owner-material-card";
 import { materialStyles as styles } from "./material.styles";
 
 export function MaterialEditorForm({
@@ -46,6 +47,11 @@ export function MaterialEditorForm({
   const access = form.watch("accessType");
   return (
     <View style={styles.page}>
+      {material && (
+        <View style={styles.row}>
+          <MaterialStatusBadge material={material} />
+        </View>
+      )}
       {material?.status === "PUBLISHED" && (
         <FormNotice tone="info" compact>
           Chỉnh sửa sẽ chuyển tài liệu về trạng thái chờ duyệt.
@@ -86,7 +92,7 @@ export function MaterialEditorForm({
         <Text style={styles.meta}>
           PDF, DOCX, XLSX hoặc PPTX · tối đa 20 MB
         </Text>
-        {!!material?.file && (
+        {!!material?.file && !files.length && (
           <Text style={styles.meta}>
             Hiện tại: {material.file.originalFilename ?? "Tệp tài liệu"}
           </Text>
@@ -95,6 +101,9 @@ export function MaterialEditorForm({
           compact
           autoCheck
           showHint={false}
+          pickerLabel={
+            material?.file ? "Chọn tệp thay thế" : "Thêm tệp đính kèm"
+          }
           files={files}
           onChange={setFiles}
           upload={api.upload}
@@ -108,6 +117,13 @@ export function MaterialEditorForm({
           prepareAsset={prepareMaterialUpload}
           disabled={disabled}
         />
+        {!!material?.file && !!files.length && (
+          <Text style={styles.caption}>
+            Tệp mới sẽ thay thế “
+            {material.file.originalFilename ?? "tệp hiện tại"}” khi lưu. Bỏ tệp
+            mới để giữ tệp hiện tại.
+          </Text>
+        )}
       </View>
       <View style={styles.formSection}>
         <Text style={styles.sectionTitle}>Cách chia sẻ</Text>

@@ -44,6 +44,16 @@ export const materialStyles = {
       gap: 10,
     },
     catalogRow: { flexDirection: "row", alignItems: "stretch", gap: 12 },
+    savedCardRow: { paddingRight: 40 },
+    savedFavorite: { position: "absolute", top: 4, right: 4 },
+    favoriteIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: appRadius.control,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.primarySoft,
+    },
     catalogContent: { flex: 1, minWidth: 0, gap: 6 },
     cardBottom: {
       marginTop: "auto",

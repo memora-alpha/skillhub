@@ -95,13 +95,14 @@ test("review editor gates writes, preserves a stale draft, and retains uncertain
     delete local.cache[file];
     const { MaterialReviewEditor } = local(file);
     let done = 0;
-    const render = (review: unknown = null, ready = true) => {
+    const render = (review: unknown = null, ready = true, canEdit = true) => {
       slot = 0;
       return nodes(
         MaterialReviewEditor({
           materialId: materialOwnerId,
           current: review,
           ready,
+          canEdit,
           onDone: () => {
             done++;
           },
@@ -178,6 +179,19 @@ test("review editor gates writes, preserves a stale draft, and retains uncertain
     tree = render({ ...current, status: "HIDDEN" });
     assert.equal(button(tree, "Chỉnh sửa đánh giá"), undefined);
     assert.equal(button(tree, "Xóa đánh giá").props.disabled, false);
+    state = [];
+    tree = render(current, true, false);
+    assert.equal(button(tree, "Chỉnh sửa đánh giá").props.disabled, true);
+    assert.equal(button(tree, "Xóa đánh giá").props.disabled, false);
+    (button(tree, "Chỉnh sửa đánh giá").props.onPress as () => void)();
+    tree = render(current, true, false);
+    assert.equal(button(tree, "Lưu đánh giá").props.disabled, true);
+    await (button(tree, "Lưu đánh giá").props.onPress as () => Promise<void>)();
+    assert.equal(
+      writes,
+      0,
+      "refund/read failures cannot submit edits; deleting the review remains allowed",
+    );
     state = [];
     receipt = { ...current, deletedAt: current.createdAt };
     tree = render();

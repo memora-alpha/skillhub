@@ -1,12 +1,10 @@
-import { View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { FeaturePage } from "@/components/feature-page";
-import { EmptyState } from "@/components/EmptyState";
 import { useConnections } from "@/features/connections";
 import { MyMaterialTabs, myMaterialTab } from "../components/my-material-tabs";
 import { PostedMaterialsContent } from "./posted-materials-content";
 import { MaterialLibraryContent } from "./material-library-screen";
-import { materialStyles as styles } from "../components/material.styles";
+import { SavedMaterialsContent } from "./saved-materials-content";
 
 export function MyMaterialsScreen() {
   const runtime = useConnections();
@@ -32,14 +30,7 @@ function MyMaterialsContent() {
       ) : selected === "posted" ? (
         <PostedMaterialsContent />
       ) : (
-        <View style={{ padding: 24 }}>
-          <EmptyState
-            icon="book"
-            title="Lưu yêu thích chưa khả dụng"
-            titleStyle={styles.heading}
-            description="Bạn sẽ có thể lưu tài liệu để xem sau tại đây khi tính năng được bổ sung."
-          />
-        </View>
+        <SavedMaterialsContent />
       )}
     </FeaturePage>
   );

@@ -26,6 +26,11 @@ const messages: Readonly<Record<string, string>> = {
   MATERIAL_ALREADY_CONSUMED:
     "Đã cấp đường dẫn tải cho đơn mua này nên không còn đủ điều kiện hoàn tiền tự động.",
   MATERIAL_ORDER_NOT_REFUNDABLE: "Đơn mua này không thể hoàn tiền.",
+  MATERIAL_ALREADY_REFUNDED: "Đơn mua đã được hoàn tiền.",
+  MATERIAL_ENTITLEMENT_NOT_ACTIVE:
+    "Quyền truy cập của đơn mua này không còn hiệu lực.",
+  CREDIT_PROVENANCE_REVIEW_REQUIRED:
+    "Yêu cầu hoàn tiền này cần nhân viên kiểm tra nguồn Credit.",
   MATERIAL_REFUND_ADMIN_REQUIRED:
     "Yêu cầu hoàn tiền này cần nhân viên xem xét.",
   MATERIAL_ACCESS_CHANGED:
@@ -46,4 +51,10 @@ export function materialFailure(error: unknown) {
   if (error instanceof AppError && Object.hasOwn(messages, error.code))
     return messages[error.code]!;
   return connectionError(error);
+}
+export function materialRefundReason(code: string | null) {
+  return (
+    (code && Object.hasOwn(messages, code) && messages[code]) ||
+    "Đơn mua hiện chưa đủ điều kiện hoàn tiền tự động."
+  );
 }
