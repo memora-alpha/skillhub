@@ -148,7 +148,7 @@ test("webhook requests one application using bearer authentication", async () =>
     { webhook, token: "test-token" },
     async (url, options) => {
       assert.equal(url, webhook);
-      assert.equal(options.method, "GET");
+      assert.equal(options.method, "POST");
       assert.equal(options.redirect, "error");
       assert.equal(options.headers.Authorization, "Bearer test-token");
       return { ok: true };
