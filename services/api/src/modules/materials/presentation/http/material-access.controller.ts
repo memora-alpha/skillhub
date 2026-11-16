@@ -13,7 +13,12 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiHeader, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBearerAuth,
+  ApiHeader,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
 import type { Response } from "express";
 import {
   CurrentIdentity,
@@ -120,6 +125,16 @@ export class MaterialAccessController {
     @Query() query: ListPageQuery,
   ) {
     const result = await this.purchases.listOrders(actor, query);
+    return paginated(result.data, result.pagination);
+  }
+
+  @Get("me/material-library/free")
+  @ApiOperation({ summary: "Page FREE materials downloaded by the caller" })
+  async freeLibrary(
+    @CurrentIdentity() actor: Principal,
+    @Query() query: ListPageQuery,
+  ) {
+    const result = await this.catalog.listFreeAccesses(actor, query);
     return paginated(result.data, result.pagination);
   }
 

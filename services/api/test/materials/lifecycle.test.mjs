@@ -64,6 +64,18 @@ test("owner material lifecycle on isolated PostgreSQL", async (t) => {
       );
     });
     await t.test(
+      "null file removal is rejected instead of silently ignored",
+      async () => {
+        await assert.rejects(
+          f.materials.update(owner.principal, material.id, {
+            expectedListingVersion: material.listingVersion,
+            fileId: null,
+          }),
+          /MATERIAL_FILE_REMOVAL_UNSUPPORTED/,
+        );
+      },
+    );
+    await t.test(
       "attaching a file needs rights confirmation and the current version",
       async () => {
         const file = await f.materialFile(owner);
@@ -122,6 +134,49 @@ test("owner material lifecycle on isolated PostgreSQL", async (t) => {
         /MATERIAL_NOT_EDITABLE/,
       );
     });
+    await t.test(
+      "draft deletion is owner-only, versioned, hidden from mine, and replay-safe",
+      async () => {
+        const draft = await f.materials.create(
+          owner.principal,
+          f.draftInput({ title: "Disposable material draft" }),
+        );
+        await assert.rejects(
+          f.materials.removeDraft(
+            other.principal,
+            draft.id,
+            draft.listingVersion,
+          ),
+          /MATERIAL_NOT_FOUND/,
+        );
+        await assert.rejects(
+          f.materials.removeDraft(owner.principal, draft.id, 99),
+          /MATERIAL_VERSION_CONFLICT/,
+        );
+        const removed = await f.materials.removeDraft(
+          owner.principal,
+          draft.id,
+          draft.listingVersion,
+        );
+        assert.equal(removed.replayed, false);
+        assert.equal(
+          (await f.materials.listMine(owner.principal)).data.some(
+            (entry) => entry.id === draft.id,
+          ),
+          false,
+        );
+        assert.equal(
+          (
+            await f.materials.removeDraft(
+              owner.principal,
+              draft.id,
+              draft.listingVersion,
+            )
+          ).replayed,
+          true,
+        );
+      },
+    );
     await t.test(
       "staff approve, reject with reason, hide and unhide with audit",
       async () => {
@@ -275,6 +330,59 @@ test("owner material lifecycle on isolated PostgreSQL", async (t) => {
             reason: "Restoring my own listing",
           }),
           /MATERIAL_SELF_REVIEW_FORBIDDEN/,
+        );
+      },
+    );
+    await t.test(
+      "deleting a redrafted listing preserves its purchase history",
+      async () => {
+        const buyer = await f.account();
+        await f.fund(buyer, 5000n);
+        const published = await f.publishedMaterial(owner, {
+          title: "Purchased then redrafted material",
+          accessType: "PAID",
+          priceCredit: "10",
+        });
+        const purchase = await f.purchases.purchase(
+          buyer.principal,
+          published.id,
+          published.listingVersion,
+          "delete-history-purchase",
+        );
+        const pending = await f.materials.update(
+          owner.principal,
+          published.id,
+          {
+            expectedListingVersion: published.listingVersion,
+            description: "A changed version awaiting a new moderation decision",
+          },
+        );
+        const rejected = await f.moderation.moderate(
+          f.moderator.principal,
+          published.id,
+          "reject",
+          {
+            expectedListingVersion: pending.listingVersion,
+            reason: "Needs revision before it can be published again",
+          },
+        );
+        const redrafted = await f.materials.update(
+          owner.principal,
+          published.id,
+          {
+            expectedListingVersion: rejected.listingVersion,
+            title: "Purchased material under revision",
+          },
+        );
+        await f.materials.removeDraft(
+          owner.principal,
+          published.id,
+          redrafted.listingVersion,
+        );
+        assert.ok(
+          await f.db.materialOrder.findUnique({
+            where: { id: purchase.order.id },
+          }),
         );
       },
     );

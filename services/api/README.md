@@ -144,6 +144,14 @@ visible but blocks edits until repurchase. Apply migration
 `20261115000000_material_favorites_order_views` before rollout; refund execution still
 revalidates eligibility transactionally. See [material review spec](specs/016-material-reviews-thumbnails/spec.md).
 
+Material mobile hardening amendment (2026-11-16): no-op purchase keys remain durable
+across a later refund; the 20 MB material upload and scanner caps are aligned; null file
+removal is rejected explicitly; FREE downloads are pageable through
+`GET /api/v1/me/material-library/free`; review eligibility includes live editability;
+saved rows include a thumbnail/placeholder; and owners can version-delete DRAFTs through
+`DELETE /api/v1/me/materials/:id`. Draft deletion is a recoverable archive so purchase
+history and bound files remain intact. No migration or new environment setting is needed.
+
 Material moderation/owner projection amendment (2026-11-15): deleting a reported
 review resolves its open reports atomically; Staff can dismiss unfounded reports while
 leaving the review visible through `POST /api/v1/staff/material-reviews/:reviewId/dismiss-reports`.

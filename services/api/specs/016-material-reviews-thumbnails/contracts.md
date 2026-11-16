@@ -15,7 +15,10 @@ verifiedPurchase, createdAt, updatedAt}`.
 ## Eligibility and author writes
 
 - `GET /materials/:materialId/review-eligibility` (Bearer)
-  - `{canReview, reason:null|code, review:null|MaterialReview}`
+  - `{canReview, reasonCode:null|code, canEdit, editReasonCode:null|code,
+currentReview:null|MaterialReview}`. `canEdit` is re-evaluated from the same live
+    access/entitlement policy enforced by PATCH; refund therefore keeps the review visible
+    but returns `canEdit=false` with `MATERIAL_ENTITLEMENT_REVOKED`.
   - Proposed reason codes: `MATERIAL_NOT_PUBLISHED`, `MATERIAL_OWNER_CANNOT_REVIEW`,
     `MATERIAL_ACCESS_REQUIRED`, `MATERIAL_PURCHASE_REQUIRED`,
     `MATERIAL_ENTITLEMENT_REVOKED`, `MATERIAL_REVIEW_ALREADY_EXISTS`.
@@ -25,6 +28,23 @@ verifiedPurchase, createdAt, updatedAt}`.
   - body `{expectedVersion, rating?:1..5, comment?:string|null}`.
 - `DELETE /material-reviews/:reviewId` (Bearer)
   - query/body `expectedVersion`; 200 for exact replay.
+
+## Buyer library and owner draft deletion
+
+- `GET /me/material-library/free?limit=20&cursor=...` (Bearer)
+  - One row per currently public FREE material for which the caller has an `ISSUED`
+    `FREE_PUBLIC` download grant.
+  - Row: `{accessSource:"FREE_PUBLIC",firstAccessedAt,lastAccessedAt,material}`.
+    `material` uses the public projection and always includes a signed `thumbnail` or
+    deterministic placeholder. Ordering is `lastAccessedAt DESC, materialId DESC`.
+- `DELETE /me/materials/:materialId?expectedListingVersion=...` (Bearer)
+  - Owner-only and accepted only while the material is `DRAFT`.
+  - Uses a recoverable `ARCHIVED` soft delete, disappears from `GET /me/materials`,
+    preserves bound files and purchase history, and is replay-safe.
+  - Stale version: `MATERIAL_VERSION_CONFLICT`; non-draft:
+    `MATERIAL_DELETE_REQUIRES_DRAFT`.
+- `PATCH /me/materials/:materialId` rejects `fileId:null` with
+  `MATERIAL_FILE_REMOVAL_UNSUPPORTED`; omission still preserves the current file.
 
 ## Reporting and moderation
 
@@ -59,5 +79,7 @@ verifiedPurchase, createdAt, updatedAt}`.
   cannot make a successfully issued link refundable.
 - `POST /me/materials/files` adds `FILE_ARCHIVE_EXPANSION_LIMIT_EXCEEDED` (413) for a
   structurally valid OOXML archive exceeding decompression safety bounds.
+- The shared malware scanner accepts the full 20,000,000-byte material upload cap;
+  lower purpose-specific caps remain enforced before scanning.
 - `FILE_FORMAT_UNSUPPORTED` (415) remains reserved for a genuinely unsupported or
   structurally invalid format, not expansion size.

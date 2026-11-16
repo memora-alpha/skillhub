@@ -41,10 +41,15 @@ import {
 type ReviewEligibility = {
   canReview: boolean;
   reasonCode: MaterialReviewEligibilityReason | null;
+  canEdit: boolean;
+  editReasonCode: MaterialReviewEditReason | null;
   currentReview: MaterialReview | null;
   eligibilitySource: "FREE_ACCESS" | "PAID_ENTITLEMENT" | null;
   sourceOrderId: string | null;
 };
+
+type MaterialReviewEditReason =
+  MaterialReviewEligibilityReason | "MATERIAL_REVIEW_NOT_FOUND";
 
 @Injectable()
 export class MaterialReviewsService {
@@ -216,7 +221,7 @@ export class MaterialReviewsService {
         snapshot.deletedAt
       )
         throw new NotFoundException("MATERIAL_REVIEW_NOT_FOUND");
-      await lockMaterial(tx, snapshot.materialId);
+      const material = await lockMaterial(tx, snapshot.materialId);
       await lockReview(tx, reviewId);
       const current = await tx.materialReview.findUniqueOrThrow({
         where: { id: reviewId },
@@ -225,7 +230,7 @@ export class MaterialReviewsService {
         throw new NotFoundException("MATERIAL_REVIEW_NOT_FOUND");
       if (current.status === "HIDDEN")
         throw new ConflictException("MATERIAL_REVIEW_HIDDEN");
-      await assertReviewStillEditable(tx, current);
+      await assertReviewStillEditable(tx, current, material);
       if (current.version !== input.expectedVersion)
         throw new ConflictException("MATERIAL_REVIEW_VERSION_CONFLICT");
       const updated = await tx.materialReview.update({
@@ -386,17 +391,29 @@ export class MaterialReviewsService {
     const currentReview = await tx.materialReview.findFirst({
       where: { materialId: material.id, authorId: userId, deletedAt: null },
     });
-    if (material.status !== "PUBLISHED")
-      return blocked("MATERIAL_NOT_PUBLISHED", currentReview);
-    if (material.ownerId === userId)
-      return blocked("MATERIAL_OWNER_CANNOT_REVIEW", currentReview);
-    if (currentReview)
-      return blocked(
-        currentReview.status === "HIDDEN"
-          ? "MATERIAL_REVIEW_HIDDEN"
-          : "MATERIAL_REVIEW_ALREADY_EXISTS",
+    if (currentReview) {
+      const editability = await evaluateReviewEditability(
+        tx,
         currentReview,
+        material,
       );
+      return {
+        canReview: false,
+        reasonCode:
+          currentReview.status === "HIDDEN"
+            ? "MATERIAL_REVIEW_HIDDEN"
+            : "MATERIAL_REVIEW_ALREADY_EXISTS",
+        canEdit: editability.canEdit,
+        editReasonCode: editability.reasonCode,
+        currentReview,
+        eligibilitySource: null,
+        sourceOrderId: null,
+      };
+    }
+    if (material.status !== "PUBLISHED")
+      return blocked("MATERIAL_NOT_PUBLISHED", null);
+    if (material.ownerId === userId)
+      return blocked("MATERIAL_OWNER_CANNOT_REVIEW", null);
     if (material.accessType === "FREE") {
       const grant = await tx.materialDownloadGrant.findFirst({
         where: {
@@ -449,13 +466,27 @@ export class MaterialReviewsService {
 async function assertReviewStillEditable(
   tx: TransactionContext,
   review: MaterialReview,
+  material: Material,
 ) {
-  const material = await tx.material.findUniqueOrThrow({
-    where: { id: review.materialId },
-    select: { accessType: true, status: true },
-  });
+  const editability = await evaluateReviewEditability(tx, review, material);
+  if (!editability.canEdit)
+    throw new ConflictException({
+      message: "MATERIAL_REVIEW_NOT_ALLOWED",
+      reason: editability.reasonCode,
+    });
+}
+
+async function evaluateReviewEditability(
+  tx: TransactionContext,
+  review: MaterialReview,
+  material: Material,
+): Promise<{ canEdit: boolean; reasonCode: MaterialReviewEditReason | null }> {
+  if (review.status === "HIDDEN")
+    return { canEdit: false, reasonCode: "MATERIAL_REVIEW_HIDDEN" };
   if (material.status !== "PUBLISHED")
-    throw new ConflictException("MATERIAL_REVIEW_NOT_ALLOWED");
+    return { canEdit: false, reasonCode: "MATERIAL_NOT_PUBLISHED" };
+  if (material.ownerId === review.authorId)
+    return { canEdit: false, reasonCode: "MATERIAL_OWNER_CANNOT_REVIEW" };
   if (material.accessType === "FREE") {
     const grant = await tx.materialDownloadGrant.findFirst({
       where: {
@@ -466,8 +497,9 @@ async function assertReviewStillEditable(
       },
       select: { id: true },
     });
-    if (!grant) throw new ConflictException("MATERIAL_REVIEW_NOT_ALLOWED");
-    return;
+    return grant
+      ? { canEdit: true, reasonCode: null }
+      : { canEdit: false, reasonCode: "MATERIAL_ACCESS_REQUIRED" };
   }
   const entitlement = await tx.materialEntitlement.findUnique({
     where: {
@@ -478,8 +510,11 @@ async function assertReviewStillEditable(
     },
     select: { status: true, sourceOrderId: true },
   });
-  if (entitlement?.status !== "ACTIVE" || !entitlement.sourceOrderId)
-    throw new ConflictException("MATERIAL_REVIEW_NOT_ALLOWED");
+  if (!entitlement)
+    return { canEdit: false, reasonCode: "MATERIAL_PURCHASE_REQUIRED" };
+  if (entitlement.status !== "ACTIVE" || !entitlement.sourceOrderId)
+    return { canEdit: false, reasonCode: "MATERIAL_ENTITLEMENT_REVOKED" };
+  return { canEdit: true, reasonCode: null };
 }
 
 function blocked(
@@ -489,6 +524,8 @@ function blocked(
   return {
     canReview: false,
     reasonCode,
+    canEdit: false,
+    editReasonCode: currentReview ? reasonCode : "MATERIAL_REVIEW_NOT_FOUND",
     currentReview,
     eligibilitySource: null,
     sourceOrderId: null,
@@ -502,6 +539,8 @@ function allowed(
   return {
     canReview: true,
     reasonCode: null,
+    canEdit: false,
+    editReasonCode: "MATERIAL_REVIEW_NOT_FOUND",
     currentReview: null,
     eligibilitySource,
     sourceOrderId,
@@ -512,6 +551,8 @@ function eligibilityView(result: ReviewEligibility) {
   return {
     canReview: result.canReview,
     reasonCode: result.reasonCode,
+    canEdit: result.canEdit,
+    editReasonCode: result.editReasonCode,
     currentReview: result.currentReview
       ? ownReviewView(result.currentReview)
       : null,

@@ -9,10 +9,14 @@ import {
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import { publicMaterialView } from "../contracts/material-view";
 import { requirePermission } from "./material-support";
+import { MaterialThumbnailsService } from "./material-thumbnails.service";
 
 @Injectable()
 export class MaterialFavoritesService {
-  constructor(private readonly transactions: TransactionRunner) {}
+  constructor(
+    private readonly transactions: TransactionRunner,
+    private readonly thumbnails: MaterialThumbnailsService,
+  ) {}
 
   async add(principal: Principal, materialId: string) {
     requirePermission(principal, "material:access");
@@ -54,27 +58,45 @@ export class MaterialFavoritesService {
     requirePermission(principal, "material:access");
     const scope = JSON.stringify(["material-favorites-v1", principal.userId]);
     const { limit, cursor } = listInput(query, scope);
-    return this.transactions.run(async (tx) => {
+    const page = await this.transactions.run(async (tx) => {
       const rows = await tx.materialFavorite.findMany({
         where: {
           userId: principal.userId,
           materialIdRecord: { status: "PUBLISHED", scanStatus: "CLEAN" },
           ...listBoundary("createdAt", cursor),
         },
-        include: { materialIdRecord: true },
+        include: {
+          materialIdRecord: {
+            include: {
+              materialThumbnailMaterialIdRecords: {
+                where: { status: "READY" },
+                orderBy: { sourceGeneration: "desc" },
+                take: 1,
+              },
+            },
+          },
+        },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: limit + 1,
       });
-      const page = listResult(rows, limit, scope, (row) => row.createdAt);
-      return {
-        data: page.data.map((row) => ({
+      return listResult(rows, limit, scope, (row) => row.createdAt);
+    });
+    return {
+      data: await Promise.all(
+        page.data.map(async (row) => ({
           id: row.id,
           savedAt: row.createdAt,
-          material: publicMaterialView(row.materialIdRecord),
+          material: {
+            ...publicMaterialView(row.materialIdRecord),
+            thumbnail: await this.thumbnails.publicProjection(
+              row.materialIdRecord.mimeType,
+              row.materialIdRecord.materialThumbnailMaterialIdRecords[0],
+            ),
+          },
         })),
-        pagination: page.pagination,
-      };
-    });
+      ),
+      pagination: page.pagination,
+    };
   }
 }
 

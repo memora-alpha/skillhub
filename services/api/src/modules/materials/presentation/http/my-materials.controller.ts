@@ -3,6 +3,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -15,7 +16,13 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
 import { Readable } from "node:stream";
 import {
   CurrentIdentity,
@@ -26,7 +33,11 @@ import { getOrCreateRequestContext } from "../../../../shared/http/request-conte
 import { paginated, success } from "../../../../shared/http/response";
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import { MaterialsService } from "../../application/services/materials.service";
-import { CreateMaterialDto, UpdateMaterialDto } from "./materials.dto";
+import {
+  CreateMaterialDto,
+  DeleteMaterialQueryDto,
+  UpdateMaterialDto,
+} from "./materials.dto";
 
 @ApiTags("materials")
 @ApiBearerAuth()
@@ -156,6 +167,19 @@ export class MyMaterialsController {
     return success(
       await this.materials.archive(actor, id),
       "Material archived.",
+    );
+  }
+
+  @Delete(":materialId")
+  @ApiOperation({ summary: "Soft-delete an owned DRAFT by listing version" })
+  async removeDraft(
+    @CurrentIdentity() actor: Principal,
+    @Param("materialId", ParseUUIDPipe) id: string,
+    @Query() query: DeleteMaterialQueryDto,
+  ) {
+    return success(
+      await this.materials.removeDraft(actor, id, query.expectedListingVersion),
+      "Material draft deleted.",
     );
   }
 }

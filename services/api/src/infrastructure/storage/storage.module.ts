@@ -22,6 +22,7 @@ import { STORED_FILE_REPOSITORY } from "./stored-file.repository";
 import { UnavailableObjectStorage } from "./unavailable-object-storage.adapter";
 import { S3Client } from "@aws-sdk/client-s3";
 import { S3ObjectStorage } from "./s3-object-storage.adapter";
+import { MATERIAL_MAX_BYTES } from "./file-policy";
 
 @Module({
   imports: [
@@ -69,7 +70,9 @@ import { S3ObjectStorage } from "./s3-object-storage.adapter";
           host: config.get<string>("CLAMAV_HOST") ?? "127.0.0.1",
           port: config.get<number>("CLAMAV_PORT") ?? 3310,
           timeoutMs: 30_000,
-          maxBytes: 15_000_000,
+          // The scanner must accept the largest payload admitted by this shared
+          // pipeline. Purpose-specific upload validation still enforces lower caps.
+          maxBytes: MATERIAL_MAX_BYTES,
         }),
     },
     {

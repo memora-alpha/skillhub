@@ -53,7 +53,7 @@ export type UpdateMaterialInput = {
   description?: string;
   accessType?: MaterialAccess;
   priceCredit?: string;
-  fileId?: string;
+  fileId?: string | null;
   coverFileId?: string | null;
   distributionRightsConfirmed?: boolean;
 };
@@ -123,6 +123,7 @@ export class MaterialsService {
       const rows = await tx.material.findMany({
         where: {
           ownerId: principal.userId,
+          status: { not: "ARCHIVED" },
           ...listBoundary("updatedAt", cursor),
         },
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
@@ -179,6 +180,8 @@ export class MaterialsService {
 
   async update(principal: Principal, id: string, input: UpdateMaterialInput) {
     requirePermission(principal, "material:create:self");
+    if (input.fileId === null)
+      throw new BadRequestException("MATERIAL_FILE_REMOVAL_UNSUPPORTED");
     if (input.fileId && input.distributionRightsConfirmed !== true)
       throw new BadRequestException("MATERIAL_RIGHTS_CONFIRMATION_REQUIRED");
     const updated = await this.transactions.run(async (tx) => {
@@ -280,6 +283,48 @@ export class MaterialsService {
       return updated;
     });
     return this.ownerProjection(updated.id);
+  }
+
+  /**
+   * Draft deletion is a recoverable soft delete. Keeping the material row and its
+   * bound files preserves immutable purchase snapshots if a previously published
+   * listing later returned to DRAFT, while owner pages exclude ARCHIVED rows.
+   */
+  async removeDraft(
+    principal: Principal,
+    id: string,
+    expectedListingVersion: number,
+  ) {
+    requirePermission(principal, "material:create:self");
+    if (!Number.isInteger(expectedListingVersion) || expectedListingVersion < 1)
+      throw new BadRequestException("MATERIAL_VERSION_INVALID");
+    return this.transactions.run(async (tx) => {
+      await tx.$queryRaw`SELECT material_id FROM materials WHERE material_id = ${id}::uuid FOR UPDATE`;
+      const current = await tx.material.findUnique({ where: { id } });
+      // DELETE is deliberately replay-safe and does not reveal whether an unknown
+      // UUID ever existed.
+      if (!current) return { id, deleted: true, replayed: true };
+      if (current.ownerId !== principal.userId)
+        throw new NotFoundException("MATERIAL_NOT_FOUND");
+      if (current.status === "ARCHIVED")
+        return { id, deleted: true, replayed: true };
+      if (current.listingVersion !== expectedListingVersion)
+        throw new ConflictException("MATERIAL_VERSION_CONFLICT");
+      if (current.status !== "DRAFT")
+        throw new ConflictException("MATERIAL_DELETE_REQUIRES_DRAFT");
+      await tx.materialThumbnail.updateMany({
+        where: {
+          materialId: id,
+          status: { in: ["PENDING", "READY", "FAILED"] },
+        },
+        data: { status: "SUPERSEDED" },
+      });
+      await tx.material.update({
+        where: { id },
+        data: { status: "ARCHIVED" },
+      });
+      return { id, deleted: true, replayed: false };
+    });
   }
 
   private async ownerProjection(materialId: string) {

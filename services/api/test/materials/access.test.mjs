@@ -118,6 +118,13 @@ test("material search, preview and download rules on isolated PostgreSQL", async
       const link = await f.catalog.download(reader.principal, free.id);
       assert.match(link.url, /^https:\/\/fixture\.invalid\/private/);
       assert.ok(link.expiresAt instanceof Date);
+      const library = await f.catalog.listFreeAccesses(reader.principal, {});
+      assert.equal(library.data.length, 1);
+      assert.equal(library.data[0].material.id, free.id);
+      assert.deepEqual(library.data[0].material.thumbnail, {
+        kind: "PLACEHOLDER",
+        format: "PDF",
+      });
     });
     await t.test(
       "PAID without entitlement is denied, owner is allowed",
