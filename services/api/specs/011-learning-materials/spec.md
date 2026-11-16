@@ -25,7 +25,8 @@ DRAFT --submit--> PENDING_REVIEW --approve--> PUBLISHED
                        |  \--reject(reason)--> REJECTED --edit--> DRAFT
 PUBLISHED --edit--> PENDING_REVIEW
 PUBLISHED|PENDING_REVIEW --hide(reason)--> HIDDEN --unhide(reason)--> PUBLISHED
-DRAFT|PENDING_REVIEW|PUBLISHED|REJECTED --archive--> ARCHIVED
+PUBLISHED --archive--> ARCHIVED (deletedAt = null)
+DRAFT|ARCHIVED --delete--> ARCHIVED (deletedAt có giá trị)
 ```
 
 Submit/approve/unhide yêu cầu file đã gắn, `scanStatus=CLEAN`, `distributionRightsConfirmedAt` có giá trị.
@@ -38,11 +39,13 @@ Submit/approve/unhide yêu cầu file đã gắn, `scanStatus=CLEAN`, `distribut
 | GET    | `/materials/:id`               | public    | Metadata/preview của PUBLISHED; không có storageKey                                                                           |
 | POST   | `/me/materials/files`          | owner     | Upload multipart (purpose MATERIAL, ≤20MB, pdf/docx/pptx/xlsx) → QUARANTINED                                                  |
 | GET    | `/me/materials/files/:fileId`  | owner     | Trạng thái scan                                                                                                               |
-| GET    | `/me/materials`                | owner     | Tài liệu của tôi (mọi trạng thái)                                                                                             |
+| GET    | `/me/materials`                | owner     | Danh sách quản lý theo `status`, `limit`, `cursor`. Mặc định loại `ARCHIVED`.                                                 |
+| GET    | `/me/materials/:id`            | owner     | Chi tiết quản lý, gồm tài liệu `ARCHIVED` còn quản lý được.                                                                   |
 | POST   | `/me/materials`                | owner     | Tạo DRAFT (fileId tùy chọn, `distributionRightsConfirmed: true`)                                                              |
 | PATCH  | `/me/materials/:id`            | owner     | Sửa, bắt buộc `expectedListingVersion`                                                                                        |
 | POST   | `/me/materials/:id/submit`     | owner     | DRAFT → PENDING_REVIEW                                                                                                        |
-| POST   | `/me/materials/:id/archive`    | owner     | → ARCHIVED                                                                                                                    |
+| POST   | `/me/materials/:id/archive`    | owner     | `PUBLISHED → ARCHIVED`. Body rỗng. Trả `listingVersion` mới.                                                                  |
+| DELETE | `/me/materials/:id`            | owner     | Xóa mềm `DRAFT` hoặc `ARCHIVED` còn quản lý được với query `expectedListingVersion`.                                          |
 | GET    | `/materials/:id/download`      | user      | Authorize rồi trả signed URL ngắn hạn                                                                                         |
 | POST   | `/materials/:id/purchase`      | user      | Header `Idempotency-Key`; body `expectedListingVersion`; 201 mới / 200 replay                                                 |
 | GET    | `/me/material-orders`          | user      | Đơn đã mua                                                                                                                    |
@@ -51,6 +54,11 @@ Submit/approve/unhide yêu cầu file đã gắn, `scanStatus=CLEAN`, `distribut
 | POST   | `/staff/materials/:id/:action` | moderator | `approve` / `reject` / `hide` / `unhide`, body `expectedListingVersion` + `reason`; không tự approve/unhide tài liệu của mình |
 
 Report material được xử lý tiếp bằng queue `/reports/staff/*` sẵn có.
+
+Sau khi ngừng chia sẻ thành công, FE tải trang đầu của `GET /me/materials?status=ARCHIVED`.
+Nếu mất response, dùng `GET /me/materials/:id` để đọc `status` và `listingVersion`
+hiện tại. Chi tiết trả 404 với tài liệu khác chủ, không tồn tại, đã xóa hoặc `ARCHIVED`
+cũ chưa phân loại. Xem [contract xóa mềm](../016-material-reviews-thumbnails/contracts.md#buyer-library-and-owner-material-management).
 
 ## Quyền tải (mỗi lần tải đều authorize ở backend)
 

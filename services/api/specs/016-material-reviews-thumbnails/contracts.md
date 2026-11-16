@@ -29,7 +29,7 @@ currentReview:null|MaterialReview}`. `canEdit` is re-evaluated from the same liv
 - `DELETE /material-reviews/:reviewId` (Bearer)
   - query/body `expectedVersion`; 200 for exact replay.
 
-## Buyer library and owner draft deletion
+## Buyer library and owner material management
 
 - `GET /me/material-library/free?limit=20&cursor=...` (Bearer)
   - One row per currently public FREE material for which the caller has an `ISSUED`
@@ -37,12 +37,25 @@ currentReview:null|MaterialReview}`. `canEdit` is re-evaluated from the same liv
   - Row: `{accessSource:"FREE_PUBLIC",firstAccessedAt,lastAccessedAt,material}`.
     `material` uses the public projection and always includes a signed `thumbnail` or
     deterministic placeholder. Ordering is `lastAccessedAt DESC, materialId DESC`.
-- `DELETE /me/materials/:materialId?expectedListingVersion=...` (Bearer)
-  - Owner-only and accepted only while the material is `DRAFT`.
-  - Uses a recoverable `ARCHIVED` soft delete, disappears from `GET /me/materials`,
-    preserves bound files and purchase history, and is replay-safe.
-  - Stale version: `MATERIAL_VERSION_CONFLICT`; non-draft:
-    `MATERIAL_DELETE_REQUIRES_DRAFT`.
+- `GET /me/materials?status=ARCHIVED&limit=20&cursor=...` shows materials the
+  authenticated owner stopped sharing. Omit `status` for the existing view without
+  `ARCHIVED`. Cursors belong to the owner and exact filter. Start from the first page
+  whenever the filter changes.
+- `GET /me/materials/:materialId` reads the same projection as the owner list. Use it
+  to reload status and version if an archive response is lost. Missing, foreign,
+  deleted and unclassified legacy rows return `404 MATERIAL_NOT_FOUND`.
+- `POST /me/materials/:materialId/archive` takes no body and moves `PUBLISHED`
+  to `ARCHIVED`, returning the new `listingVersion`. Other manageable states return
+  `409 MATERIAL_TRANSITION_INVALID`.
+- `DELETE /me/materials/:materialId?expectedListingVersion=...` (Bearer) accepts an
+  owned `DRAFT` or a manageable `ARCHIVED`. It records `deletedAt`, increments
+  `listingVersion`, and returns `{id, deleted: true, replayed: false}`. The same owner
+  receives `replayed: true` on retry after deletion. The row disappears from the owner
+  list and detail. Bound files and purchase history are retained.
+  - Unknown UUIDs, foreign rows and unclassified legacy rows return
+    `404 MATERIAL_NOT_FOUND`.
+  - Before deletion, a stale version returns `409 MATERIAL_VERSION_CONFLICT`.
+    A current version in any other state returns `409 MATERIAL_DELETE_NOT_ALLOWED`.
 - `PATCH /me/materials/:materialId` rejects `fileId:null` with
   `MATERIAL_FILE_REMOVAL_UNSUPPORTED`; omission still preserves the current file.
 

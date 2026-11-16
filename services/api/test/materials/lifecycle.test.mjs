@@ -123,17 +123,58 @@ test("owner material lifecycle on isolated PostgreSQL", async (t) => {
         [material.id],
       );
     });
-    await t.test("archive stops distribution and blocks edits", async () => {
-      material = await f.materials.archive(owner.principal, material.id);
-      assert.equal(material.status, "ARCHIVED");
-      await assert.rejects(
-        f.materials.update(owner.principal, material.id, {
-          expectedListingVersion: 2,
-          title: "New title",
-        }),
-        /MATERIAL_NOT_EDITABLE/,
-      );
-    });
+    await t.test(
+      "only published materials can be archived and the owner can still find them",
+      async () => {
+        await assert.rejects(
+          f.materials.archive(owner.principal, material.id),
+          /MATERIAL_TRANSITION_INVALID/,
+        );
+        const published = await f.publishedMaterial(owner);
+        await assert.rejects(
+          f.materials.archive(other.principal, published.id),
+          /MATERIAL_NOT_FOUND/,
+        );
+        const archived = await f.materials.archive(
+          owner.principal,
+          published.id,
+        );
+        assert.equal(archived.status, "ARCHIVED");
+        assert.equal(archived.listingVersion, published.listingVersion + 1);
+        assert.equal(
+          (
+            await f.db.material.findUniqueOrThrow({
+              where: { id: archived.id },
+            })
+          ).deletedAt,
+          null,
+        );
+        assert.deepEqual(
+          await f.materials.getMine(owner.principal, archived.id),
+          archived,
+        );
+        await assert.rejects(
+          f.materials.getMine(other.principal, archived.id),
+          /MATERIAL_NOT_FOUND/,
+        );
+        assert.equal(
+          (await f.materials.listMine(owner.principal)).data.some(
+            ({ id }) => id === archived.id,
+          ),
+          false,
+        );
+        assert.deepEqual(
+          (
+            await f.materials.listMine(owner.principal, { status: "ARCHIVED" })
+          ).data.map(({ id }) => id),
+          [archived.id],
+        );
+        await assert.rejects(
+          f.catalog.detail(archived.id),
+          /MATERIAL_NOT_FOUND/,
+        );
+      },
+    );
     await t.test(
       "draft deletion is owner-only, versioned, hidden from mine, and replay-safe",
       async () => {
@@ -142,23 +183,29 @@ test("owner material lifecycle on isolated PostgreSQL", async (t) => {
           f.draftInput({ title: "Disposable material draft" }),
         );
         await assert.rejects(
-          f.materials.removeDraft(
-            other.principal,
-            draft.id,
-            draft.listingVersion,
-          ),
+          f.materials.remove(other.principal, draft.id, draft.listingVersion),
           /MATERIAL_NOT_FOUND/,
         );
         await assert.rejects(
-          f.materials.removeDraft(owner.principal, draft.id, 99),
+          f.materials.remove(owner.principal, draft.id, 99),
           /MATERIAL_VERSION_CONFLICT/,
         );
-        const removed = await f.materials.removeDraft(
+        const removed = await f.materials.remove(
           owner.principal,
           draft.id,
           draft.listingVersion,
         );
-        assert.equal(removed.replayed, false);
+        assert.deepEqual(removed, {
+          id: draft.id,
+          deleted: true,
+          replayed: false,
+        });
+        const tombstone = await f.db.material.findUniqueOrThrow({
+          where: { id: draft.id },
+        });
+        assert.equal(tombstone.status, "ARCHIVED");
+        assert.ok(tombstone.deletedAt instanceof Date);
+        assert.equal(tombstone.listingVersion, draft.listingVersion + 1);
         assert.equal(
           (await f.materials.listMine(owner.principal)).data.some(
             (entry) => entry.id === draft.id,
@@ -167,13 +214,140 @@ test("owner material lifecycle on isolated PostgreSQL", async (t) => {
         );
         assert.equal(
           (
-            await f.materials.removeDraft(
+            await f.materials.remove(
               owner.principal,
               draft.id,
               draft.listingVersion,
             )
           ).replayed,
           true,
+        );
+        await assert.rejects(
+          f.materials.getMine(owner.principal, draft.id),
+          /MATERIAL_NOT_FOUND/,
+        );
+        await assert.rejects(
+          f.materials.remove(other.principal, draft.id, draft.listingVersion),
+          /MATERIAL_NOT_FOUND/,
+        );
+        await assert.rejects(
+          f.materials.remove(owner.principal, randomUUID(), 1),
+          /MATERIAL_NOT_FOUND/,
+        );
+        await assert.rejects(
+          f.materials.remove(
+            owner.principal,
+            material.id,
+            material.listingVersion,
+          ),
+          /MATERIAL_DELETE_NOT_ALLOWED/,
+        );
+      },
+    );
+    await t.test(
+      "archived pagination is scoped and excludes deleted and unknown legacy rows",
+      async () => {
+        const existing = await f.db.material.findFirstOrThrow({
+          where: {
+            ownerId: owner.user.id,
+            status: "ARCHIVED",
+            deletedAt: null,
+          },
+        });
+        const second = await f.publishedMaterial(owner);
+        await f.materials.archive(owner.principal, second.id);
+        const third = await f.publishedMaterial(owner);
+        await f.materials.archive(owner.principal, third.id);
+        const ids = [existing.id, second.id, third.id].sort((left, right) =>
+          right.localeCompare(left),
+        );
+        await f.db.material.updateMany({
+          where: { id: { in: ids } },
+          data: { updatedAt: new Date("2026-11-17T00:00:00Z") },
+        });
+        const legacy = await f.materials.create(
+          owner.principal,
+          f.draftInput(),
+        );
+        await f.db.material.update({
+          where: { id: legacy.id },
+          data: { status: "ARCHIVED", legacyArchiveUnclassified: true },
+        });
+        const query = { status: "ARCHIVED", limit: 1 };
+        const first = await f.materials.listMine(owner.principal, query);
+        assert.deepEqual(
+          first.data.map(({ id }) => id),
+          [ids[0]],
+        );
+        assert.ok(first.pagination.nextCursor);
+        const next = { ...query, cursor: first.pagination.nextCursor };
+        await assert.rejects(
+          f.materials.listMine(owner.principal, { ...next, status: "DRAFT" }),
+          /INVALID_CURSOR/,
+        );
+        await assert.rejects(
+          f.materials.listMine(other.principal, next),
+          /INVALID_CURSOR/,
+        );
+        const tiedPage = await f.materials.listMine(owner.principal, next);
+        assert.deepEqual(
+          tiedPage.data.map(({ id }) => id),
+          [ids[1]],
+        );
+
+        const current = tiedPage.data[0];
+        await assert.rejects(
+          f.materials.remove(
+            owner.principal,
+            current.id,
+            current.listingVersion - 1,
+          ),
+          /MATERIAL_VERSION_CONFLICT/,
+        );
+        const results = await Promise.all([
+          f.materials.remove(
+            owner.principal,
+            current.id,
+            current.listingVersion,
+          ),
+          f.materials.remove(
+            owner.principal,
+            current.id,
+            current.listingVersion,
+          ),
+        ]);
+        assert.equal(results.filter(({ replayed }) => replayed).length, 1);
+        assert.ok(results.every(({ deleted }) => deleted));
+        const afterDelete = await f.materials.listMine(owner.principal, next);
+        assert.deepEqual(
+          afterDelete.data.map(({ id }) => id),
+          [ids[2]],
+        );
+        assert.equal(afterDelete.pagination.nextCursor, null);
+        for (const id of [current.id, legacy.id]) {
+          await assert.rejects(
+            f.materials.getMine(owner.principal, id),
+            /MATERIAL_NOT_FOUND/,
+          );
+          await assert.rejects(
+            f.materials.archive(owner.principal, id),
+            /MATERIAL_NOT_FOUND/,
+          );
+          await assert.rejects(
+            f.materials.submit(owner.principal, id),
+            /MATERIAL_NOT_FOUND/,
+          );
+          await assert.rejects(
+            f.materials.update(owner.principal, id, {
+              expectedListingVersion: 1,
+              title: "Another title",
+            }),
+            /MATERIAL_NOT_FOUND/,
+          );
+        }
+        await assert.rejects(
+          f.materials.remove(owner.principal, legacy.id, legacy.listingVersion),
+          /MATERIAL_NOT_FOUND/,
         );
       },
     );
@@ -374,7 +548,7 @@ test("owner material lifecycle on isolated PostgreSQL", async (t) => {
             title: "Purchased material under revision",
           },
         );
-        await f.materials.removeDraft(
+        await f.materials.remove(
           owner.principal,
           published.id,
           redrafted.listingVersion,

@@ -89,10 +89,10 @@ Khi có mapping đã duyệt, dùng điều kiện `status='ARCHIVED' AND legacy
 
 **Produces:** `OwnerMaterialListQueryDto extends ListPageQuery`, `MaterialsService.getMine(principal,id)`, `MaterialsService.remove(principal,id,expectedListingVersion)`, predicate dùng cho owner list/detail/mutation: `deletedAt === null && !legacyArchiveUnclassified`. DELETE dùng DTO hiện có; `assertArchivable` chỉ chấp nhận `PUBLISHED`.
 
-- [ ] Viết regression cho archive `PUBLISHED`, từ chối các trạng thái còn lại; xác nhận archive mới có mặt trong `status=ARCHIVED`, vắng trong mặc định. Hai trang có cùng `updatedAt` phải ổn định theo `id`; cross-filter và cross-owner cursor phải bị từ chối. HTTP test kiểm tra validate status và owner detail 404 như contract.
-- [ ] Test xóa `DRAFT` và `ARCHIVED` còn quản lý được: version sai, xóa lần đầu, delete replay, khác owner, UUID không có và legacy chưa phân loại. Kiểm tra `deletedAt`, version và loại khỏi list/detail; trạng thái không hợp lệ trả mã mới. Thay ca cũ archive `PENDING_REVIEW` và chặn edit `ARCHIVED`, vì các kỳ vọng đó thuộc luồng cũ.
-- [ ] Tách guard tombstone/legacy khỏi kết quả `ARCHIVED`; read theo `ownerId` ngay trong query. Mutation dùng chung row lock, kiểm ownership trước replay/version và giữ supersede thumbnail cùng transaction ở lần xóa đầu. Cập nhật Swagger, giữ response envelope/pagination hiện có.
-- [ ] Chạy `test:materials` và `test:materials:integration`; cập nhật [spec 011](spec.md), [contract 016](../016-material-reviews-thumbnails/contracts.md) và `services/api/README.md` với ví dụ FE chuyển tab sau archive và reload detail khi mất response.
+- [x] Kiểm tra archive chỉ nhận `PUBLISHED`, list theo `ARCHIVED`, thứ tự theo ID khi trùng `updatedAt`, kiểm tra cursor theo filter và owner, và validation của API HTTP.
+- [x] Kiểm tra DELETE cho `DRAFT` và `ARCHIVED`, gồm version sai, hai lần xóa đồng thời, khác owner, UUID thiếu và dữ liệu cũ chưa phân loại. Kiểm tra timestamp xóa, version, list và detail.
+- [x] Dùng `ownerId` trong truy vấn list và detail. Mutation dùng chung row lock, kiểm quyền trước khi trả replay hoặc version, và chuyển thumbnail sang `SUPERSEDED` cùng transaction xóa. Cập nhật Swagger.
+- [x] Build, lint, typecheck, 19 unit/HTTP test và 72 integration test PostgreSQL 18 đã qua. Cập nhật [spec 011](spec.md), [contract 016](../016-material-reviews-thumbnails/contracts.md) và `services/api/README.md` cho FE.
 
 ### Task 3: Đăng lại, rút duyệt và chống quyết định Staff cũ — mục 4, 5
 

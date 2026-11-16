@@ -26,6 +26,7 @@ import {
   priceUnits,
   statusAfterEdit,
   type MaterialAccess,
+  type MaterialState,
 } from "../../domain/material.policy";
 import { ownerMaterialView } from "../contracts/material-view";
 import { MaterialThumbnailsService } from "./material-thumbnails.service";
@@ -115,15 +116,18 @@ export class MaterialsService {
 
   async listMine(
     principal: Principal,
-    query: { limit?: number; cursor?: string } = {},
+    query: { limit?: number; cursor?: string; status?: MaterialState } = {},
   ) {
-    const scope = JSON.stringify(["materials-mine-v1", principal.userId]);
+    const parts = ["materials-mine-v1", principal.userId];
+    if (query.status) parts.push(query.status);
+    const scope = JSON.stringify(parts);
     const { limit, cursor } = listInput(query, scope);
     const result = await this.transactions.run(async (tx) => {
       const rows = await tx.material.findMany({
         where: {
           ownerId: principal.userId,
-          status: { not: "ARCHIVED" },
+          ...ownerManageableWhere,
+          status: query.status ?? { not: "ARCHIVED" },
           ...listBoundary("updatedAt", cursor),
         },
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
@@ -138,6 +142,17 @@ export class MaterialsService {
         result.data.map((row) => this.ownerProjectionFromRow(row)),
       ),
     };
+  }
+
+  async getMine(principal: Principal, id: string) {
+    const row = await this.transactions.run((tx) =>
+      tx.material.findUnique({
+        where: { id, ownerId: principal.userId, ...ownerManageableWhere },
+        include: ownerProjectionInclude,
+      }),
+    );
+    if (!row) throw new NotFoundException("MATERIAL_NOT_FOUND");
+    return this.ownerProjectionFromRow(row);
   }
 
   async create(principal: Principal, input: CreateMaterialInput) {
@@ -276,21 +291,17 @@ export class MaterialsService {
     const updated = await this.transactions.run(async (tx) => {
       const current = await lockOwned(tx, id, principal.userId);
       assertArchivable(current.status);
-      const updated = await tx.material.update({
+      return tx.material.update({
         where: { id },
-        data: { status: "ARCHIVED" },
+        data: { status: "ARCHIVED", listingVersion: { increment: 1 } },
+        include: ownerProjectionInclude,
       });
-      return updated;
     });
-    return this.ownerProjection(updated.id);
+    return this.ownerProjectionFromRow(updated);
   }
 
-  /**
-   * Draft deletion is a recoverable soft delete. Keeping the material row and its
-   * bound files preserves immutable purchase snapshots if a previously published
-   * listing later returned to DRAFT, while owner pages exclude ARCHIVED rows.
-   */
-  async removeDraft(
+  /** Keep the material and its bound files so buyers retain their snapshots. */
+  async remove(
     principal: Principal,
     id: string,
     expectedListingVersion: number,
@@ -299,19 +310,15 @@ export class MaterialsService {
     if (!Number.isInteger(expectedListingVersion) || expectedListingVersion < 1)
       throw new BadRequestException("MATERIAL_VERSION_INVALID");
     return this.transactions.run(async (tx) => {
-      await tx.$queryRaw`SELECT material_id FROM materials WHERE material_id = ${id}::uuid FOR UPDATE`;
-      const current = await tx.material.findUnique({ where: { id } });
-      // DELETE is deliberately replay-safe and does not reveal whether an unknown
-      // UUID ever existed.
-      if (!current) return { id, deleted: true, replayed: true };
-      if (current.ownerId !== principal.userId)
-        throw new NotFoundException("MATERIAL_NOT_FOUND");
-      if (current.status === "ARCHIVED")
+      const current = await lockOwned(tx, id, principal.userId, {
+        includeDeleted: true,
+      });
+      if (current.deletedAt !== null)
         return { id, deleted: true, replayed: true };
       if (current.listingVersion !== expectedListingVersion)
         throw new ConflictException("MATERIAL_VERSION_CONFLICT");
-      if (current.status !== "DRAFT")
-        throw new ConflictException("MATERIAL_DELETE_REQUIRES_DRAFT");
+      if (current.status !== "DRAFT" && current.status !== "ARCHIVED")
+        throw new ConflictException("MATERIAL_DELETE_NOT_ALLOWED");
       await tx.materialThumbnail.updateMany({
         where: {
           materialId: id,
@@ -321,7 +328,11 @@ export class MaterialsService {
       });
       await tx.material.update({
         where: { id },
-        data: { status: "ARCHIVED" },
+        data: {
+          status: "ARCHIVED",
+          deletedAt: new Date(),
+          listingVersion: { increment: 1 },
+        },
       });
       return { id, deleted: true, replayed: false };
     });
@@ -437,6 +448,11 @@ export class MaterialsService {
   }
 }
 
+const ownerManageableWhere = {
+  deletedAt: null,
+  legacyArchiveUnclassified: false,
+} satisfies Prisma.MaterialWhereInput;
+
 const ownerProjectionInclude = {
   coverFileRecord: {
     select: {
@@ -458,10 +474,19 @@ type OwnerProjectionRow = Prisma.MaterialGetPayload<{
   include: typeof ownerProjectionInclude;
 }>;
 
-/** Other owners' materials get the same 404 as missing ones (no existence oracle). */
-async function lockOwned(tx: TransactionContext, id: string, ownerId: string) {
+/** Use the same 404 for rows outside the caller's management scope. */
+async function lockOwned(
+  tx: TransactionContext,
+  id: string,
+  ownerId: string,
+  { includeDeleted = false } = {},
+) {
   const material = await lockMaterial(tx, id);
-  if (material.ownerId !== ownerId)
+  if (
+    material.ownerId !== ownerId ||
+    material.legacyArchiveUnclassified ||
+    (!includeDeleted && material.deletedAt !== null)
+  )
     throw new NotFoundException("MATERIAL_NOT_FOUND");
   return material;
 }

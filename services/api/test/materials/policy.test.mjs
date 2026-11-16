@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  assertArchivable,
   assertPublishableFile,
   listingText,
   materialFee,
@@ -54,6 +55,21 @@ test("editing a live listing sends it back to review", () => {
   assert.equal(statusAfterEdit("PENDING_REVIEW"), "PENDING_REVIEW");
   assert.throws(() => statusAfterEdit("HIDDEN"), /MATERIAL_NOT_EDITABLE/);
   assert.throws(() => statusAfterEdit("ARCHIVED"), /MATERIAL_NOT_EDITABLE/);
+});
+
+test("only a published material can stop sharing", () => {
+  assert.doesNotThrow(() => assertArchivable("PUBLISHED"));
+  for (const status of [
+    "DRAFT",
+    "PENDING_REVIEW",
+    "REJECTED",
+    "HIDDEN",
+    "ARCHIVED",
+  ])
+    assert.throws(
+      () => assertArchivable(status),
+      /MATERIAL_TRANSITION_INVALID/,
+    );
 });
 
 test("moderation only follows the state machine", () => {
