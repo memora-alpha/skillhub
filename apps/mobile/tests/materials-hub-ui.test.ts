@@ -21,6 +21,8 @@ test("my materials opens the library, separates posted and server saved lists, a
   let user = "owner-a";
   let enabled = true;
   let createDisabled = true;
+  let mutationLocked = false;
+  let stateIndex = 0;
   const routes: string[] = [];
   const jsx = (type: unknown, props: unknown, key?: string) => ({
     type,
@@ -29,12 +31,20 @@ test("my materials opens the library, separates posted and server saved lists, a
   });
   const contexts = Object.entries({
     react: {
-      useState: () => [
-        createDisabled,
-        (value: boolean) => {
-          createDisabled = value;
-        },
-      ],
+      useState: () =>
+        stateIndex++ === 0
+          ? [
+              createDisabled,
+              (value: boolean) => {
+                createDisabled = value;
+              },
+            ]
+          : [
+              mutationLocked,
+              (value: boolean) => {
+                mutationLocked = value;
+              },
+            ],
     },
     "react/jsx-runtime": { jsx, jsxs: jsx },
     "react-native": {
@@ -70,6 +80,7 @@ test("my materials opens the library, separates posted and server saved lists, a
     delete local.cache[file];
     const { MyMaterialsScreen } = local(file);
     const render = () => {
+      stateIndex = 0;
       const root = MyMaterialsScreen();
       return { root, tree: nodes(root.type(root.props)) };
     };
@@ -99,10 +110,53 @@ test("my materials opens the library, separates posted and server saved lists, a
     assert.equal(headerAction().props.disabled, false);
     creationLock(true);
     assert.equal(headerAction().props.disabled, true);
+    const lock = render().tree.find((node) => node.type === "Posted")!.props
+      .onMutationLockChange as (value: boolean) => void;
+    lock(true);
+    const lockedTabs = render().tree.find(
+      (node) =>
+        typeof node.type === "function" && node.type.name === "MyMaterialTabs",
+    )!;
+    assert.equal(lockedTabs.props.disabled, true);
+    (lockedTabs.props.onChange as (value: string) => void)("saved");
+    assert.equal(
+      tab,
+      "posted",
+      "uncertain owner commands must retain their recovery UI",
+    );
+    const tabButtons = nodes(
+      (lockedTabs.type as (props: unknown) => Node)(lockedTabs.props),
+    ).filter((node) => node.type === "Pressable");
+    for (const button of tabButtons) {
+      assert.equal(button.props.disabled, true);
+      (button.props.onPress as () => void)();
+      (button.props.onKeyDown as (event: unknown) => void)({
+        nativeEvent: { key: "ArrowRight" },
+        preventDefault() {},
+      });
+    }
+    assert.equal(tab, "posted");
+    lock(false);
     assert.equal(
       render().tree.some((node) => node.type === "Library"),
       false,
     );
+    tab = "library";
+    const libraryLock = render().tree.find((node) => node.type === "Library")!
+      .props.onMutationLockChange as (value: boolean) => void;
+    libraryLock(true);
+    assert.equal(headerAction().props.disabled, true);
+    const libraryTabs = render().tree.find(
+      (node) =>
+        typeof node.type === "function" && node.type.name === "MyMaterialTabs",
+    )!;
+    (libraryTabs.props.onChange as (value: string) => void)("posted");
+    assert.equal(
+      tab,
+      "library",
+      "an uncertain refund must retain its original command",
+    );
+    libraryLock(false);
     tab = "saved";
     const saved = render().tree;
     assert.equal(headerAction().props.disabled, false);
