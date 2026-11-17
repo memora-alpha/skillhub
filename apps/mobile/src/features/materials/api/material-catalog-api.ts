@@ -10,7 +10,7 @@ import {
 
 export function createMaterialCatalogApi(
   call: (path: string, options?: RequestOptions) => Promise<unknown>,
-  mine: (signal?: AbortSignal) => Promise<ApiMaterial[]>,
+  ownerDetail: (id: string, signal?: AbortSignal) => Promise<ApiMaterial>,
 ) {
   const published = (value: unknown, id?: string) => {
     const row = parse(materialSchema, value);
@@ -94,9 +94,7 @@ export function createMaterialCatalogApi(
         );
       } catch (cause) {
         if (!(cause instanceof AppError) || cause.status !== 404) throw cause;
-        const row = (await mine(signal)).find((item) => item.id === id);
-        if (!row) throw cause;
-        return row;
+        return ownerDetail(id, signal);
       }
     },
     async download(id: string, signal?: AbortSignal) {

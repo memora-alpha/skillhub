@@ -4,7 +4,6 @@ import { createMaterialReviewsApi } from "./material-reviews-api";
 import { createMaterialFavoritesApi } from "./material-favorites-api";
 import { createMaterialLibraryApi } from "./material-library-api";
 import { z } from "zod";
-import { readCursorPages } from "@/lib/http/cursor-pages";
 import type { RequestOptions } from "@/lib/http/client";
 import {
   parse,
@@ -20,6 +19,7 @@ import {
   materialSchema,
   materialInput,
   type MaterialInput,
+  type ApiMaterial,
 } from "./material-contracts";
 export function createMaterialsApi(
   call: (path: string, options?: RequestOptions) => Promise<unknown>,
@@ -33,28 +33,33 @@ export function createMaterialsApi(
       idempotencyKey,
       replayAfterRenewal: false,
     });
-  async function mine(signal?: AbortSignal) {
-    const rows = await readCursorPages(
-      call,
-      "/me/materials",
-      materialSchema,
-      signal,
-    );
-    if (rows.some((row) => row.ownerId !== userId))
-      throw new AppError("protocol");
-    return rows;
+  async function ownerDetail(id: string, signal?: AbortSignal) {
+    const row = parse(materialSchema, await call(root(id), { signal }));
+    if (row.id !== id || row.ownerId !== userId) throw new AppError("protocol");
+    return row;
   }
   return {
-    mine,
-    async minePage(cursor?: string, signal?: AbortSignal) {
+    ownerDetail,
+    async minePage(
+      cursor?: string,
+      signal?: AbortSignal,
+      status?: ApiMaterial["status"],
+    ) {
       const page = parsePage(
         materialSchema,
-        await call(`/me/materials?${pageQuery(cursor)}`, {
-          includeMeta: true,
-          signal,
-        }),
+        await call(
+          `/me/materials?${pageQuery(cursor)}${status ? `&status=${status}` : ""}`,
+          {
+            includeMeta: true,
+            signal,
+          },
+        ),
       );
-      if (page.items.some((row) => row.ownerId !== userId))
+      if (
+        page.items.some(
+          (row) => row.ownerId !== userId || (status && row.status !== status),
+        )
+      )
         throw new AppError("protocol");
       return page;
     },
@@ -100,7 +105,17 @@ export function createMaterialsApi(
         throw new AppError("protocol");
       return row;
     },
-    async deleteDraft(id: string, expectedListingVersion: number) {
+    async withdraw(id: string, expectedListingVersion: number) {
+      parse(version, expectedListingVersion);
+      const row = parse(
+        materialSchema,
+        await post(root(id) + "/withdraw", { expectedListingVersion }),
+      );
+      if (row.id !== id || row.ownerId !== userId || row.status !== "DRAFT")
+        throw new AppError("protocol");
+      return row;
+    },
+    async remove(id: string, expectedListingVersion: number) {
       parse(version, expectedListingVersion);
       const receipt = parse(
         z.object({
@@ -161,6 +176,6 @@ export function createMaterialsApi(
     ...createMaterialReviewsApi(call),
     ...createMaterialFavoritesApi(call),
     ...createMaterialLibraryApi(call),
-    ...createMaterialCatalogApi(call, mine),
+    ...createMaterialCatalogApi(call, ownerDetail),
   };
 }

@@ -3,6 +3,8 @@ import { AppError } from "@/lib/http/errors";
 const messages: Readonly<Record<string, string>> = {
   MATERIAL_DELETE_REQUIRES_DRAFT:
     "Chỉ có thể xóa tài liệu còn là bản nháp. Tải lại để kiểm tra trạng thái.",
+  MATERIAL_DELETE_NOT_ALLOWED:
+    "Chỉ có thể xóa bản nháp hoặc tài liệu đã ngừng chia sẻ. Tải lại để kiểm tra trạng thái.",
   MATERIAL_FILE_REMOVAL_UNSUPPORTED:
     "Chưa thể gỡ tệp nội dung đã lưu. Bạn có thể chọn tệp thay thế.",
   MATERIAL_REVIEW_NOT_ALLOWED:

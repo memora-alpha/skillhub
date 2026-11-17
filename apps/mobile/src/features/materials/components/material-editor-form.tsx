@@ -88,9 +88,9 @@ export function MaterialEditorForm({
         />
       </View>
       <View style={styles.formSection}>
-        <Text style={styles.sectionTitle}>Tệp đính kèm</Text>
+        <Text style={styles.sectionTitle}>Tệp nội dung</Text>
         <Text style={styles.meta}>
-          PDF, DOCX, XLSX hoặc PPTX · tối đa 20 MB
+          Mỗi bài đăng 1 tệp · PDF, DOCX, XLSX hoặc PPTX · tối đa 20 MB
         </Text>
         {!!material?.file && !files.length && (
           <Text style={styles.meta}>
@@ -101,9 +101,7 @@ export function MaterialEditorForm({
           compact
           autoCheck
           showHint={false}
-          pickerLabel={
-            material?.file ? "Chọn tệp thay thế" : "Thêm tệp đính kèm"
-          }
+          pickerLabel={material?.file ? "Thay tệp" : "Thêm tệp nội dung"}
           files={files}
           onChange={setFiles}
           upload={api.upload}

@@ -20,10 +20,13 @@ test("uncertain draft deletion locks writes and explicitly retries the same ID a
       archive: async () => {
         throw Error("unexpected archive");
       },
-      mine: async () => {
+      withdraw: async () => {
+        throw Error("unexpected withdraw");
+      },
+      ownerDetail: async () => {
         throw Error("missing owner row is not proof of deletion");
       },
-      deleteDraft: async (id, version) => {
+      remove: async (id, version) => {
         writes.push([id, version]);
         if (writes.length === 1) throw new AppError("network");
         return { id, deleted: true, replayed: true };
@@ -42,16 +45,17 @@ test("uncertain draft deletion locks writes and explicitly retries the same ID a
     onFailure() {},
   });
   await actions.run("archive", row);
+  await actions.run("archive", { ...row, status: "REJECTED" });
+  await actions.run("archive", { ...row, status: "PENDING_REVIEW" });
   assert.deepEqual(
     state,
     {},
-    "draft archive cannot dispatch or lock the controller",
+    "unsupported archive states cannot dispatch or lock the controller",
   );
   for (const status of [
     "PENDING_REVIEW",
     "PUBLISHED",
     "HIDDEN",
-    "ARCHIVED",
     "REJECTED",
   ] as const)
     await actions.run("delete", { ...row, status });
@@ -87,8 +91,9 @@ test("a rejected stale delete clears uncertainty for a fresh read and old-sessio
     api: {
       submit: async () => row,
       archive: async () => row,
-      mine: async () => [row],
-      deleteDraft: async (id) => {
+      withdraw: async () => row,
+      ownerDetail: async () => row,
+      remove: async (id) => {
         count++;
         if (count === 1) throw new AppError("network");
         if (count === 2)

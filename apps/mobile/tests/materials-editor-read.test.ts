@@ -25,7 +25,7 @@ test("owner editor waits for a fresh version before mounting, then retains its d
   let opened: unknown;
   let freshRequested = false;
   const query = {
-    data: [stale],
+    data: stale as typeof stale | undefined,
     isSuccess: true,
     isFetching: true,
     isLoading: false,
@@ -59,8 +59,8 @@ test("owner editor waits for a fresh version before mounting, then retains its d
       ConnectionFeedback: "Feedback",
     },
     "../hooks/use-materials": {
-      useMyMaterials: (_enabled: boolean, fresh: boolean) => {
-        freshRequested = fresh;
+      useOwnerMaterial: (requestedId?: string) => {
+        freshRequested = requestedId === stale.id;
         return query;
       },
     },
@@ -82,7 +82,7 @@ test("owner editor waits for a fresh version before mounting, then retains its d
     );
     assert.equal(freshRequested, true);
     query.isFetching = false;
-    query.data = [fresh];
+    query.data = fresh;
     render();
     const form = render().find((node) => node.type === "Form")!;
     assert.equal(form.props.material, fresh);
@@ -103,9 +103,22 @@ test("owner editor waits for a fresh version before mounting, then retains its d
     );
     id = undefined;
     opened = undefined;
+    query.data = undefined;
     assert.ok(
       render().find((node) => node.type === "Form"),
       "new documents do not wait for owner history",
+    );
+    id = "invalid-id";
+    opened = undefined;
+    query.isSuccess = false;
+    const invalid = render();
+    assert.equal(
+      invalid.some((node) => node.type === "Form"),
+      false,
+    );
+    assert.ok(
+      invalid.some((node) => node.type === "Copy"),
+      "invalid edit links explain the missing document",
     );
   } finally {
     contexts.reverse().forEach((context) => context.restore());

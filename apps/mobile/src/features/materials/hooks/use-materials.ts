@@ -10,6 +10,7 @@ import {
 import { uuid } from "@/lib/http/contracts";
 import { createMaterialsApi } from "../api/materials-api";
 import { connectionReadAccess } from "@/lib/http/read-access";
+import type { ApiMaterial } from "../api/material-contracts";
 export function useMaterialsApi() {
   const runtime = useConnections();
   return useMemo(
@@ -25,18 +26,21 @@ export function useMaterial(id: string) {
     uuid.safeParse(id).success,
   );
 }
-export function useMyMaterials(enabled = true, freshOnMount = false) {
+export function useOwnerMaterial(id?: string) {
   const api = useMaterialsApi();
   return useConnectionQuery(
-    ["materials", "mine"],
-    (signal) => api.mine(signal),
-    enabled,
-    { freshOnMount },
+    ["materials", "owner", id],
+    (signal) => api.ownerDetail(id!, signal),
+    !!id && uuid.safeParse(id).success,
+    { freshOnMount: true },
   );
 }
-export function useMyMaterialPages() {
+export function useMyMaterialPages(status?: ApiMaterial["status"]) {
   const api = useMaterialsApi();
-  return useConnectionList(["materials", "mine", "pages"], api.minePage);
+  return useConnectionList(
+    ["materials", "mine", "pages", status ?? "CURRENT"],
+    (cursor, signal) => api.minePage(cursor, signal, status),
+  );
 }
 export function useMaterialOrderPages() {
   const api = useMaterialsApi();

@@ -94,7 +94,8 @@ test("editor resolves version conflicts only after fresh read and explicit choic
     },
     "./use-materials": {
       useMaterialsApi: () => ({
-        mine: async (requestSignal: AbortSignal) => {
+        ownerDetail: async (id: string, requestSignal: AbortSignal) => {
+          assert.equal(id, original.id);
           readCount++;
           signal = requestSignal;
           if (waitRead)
@@ -102,7 +103,7 @@ test("editor resolves version conflicts only after fresh read and explicit choic
               resolveRead = resolve;
             });
           if (readFailure) throw new AppError("network");
-          return [server];
+          return server;
         },
         update: async (_id: string, version: number, body: unknown) => {
           sent.push({ version, body });

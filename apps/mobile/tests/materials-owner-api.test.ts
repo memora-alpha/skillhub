@@ -94,15 +94,15 @@ test("owner submit and archive use exact paths without renewal replay and valida
     ),
   );
 });
-test("owner reconciliation follows opaque cursors and does not mistake the first page for the full list", async () => {
+test("legacy detail reads the owned target after public 404 without scanning owner pages", async () => {
   const paths: string[] = [];
+  const row = fixtureMaterial({ status: "ARCHIVED" });
   const api = createMaterialsApi(async (path) => {
     paths.push(path);
-    return paths.length === 1
-      ? page([fixtureMaterial()], "next/+cursor")
-      : page([fixtureMaterial({ id: materialOtherId, status: "ARCHIVED" })]);
+    if (path === `/materials/${row.id}`) throw new AppError("http", 404);
+    assert.equal(path, `/me/materials/${row.id}`);
+    return row;
   }, materialOwnerId);
-  const result = await api.mine();
-  assert.equal(result.length, 2);
-  assert.match(paths[1]!, /cursor=next%2F%2Bcursor/);
+  assert.equal((await api.detail(row.id)).status, "ARCHIVED");
+  assert.deepEqual(paths, [`/materials/${row.id}`, `/me/materials/${row.id}`]);
 });
