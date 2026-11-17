@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Text, View } from "react-native";
-import { Redirect } from "expo-router";
+import { Redirect, useIsFocused } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { RefreshableFlatList } from "@/components/RefreshableFlatList";
 import { useVisibleListRows } from "@/components/use-visible-list-rows";
@@ -50,6 +50,7 @@ function PurchasedMaterialsContent({
   filter: Exclude<MaterialLibraryFilter, "FREE">;
   onChange: (filter: MaterialLibraryFilter) => void;
 }>) {
+  const focused = useIsFocused();
   const runtime = useConnections();
   const query = useMaterialOrderPages();
   const api = useMaterialsApi();
@@ -66,7 +67,13 @@ function PurchasedMaterialsContent({
     if (command.pending || refreshing || query.isFetching) return;
     setRefreshing(true);
     try {
-      await query.refetch();
+      await Promise.all([
+        query.refetch(),
+        cache.refetchQueries(
+          { queryKey: [...runtime.key, "materials", "public"], type: "active" },
+          { cancelRefetch: false },
+        ),
+      ]);
     } finally {
       setRefreshing(false);
     }
@@ -135,7 +142,7 @@ function PurchasedMaterialsContent({
         renderItem={({ item }) => (
           <MaterialOrderCard
             order={item}
-            visible={visibleIds.has(item.id)}
+            visible={focused && visibleIds.has(item.id)}
             disabled={locked}
             onRefund={() => {
               if (item.refundEligibility?.canRefund === false) return;

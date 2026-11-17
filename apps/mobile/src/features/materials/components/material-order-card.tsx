@@ -7,8 +7,13 @@ import { Icon } from "@/components/Icon";
 import { appColors } from "@/constants/theme";
 import type { MaterialOrder } from "../api/material-contracts";
 import { usePublicMaterial } from "../hooks/use-materials";
-import { materialDate } from "../utils/owner-material-presentation";
+import {
+  materialDate,
+  materialFileSize,
+  materialFileType,
+} from "../utils/owner-material-presentation";
 import { MaterialFileBadge } from "./material-summary";
+import { MaterialCover } from "./material-cover";
 import { materialStyles as styles } from "./material.styles";
 import { useMaterialDownload } from "../hooks/use-material-download";
 import { MaterialDownloadFeedback } from "./material-download-feedback";
@@ -26,12 +31,8 @@ export function MaterialOrderCard({
   disabled: boolean;
   onRefund: () => void;
 }>) {
-  // New order pages carry purchase snapshots and review state. Only older
-  // responses need the separate eligibility read; public metadata is optional.
-  const query = usePublicMaterial(
-    order.materialId,
-    visible && !order.purchasedMaterial,
-  );
+  // Enrich visible rows with the current listing; purchase history stays immutable.
+  const query = usePublicMaterial(order.materialId, visible);
   const eligibility = useMaterialReviewEligibility(
     order.materialId,
     visible && !order.review,
@@ -52,38 +53,70 @@ export function MaterialOrderCard({
       ],
     });
   });
-  const title = order.purchasedMaterial
-    ? (order.purchasedMaterial.title ??
-      order.purchasedMaterial.originalFilename ??
-      "Tài liệu đã mua")
-    : (query.data?.title ?? "Tài liệu đã mua");
+  const material = query.data;
+  const snapshot = order.purchasedMaterial;
+  const title =
+    material?.title ??
+    snapshot?.title ??
+    snapshot?.originalFilename ??
+    "Tài liệu đã mua";
   const hasReview =
     order.review?.hasReview ?? !!eligibility.data?.currentReview;
   const canReview = order.review?.canReview ?? eligibility.data?.canReview;
   return (
-    <View style={styles.card}>
+    <View style={styles.catalogCard}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Xem ${title}`}
         onPress={() => router.push(`/materials/${order.materialId}`)}
-        style={styles.fileRow}
+        style={styles.catalogRow}
       >
-        <MaterialFileBadge />
-        <View style={styles.grow}>
+        {material ? (
+          <MaterialCover material={material} />
+        ) : (
+          <MaterialFileBadge />
+        )}
+        <View style={styles.catalogContent}>
           <Text style={styles.title} numberOfLines={2}>
             {title}
           </Text>
-          {!!order.purchasedMaterial?.originalFilename && (
-            <Text style={styles.meta} numberOfLines={1}>
-              {order.purchasedMaterial.originalFilename}
+          {material ? (
+            <>
+              <Text style={styles.caption}>
+                {[
+                  materialFileType(material),
+                  materialFileSize(material.file?.sizeBytes),
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </Text>
+              <Text style={styles.text} numberOfLines={2}>
+                {material.description}
+              </Text>
+            </>
+          ) : (
+            <Text style={styles.caption}>
+              {query.error
+                ? "Thông tin hiện tại chưa khả dụng."
+                : "Thông tin lúc mua"}
             </Text>
           )}
-          <Text style={styles.meta}>
-            {materialDate(order.createdAt)} · Phiên bản {order.listingVersion}
-          </Text>
         </View>
         <Icon name="chevron" size={18} color={appColors.muted} />
       </Pressable>
+      <Text style={styles.caption}>
+        Mua {materialDate(order.createdAt)} · Bản đã mua v{order.listingVersion}
+      </Text>
+      {!!snapshot?.originalFilename && (
+        <Text style={styles.meta} numberOfLines={2}>
+          Tệp đã mua: {snapshot.originalFilename}
+        </Text>
+      )}
+      {material && snapshot?.title && snapshot.title !== material.title && (
+        <Text style={styles.caption} numberOfLines={2}>
+          Tên lúc mua: {snapshot.title}
+        </Text>
+      )}
       <View style={styles.row}>
         <Text
           style={[
@@ -93,8 +126,11 @@ export function MaterialOrderCard({
         >
           {order.status === "SUCCESS" ? "Đã mua" : "Đã hoàn tiền"}
         </Text>
-        <Text style={styles.price}>
-          {Number(order.grossCredit).toLocaleString("vi-VN")} CR
+        <Text style={styles.meta}>
+          Giá lúc mua:{" "}
+          <Text style={styles.price}>
+            {Number(order.grossCredit).toLocaleString("vi-VN")} CR
+          </Text>
         </Text>
       </View>
       {order.status === "SUCCESS" && (
