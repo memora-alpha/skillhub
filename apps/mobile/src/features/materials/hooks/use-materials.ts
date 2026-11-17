@@ -46,12 +46,6 @@ export function useMaterialOrderPages() {
   const api = useMaterialsApi();
   return useConnectionList(["materials", "orders", "pages"], api.ordersPage);
 }
-export function useMaterialOrders() {
-  const api = useMaterialsApi();
-  return useConnectionQuery(["materials", "orders"], (signal) =>
-    api.orders(signal),
-  );
-}
 export function useMaterialOwnership(materialId: string, enabled = true) {
   const api = useMaterialsApi();
   return useConnectionQuery(

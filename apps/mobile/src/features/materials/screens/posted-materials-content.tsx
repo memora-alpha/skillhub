@@ -32,8 +32,10 @@ function Separator() {
 }
 export function PostedMaterialsContent({
   onCreateDisabledChange,
+  onMutationLockChange,
 }: Readonly<{
   onCreateDisabledChange: (disabled: boolean) => void;
+  onMutationLockChange?: (locked: boolean) => void;
 }>) {
   const runtime = useConnections();
   const command = useOwnerMaterialActions();
@@ -55,6 +57,10 @@ export function PostedMaterialsContent({
     onCreateDisabledChange(disabled);
     return () => onCreateDisabledChange(true);
   }, [disabled, onCreateDisabledChange]);
+  useEffect(() => {
+    onMutationLockChange?.(mutationLocked);
+    return () => onMutationLockChange?.(false);
+  }, [mutationLocked, onMutationLockChange]);
   const error = command.uncertain
     ? "Chưa xác nhận được kết quả. Kiểm tra trạng thái trước khi tiếp tục."
     : command.error
@@ -206,11 +212,13 @@ export function PostedMaterialsContent({
               icon="file"
               titleStyle={styles.heading}
               action={
-                query.items.length || filter !== "ALL" || search.trim()
+                !mutationLocked &&
+                (query.items.length || filter !== "ALL" || search.trim())
                   ? "Bỏ bộ lọc"
                   : undefined
               }
               onAction={() => {
+                if (mutationLocked) return;
                 setFilter("ALL");
                 setSearch("");
               }}

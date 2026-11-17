@@ -13,9 +13,11 @@ export function myMaterialTab(value?: string): MyMaterialTab {
 export function MyMaterialTabs({
   value,
   onChange,
+  disabled = false,
 }: Readonly<{
   value: MyMaterialTab;
   onChange: (tab: MyMaterialTab) => void;
+  disabled?: boolean;
 }>) {
   return (
     <View
@@ -27,12 +29,16 @@ export function MyMaterialTabs({
         <Pressable
           key={tab.value}
           accessibilityRole="tab"
-          accessibilityState={{ selected: value === tab.value }}
+          accessibilityState={{ selected: value === tab.value, disabled }}
           aria-selected={value === tab.value}
-          onPress={() => onChange(tab.value)}
+          disabled={disabled}
+          onPress={() => {
+            if (!disabled) onChange(tab.value);
+          }}
           onKeyDown={
             Platform.OS === "web"
               ? (event) => {
+                  if (disabled) return;
                   const key = event.nativeEvent.key;
                   if (key === " " || key === "Spacebar") {
                     event.preventDefault();
@@ -57,6 +63,7 @@ export function MyMaterialTabs({
             styles.tab,
             value === tab.value && styles.active,
             pressed && styles.pressed,
+            disabled && styles.disabled,
           ]}
         >
           <Text
@@ -95,4 +102,5 @@ const styles = StyleSheet.create({
   },
   activeLabel: { fontFamily: fonts.bold, color: appColors.primary },
   pressed: { opacity: 0.7 },
+  disabled: { opacity: 0.5 },
 });

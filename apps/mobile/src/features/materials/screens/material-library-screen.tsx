@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import { Redirect, useIsFocused } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
@@ -35,20 +35,28 @@ export function MaterialLibraryScreen() {
 function Separator() {
   return <View style={styles.separator} />;
 }
-export function MaterialLibraryContent() {
+export function MaterialLibraryContent({
+  onMutationLockChange,
+}: Readonly<{ onMutationLockChange?: (locked: boolean) => void }> = {}) {
   const [filter, setFilter] = useState<MaterialLibraryFilter>("ALL");
   return filter === "FREE" ? (
     <FreeMaterialsContent onChange={setFilter} />
   ) : (
-    <PurchasedMaterialsContent filter={filter} onChange={setFilter} />
+    <PurchasedMaterialsContent
+      filter={filter}
+      onChange={setFilter}
+      onMutationLockChange={onMutationLockChange}
+    />
   );
 }
 function PurchasedMaterialsContent({
   filter,
   onChange,
+  onMutationLockChange,
 }: Readonly<{
   filter: Exclude<MaterialLibraryFilter, "FREE">;
   onChange: (filter: MaterialLibraryFilter) => void;
+  onMutationLockChange?: (locked: boolean) => void;
 }>) {
   const focused = useIsFocused();
   const runtime = useConnections();
@@ -61,8 +69,12 @@ function PurchasedMaterialsContent({
   const [confirm, setConfirm] = useState<string>();
   const [notice, setNotice] = useState<string>();
   const [refreshing, setRefreshing] = useState(false);
-  const locked =
-    command.pending || command.uncertain || query.isFetching || !!query.error;
+  const mutationLocked = command.pending || command.uncertain;
+  useEffect(() => {
+    onMutationLockChange?.(mutationLocked);
+    return () => onMutationLockChange?.(false);
+  }, [mutationLocked, onMutationLockChange]);
+  const locked = mutationLocked || query.isFetching || !!query.error;
   const refresh = async () => {
     if (command.pending || refreshing || query.isFetching) return;
     setRefreshing(true);
@@ -111,7 +123,7 @@ function PurchasedMaterialsContent({
             <MaterialLibraryHeader
               value={filter}
               onChange={onChange}
-              disabled={command.pending || command.uncertain}
+              disabled={mutationLocked}
             />
             <ConnectionFeedback
               loading={query.isLoading}

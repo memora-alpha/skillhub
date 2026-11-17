@@ -34,9 +34,6 @@ export function createMaterialOrdersApi(
         throw new AppError("protocol");
       return page;
     },
-    async orders(signal?: AbortSignal) {
-      return readCursorPages(call, "/me/material-orders", orderSchema, signal);
-    },
     async ownedOrder(materialId: string, signal?: AbortSignal) {
       parse(uuid, materialId);
       const matches = (row: { materialId: string; status: string }) =>

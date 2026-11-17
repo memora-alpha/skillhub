@@ -23,6 +23,7 @@ function MyMaterialsContent({ enabled }: Readonly<{ enabled: boolean }>) {
   const router = useRouter();
   const selected = myMaterialTab(tab);
   const [postedCreateDisabled, setPostedCreateDisabled] = useState(true);
+  const [mutationLocked, setMutationLocked] = useState(false);
   return (
     <FeaturePage
       title="Tài liệu của tôi"
@@ -36,7 +37,11 @@ function MyMaterialsContent({ enabled }: Readonly<{ enabled: boolean }>) {
           style={{ backgroundColor: signedInChrome.accent }}
           leadingIcon="plus"
           accessibilityLabel="Đăng tài liệu"
-          disabled={!enabled || (selected === "posted" && postedCreateDisabled)}
+          disabled={
+            !enabled ||
+            mutationLocked ||
+            (selected === "posted" && postedCreateDisabled)
+          }
           onPress={() => router.push("/materials/new")}
         >
           Đăng tài liệu
@@ -45,13 +50,17 @@ function MyMaterialsContent({ enabled }: Readonly<{ enabled: boolean }>) {
     >
       <MyMaterialTabs
         value={selected}
-        onChange={(value) => router.setParams({ tab: value })}
+        disabled={mutationLocked}
+        onChange={(value) => {
+          if (!mutationLocked) router.setParams({ tab: value });
+        }}
       />
       {selected === "library" ? (
-        <MaterialLibraryContent />
+        <MaterialLibraryContent onMutationLockChange={setMutationLocked} />
       ) : selected === "posted" ? (
         <PostedMaterialsContent
           onCreateDisabledChange={setPostedCreateDisabled}
+          onMutationLockChange={setMutationLocked}
         />
       ) : (
         <SavedMaterialsContent />
