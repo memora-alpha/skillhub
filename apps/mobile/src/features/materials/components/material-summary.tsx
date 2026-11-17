@@ -59,7 +59,12 @@ export function MaterialSummary({
           </Text>
           <View style={styles.bookPriceRow}>
             {ownershipStatus !== "free" && (
-              <Text style={styles.priceLarge}>{materialPrice(material)}</Text>
+              <View>
+                {ownershipStatus === "purchased" && (
+                  <Text style={styles.caption}>Giá hiện tại</Text>
+                )}
+                <Text style={styles.priceLarge}>{materialPrice(material)}</Text>
+              </View>
             )}
             {ownershipStatus !== "checking" && (
               <View

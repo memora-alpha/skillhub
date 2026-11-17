@@ -18,8 +18,16 @@ function nodes(value: unknown): Node[] {
 }
 const jsx = (type: unknown, props: unknown) => ({ type, props });
 const at = "2026-11-16T03:00:00Z";
+function text(value: unknown): string {
+  if (Array.isArray(value)) return value.map(text).join("");
+  if (value && typeof value === "object" && "props" in value)
+    return text((value as Node).props.children);
+  return typeof value === "string" || typeof value === "number"
+    ? String(value)
+    : "";
+}
 
-test("purchased cards open details from snapshots, bound extra reads and preserve download/refund guards", async () => {
+test("purchased cards show current listing metadata while preserving purchase history and download/refund guards", async () => {
   const local = createRequire(
     new URL(
       "../src/features/materials/components/material-order-card.tsx",
@@ -31,6 +39,7 @@ test("purchased cards open details from snapshots, bound extra reads and preserv
     route: string | undefined;
   let issued: (() => void) | undefined;
   let publicMaterial: ReturnType<typeof fixtureMaterial> | undefined;
+  let publicError: unknown;
   const downloads: boolean[] = [];
   const invalidations: unknown[] = [];
   const contexts = Object.entries({
@@ -56,7 +65,7 @@ test("purchased cards open details from snapshots, bound extra reads and preserv
     "../hooks/use-materials": {
       usePublicMaterial: (_id: string, enabled: boolean) => {
         publicEnabled = enabled;
-        return { data: publicMaterial };
+        return { data: publicMaterial, error: publicError };
       },
     },
     "../hooks/use-material-reviews": {
@@ -81,6 +90,7 @@ test("purchased cards open details from snapshots, bound extra reads and preserv
       MaterialDownloadFeedback: "DownloadFeedback",
     },
     "./material-summary": { MaterialFileBadge: "FileBadge" },
+    "./material-cover": { MaterialCover: "Cover" },
     "./material.styles": { materialStyles: {} },
   }).map(([name, namedExports]) =>
     mock.module(pathToFileURL(local.resolve(name)), { namedExports }),
@@ -121,11 +131,11 @@ test("purchased cards open details from snapshots, bound extra reads and preserv
         evaluatedAt: at,
       },
     };
-    const render = () =>
+    const render = (visible = true) =>
       nodes(
         MaterialOrderCard({
           order,
-          visible: true,
+          visible,
           disabled: false,
           onRefund() {},
         }),
@@ -135,8 +145,15 @@ test("purchased cards open details from snapshots, bound extra reads and preserv
       tree.find(
         (node) => node.type === "Button" && node.props.children === label,
       )!;
-    assert.equal(publicEnabled, false);
+    assert.equal(publicEnabled, true);
     assert.equal(reviewEnabled, false);
+    render(false);
+    assert.equal(
+      publicEnabled,
+      false,
+      "offscreen rows never request listing metadata",
+    );
+    tree = render();
     assert.ok(tree.some((node) => node.props.children === "Tên lúc mua"));
     assert.equal(
       tree.some((node) => node.props.children === "Tên phiên bản mới"),
@@ -152,13 +169,41 @@ test("purchased cards open details from snapshots, bound extra reads and preserv
     assert.deepEqual(downloads, [], "opening details never issues a download");
     await (button("Tải tài liệu").props.onPress as () => Promise<void>)();
     assert.deepEqual(downloads, [true]);
-    publicMaterial = fixtureMaterial({ title: "Tên phiên bản mới" });
+    publicMaterial = fixtureMaterial({
+      title: "Tên phiên bản mới",
+      description: "Thông tin tài liệu hiện tại",
+      accessType: "PAID",
+      priceCredit: "20.00",
+      listingVersion: 3,
+    });
     tree = render();
+    assert.ok(tree.some((node) => node.props.children === "Tên phiên bản mới"));
+    assert.ok(
+      tree.some(
+        (node) => node.props.children === "Thông tin tài liệu hiện tại",
+      ),
+    );
+    assert.equal(
+      tree.find((node) => node.type === "Cover")!.props.material,
+      publicMaterial,
+    );
+    const contents = tree.map(text).join(" ");
+    assert.match(contents, /Tên lúc mua: Tên lúc mua/);
+    assert.match(contents, /Tệp đã mua: ban-cu\.pdf/);
+    assert.match(contents, /Giá lúc mua: 10 CR/);
+    assert.match(contents, /Bản đã mua v1/);
+    assert.equal(order.grossCredit, "10.00");
     (
       tree.find((node) => node.type === "Pressable")!.props
         .onPress as () => void
     )();
     assert.equal(route, `/materials/${order.materialId}`);
+    publicMaterial = undefined;
+    publicError = new Error("Current metadata unavailable");
+    tree = render();
+    assert.ok(tree.some((node) => node.props.children === "Tên lúc mua"));
+    assert.match(tree.map(text).join(" "), /Thông tin hiện tại chưa khả dụng/);
+    assert.equal(button("Tải tài liệu").props.disabled, false);
     (button("Viết đánh giá").props.onPress as () => void)();
     assert.equal(route, `/materials/${order.materialId}/review`);
     issued?.();
