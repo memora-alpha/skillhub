@@ -1,6 +1,6 @@
 # Tài liệu — API mobile
 
-Đối chiếu BE `origin/dev@8a8230aa` (`8051968e`, `77f54d86`), ngày 2026-11-16: [owner controller](../../../../services/api/src/modules/materials/presentation/http/my-materials.controller.ts), [DTO](../../../../services/api/src/modules/materials/presentation/http/materials.dto.ts), [service](../../../../services/api/src/modules/materials/application/services/materials.service.ts), [view](../../../../services/api/src/modules/materials/application/contracts/material-view.ts), [policy](../../../../services/api/src/modules/materials/domain/material.policy.ts), [catalog/download](../../../../services/api/src/modules/materials/application/services/material-catalog.service.ts), [purchase/refund](../../../../services/api/src/modules/materials/application/services/material-purchase.service.ts), [reviews](../../../../services/api/src/modules/materials/application/services/material-reviews.service.ts). Source/fixture không chứng minh deployed API hoặc native acceptance. Bổ sung spec016 đã có trong BE; mobile tiếp nhận review/rating/thumbnail, cover upload, thư viện miễn phí và xóa bản nháp.
+Đối chiếu BE `origin/dev@a4b13dc9`, ngày 2026-11-17, PR108: schema lifecycle `e0245857`, owner management `41b6e90b`, resubmit/withdraw `f8a662f4`, buyer downloads/thumbnail `3ba93e9f`. Đọc source qua git show origin/dev; không merge hoặc sửa backend trong checkout. [Owner controller](../../../../services/api/src/modules/materials/presentation/http/my-materials.controller.ts), [DTO](../../../../services/api/src/modules/materials/presentation/http/materials.dto.ts), [service](../../../../services/api/src/modules/materials/application/services/materials.service.ts), [view](../../../../services/api/src/modules/materials/application/contracts/material-view.ts), [policy](../../../../services/api/src/modules/materials/domain/material.policy.ts), [catalog/download](../../../../services/api/src/modules/materials/application/services/material-catalog.service.ts), [purchase/refund](../../../../services/api/src/modules/materials/application/services/material-purchase.service.ts), [reviews](../../../../services/api/src/modules/materials/application/services/material-reviews.service.ts). Link local là vị trí module, có thể còn bản cũ; hash origin ở trên xác định contract đối chiếu. Source/fixture không chứng minh deployed API hoặc native acceptance.
 
 ## Chủ tài liệu
 
@@ -8,49 +8,59 @@ Base `/api/v1`, Bearer owner qua Connections runtime.
 
 | Method/path | Dữ liệu/hành vi |
 | --- | --- |
-| GET `/me/materials` | Cursor `limit/cursor`, order updatedAt desc/id desc, owner projection, không có total/search/status filter |
+| GET `/me/materials` | Cursor `limit/cursor`, optional status enum; mặc định loại ARCHIVED. Loại deletedAt/legacyArchiveUnclassified; order updatedAt desc/id desc, không total/search |
+| GET `/me/materials/:id` | Owner detail gồm ARCHIVED chưa xóa; 404 cho sai owner/đã xóa/legacy chưa phân loại. FE dùng cho editor và recovery |
 | POST `/me/materials` | skillId, title5–150, description10–3000, accessType FREE/PAID, priceCredit chuỗi, distributionRightsConfirmed=true; fileId optional, trả DRAFT |
 | PATCH `/me/materials/:id` | expectedListingVersion và field chỉnh sửa; mobile dùng cùng form, giữ draft khi lỗi |
-| POST `/me/materials/:id/submit` | Chỉ DRAFT có file CLEAN và quyền phân phối đã xác nhận; trả PENDING_REVIEW |
-| POST `/me/materials/:id/archive` | Trả ARCHIVED, ngừng phân phối |
-| DELETE `/me/materials/:id?expectedListingVersion=...` | Chỉ DRAFT; receipt `{id,deleted:true,replayed:boolean}`. Soft delete qua ARCHIVED, biến mất khỏi owner list; giữ tệp/lịch sử. Retry explicit cùng ID/version, không renewal replay |
+| POST `/me/materials/:id/submit` | DRAFT hoặc ARCHIVED có file READY/CLEAN và quyền phân phối đã xác nhận; trả PENDING_REVIEW cùng ID |
+| POST `/me/materials/:id/withdraw` | Body expectedListingVersion, chỉ PENDING_REVIEW; trả DRAFT. Xung đột version/transition trả currentStatus/currentListingVersion cho owner |
+| POST `/me/materials/:id/archive` | Chỉ PUBLISHED; trả ARCHIVED, ngừng phân phối, tăng listingVersion |
+| DELETE `/me/materials/:id?expectedListingVersion=...` | DRAFT hoặc ARCHIVED; receipt `{id,deleted:true,replayed:boolean}`. Ghi deletedAt và ARCHIVED, giữ tệp/lịch sử; chỉ deletedAt đã có mới replay. Retry explicit cùng ID/version, không renewal replay |
 | POST `/me/materials/files` | multipart `file`,20.000.000 bytes; chỉ PDF/DOCX/XLSX/PPTX theo file-policy; theo scan/READY của upload service |
 | GET `/me/materials/files/:fileId` | Trạng thái upload thuộc owner |
 
-Các endpoint trên đã có adapter trước lượt UI này. `materialSchema` dùng chung owner/public: id/ownerId/skillId/title/description/accessType/priceCredit/listingVersion/status/file/createdAt/updatedAt. Owner bổ sung scanStatus (nullable), moderationStatus, rejectReason, reviewedAt (nullable), distributionRightsConfirmedAt. Public projection không có các field owner này. Mobile giữ fields owner optional để tương thích public response; parse reviewedAt nếu có, không làm rơi null scanStatus của draft không file. Không nhận hoặc đưa storageKey vào UI.
+Các endpoint trên được nối qua adapter của mobile; owner lifecycle tiếp nhận từ PR108. `materialSchema` dùng chung owner/public: id/ownerId/skillId/title/description/accessType/priceCredit/listingVersion/status/file/createdAt/updatedAt. Owner bổ sung scanStatus (nullable), moderationStatus, rejectReason, reviewedAt (nullable), distributionRightsConfirmedAt. Public projection không có các field owner này. Mobile giữ fields owner optional để tương thích public response; parse reviewedAt nếu có, không làm rơi null scanStatus của draft không file. Không nhận hoặc đưa storageKey vào UI.
 
 Mỗi trang owner và receipt submit/archive phải đúng owner, receipt đúng id và trạng thái kết quả. Request mutation không tự replay sau token renewal. Kết quả phiên cũ bị runtime loại; cache theo owner/generation. Sau ghi hủy read cũ, cập nhật cache rồi invalidate, không tự cộng số bán/thu nhập.
 
 ## Trạng thái
 
-| State | Sửa | Lưu trữ | Gửi duyệt |
+| State | Sửa | Ngừng chia sẻ trên mobile | Gửi duyệt |
 | --- | --- | --- | --- |
-| DRAFT | Có | Không trên mobile | Khi đủ file CLEAN/quyền phân phối |
-| PENDING_REVIEW | Có | Có | Không |
+| DRAFT | Có | Không; có xóa mềm | Khi đủ file CLEAN/quyền phân phối |
+| PENDING_REVIEW | Có | Không; có rút về bản nháp | Không |
 | PUBLISHED | Có, chuyển PENDING_REVIEW | Có | Không |
-| REJECTED | Có, trở lại DRAFT | Có | Sau sửa thành DRAFT |
+| REJECTED | Có, trở lại DRAFT | Không | Sau sửa thành DRAFT |
 | HIDDEN | Không | Không | Không |
-| ARCHIVED | Không | Không | Không |
+| ARCHIVED | Có, giữ ARCHIVED | Không; có xóa mềm | Có, cùng ID qua PENDING_REVIEW |
 
-BE quyết định quyền và transition; mobile chỉ hướng dẫn/khóa thao tác tương ứng. Riêng DRAFT, mobile không hiển thị hoặc dispatch archive, dù BE hiện vẫn cho phép transition này; giữ chỉnh sửa, gửi duyệt khi đủ điều kiện và xóa bản nháp có xác nhận. Không thêm owner restore/unhide vì BE chưa có route đó. FREE giá0, PAID giá>0, tối đa2 chữ số thập phân theo BR-42.
+BE quyết định quyền và transition; mobile chỉ hướng dẫn/khóa thao tác tương ứng. Ngừng chia sẻ chỉ dành cho PUBLISHED; DRAFT giữ sửa/gửi duyệt/xóa có xác nhận. PENDING_REVIEW có rút yêu cầu riêng, gửi đúng expectedListingVersion. ARCHIVED sửa vẫn giữ ngừng chia sẻ, đăng lại có xác nhận và qua duyệt cùng ID. HIDDEN không có các thao tác này. FREE giá0, PAID giá>0, tối đa2 chữ số thập phân theo BR-42.
 
-`MATERIAL_VERSION_CONFLICT`, `MATERIAL_TRANSITION_INVALID`, `MATERIAL_NOT_EDITABLE`, `MATERIAL_FILE_REQUIRED`, `MATERIAL_RIGHTS_CONFIRMATION_REQUIRED` giữ mã backend. Lỗi HTTP xác định không commit cho phép người dùng thử lại; network/5xx/protocol không tự gửi lại. Nút Kiểm tra kết quả đọc owner list qua hết cursor để tìm tài liệu, cập nhật trạng thái hiện tại và mở thao tác; không suy lần POST trước thành công. Đọc kiểm tra lỗi/không thấy target thì giữ khóa uncertain.
+### Ngừng chia sẻ và xóa mềm
+
+BE đã tách deletedAt và legacyArchiveUnclassified trên Material; hai field nội bộ này không được suy ra từ status hoặc tự tạo ở FE. DRAFT xóa mềm; PUBLISHED ngừng chia sẻ thành ARCHIVED; ARCHIVED chưa xóa có thể chỉnh sửa, gửi duyệt lại cùng ID hoặc xóa khỏi danh sách quản lý. Đăng lại đi qua PENDING_REVIEW và điều kiện file READY/CLEAN/quyền phân phối, không công khai trực tiếp hoặc chuyển quyền/đánh giá sang listing mới. PENDING_REVIEW có luồng rút về DRAFT riêng. HIDDEN vẫn do moderation kiểm soát.
+
+Đơn mua, snapshot tệp, entitlement và đánh giá giữ ở ID cũ; xóa mềm không thu hồi quyền đã mua hợp lệ hoặc xóa tệp snapshot. Migration BE đánh dấu ARCHIVED cũ là legacyArchiveUnclassified, loại khỏi owner management thay vì tự khôi phục bản nháp đã xóa. Mobile không bỏ qua phân loại này hoặc suy xóa thành công từ danh sách thiếu dòng. Mức source/tích hợp và lịch sử yêu cầu tại [status](../work/materials-ui/status.md).
+
+`MATERIAL_VERSION_CONFLICT`, `MATERIAL_TRANSITION_INVALID`, `MATERIAL_DELETE_NOT_ALLOWED`, `MATERIAL_NOT_EDITABLE`, `MATERIAL_FILE_REQUIRED`, `MATERIAL_RIGHTS_CONFIRMATION_REQUIRED` giữ mã backend. Lỗi HTTP xác định không commit cho phép thử lại; network/5xx/protocol không tự gửi lại. Kiểm tra kết quả submit/archive/withdraw đọc GET owner detail đúng ID, kể cả ARCHIVED, cập nhật trạng thái và mở thao tác; không suy lần POST trước thành công. Đọc lỗi/404 giữ khóa uncertain. DELETE chỉ retry explicit cùng ID/version sau xác nhận; không dùng owner detail404 làm bằng chứng đã xóa.
 
 ## UI và giới hạn
 
-Màn `/materials/mine` quản lý tài liệu do mình chia sẻ, tách `/materials/library` cho tài liệu đã mua. Search tên/filename và filter trạng thái chạy trên những trang đã tải, ghi rõ trong placeholder khi còn trang; footer tiếp tục tải ngay cả khi filter hiện không khớp. `n+` biểu thị còn dữ liệu, không phải total backend. Chi tiết chứa mô tả, file, ngày xét duyệt/rejectReason; lưu trữ có xác nhận. Loading/error/denied không hiện empty giả. Pull-to-refresh không replay POST. Form cho lưu nháp không file; submit vẫn cần đủ điều kiện server. Editor hiện badge trạng thái BE: PENDING_REVIEW dùng Lưu thay đổi, lưu vẫn giữ Chờ duyệt. Tệp đã gắn có nút Chọn tệp thay thế; upload mới thay tệp cũ khi Lưu, bỏ upload mới giữ tệp hiện tại, không gửi fileId:null.
+Tab Đã đăng trong `/materials/mine` quản lý tài liệu do mình chia sẻ; `/materials/library` chuyển về tab Thư viện của hub. Trạng thái được lọc ở BE với cursor riêng; search tên/filename chỉ chạy trên những trang đã tải, ghi rõ trong placeholder khi còn trang. Footer tiếp tục tải ngay cả khi search hiện không khớp; không suy total backend từ số dòng đã tải. Chi tiết chứa mô tả, file, ngày xét duyệt/rejectReason; ngừng chia sẻ có xác nhận. Loading/error/denied không hiện empty giả. Pull-to-refresh không replay POST. Form cho lưu nháp không file; submit vẫn cần đủ điều kiện server. Editor hiện badge trạng thái BE: PENDING_REVIEW dùng Lưu thay đổi, lưu vẫn giữ Chờ duyệt. Tệp đã gắn có nút Thay tệp; upload mới thay tệp cũ khi Lưu, bỏ upload mới giữ tệp hiện tại, không gửi fileId:null.
 
-Catalog/purchase/orders/refund/download đã có adapter trước khi mở rộng UI; lần mở rộng nối vào Discover, bổ sung skillId filter và đồng bộ toàn hành trình. Giữ ledger, entitlement, giá/fee và quy tắc signed URL của BE. Backend chưa có owner detail-by-id/search/status/total/stats; không dùng public search để đọc draft hoặc tự dựng số lượt tải/doanh thu.
+Catalog/purchase/orders/refund/download đã có adapter trước khi mở rộng UI; lần mở rộng nối vào Discover, bổ sung skillId filter và đồng bộ toàn hành trình. Giữ ledger, entitlement, giá/fee và quy tắc signed URL của BE. Backend chưa có owner search/total/stats; không dùng public search để đọc draft hoặc tự dựng số lượt tải/doanh thu.
 
 ## Khám phá, mua và thư viện
 
-`/materials/mine` là hub Tài liệu của tôi gồm Thư viện/Đã đăng/Đã lưu; `tab=library|posted|saved`, mặc định library. Tab Đã đăng giữ owner list/actions hiện hữu. Thư viện dùng orders BE, route `/materials/library` cũ redirect vào hub. Owner save/back fallback về posted. Archive giữ nguyên endpoint BE, chỉ hiện trên mobile cho PUBLISHED (Ngừng chia sẻ), PENDING_REVIEW (Hủy đăng tài liệu) và REJECTED (Lưu trữ tài liệu). DRAFT không có lưu trữ. ARCHIVED ghi Đã dừng đăng, không coi tài liệu chờ duyệt là đã phân phối. Hộp xác nhận nêu rõ không thể sửa/gửi duyệt lại vì BE chưa có restore.
+`/materials/mine` là hub Tài liệu của tôi gồm Thư viện/Đã đăng/Đã lưu; `tab=library|posted|saved`, mặc định library. Thư viện dùng orders BE, route library cũ redirect vào hub. Owner save/back fallback về posted. Tab Đã đăng có một thanh lọc ngang: Hiện tại dùng nguồn mặc định không ARCHIVED, mỗi trạng thái khác gọi status tương ứng, có Đã ngừng chia sẻ. Mỗi lựa chọn giữ query key/cursor riêng; search tên/file chỉ áp dụng các trang đã tải. Sau transition, gỡ row khỏi cache bộ lọc cũ và invalidate; không tự chèn row vào trang mới sai thứ tự cursor. Khóa đổi lọc khi mutation pending/uncertain.
 
-Thẻ Đã đăng dùng chevron mở thông tin. Bản nháp không có lưu trữ trên thẻ hoặc trong hộp thông tin; xóa bản nháp dùng trash và xác nhận riêng. Trong hộp thông tin và hộp xác nhận archive, REJECTED dùng icon archive, PENDING_REVIEW dùng close (×), PUBLISHED dùng eye-off; thao tác vẫn qua xác nhận trước khi POST archive.
+Thẻ dùng chevron mở thông tin. DRAFT có Xóa bản nháp; ARCHIVED có Xóa tài liệu và Đăng lại; PENDING_REVIEW có Rút yêu cầu duyệt. Xóa dùng trash, Ngừng chia sẻ eye-off, Rút yêu cầu close và Đăng lại send; các thao tác này có xác nhận. Xóa thành công dùng toast tự ẩn, giữ lịch sử/quyền tải theo đơn đã mua. REJECTED giữ sửa để trở về DRAFT. Editor và conflict recovery đọc owner detail trực tiếp, giữ unsaved draft/version; không quét owner list hoặc yêu cầu public listing để sửa ARCHIVED.
 
-Xóa bản nháp thành công cập nhật danh sách và hiện toast dùng chung tự ẩn, không để banner success trong list. Chỉ phát toast sau receipt hợp lệ thuộc phiên hiện tại, kể cả recovery explicit; hủy hoặc kết quả chưa rõ không báo xóa thành công.
+Chỉ phát toast xóa sau receipt hợp lệ thuộc phiên hiện tại, kể cả recovery explicit; hủy hoặc kết quả chưa rõ không báo xóa thành công. Owner mutation và hoàn tiền pending/uncertain khóa chuyển tab của hub và Đăng tài liệu để giữ controller/intent khôi phục; khóa áp dụng cả bàn phím và nút Bỏ bộ lọc của Đã đăng. Đọc nền hoặc lỗi đọc đơn thuần không khóa chuyển tab. Link chỉnh sửa có ID không hợp lệ hiện thông báo, không mở form tạo mới.
 
 Form đăng/chỉnh sửa nhóm thông tin, tệp, cách chia sẻ và ảnh bìa trong card theme. Vùng tên/tệp của thẻ đơn mua trong Thư viện mở `/materials/:id`, không chọn Access theo việc public metadata có trong cache hay không; đơn hoàn tiền cũng mở chi tiết. Snapshot đơn mua chỉ dùng hiển thị bản đã mua và luồng tải, không thay projection/quyền của trang chi tiết. Nút tải/hoàn tiền/đánh giá vẫn riêng, không cấp URL khi nhấn thẻ. Tài liệu miễn phí/đã lưu giữ cùng điểm vào chi tiết.
+
+Thẻ Đã mua đồng bộ tên, bìa, mô tả và loại/dung lượng tệp với listing hiện tại qua public detail; chỉ các dòng đang nhìn thấy khi màn được focus mới đọc bổ sung, không đọc toàn bộ orders và không fallback quét owner list. Refresh danh sách đọc lại cả metadata public đang active. Giá thanh toán, ngày/phiên bản/tệp đã mua vẫn lấy order snapshot, ghi rõ Giá lúc mua/Bản đã mua/Tệp đã mua; nếu tên đổi thì hiện thêm Tên lúc mua. Trang Chi tiết đánh dấu Giá hiện tại khi đã mua. Khi listing không đọc được, thẻ dùng thông tin lúc mua với nhãn chưa có thông tin hiện tại; không khóa tải chỉ vì metadata phụ lỗi, không dùng giá/tệp hiện tại thay snapshot hoặc suy quyền truy cập.
 
 Tab Đã lưu dùng dữ liệu BE, không lưu cục bộ: GET `/me/material-favorites` có cursor; thêm/bỏ lưu bằng POST/DELETE `/materials/:id/favorite`. Trạng thái lưu trên detail đọc hết các trang cần thiết, không coi trang đầu thiếu mục là chưa lưu. Query theo owner/generation; chỉ đọc khi focus, hủy khi disable. Mutation explicit, không renewal replay; lỗi không rõ chỉ cho thử lại cùng thao tác vì add/remove idempotent. BE ẩn tài liệu không PUBLISHED/CLEAN khỏi danh sách yêu thích và nay trả thumbnail signed/placeholder; MaterialCover hiện có nhận trực tiếp projection này. BE chưa có filter review nên không dựng tab Chưa/Đã đánh giá từ viewport.
 
@@ -58,7 +68,7 @@ Thư viện dùng một thanh lọc ngang Tất cả đơn/Miễn phí đã tả
 
 Endpoint thư viện miễn phí trả404 không có mã nghiệp vụ khi API triển khai chưa có route: adapter đổi thành MATERIAL_FREE_LIBRARY_UNAVAILABLE, màn hiện trạng thái tạm chưa khả dụng và Thử tải lại. Giữ lỗi403/MATERIAL_PERMISSION_REQUIRED,404/MATERIAL_NOT_FOUND và lỗi mạng; không trả mảng rỗng hoặc suy lịch sử từ dữ liệu local. Mốc probe triển khai và giới hạn kiểm quyền được ghi tại status.
 
-Hộp thông tin DRAFT bổ sung Xóa bản nháp với icon trash và xác nhận; chevron trên thẻ giữ nguyên, lưu trữ vẫn là thao tác riêng. Kết quả DELETE thành công gỡ đúng ID khỏi owner cache/detail rồi invalidates; mất phản hồi khóa ghi, nút Kiểm tra kết quả gửi lại đúng DELETE/version vì BE bảo đảm replay-safe. Không suy xóa thành công chỉ vì owner list thiếu dòng. Lỗi MATERIAL_VERSION_CONFLICT/MATERIAL_DELETE_REQUIRES_DRAFT cần đọc lại, không tự đổi version.
+Hộp thông tin DRAFT bổ sung Xóa bản nháp với icon trash và xác nhận; chevron trên thẻ giữ nguyên, DRAFT không có lưu trữ. Kết quả DELETE thành công gỡ đúng ID khỏi owner cache/detail rồi invalidates; mất phản hồi khóa ghi, nút Kiểm tra kết quả gửi lại đúng DELETE/version vì BE bảo đảm replay-safe. Không suy xóa thành công chỉ vì owner list thiếu dòng. Lỗi MATERIAL_VERSION_CONFLICT/MATERIAL_DELETE_NOT_ALLOWED cần đọc lại, không tự đổi version.
 
 | Method/path | Mobile dùng và giới hạn |
 | --- | --- |
