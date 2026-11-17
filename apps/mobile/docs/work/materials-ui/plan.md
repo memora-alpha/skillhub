@@ -18,27 +18,41 @@ Owner list đã nối cursor/submit/archive nhưng dùng Panel và nhiều nút 
 
 ## Task
 
+- [x] Ghi luồng mục tiêu tách Ngừng chia sẻ và Xóa mềm, đối chiếu source và lập [danh sách BE cần bổ sung](status.md#be-cần-bổ-sung--tách-ngừng-chia-sẻ-và-xóa-mềm) trước khi sửa runtime.
+- [x] Đối chiếu BE PR108 `origin/dev@a4b13dc9`: deletedAt/legacyArchiveUnclassified, DELETE/replay, status filter/owner detail, submit ARCHIVED, withdraw và buyer download/thumbnail.
+- [x] Nối owner list theo status, query/cursor riêng; thêm Đã ngừng chia sẻ trong thanh lọc, khóa đổi khi mutation pending/uncertain, cache gỡ row khỏi filter cũ sau transition.
+- [x] Nối GET owner detail cho editor/recovery và legacy detail fallback; bỏ helper quét hết owner list không còn consumer.
+- [x] Nối chỉnh sửa/đăng lại ARCHIVED cùng ID, xóa DRAFT/ARCHIVED có xác nhận/toast, rút duyệt đúng version; bỏ copy yêu cầu tạo tài liệu mới.
+- [x] Làm rõ mỗi bài một file nội dung, dùng Thay tệp; bỏ tệp mới giữ file đã gắn, không gửi fileId:null. Ảnh bìa là mục riêng.
+- [ ] Nghiệm thu luồng lifecycle mới với API có đăng nhập, migration dữ liệu cũ và Android/iOS; source/fixture không thay nghiệm thu triển khai.
+
+- [x] Đồng bộ phần nhận diện thẻ đã mua với listing hiện tại như Chi tiết; ghi rõ thông tin lúc mua, giữ snapshot/quyền tải/hoàn tiền và giới hạn đọc metadata theo dòng visible/focus; kiểm lỗi metadata, cập nhật và màn nhỏ.
+
 - [x] Đổi phản hồi xóa bản nháp thành toast dùng chung, bỏ banner thành công trong danh sách; chỉ thông báo sau receipt hợp lệ, giữ recovery và scope phiên.
 
-- [x] Bỏ lưu trữ ở bản nháp trên mobile, chặn cả dispatch archive DRAFT; giữ sửa/gửi duyệt/xóa có xác nhận và các thao tác ở trạng thái khác.
+- [x] Chỉ cho Ngừng chia sẻ ở PUBLISHED, chặn archive DRAFT/PENDING_REVIEW/REJECTED; bản nháp giữ sửa/gửi duyệt/xóa có xác nhận. ARCHIVED dùng lựa chọn Đã ngừng chia sẻ và Đăng lại theo contract mới.
 
 - [x] Khôi phục card nhóm trong form đăng/chỉnh sửa; thẻ đơn mua ở Thư viện mở trang chi tiết, giữ thao tác tải explicit và snapshot/eligibility; kiểm màn nhỏ/chữ lớn và điều hướng.
 
 - [x] Bỏ tiêu đề Thư viện của bạn và gom nguồn/trạng thái thành một thanh lọc ngang; thu gọn Khám phá thành icon, giữ lọc đơn/chuyển miễn phí/khóa mutation và kiểm màn nhỏ/chữ lớn/keyboard.
 
-- [ ] Đóng lỗi API thư viện miễn phí trên bản triển khai: xác minh BE có GET `/api/v1/me/material-library/free`, kiểm tra có đăng nhập nhận200 và nghiệm thu tab/list/empty/pagination/refresh. Bằng chứng404 và điều kiện đóng lỗi tại [status](status.md#lỗi-đang-mở--api-thư-viện-miễn-phí-chưa-khả-dụng-trên-bản-triển-khai).
+- [x] Fetch/đối chiếu toàn bộ origin và probe lại API cấu hình: `origin/dev@cdeea82f` không đổi contract API; endpoint thư viện miễn phí nay trả401 khi không đăng nhập, không còn404 ở lần probe mới.
+- [ ] Nghiệm thu thư viện miễn phí có đăng nhập nhận200: tab/list/empty/pagination/refresh và quyền tải. Bằng chứng404 cũ,401 mới và điều kiện nghiệm thu tại [status](status.md#lỗi-đang-mở--api-thư-viện-miễn-phí-chưa-khả-dụng-trên-bản-triển-khai).
 
-- [x] Phân biệt route thư viện miễn phí chưa triển khai (404 không mã nghiệp vụ) với lỗi quyền thật; giữ retry và không fallback dữ liệu local. Probe API cấu hình ghi trong status, nghiệm thu có đăng nhập chờ BE triển khai route.
+- [x] Phân biệt route thư viện miễn phí chưa triển khai (404 không mã nghiệp vụ) với lỗi quyền thật; giữ retry và không fallback dữ liệu local. Probe mới đã nhận401, còn chờ nghiệm thu có đăng nhập; bằng chứng ghi trong status.
 
 - [x] Đồng bộ BE `origin/dev@8a8230aa`: thư viện miễn phí phân trang theo grant, canEdit/editReasonCode cho đánh giá, xóa DRAFT theo version và thông báo lỗi mới; kiểm retry/session/cache và UI nhỏ. Thẻ miễn phí vẫn đọc ownership và xác nhận purchased snapshot khi có đơn mua.
 
-- [x] Đưa bookmark Đã lưu lên góc phải thẻ, bỏ nút dài; giữ chevron mở thông tin trên thẻ bản nháp. Lưu trữ REJECTED nằm trong hộp thông tin, dùng icon archive; hủy đăng dùng ×, ngừng chia sẻ dùng eye-off, đồng bộ cả hộp xác nhận. DRAFT chỉ giữ xóa có xác nhận qua DELETE/version, không có lưu trữ.
+- [x] Đưa bookmark Đã lưu lên góc phải thẻ, bỏ nút dài; giữ chevron mở thông tin trên thẻ bản nháp. Ngừng chia sẻ PUBLISHED dùng eye-off, đồng bộ hộp xác nhận; xóa bản nháp dùng trash qua DELETE/version.
 
 - [x] Làm gọn preview ảnh bìa đã lưu/mới: không hiện tên/link, nút × trên ảnh, Hoàn tác và giữ upload/session/version guards.
 
-- [x] Làm rõ thay tệp đã lưu/giữ bản hiện tại; hiện trạng thái BE trong editor và phân biệt hủy đăng khi chờ duyệt với ngừng chia sẻ khi đã đăng, giữ archive không khôi phục.
+- [x] Làm rõ thay tệp đã lưu/giữ bản hiện tại; hiện trạng thái BE trong editor. Bỏ Hủy đăng dùng archive; rút duyệt về DRAFT, đăng lại cùng ID theo contract mới.
+- [x] Nối rút PENDING_REVIEW về DRAFT qua withdraw/expectedListingVersion; conflict giữ lỗi/đọc mới, unknown chỉ GET không replay POST.
+- [x] Khớp archive PUBLISHED, delete DRAFT/ARCHIVED và submit DRAFT/ARCHIVED; kiểm receipt/session/version, unknown DELETE retry explicit cùng ID/version.
 
 - [x] Rà trước commit: bỏ style placeholder/chế độ review inline cũ/state gỡ cover không còn UI và return dư; kiểm không có mock/fixture trong runtime, giữ test isolation và chạy lại checks/bundle.
+- [x] Rà hồi quy lifecycle: khóa chuyển tab/đăng mới khi owner mutation hoặc hoàn tiền pending/uncertain, chặn Bỏ bộ lọc vượt khóa, xử lý ID edit không hợp lệ và bỏ hook/API đọc toàn bộ đơn mua không còn consumer; kiểm source, full suite và browser fixture.
 - [x] Chặn form edit khởi tạo từ owner cache cũ: fresh read trước mount, giữ draft khi refresh sau đó và khóa lưu lúc read pending/error; khôi phục quyền phân phối theo timestamp BE, không tự bật/tắt khi người dùng đang sửa, dùng thông báo version conflict trung tính.
 - [x] Giảm trễ đọc trạng thái scan ở app: đọc1s trong10s đầu,2s tới30s rồi5s; tách nhãn chờ hàng đợi/quét thực, kiểm regression phát hiện READY nhanh và giữ bounded timeout/terminal guards. Không coi tối ưu polling là rút ngắn thời gian quét BE.
 - [x] Làm gọn upload trong editor: bỏ nút kiểm tra trạng thái thường trực/note lặp/gỡ cover đã lưu; tự GET trạng thái có giới hạn thời gian, hủy theo lifecycle/session và chỉ mở lưu khi BE READY. Giữ retry chỉ đọc khi lỗi/chậm và không tự upload lại.
@@ -49,7 +63,7 @@ Owner list đã nối cursor/submit/archive nhưng dùng Panel và nhiều nút 
 - [x] Nhận purchasedMaterial/review/refundEligibility trên orders; hiển thị bản đã mua, khóa hoàn tiền theo BE, giảm đọc từng dòng và cập nhật sau cấp URL; giữ policy review sau hoàn tiền/mua lại.
 - [x] Nhận owner cover projection, hiển thị bìa đã lưu, đổi/gỡ khi Lưu và giữ draft/version/recovery.
 - [x] Danh sách tài liệu miễn phí đã tải dùng API BE theo grant ISSUED, có phân trang/refresh/loading/error/retry; không lưu cục bộ.
-- [ ] Gỡ file nội dung đã gắn: BE từ chối fileId:null bằng MATERIAL_FILE_REMOVAL_UNSUPPORTED; giữ khả năng thay tệp, không thêm thao tác gỡ chưa được hỗ trợ.
+- [x] Giữ một file nội dung/bài; thay tệp khi chọn sai, xóa bản nháp/ngừng chia sẻ khi không cần bài. Không yêu cầu BE bổ sung gỡ fileId:null.
 - [x] Gom loading chi tiết tài liệu: skeleton chung khi mở, bỏ spinner từng section, tải nền review/đề xuất và giữ nội dung khi refresh; giữ khóa quyền mua/tải và error/retry.
 - [x] Rút gọn UI đánh giá: summary một cụm, form đóng mặc định, hàng nhận xét phẳng có avatar; bỏ nhãn/ngày/nút tải lại/banner lặp và không hiện review của mình hai lần. Giữ error/recovery, version/idempotency và xác nhận xóa.
 - [x] Kiểm tác động compact rating picker tới consumer cũ, browser nhỏ/chữ lớn và cập nhật contract/status.
@@ -89,6 +103,6 @@ Owner list đã nối cursor/submit/archive nhưng dùng Panel và nhiều nút 
 
 ## Tiêu chí nghiệm thu
 
-Dữ liệu owner thật, không fallback fixture khi API lỗi. Search/filter không tự nhận bao phủ chưa tải, không invent total/stats/download count. Đọc được draft không file, pending sửa/lưu trữ được, hidden/archived chỉ đọc; POST chưa rõ giữ khóa và kiểm tra bằng GET. Chưa có API restore thì không thêm nút phục hồi. Source ready không thay nghiệm thu native/deployed API.
+Dữ liệu owner thật, không fallback fixture khi API lỗi. Search/filter không tự nhận bao phủ chưa tải, không invent total/stats/download count. Luồng mục tiêu: DRAFT xóa mềm; PUBLISHED ngừng chia sẻ thành ARCHIVED; ARCHIVED chưa xóa vẫn quản lý, gửi duyệt lại cùng ID hoặc xóa mềm. Pending rút về DRAFT; HIDDEN giữ moderation guard. Đơn mua/snapshot/quyền/đánh giá không bị xóa hoặc gắn lại sang ID khác. Mutation chưa rõ giữ khóa, recovery theo contract BE đã xác nhận. Source ready không thay nghiệm thu native/deployed API; các transition mới đã nối PR108, còn chờ nghiệm thu có đăng nhập và thiết bị.
 
 Catalog chỉ có PUBLISHED/CLEAN từ BE; list/chi tiết không cấp quyền tải. Mua explicit bằng expectedListingVersion và Idempotency-Key; receipt SUCCESS mới trở lại detail cho phép tải explicit, REFUNDED không coi là đã sở hữu. Retry unknown giữ key/body, không tự POST khi focus/mount/reconnect. Wallet chỉ invalidation/read, không cộng/trừ client. GET download chỉ sau nút Mở/tải, vì cấp URL có thể đánh dấu consumedAt. Thư viện không phụ thuộc public metadata để giữ đơn đã mua, kể cả material archived; BE quyết định tải/refund cuối cùng.
