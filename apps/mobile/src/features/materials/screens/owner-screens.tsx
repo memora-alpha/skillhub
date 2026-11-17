@@ -3,7 +3,8 @@ import { useLocalSearchParams } from "expo-router";
 import { FeaturePage, Copy } from "@/components/feature-page";
 import { useConnections, ConnectionFeedback } from "@/features/connections";
 import { MaterialEditorForm } from "../components/material-editor-form";
-import { useMyMaterials } from "../hooks/use-materials";
+import { useOwnerMaterial } from "../hooks/use-materials";
+import { uuid } from "@/lib/http/contracts";
 
 export function MaterialEditorScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -11,10 +12,10 @@ export function MaterialEditorScreen() {
   return <OwnerEditorContent key={JSON.stringify([runtime.key, id])} id={id} />;
 }
 function OwnerEditorContent({ id }: Readonly<{ id?: string }>) {
-  const query = useMyMaterials(!!id, true);
+  const query = useOwnerMaterial(id);
   const runtime = useConnections();
   const [opened, setOpened] = useState(!id);
-  const material = query.data?.find((item) => item.id === id);
+  const material = query.data;
   useEffect(() => {
     if (query.isSuccess && !query.isFetching && !query.error && material)
       setOpened(true);
@@ -40,14 +41,9 @@ function OwnerEditorContent({ id }: Readonly<{ id?: string }>) {
           }
         />
       )}
-      {query.isSuccess &&
-        !query.isFetching &&
-        !query.error &&
-        query.data &&
-        id &&
-        !material && (
-          <Copy>Tài liệu không tồn tại hoặc không thuộc tài khoản này.</Copy>
-        )}
+      {id && !uuid.safeParse(id).success && (
+        <Copy>Tài liệu không tồn tại hoặc không thuộc tài khoản này.</Copy>
+      )}
     </FeaturePage>
   );
 }

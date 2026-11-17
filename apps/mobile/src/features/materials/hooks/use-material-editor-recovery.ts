@@ -46,11 +46,9 @@ export function useMaterialEditorRecovery(
     setLatest(undefined);
     setError(undefined);
     try {
-      const rows = await api.mine(request.signal);
+      const row = await api.ownerDetail(base.current!.id, request.signal);
       if (!mounted.current || request.signal.aborted || !runtime.isCurrent())
         return;
-      const row = rows.find((item) => item.id === base.current?.id);
-      if (!row) throw new AppError("http", 404);
       setLatest(row);
     } catch (failure) {
       if (mounted.current && !request.signal.aborted && runtime.isCurrent())

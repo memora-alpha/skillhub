@@ -103,8 +103,8 @@ test("draft deletion validates the receipt, uses the exact version and never ena
     assert.equal(options?.replayAfterRenewal, false);
     return { id: material.id, deleted: true, replayed: true };
   }, materialOwnerId);
-  assert.equal((await api.deleteDraft(material.id, 7)).replayed, true);
-  await assert.rejects(api.deleteDraft(material.id, 0), protocol);
+  assert.equal((await api.remove(material.id, 7)).replayed, true);
+  await assert.rejects(api.remove(material.id, 0), protocol);
   assert.equal(count, 1);
   for (const receipt of [
     { id: materialOtherId, deleted: true, replayed: false },
@@ -112,7 +112,7 @@ test("draft deletion validates the receipt, uses the exact version and never ena
     { id: material.id, deleted: true },
   ]) {
     const invalid = createMaterialsApi(async () => receipt, materialOwnerId);
-    await assert.rejects(invalid.deleteDraft(material.id, 7), protocol);
+    await assert.rejects(invalid.remove(material.id, 7), protocol);
   }
 });
 

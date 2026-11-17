@@ -12,6 +12,7 @@ import { appColors } from "@/constants/theme";
 import { useConnections, ConnectionFeedback } from "@/features/connections";
 import { useMyMaterialPages } from "../hooks/use-materials";
 import { useOwnerMaterialActions } from "../hooks/use-owner-material-actions";
+import type { OwnerMaterialAction } from "../utils/owner-material-actions";
 import { materialFailure } from "../utils/material-failure";
 import {
   filterOwnerMaterials,
@@ -22,7 +23,7 @@ import {
 import { OwnerMaterialCard } from "../components/owner-material-card";
 import {
   OwnerMaterialDetails,
-  ArchiveMaterialDialog,
+  OwnerMaterialActionDialog,
 } from "../components/owner-material-dialogs";
 import { ownerMaterialStyles as styles } from "../components/owner-material.styles";
 
@@ -31,26 +32,25 @@ function Separator() {
 }
 export function PostedMaterialsContent({
   onCreateDisabledChange,
-}: Readonly<{ onCreateDisabledChange: (disabled: boolean) => void }>) {
+}: Readonly<{
+  onCreateDisabledChange: (disabled: boolean) => void;
+}>) {
   const runtime = useConnections();
-  const query = useMyMaterialPages();
   const command = useOwnerMaterialActions();
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<MaterialFilter>("ALL");
+  const query = useMyMaterialPages(filter === "ALL" ? undefined : filter);
   const [selectedId, setSelectedId] = useState<string>();
   const [archiveId, setArchiveId] = useState<string>();
-  const [deletingDraft, setDeletingDraft] = useState(false);
+  const [action, setAction] = useState<OwnerMaterialAction>("archive");
   const [refreshing, setRefreshing] = useState(false);
   const filtered = filterOwnerMaterials(query.items, filter, search);
   const selected = query.items.find((row) => row.id === selectedId);
   const archive = query.items.find((row) => row.id === archiveId);
+  const mutationLocked = !!command.pending || !!command.uncertain;
   const disabled =
-    !!command.pending ||
-    !!command.uncertain ||
-    query.isFetching ||
-    !!query.error ||
-    !runtime.enabled;
+    mutationLocked || query.isFetching || !!query.error || !runtime.enabled;
   useEffect(() => {
     onCreateDisabledChange(disabled);
     return () => onCreateDisabledChange(true);
@@ -118,11 +118,20 @@ export function PostedMaterialsContent({
               options={materialFilters.map((status) => ({
                 value: status,
                 label:
-                  status === "ALL" ? "Tất cả" : materialStatuses[status].label,
-                accessibilityLabel: `Lọc tài liệu: ${status === "ALL" ? "Tất cả" : materialStatuses[status].label}`,
+                  status === "ALL"
+                    ? "Hiện tại"
+                    : materialStatuses[status].label,
+                accessibilityLabel: `Lọc tài liệu: ${status === "ALL" ? "Hiện tại" : materialStatuses[status].label}`,
               }))}
               value={filter}
-              onChange={setFilter}
+              disabled={mutationLocked}
+              onChange={(value) => {
+                if (mutationLocked) return;
+                setSelectedId(undefined);
+                setArchiveId(undefined);
+                command.resetFeedback();
+                setFilter(value);
+              }}
               label="Lọc tài liệu đã đăng"
             />
             <ConnectionFeedback
@@ -172,7 +181,10 @@ export function PostedMaterialsContent({
             onOpen={() => setSelectedId(item.id)}
             onEdit={() => edit(item.id)}
             onSubmit={() => {
-              void command.run("submit", item);
+              if (item.status === "ARCHIVED") {
+                setAction("submit");
+                setArchiveId(item.id);
+              } else void command.run("submit", item);
             }}
           />
         )}
@@ -211,7 +223,9 @@ export function PostedMaterialsContent({
               <Button
                 variant="paper"
                 size="sm"
-                disabled={query.isFetching || !!command.pending}
+                disabled={
+                  query.isFetching || !!command.pending || !!command.uncertain
+                }
                 onPress={() => void query.fetchNextPage()}
               >
                 {query.isFetchingNextPage ? "Đang tải…" : "Xem thêm tài liệu"}
@@ -226,19 +240,24 @@ export function PostedMaterialsContent({
         onClose={() => setSelectedId(undefined)}
         onEdit={() => selected && edit(selected.id)}
         onArchive={() => {
-          setDeletingDraft(false);
+          setAction("archive");
           setArchiveId(selectedId);
           setSelectedId(undefined);
         }}
         onDelete={() => {
-          setDeletingDraft(true);
+          setAction("delete");
+          setArchiveId(selectedId);
+          setSelectedId(undefined);
+        }}
+        onWithdraw={() => {
+          setAction("withdraw");
           setArchiveId(selectedId);
           setSelectedId(undefined);
         }}
       />
-      <ArchiveMaterialDialog
+      <OwnerMaterialActionDialog
         material={archive}
-        deletingDraft={deletingDraft}
+        action={action}
         busy={!!command.pending}
         disabled={disabled}
         uncertain={!!command.uncertain}
@@ -246,11 +265,9 @@ export function PostedMaterialsContent({
         onClose={() => setArchiveId(undefined)}
         onConfirm={() => {
           if (archive)
-            void command
-              .run(deletingDraft ? "delete" : "archive", archive)
-              .then((result) => {
-                if (result && runtime.isCurrent()) setArchiveId(undefined);
-              });
+            void command.run(action, archive).then((result) => {
+              if (result && runtime.isCurrent()) setArchiveId(undefined);
+            });
         }}
         onReconcile={() => void reconcile()}
       />

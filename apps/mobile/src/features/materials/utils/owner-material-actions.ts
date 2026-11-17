@@ -5,10 +5,12 @@ import type { createMaterialsApi } from "../api/materials-api";
 import {
   canArchiveMaterial,
   canSubmitMaterial,
+  canDeleteMaterial,
+  canWithdrawMaterial,
   materialArchivePresentation,
 } from "./owner-material-presentation";
 
-export type OwnerMaterialAction = "submit" | "archive" | "delete";
+export type OwnerMaterialAction = "submit" | "archive" | "delete" | "withdraw";
 type Intent = { id: string; action: OwnerMaterialAction; version: number };
 export type OwnerActionState = {
   pending?: Intent;
@@ -19,7 +21,7 @@ export type OwnerActionState = {
 export function createOwnerMaterialActions(deps: {
   api: Pick<
     ReturnType<typeof createMaterialsApi>,
-    "submit" | "archive" | "mine" | "deleteDraft"
+    "submit" | "archive" | "ownerDetail" | "remove" | "withdraw"
   >;
   isCurrent: () => boolean;
   onChange: (state: OwnerActionState) => void;
@@ -32,8 +34,8 @@ export function createOwnerMaterialActions(deps: {
   const emit = (state: OwnerActionState) => {
     if (deps.isCurrent()) deps.onChange(state);
   };
-  const removeDraft = async (intent: Intent) => {
-    const receipt = await deps.api.deleteDraft(intent.id, intent.version);
+  const remove = async (intent: Intent) => {
+    const receipt = await deps.api.remove(intent.id, intent.version);
     if (deps.isCurrent()) await deps.onDeleted(receipt.id);
     return receipt;
   };
@@ -45,10 +47,12 @@ export function createOwnerMaterialActions(deps: {
       if (busy || uncertain || !deps.isCurrent()) return;
       if (
         !(action === "delete"
-          ? row.status === "DRAFT"
+          ? canDeleteMaterial(row)
           : action === "submit"
             ? canSubmitMaterial(row)
-            : canArchiveMaterial(row))
+            : action === "withdraw"
+              ? canWithdrawMaterial(row)
+              : canArchiveMaterial(row))
       )
         return;
       busy = true;
@@ -57,8 +61,10 @@ export function createOwnerMaterialActions(deps: {
       try {
         const result =
           action === "delete"
-            ? await removeDraft(intent)
-            : await deps.api[action](row.id);
+            ? await remove(intent)
+            : action === "withdraw"
+              ? await deps.api.withdraw(row.id, intent.version)
+              : await deps.api[action](row.id);
         if (!deps.isCurrent()) return;
         if ("status" in result) await deps.onResult(result);
         emit(
@@ -68,7 +74,9 @@ export function createOwnerMaterialActions(deps: {
                 notice:
                   action === "submit"
                     ? "Đã gửi tài liệu để duyệt."
-                    : materialArchivePresentation(row).notice,
+                    : action === "withdraw"
+                      ? "Đã rút yêu cầu duyệt. Bạn có thể sửa và gửi lại bản nháp."
+                      : materialArchivePresentation(row)?.notice,
               },
         );
         return result;
@@ -88,16 +96,15 @@ export function createOwnerMaterialActions(deps: {
       try {
         // DELETE is replay-safe; retry the exact version only after an explicit action.
         if (uncertain.action === "delete") {
-          const receipt = await removeDraft(uncertain);
+          const receipt = await remove(uncertain);
           if (!deps.isCurrent()) return;
           uncertain = undefined;
           emit({});
           return receipt;
         }
-        // The owner list is paginated; inspect every page, not just loaded rows.
-        const rows = await deps.api.mine();
+        // Read the owned target directly, including archived listings.
+        const current = await deps.api.ownerDetail(uncertain.id);
         if (!deps.isCurrent()) return;
-        const current = rows.find((row) => row.id === uncertain?.id);
         if (!current) throw new AppError("protocol");
         await deps.onResult(current);
         if (!deps.isCurrent()) return;

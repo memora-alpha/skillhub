@@ -152,7 +152,7 @@ test("editor saves a file-less draft, gates upload/read-only states and validate
     for (const status of ["PENDING_REVIEW", "HIDDEN", "ARCHIVED"] as const)
       assert.equal(
         useMaterialEditor({ ...material, status }).disabled,
-        status !== "PENDING_REVIEW",
+        status === "HIDDEN",
       );
     uploadBusy = true;
     await useMaterialEditor().save();

@@ -4,8 +4,9 @@ import { Button } from "@/components/Button";
 import { FormNotice } from "@/components/FormNotice";
 import type { ApiMaterial } from "../api/material-contracts";
 import {
-  canArchiveMaterial,
   canEditMaterial,
+  canDeleteMaterial,
+  canWithdrawMaterial,
   materialDate,
   materialFileSize,
   materialFileType,
@@ -14,6 +15,7 @@ import {
 } from "../utils/owner-material-presentation";
 import { MaterialStatusBadge } from "./owner-material-card";
 import { ownerMaterialStyles as styles } from "./owner-material.styles";
+import type { OwnerMaterialAction } from "../utils/owner-material-actions";
 
 export function OwnerMaterialDetails({
   material,
@@ -22,6 +24,7 @@ export function OwnerMaterialDetails({
   onEdit,
   onArchive,
   onDelete,
+  onWithdraw,
 }: Readonly<{
   material?: ApiMaterial;
   disabled: boolean;
@@ -29,7 +32,9 @@ export function OwnerMaterialDetails({
   onEdit: () => void;
   onArchive: () => void;
   onDelete: () => void;
+  onWithdraw: () => void;
 }>) {
+  const archivePresentation = material && materialArchivePresentation(material);
   return (
     <InfoModal
       title={material?.title ?? null}
@@ -48,18 +53,29 @@ export function OwnerMaterialDetails({
             >
               Chỉnh sửa
             </Button>
-            {canArchiveMaterial(material) && (
+            {archivePresentation && (
               <Button
                 variant="ghost"
                 size="sm"
-                leadingIcon={materialArchivePresentation(material).icon}
+                leadingIcon={archivePresentation.icon}
                 disabled={disabled}
                 onPress={onArchive}
               >
-                {materialArchivePresentation(material).label}
+                {archivePresentation.label}
               </Button>
             )}
-            {material.status === "DRAFT" && (
+            {canWithdrawMaterial(material) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                leadingIcon="close"
+                disabled={disabled}
+                onPress={onWithdraw}
+              >
+                Rút yêu cầu duyệt
+              </Button>
+            )}
+            {canDeleteMaterial(material) && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -67,7 +83,7 @@ export function OwnerMaterialDetails({
                 disabled={disabled}
                 onPress={onDelete}
               >
-                Xóa bản nháp
+                {material.status === "DRAFT" ? "Xóa bản nháp" : "Xóa tài liệu"}
               </Button>
             )}
           </View>
@@ -122,9 +138,16 @@ export function OwnerMaterialDetails({
               Chỉnh sửa sẽ chuyển tài liệu về trạng thái chờ duyệt.
             </Text>
           )}
+          {material.status === "PENDING_REVIEW" && (
+            <Text style={styles.meta}>
+              Bạn có thể chỉnh sửa hoặc rút yêu cầu duyệt về bản nháp để gửi lại
+              sau.
+            </Text>
+          )}
           {material.status === "ARCHIVED" && (
             <Text style={styles.meta}>
-              Tài liệu đã dừng đăng, không thể chỉnh sửa hoặc gửi duyệt lại.
+              Tài liệu đã ngừng chia sẻ. Bạn có thể chỉnh sửa và gửi duyệt lại
+              trên cùng bài đăng.
             </Text>
           )}
           {material.status === "HIDDEN" && (
@@ -137,9 +160,9 @@ export function OwnerMaterialDetails({
     </InfoModal>
   );
 }
-export function ArchiveMaterialDialog({
+export function OwnerMaterialActionDialog({
   material,
-  deletingDraft = false,
+  action,
   busy,
   disabled,
   uncertain,
@@ -149,7 +172,7 @@ export function ArchiveMaterialDialog({
   onReconcile,
 }: Readonly<{
   material?: ApiMaterial;
-  deletingDraft?: boolean;
+  action: OwnerMaterialAction;
   busy: boolean;
   disabled: boolean;
   uncertain: boolean;
@@ -158,17 +181,35 @@ export function ArchiveMaterialDialog({
   onConfirm: () => void;
   onReconcile: () => void;
 }>) {
-  const presentation = deletingDraft
-    ? {
-        title: "Xóa bản nháp?",
-        label: "Xóa bản nháp",
-        icon: "trash" as const,
-        description:
-          "Bản nháp sẽ được gỡ khỏi danh sách tài liệu của bạn. Tệp đã gắn vẫn được hệ thống giữ lại.",
-      }
-    : material
-      ? materialArchivePresentation(material)
-      : undefined;
+  const presentation =
+    action === "delete"
+      ? {
+          title:
+            material?.status === "DRAFT" ? "Xóa bản nháp?" : "Xóa tài liệu?",
+          label: material?.status === "DRAFT" ? "Xóa bản nháp" : "Xóa tài liệu",
+          icon: "trash" as const,
+          description:
+            "Tài liệu sẽ được xóa khỏi danh sách quản lý và không thể khôi phục. Lịch sử và quyền tải theo đơn đã mua vẫn được giữ.",
+        }
+      : action === "withdraw"
+        ? {
+            title: "Rút yêu cầu duyệt?",
+            label: "Rút yêu cầu",
+            icon: "close" as const,
+            description:
+              "Tài liệu sẽ trở về bản nháp và dừng chờ duyệt. Bạn có thể chỉnh sửa rồi gửi duyệt lại.",
+          }
+        : action === "submit"
+          ? {
+              title: "Gửi duyệt để đăng lại?",
+              label: "Gửi duyệt",
+              icon: "send" as const,
+              description:
+                "Tài liệu sẽ được xét duyệt lại trước khi xuất hiện công khai. Lịch sử và đánh giá của bài đăng vẫn được giữ.",
+            }
+          : material
+            ? materialArchivePresentation(material)
+            : undefined;
   return (
     <InfoModal
       title={material ? (presentation?.title ?? null) : null}

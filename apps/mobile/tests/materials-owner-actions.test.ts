@@ -7,28 +7,71 @@ import {
 } from "../src/features/materials/utils/owner-material-actions";
 import {
   canArchiveMaterial,
+  canDeleteMaterial,
+  canWithdrawMaterial,
   canEditMaterial,
   canSubmitMaterial,
   filterOwnerMaterials,
   materialFileSize,
   materialSubmitHint,
+  materialArchivePresentation,
+  materialFilters,
 } from "../src/features/materials/utils/owner-material-presentation";
 import { fixtureMaterial } from "./fixtures/materials-data";
 
-test("owner controls omit draft archive while retaining edit, submit and supported listing transitions", () => {
+test("only published materials can stop sharing while editable states retain edit and draft submit", () => {
   assert.equal(canArchiveMaterial(fixtureMaterial()), false);
   assert.equal(canEditMaterial(fixtureMaterial()), true);
-  for (const status of ["PUBLISHED", "REJECTED"] as const)
-    assert.equal(canArchiveMaterial(fixtureMaterial({ status })), true);
+  assert.equal(
+    canArchiveMaterial(fixtureMaterial({ status: "PUBLISHED" })),
+    true,
+  );
+  assert.equal(
+    canArchiveMaterial(fixtureMaterial({ status: "REJECTED" })),
+    false,
+  );
+  for (const status of [
+    "DRAFT",
+    "PENDING_REVIEW",
+    "REJECTED",
+    "HIDDEN",
+    "ARCHIVED",
+  ] as const)
+    assert.equal(
+      materialArchivePresentation(fixtureMaterial({ status })),
+      undefined,
+    );
+  assert.equal(
+    materialFilters.some((status: string) => status === "ARCHIVED"),
+    true,
+  );
   assert.equal(
     canEditMaterial(fixtureMaterial({ status: "PENDING_REVIEW" })),
     true,
   );
   assert.equal(
     canArchiveMaterial(fixtureMaterial({ status: "PENDING_REVIEW" })),
+    false,
+  );
+  assert.equal(canEditMaterial(fixtureMaterial({ status: "ARCHIVED" })), true);
+  assert.equal(
+    canSubmitMaterial(fixtureMaterial({ status: "ARCHIVED" })),
     true,
   );
-  for (const status of ["HIDDEN", "ARCHIVED"] as const) {
+  for (const status of ["DRAFT", "ARCHIVED"] as const)
+    assert.equal(canDeleteMaterial(fixtureMaterial({ status })), true);
+  assert.equal(
+    canWithdrawMaterial(fixtureMaterial({ status: "PENDING_REVIEW" })),
+    true,
+  );
+  for (const status of [
+    "PUBLISHED",
+    "REJECTED",
+    "HIDDEN",
+    "PENDING_REVIEW",
+  ] as const)
+    assert.equal(canDeleteMaterial(fixtureMaterial({ status })), false);
+  for (const status of ["HIDDEN"] as const) {
     assert.equal(canEditMaterial(fixtureMaterial({ status })), false);
     assert.equal(canArchiveMaterial(fixtureMaterial({ status })), false);
   }
@@ -65,23 +108,24 @@ test("unknown submission locks all writes until a read reconciles current status
   let current = material;
   const actions = createOwnerMaterialActions({
     api: {
-      deleteDraft: async (id: string) => ({
+      remove: async (id: string) => ({
         id,
         deleted: true as const,
         replayed: false,
       }),
       submit: async () => {
         sends++;
-        current = { ...material, status: "PENDING_REVIEW" };
+        current = { ...material, status: "PUBLISHED" };
         throw new AppError("network");
       },
       archive: async () => {
         sends++;
         return { ...current, status: "ARCHIVED" };
       },
-      mine: async () => {
+      withdraw: async () => material,
+      ownerDetail: async () => {
         reads++;
-        return [current];
+        return current;
       },
     },
     isCurrent: () => true,
@@ -100,7 +144,7 @@ test("unknown submission locks all writes until a read reconciles current status
   const reconciled = await actions.reconcile();
   assert.equal(
     reconciled && "status" in reconciled ? reconciled.status : undefined,
-    "PENDING_REVIEW",
+    "PUBLISHED",
   );
   assert.equal(state.uncertain, undefined);
   assert.equal(reads, 1);
@@ -116,7 +160,7 @@ test("duplicate dispatches and completions from an old session cannot write cach
   const states: OwnerActionState[] = [];
   const actions = createOwnerMaterialActions({
     api: {
-      deleteDraft: async (id: string) => ({
+      remove: async (id: string) => ({
         id,
         deleted: true as const,
         replayed: false,
@@ -130,7 +174,8 @@ test("duplicate dispatches and completions from an old session cannot write cach
       archive: async () => {
         throw new Error("must not send");
       },
-      mine: async () => [],
+      withdraw: async () => fixtureMaterial(),
+      ownerDetail: async () => fixtureMaterial(),
     },
     isCurrent: () => active,
     onChange: (state) => states.push(state),
@@ -156,7 +201,7 @@ test("known conflicts stay retryable; failed reconciliation retains uncertain st
   const currentState = (): OwnerActionState => state;
   const actions = createOwnerMaterialActions({
     api: {
-      deleteDraft: async (id: string) => ({
+      remove: async (id: string) => ({
         id,
         deleted: true as const,
         replayed: false,
@@ -168,7 +213,8 @@ test("known conflicts stay retryable; failed reconciliation retains uncertain st
           : new AppError("network");
       },
       archive: async () => fixtureMaterial(),
-      mine: async () => {
+      withdraw: async () => fixtureMaterial(),
+      ownerDetail: async () => {
         throw new AppError("network");
       },
     },

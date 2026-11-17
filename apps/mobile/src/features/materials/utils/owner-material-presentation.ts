@@ -6,7 +6,7 @@ export const materialStatuses = {
   PUBLISHED: { label: "Đã đăng", tone: "success" },
   REJECTED: { label: "Bị từ chối", tone: "error" },
   HIDDEN: { label: "Bị ẩn", tone: "error" },
-  ARCHIVED: { label: "Đã dừng đăng", tone: "muted" },
+  ARCHIVED: { label: "Đã ngừng chia sẻ", tone: "muted" },
 } as const;
 export type MaterialStatus = ApiMaterial["status"];
 export type MaterialFilter = MaterialStatus | "ALL";
@@ -24,10 +24,15 @@ const editable = new Set<MaterialStatus>([
   "PENDING_REVIEW",
   "PUBLISHED",
   "REJECTED",
+  "ARCHIVED",
 ]);
 export const canEditMaterial = (row: ApiMaterial) => editable.has(row.status);
 export const canArchiveMaterial = (row: ApiMaterial) =>
-  row.status !== "DRAFT" && canEditMaterial(row);
+  row.status === "PUBLISHED";
+export const canDeleteMaterial = (row: ApiMaterial) =>
+  row.status === "DRAFT" || row.status === "ARCHIVED";
+export const canWithdrawMaterial = (row: ApiMaterial) =>
+  row.status === "PENDING_REVIEW";
 export function materialArchivePresentation(row: ApiMaterial) {
   if (row.status === "PUBLISHED")
     return {
@@ -35,34 +40,18 @@ export function materialArchivePresentation(row: ApiMaterial) {
       label: "Ngừng chia sẻ",
       title: "Ngừng chia sẻ tài liệu?",
       description:
-        "Tài liệu sẽ ngừng xuất hiện công khai và không nhận lượt mua hoặc truy cập mới. Người đã mua vẫn có quyền theo đơn mua. Sau thao tác này, bạn không thể chỉnh sửa hoặc đăng lại tài liệu.",
+        "Tài liệu sẽ ngừng xuất hiện công khai và không nhận lượt mua hoặc truy cập mới. Người đã mua vẫn giữ quyền tải bản đã mua. Bạn có thể chỉnh sửa và gửi duyệt lại trong mục Đã ngừng chia sẻ.",
       notice: "Đã ngừng chia sẻ tài liệu.",
     };
-  if (row.status === "PENDING_REVIEW")
-    return {
-      icon: "close" as const,
-      label: "Hủy đăng tài liệu",
-      title: "Hủy đăng tài liệu đang chờ duyệt?",
-      description:
-        "Tài liệu sẽ dừng chờ duyệt và chuyển sang trạng thái đã dừng đăng. Sau thao tác này, bạn không thể chỉnh sửa hoặc gửi duyệt lại tài liệu.",
-      notice: "Đã hủy đăng tài liệu đang chờ duyệt.",
-    };
-  return {
-    icon: "archive" as const,
-    label: "Lưu trữ tài liệu",
-    title: "Lưu trữ tài liệu?",
-    description:
-      "Tài liệu sẽ chuyển sang trạng thái đã dừng đăng. Sau thao tác này, bạn không thể chỉnh sửa hoặc gửi duyệt lại tài liệu.",
-    notice: "Đã lưu trữ tài liệu.",
-  };
 }
 export const canSubmitMaterial = (row: ApiMaterial) =>
-  row.status === "DRAFT" &&
+  (row.status === "DRAFT" || row.status === "ARCHIVED") &&
   !!row.file &&
   row.scanStatus === "CLEAN" &&
   !!row.distributionRightsConfirmedAt;
 export function materialSubmitHint(row: ApiMaterial) {
-  if (row.status !== "DRAFT" || canSubmitMaterial(row)) return null;
+  if (!["DRAFT", "ARCHIVED"].includes(row.status) || canSubmitMaterial(row))
+    return null;
   if (!row.file) return "Thêm tệp trước khi gửi duyệt.";
   if (row.scanStatus !== "CLEAN") return "Tệp cần hoàn tất kiểm tra an toàn.";
   return "Xác nhận quyền phân phối trước khi gửi duyệt.";

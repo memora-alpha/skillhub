@@ -99,17 +99,21 @@ export function OwnerMaterialCard({
           >
             Chỉnh sửa
           </Button>
-          {material.status === "DRAFT" && (
+          {["DRAFT", "ARCHIVED"].includes(material.status) && (
             <Button
               variant="craft"
               size="sm"
               leadingIcon="send"
               style={styles.action}
               disabled={disabled || !canSubmitMaterial(material)}
-              accessibilityLabel={`Gửi duyệt ${material.title}`}
+              accessibilityLabel={`${material.status === "ARCHIVED" ? "Đăng lại" : "Gửi duyệt"} ${material.title}`}
               onPress={onSubmit}
             >
-              {submitting ? "Đang gửi…" : "Gửi duyệt"}
+              {submitting
+                ? "Đang gửi…"
+                : material.status === "ARCHIVED"
+                  ? "Đăng lại"
+                  : "Gửi duyệt"}
             </Button>
           )}
         </View>
