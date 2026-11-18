@@ -44,7 +44,9 @@ const allowed: Record<string, RegExp[]> = {
     route("payments(/(creation-policy|" + uuid + "))?"),
     route("materials(/" + uuid + "(/download)?)?"),
     route("me/material-orders"),
-    route("me/materials(/files/" + uuid + ")?"),
+    route("me/materials(/files/" + uuid + "|/" + uuid + ")?"),
+    route("me/material-favorites"),
+    route("me/material-library/free"),
     route(
       "me/skills/" +
         uuid +
@@ -115,7 +117,8 @@ const allowed: Record<string, RegExp[]> = {
         "/(response|withdraw))?",
     ),
     route("reports/evidence-files"),
-    route("me/materials(/files|/" + uuid + "/(submit|archive))?"),
+    route("me/materials(/files|/" + uuid + "/(submit|archive|withdraw))?"),
+    route("materials/" + uuid + "/favorite"),
     route("me/skills/" + uuid + "/(evidence-files|verifications)"),
     route("payments(/" + uuid + "/cancel)?"),
     route("materials/" + uuid + "/(purchase|reports)"),
@@ -152,6 +155,8 @@ const allowed: Record<string, RegExp[]> = {
     route("schedule-proposals/" + uuid),
   ],
   DELETE: [
+    route("me/materials/" + uuid),
+    route("materials/" + uuid + "/favorite"),
     route("me/avatar"),
     route("notifications/push-tokens/" + uuid),
     route("material-reviews/" + uuid),
@@ -184,12 +189,23 @@ export function userQuery(search: URLSearchParams) {
     "accessType",
     "unreadOnly",
     "expectedVersion",
+    "expectedListingVersion",
     "type",
     "referenceType",
   ]) {
     for (const value of search.getAll(name)) result.append(name, value);
   }
   return result.size ? "?" + result : "";
+}
+export function isBodyless(method: string, target: string) {
+  if (method === "PATCH")
+    return /^notifications\/[0-9a-f-]+\/read$/i.test(target);
+  return (
+    method === "POST" &&
+    /^(payments\/[0-9a-f-]+\/cancel|sessions\/paths\/[0-9a-f-]+\/settlement|me\/material-orders\/[0-9a-f-]+\/refund|materials\/[0-9a-f-]+\/favorite)$/i.test(
+      target,
+    )
+  );
 }
 export function userIdentity(value: unknown) {
   if (!value || typeof value !== "object") return null;

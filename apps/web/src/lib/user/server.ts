@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiBase, userBackend, userJson, UserGatewayError } from "./backend";
-import { userIdentity, userUpstreamPath, userQuery } from "./policy";
+import {
+  userIdentity,
+  userUpstreamPath,
+  userQuery,
+  isBodyless,
+} from "./policy";
 import { proxyEvents } from "../staff/event-proxy";
 import { sessionCookies } from "../auth/session";
 import { sameOriginMutation } from "../auth/origin";
@@ -129,16 +134,6 @@ async function session(request: NextRequest, refresh: boolean) {
     throw new UserGatewayError(405, "METHOD_NOT_ALLOWED");
   const token = request.cookies.get(REFRESH)?.value;
   return refresh ? refreshSession(token) : loginSession(request, token);
-}
-function isBodyless(method: string, target: string) {
-  if (method === "PATCH")
-    return /^notifications\/[0-9a-f-]+\/read$/i.test(target);
-  return (
-    method === "POST" &&
-    /^(payments\/[0-9a-f-]+\/cancel|sessions\/paths\/[0-9a-f-]+\/settlement|me\/material-orders\/[0-9a-f-]+\/refund|me\/materials\/[0-9a-f-]+\/(submit|archive))$/i.test(
-      target,
-    )
-  );
 }
 async function forwardRequest(request: NextRequest, segments: string[]) {
   const target = userUpstreamPath(request.method, segments);

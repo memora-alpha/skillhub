@@ -6,7 +6,47 @@ import { UploadControl } from "../components/upload-control";
 import { Feedback, Status } from "../components/common";
 import { ProductIcon } from "../components/product-icon";
 import { safeDownloadUrl } from "./view-policy";
-import type { Material } from "./account-types";
+import type { Material, OwnedMaterial } from "./account-types";
+
+export function MaterialCoverStatus({
+  cover,
+}: Readonly<{ cover?: OwnedMaterial["cover"] }>) {
+  if (!cover?.attached) return null;
+  const labels: Record<string, string> = {
+    NONE: "Chưa có ảnh bìa",
+    PENDING: "Đang chờ tạo ảnh xem trước",
+    PROCESSING: "Đang xử lý ảnh bìa",
+    READY: "Ảnh bìa đã sẵn sàng",
+    FAILED: "Chưa tạo được ảnh xem trước",
+    REJECTED: "Ảnh bìa không được chấp nhận",
+  };
+  return (
+    <details>
+      <summary>
+        {labels[cover.processingStatus] ?? "Đang kiểm tra ảnh bìa"}
+      </summary>
+      <div style={{ width: "min(100%, 320px)", aspectRatio: "16 / 9" }}>
+        <MaterialThumbnail thumbnail={cover.preview} />
+      </div>
+      <p>{cover.file?.originalFilename ?? "Ảnh bìa đã đính kèm"}</p>
+      {cover.file && (
+        <p>
+          Trạng thái tệp:{" "}
+          <Status
+            value={cover.file.state}
+            label={cover.file.state === "READY" ? "Sẵn sàng" : undefined}
+          />
+        </p>
+      )}
+      {cover.failureCode && (
+        <p className="learner-error">
+          Ảnh bìa chưa xử lý thành công. Hãy cập nhật trạng thái; nếu vẫn lỗi,
+          liên hệ hỗ trợ. Chỉ thay ảnh khi tài liệu còn cho phép chỉnh sửa.
+        </p>
+      )}
+    </details>
+  );
+}
 
 export function MaterialThumbnail({
   thumbnail,
@@ -94,7 +134,12 @@ export function MaterialCoverControl({
           />
           <p>
             Ảnh bìa đã chọn ·{" "}
-            <Status value={cover.status.data?.state ?? "PENDING"} />
+            <Status
+              value={cover.status.data?.state ?? "PENDING"}
+              label={
+                cover.status.data?.state === "READY" ? "Sẵn sàng" : undefined
+              }
+            />
           </p>
         </>
       )}

@@ -10,6 +10,16 @@ export class UserApiError extends Error {
   }
 }
 const messages: Record<string, string> = {
+  MATERIAL_VERSION_CONFLICT:
+    "Tài liệu đã thay đổi. Hãy đóng và mở lại để xem phiên bản mới.",
+  MATERIAL_CONTENT_LOCKED:
+    "Tài liệu đã từng xuất bản nên không thể sửa nội dung hoặc giá. Hãy chia sẻ tài liệu mới.",
+  MATERIAL_ACTION_UNAVAILABLE:
+    "Trạng thái tài liệu đã thay đổi. Tải lại để xem thao tác phù hợp.",
+  MATERIAL_REVIEW_EDIT_BLOCKED:
+    "Quyền đánh giá đã thay đổi. Tải lại đánh giá trước khi tiếp tục.",
+  CONTACT_INFORMATION_NOT_ALLOWED:
+    "Hãy bỏ số điện thoại, email hoặc thông tin liên hệ riêng trước khi gửi. Bạn có thể trao đổi ngay trong SkillHub.",
   REPORT_POLICY_UNAVAILABLE:
     "Chưa xác định được thời hạn báo cáo. Vui lòng thử lại sau.",
   INVALID_SCHEDULE_ITEMS: "Một số buổi học cần điều chỉnh trước khi chốt lịch.",
@@ -22,6 +32,9 @@ const messages: Record<string, string> = {
     "Đơn đã lấy liên kết tải nên không thể hoàn tự động.",
   MATERIAL_REFUND_ADMIN_REQUIRED:
     "Số dư bên bán chưa đủ để hoàn tự động. Cần nhân sự hỗ trợ xử lý.",
+  CREDIT_PROVENANCE_REVIEW_REQUIRED:
+    "Đơn mua cần được bộ phận hỗ trợ kiểm tra nguồn Credit trước khi hoàn.",
+  MATERIAL_ALREADY_REFUNDED: "Đơn mua đã được hoàn Credit.",
   MATERIAL_ORDER_NOT_FOUND:
     "Không tìm thấy đơn tài liệu. Làm mới danh sách để kiểm tra.",
   MATERIAL_ORDER_NOT_REFUNDABLE:
