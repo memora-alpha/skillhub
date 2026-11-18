@@ -2,6 +2,7 @@
 import { LoadingButton } from "@/components/loading-button";
 
 import { useState } from "react";
+import { UserProfileReference } from "./user-profile-reference";
 import Link from "next/link";
 import { Card, DataTable, StatusBadge } from "@/components/console/ui";
 import { Icon } from "@/components/console/icon";
@@ -302,8 +303,7 @@ export function AdminLedgerScreen({
                 <td data-label="Thời gian / Người dùng">
                   <strong>{fmtDateTime(entry.createdAt)}</strong>
                   <div>
-                    <RecordId id={entry.userId} label="người dùng" />
-                    <Link href={`/admin/users/${entry.userId}`}>Xem hồ sơ</Link>
+                    <UserProfileReference userId={entry.userId} />
                   </div>
                 </td>
                 <td data-label="Loại / Trạng thái">
@@ -446,7 +446,7 @@ function EntryPresentation({ entry }: Readonly<{ entry: LedgerEntry }>) {
             <RecordId id={entry.id} label="giao dịch" />
           </AdminField>
           <AdminField label="Người dùng">
-            <RecordId id={entry.userId} label="người dùng" />
+            <UserProfileReference userId={entry.userId} />
           </AdminField>
           {entry.reversesTransactionId && (
             <AdminField label="Giao dịch được đảo">
@@ -459,9 +459,9 @@ function EntryPresentation({ entry }: Readonly<{ entry: LedgerEntry }>) {
         </div>
       </details>
       <div className="row">
-        <Link className="btn" href={`/admin/users/${entry.userId}`}>
+        <UserProfileReference userId={entry.userId} className="btn">
           Hồ sơ người dùng
-        </Link>
+        </UserProfileReference>
         <Link
           className="btn"
           href={`/admin/credits?tab=wallet&userId=${entry.userId}`}
@@ -515,7 +515,7 @@ function OperationPresentation({
             {operation.entries.map((entry) => (
               <tr key={entry.id}>
                 <td data-label="Người dùng">
-                  <RecordId id={entry.userId} label="người dùng" />
+                  <UserProfileReference userId={entry.userId} />
                 </td>
                 <td data-label="Loại / Trạng thái">
                   {financeLabel(entry.type)}

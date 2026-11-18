@@ -3,7 +3,6 @@ import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useStaffListPages } from "./use-staff-list-pages";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   Card,
@@ -17,6 +16,7 @@ import { DecisionDialog, QueueState } from "./common";
 import { Identifier } from "./operation-tools";
 import { OperationReference } from "./operation-reference";
 import { StaffUserProfile } from "./user-profile";
+import { UserProfileReference } from "./user-profile-reference";
 import { fmtDateTime } from "@/lib/console/format";
 import styles from "./operations.module.css";
 import { MaterialReviewModeration } from "./material-review-moderation";
@@ -43,7 +43,6 @@ export function ContentModerationScreen({
   initialUserId = "",
   initialView,
 }: Readonly<{ initialUserId?: string; initialView?: "profile" | "reviews" }>) {
-  const router = useRouter();
   const [draft, setDraft] = useState(initialUserId);
   const [userId, setUserId] = useState(initialUserId);
   const [profileRevision, setProfileRevision] = useState(0);
@@ -51,17 +50,6 @@ export function ContentModerationScreen({
     initialView ?? (initialUserId ? "profile" : "reviews"),
   );
   const { actor, portal } = useStaffSession();
-  const openProfile = (id: string) => {
-    if (portal === "admin") {
-      router.push(
-        `/admin/profile-moderation?view=profile&userId=${encodeURIComponent(id)}`,
-      );
-      return;
-    }
-    setDraft(id);
-    setUserId(id);
-    setTab("profile");
-  };
   const adminTitle = tab === "profile" ? "Hồ sơ người dùng" : "Đánh giá";
   return (
     <>
@@ -152,7 +140,7 @@ export function ContentModerationScreen({
         </div>
       )}
       {tab === "material-reviews" && <MaterialReviewModeration />}
-      {tab === "reviews" && <ReviewModeration onProfile={openProfile} />}
+      {tab === "reviews" && <ReviewModeration />}
     </>
   );
 }
@@ -195,7 +183,7 @@ function ProfileModeration({
     >
       {resource.data && (
         <>
-          <OperationReference id={userId} label="Người dùng" />
+          <UserProfileReference userId={userId} />
           <div className={styles.profileGrid}>
             {(["BIO", "AVATAR"] as const).map((field) => (
               <section className={styles.profileField} key={field}>
@@ -279,9 +267,7 @@ function ProfileDecision({ value }: Readonly<{ value?: ModerationRecord }>) {
     </div>
   ) : null;
 }
-function ReviewModeration({
-  onProfile,
-}: Readonly<{ onProfile: (id: string) => void }>) {
+function ReviewModeration() {
   const { api, actor, portal } = useStaffSession();
   const reviews = useStaffListPages<Review>("reviews?limit=20");
   const [selected, setSelected] = useState<Review>();
@@ -327,21 +313,17 @@ function ReviewModeration({
                   <td data-label="Người tham gia">
                     <div className={styles.person}>
                       <small>Người đánh giá</small>
-                      <button
-                        type="button"
-                        onClick={() => onProfile(r.reviewerId)}
-                      >
-                        Xem hồ sơ #{r.reviewerId.slice(0, 8)}
-                      </button>
+                      <UserProfileReference
+                        userId={r.reviewerId}
+                        label="người đánh giá"
+                      />
                     </div>
                     <div className={styles.person}>
                       <small>Người nhận</small>
-                      <button
-                        type="button"
-                        onClick={() => onProfile(r.revieweeId)}
-                      >
-                        Xem hồ sơ #{r.revieweeId.slice(0, 8)}
-                      </button>
+                      <UserProfileReference
+                        userId={r.revieweeId}
+                        label="người nhận đánh giá"
+                      />
                     </div>
                   </td>
                   <td data-label="Nội dung đánh giá">

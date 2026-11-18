@@ -1,10 +1,10 @@
 "use client";
+import { UserProfileReference } from "./user-profile-reference";
 import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useStaffListPages } from "./use-staff-list-pages";
 
 import { useState } from "react";
-import Link from "next/link";
 import {
   Badge,
   Card,
@@ -218,12 +218,10 @@ export function AdminMaterialsScreen() {
                     </small>
                   </td>
                   <td data-label="Người đăng">
-                    <RecordId id={item.ownerId} label="người đăng" />
-                    <Link
-                      href={`/admin/users/${encodeURIComponent(item.ownerId)}`}
-                    >
-                      Xem hồ sơ
-                    </Link>
+                    <UserProfileReference
+                      userId={item.ownerId}
+                      label="người đăng"
+                    />
                   </td>
                   <td data-label="Tệp">
                     <span>{item.file?.originalFilename ?? "Chưa có tệp"}</span>
@@ -314,12 +312,10 @@ export function AdminMaterialsScreen() {
             <p className="prose">{selected.description}</p>
             <div className="admin-field-grid">
               <AdminField label="Người đăng">
-                <RecordId id={selected.ownerId} label="người đăng" />
-                <Link
-                  href={`/admin/users/${encodeURIComponent(selected.ownerId)}`}
-                >
-                  Xem hồ sơ người đăng
-                </Link>
+                <UserProfileReference
+                  userId={selected.ownerId}
+                  label="người đăng"
+                />
               </AdminField>
               <AdminField label="Giá">
                 {selected.accessType === "FREE"

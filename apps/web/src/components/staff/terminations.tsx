@@ -1,4 +1,5 @@
 "use client";
+import { UserProfileReference } from "./user-profile-reference";
 import { LoadingButton } from "@/components/loading-button";
 import { LoadingSkeleton } from "@/components/loading-skeleton";
 import { systemCodeLabel } from "@/lib/system-text";
@@ -214,7 +215,10 @@ function TerminationQueue({
                     <RecordId id={row.pathId} label="lộ trình" />
                     <small>
                       Người yêu cầu:{" "}
-                      <RecordId id={row.requesterId} label="người yêu cầu" />
+                      <UserProfileReference
+                        userId={row.requesterId}
+                        label="người yêu cầu"
+                      />
                     </small>
                   </td>
                   <td data-label="Lý do">
@@ -498,7 +502,10 @@ function TerminationDetail({
                 <RecordId id={review.pathId} label="lộ trình" />
               </AdminField>
               <AdminField label="Người yêu cầu">
-                <RecordId id={review.requesterId} label="người yêu cầu" />
+                <UserProfileReference
+                  userId={review.requesterId}
+                  label="người yêu cầu"
+                />
               </AdminField>
               <AdminField label="Thời điểm gửi">
                 {fmtDateTime(review.createdAt)}
@@ -581,7 +588,10 @@ function TerminationDetail({
                               />
                               <small>
                                 Chủ sở hữu:{" "}
-                                <RecordId id={held.userId} label="chủ sở hữu" />
+                                <UserProfileReference
+                                  userId={held.userId}
+                                  label="chủ sở hữu"
+                                />
                               </small>
                             </td>
                             <td className="admin-money">
@@ -820,7 +830,8 @@ function HeldAllocationFields({
   return (
     <div className="staff-held">
       <p className="staff-wrap">
-        Người giữ: {held.userId}
+        Người giữ:{" "}
+        <UserProfileReference userId={held.userId} label="người giữ Credit" />
         <br />
         Khoản: {held.allocationId}
       </p>

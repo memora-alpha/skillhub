@@ -19,7 +19,10 @@ import { QueueState } from "./common";
 import { OperationReference } from "./operation-reference";
 import styles from "./user-profile.module.css";
 
-export function StaffUserProfile({ userId }: Readonly<{ userId: string }>) {
+export function StaffUserProfile({
+  userId,
+  embedded = false,
+}: Readonly<{ userId: string; embedded?: boolean }>) {
   const profile = useStaffResource<PublicProfile>(`profiles/${userId}`);
   const selectedTitle = profile.data?.selectedTitle;
   const titleLabel = selectedTitle
@@ -32,7 +35,7 @@ export function StaffUserProfile({ userId }: Readonly<{ userId: string }>) {
   return (
     <div className={styles.workspace}>
       <Card
-        title="Hồ sơ người dùng"
+        title={embedded ? undefined : "Hồ sơ người dùng"}
         actions={
           <LoadingButton
             type="button"
@@ -69,7 +72,9 @@ export function StaffUserProfile({ userId }: Readonly<{ userId: string }>) {
                       <Badge tone="brand">{titleLabel}</Badge>
                     </p>
                   )}
-                  <OperationReference id={userId} label="Mã người dùng" />
+                  {!embedded && (
+                    <OperationReference id={userId} label="Mã người dùng" />
+                  )}
                 </div>
               </div>
               <p className={styles.bio}>
@@ -96,7 +101,7 @@ export function StaffUserProfile({ userId }: Readonly<{ userId: string }>) {
             </>
           )}
         </QueueState>
-        {profile.error && (
+        {profile.error && !embedded && (
           <p className="muted">
             Nếu hồ sơ công khai chưa khả dụng, bạn vẫn có thể kiểm tra nội dung
             kiểm duyệt bên dưới khi có quyền.

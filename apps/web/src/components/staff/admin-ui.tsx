@@ -1,20 +1,49 @@
 "use client";
 import { LoadingButton } from "@/components/loading-button";
 
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+  type MouseEvent,
+} from "react";
 import { Icon } from "@/components/console/icon";
 
 export function RecordId({
   id,
   label = "mã",
-}: Readonly<{ id: string; label?: string }>) {
+  onActivate,
+  activateLabel,
+  activateClassName = "",
+}: Readonly<{
+  id: string;
+  label?: string;
+  onActivate?: (event: MouseEvent<HTMLButtonElement>) => void;
+  activateLabel?: string;
+  activateClassName?: string;
+}>) {
   const [copied, setCopied] = useState(false);
   const [failed, setFailed] = useState(false);
   return (
     <span className="admin-record-id">
-      <span className="mono" title={id}>
-        {id.length > 16 ? id.slice(0, 8) + "…" + id.slice(-4) : id}
-      </span>
+      {onActivate ? (
+        <button
+          type="button"
+          className={`link mono ${activateClassName}`}
+          title={id}
+          aria-label={activateLabel ?? `Xem ${label} ${id}`}
+          aria-haspopup="dialog"
+          onClick={onActivate}
+        >
+          {id.length > 16 ? id.slice(0, 8) + "…" + id.slice(-4) : id}
+        </button>
+      ) : (
+        <span className="mono" title={id}>
+          {id.length > 16 ? id.slice(0, 8) + "…" + id.slice(-4) : id}
+        </span>
+      )}
       <button
         type="button"
         className="admin-copy-button"

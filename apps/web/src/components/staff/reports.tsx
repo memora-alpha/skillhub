@@ -1,4 +1,5 @@
 "use client";
+import { UserProfileReference } from "./user-profile-reference";
 import { LoadingButton } from "@/components/loading-button";
 import { LoadingSkeleton } from "@/components/loading-skeleton";
 import { reportDescriptionText } from "@/lib/system-text";
@@ -178,26 +179,16 @@ function ReportOverview({ item, owns, busy, onAction }: ReportActionProps) {
   const { portal } = useStaffSession();
   function handlerIdentity() {
     if (item.handlerId) {
-      if (portal === "admin") {
-        return <RecordId id={item.handlerId} label="người phụ trách" />;
-      }
       return (
-        <span className="mono" title={item.handlerId}>
-          #{item.handlerId.slice(0, 8)}
-        </span>
+        <UserProfileReference userId={item.handlerId} label="người phụ trách" />
       );
     }
     return "Chưa có người nhận" as const;
   }
   function reporterIdentity() {
     if (item.reporterId) {
-      if (portal === "admin") {
-        return <RecordId id={item.reporterId} label="người gửi" />;
-      }
       return (
-        <span className="mono" title={item.reporterId}>
-          #{item.reporterId.slice(0, 8)}
-        </span>
+        <UserProfileReference userId={item.reporterId} label="người gửi" />
       );
     }
     return "Hệ thống tự ghi nhận" as const;
@@ -260,7 +251,16 @@ function ReportOverview({ item, owns, busy, onAction }: ReportActionProps) {
           <dt>Báo cáo</dt>
           <dd className="mono">{item.id}</dd>
           <dt>Đối tượng</dt>
-          <dd className="mono">{item.targetId}</dd>
+          <dd>
+            {item.targetType === "USER" ? (
+              <UserProfileReference
+                userId={item.targetId}
+                label="người bị báo cáo"
+              />
+            ) : (
+              <span className="mono">{item.targetId}</span>
+            )}
+          </dd>
           {item.relatedPathId && (
             <>
               <dt>Lộ trình</dt>
@@ -458,9 +458,19 @@ function ReportDetailContent({
                     <StatusBadge status={item.session.status} />
                   </dd>
                   <dt>Người dạy</dt>
-                  <dd className="mono">{item.session.teacherId}</dd>
+                  <dd>
+                    <UserProfileReference
+                      userId={item.session.teacherId}
+                      label="người dạy"
+                    />
+                  </dd>
                   <dt>Người học</dt>
-                  <dd className="mono">{item.session.learnerId}</dd>
+                  <dd>
+                    <UserProfileReference
+                      userId={item.session.learnerId}
+                      label="người học"
+                    />
+                  </dd>
                   <dt>Bắt đầu</dt>
                   <dd>{fmtDateTime(item.session.startAt)}</dd>
                   <dt>Kết thúc</dt>
