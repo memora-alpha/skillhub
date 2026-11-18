@@ -1,4 +1,6 @@
 "use client";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useStaffListPages } from "./use-staff-list-pages";
 import { systemCodeLabel } from "@/lib/system-text";
 
 import { useEffect, useRef, useState } from "react";
@@ -9,8 +11,8 @@ import {
   type CreditEntry,
   type Wallet,
 } from "@/lib/staff/account-types";
-import { Pager, QueueState } from "./common";
-import { useStaffList, useStaffResource } from "./hooks";
+import { QueueState } from "./common";
+import { useStaffResource } from "./hooks";
 
 const types: Record<string, string> = {
   TOP_UP: "Nạp Credit",
@@ -112,7 +114,9 @@ export function WalletScreen() {
   const detailTrigger = useRef<HTMLButtonElement | null>(null);
   const params = new URLSearchParams({ limit: "20" });
   if (type) params.set("type", type);
-  const ledger = useStaffList<CreditEntry>(`wallet/transactions?${params}`);
+  const ledger = useStaffListPages<CreditEntry>(
+    `wallet/transactions?${params}`,
+  );
   return (
     <>
       <PageHeader
@@ -245,11 +249,7 @@ export function WalletScreen() {
             </table>
           </div>
         )}
-        <Pager
-          loading={ledger.loading}
-          hasMore={ledger.page?.hasMore}
-          more={ledger.more}
-        />
+        <ListPagination query={ledger} />
       </Card>
       {selected && (
         <EntryDetail

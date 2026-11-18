@@ -1,4 +1,6 @@
 "use client";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useStaffListPages } from "./use-staff-list-pages";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -12,8 +14,8 @@ import {
 import { fmtDateTime } from "@/lib/console/format";
 import { financeNumber } from "@/lib/staff/finance-presentation";
 import { systemCodeLabel } from "@/lib/system-text";
-import { useStaffList, useStaffResource } from "./hooks";
-import { Pager, QueueState } from "./common";
+import { useStaffResource } from "./hooks";
+import { QueueState } from "./common";
 import styles from "./dashboard.module.css";
 
 type Person = { id: string; fullName: string };
@@ -49,7 +51,7 @@ export function AdminLearningPaths({
   const params = new URLSearchParams({ limit: "20" });
   if (status) params.set("status", status);
   if (term) params.set("q", term);
-  const list = useStaffList<Path>(`learning-paths?${params}`);
+  const list = useStaffListPages<Path>(`learning-paths?${params}`);
   return (
     <div className={styles.dashboard}>
       <PageHeader
@@ -147,11 +149,7 @@ export function AdminLearningPaths({
               </tr>
             ))}
           </DataTable>
-          <Pager
-            loading={list.loading}
-            more={list.more}
-            hasMore={list.page?.hasMore}
-          />
+          <ListPagination query={list} />
         </QueueState>
       </Card>
     </div>
@@ -361,7 +359,9 @@ export function AdminLearningPathDetail({ id }: Readonly<{ id: string }>) {
                 ))}
                 {path.terminations.map((request) => (
                   <p key={request.id}>
-                    <Link href="/admin/learning-changes">
+                    <Link
+                      href={`/admin/learning-changes?pathId=${encodeURIComponent(path.id)}&requestId=${encodeURIComponent(request.id)}`}
+                    >
                       Yêu cầu dừng · {fmtDateTime(request.createdAt)}
                     </Link>{" "}
                     <StatusBadge status={request.status} />

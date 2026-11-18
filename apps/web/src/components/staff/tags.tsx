@@ -1,4 +1,6 @@
 "use client";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useStaffListPages } from "./use-staff-list-pages";
 import Link from "next/link";
 import { useState } from "react";
 import {
@@ -10,8 +12,8 @@ import {
 } from "@/components/console/ui";
 import { fmtDateTime } from "@/lib/console/format";
 import type { AdminTag, TagRequest } from "@/lib/staff/admin-types";
-import { useStaffCommand, useStaffList, useStaffResource } from "./hooks";
-import { DecisionDialog, Pager, QueueState } from "./common";
+import { useStaffCommand, useStaffResource } from "./hooks";
+import { DecisionDialog, QueueState } from "./common";
 
 function TagNavigation({ page }: Readonly<{ page: "catalog" | "requests" }>) {
   return (
@@ -51,7 +53,7 @@ export function TagsScreen() {
   const params = new URLSearchParams({ limit: "20" });
   if (search) params.set("q", search);
   if (status) params.set("status", status);
-  const queue = useStaffList<AdminTag>(`tags?${params}`);
+  const queue = useStaffListPages<AdminTag>(`tags?${params}`);
   const reload = () => {
     setEditor(null);
     return queue.reload();
@@ -142,11 +144,7 @@ export function TagsScreen() {
             ))}
           </DataTable>
         </QueueState>
-        <Pager
-          loading={queue.loading}
-          more={queue.more}
-          hasMore={queue.page?.hasMore}
-        />
+        <ListPagination query={queue} />
       </Card>
       {editor && (
         <DecisionDialog
@@ -227,7 +225,7 @@ export function TagRequestsScreen({
   const [success, setSuccess] = useState("");
   const params = new URLSearchParams({ limit: "20" });
   if (status) params.set("status", status);
-  const queue = useStaffList<TagRequest>(`tag-requests?${params}`);
+  const queue = useStaffListPages<TagRequest>(`tag-requests?${params}`);
   return (
     <>
       <PageHeader
@@ -296,11 +294,7 @@ export function TagRequestsScreen({
             ))}
           </DataTable>
         </QueueState>
-        <Pager
-          loading={queue.loading}
-          more={queue.more}
-          hasMore={queue.page?.hasMore}
-        />
+        <ListPagination query={queue} />
       </Card>
       {selected && (
         <TagRequestDetail

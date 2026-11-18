@@ -1,4 +1,6 @@
 "use client";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useStaffListPages } from "./use-staff-list-pages";
 import { useState } from "react";
 import {
   Badge,
@@ -11,8 +13,8 @@ import {
 import { fmtDateTime, fmtSize } from "@/lib/console/format";
 import type { Verification } from "@/lib/staff/types";
 import { useStaffSession } from "./session";
-import { useStaffList, useStaffResource } from "./hooks";
-import { DecisionDialog, DownloadButton, Pager, QueueState } from "./common";
+import { useStaffResource } from "./hooks";
+import { DecisionDialog, DownloadButton, QueueState } from "./common";
 type Decision = {
   action: "approve" | "reject" | "revoke";
   evidenceId?: string;
@@ -214,7 +216,7 @@ export function EvidenceScreen({
       ? initialVerificationId
       : null,
   );
-  const queue = useStaffList<Verification>(
+  const queue = useStaffListPages<Verification>(
     `verifications?status=${status}&limit=20`,
   );
   return (
@@ -247,10 +249,6 @@ export function EvidenceScreen({
             { id: "REJECTED", label: "Đã từ chối" },
           ]}
         />
-        <span className="muted">
-          {queue.items.length} mục đã tải
-          {queue.page?.hasMore ? " · còn trang tiếp theo" : ""}
-        </span>
       </div>
       <div className="split" data-selected={selected !== null}>
         <Card className="split-list" flush>
@@ -283,11 +281,7 @@ export function EvidenceScreen({
               ))}
             </ul>
           </QueueState>
-          <Pager
-            loading={queue.loading}
-            hasMore={queue.page?.hasMore}
-            more={queue.more}
-          />
+          <ListPagination query={queue} />
         </Card>
         <div className="split-detail">
           {selected ? (

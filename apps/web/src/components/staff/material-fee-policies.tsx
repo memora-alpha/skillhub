@@ -1,10 +1,12 @@
 "use client";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useStaffListPages } from "./use-staff-list-pages";
 import { useState } from "react";
 import { Card, Empty, StatusBadge } from "@/components/console/ui";
 import { PasswordInput } from "@/components/password-input";
-import { useStaffList, useStaffResource } from "./hooks";
+import { useStaffResource } from "./hooks";
 import { useStaffSession } from "./session";
-import { Pager, QueueState } from "./common";
+import { QueueState } from "./common";
 import { useOperation } from "./operation-tools";
 import { fmtDateTime } from "@/lib/console/format";
 import {
@@ -34,7 +36,7 @@ type Revenue = {
 };
 export function MaterialFeePolicies() {
   const { api } = useStaffSession();
-  const list = useStaffList<Fee>("fee-policies?limit=20");
+  const list = useStaffListPages<Fee>("fee-policies?limit=20");
   const operation = useOperation();
   const [mode, setMode] = useState("create");
   const [version, setVersion] = useState<number>();
@@ -135,11 +137,7 @@ export function MaterialFeePolicies() {
             </table>
           </div>
         </QueueState>
-        <Pager
-          loading={list.loading}
-          hasMore={list.page?.hasMore}
-          more={list.more}
-        />
+        <ListPagination query={list} />
         <details
           className={styles.technical}
           open={mode !== "create" || undefined}

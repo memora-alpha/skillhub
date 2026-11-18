@@ -2,23 +2,34 @@
 import { useState } from "react";
 import { Icon } from "@/components/console/icon";
 import { notificationCopy } from "@/lib/i18n/system-copy";
-import {
-  Badge,
-  Card,
-  Empty,
-  PageHeader,
-  Segmented,
-} from "@/components/console/ui";
+import { Card, Empty, PageHeader, Segmented } from "@/components/console/ui";
 import { fmtDateTime } from "@/lib/console/format";
 import { useNotificationInbox } from "./notification-session";
-import { Pager } from "./common";
+import {
+  splitPages,
+  useListPages,
+} from "@/components/pagination/use-list-pages";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useStaffSession } from "./session";
 
 export function NotificationsScreen() {
   const queue = useNotificationInbox();
+  const { actor } = useStaffSession();
   const [filter, setFilter] = useState("ALL");
-  const items = queue.items.filter((item) => filter === "ALL" || !item.readAt);
+  const pagination = useListPages({
+    scope: `${actor?.userId}:notifications:${filter}`,
+    chunks: splitPages(queue.items),
+    loading: queue.loading,
+    error: queue.error ?? undefined,
+    hasMore: !!queue.page?.hasMore,
+    more: () => queue.inbox.more().catch(() => {}),
+    reload: () => queue.inbox.reload().catch(() => {}),
+  });
+  const items = pagination.items.filter(
+    (item) => filter === "ALL" || !item.readAt,
+  );
   const reload = () => {
-    void queue.inbox.reload().catch(() => {});
+    void pagination.reload();
   };
   return (
     <section className="staff-notifications">
@@ -38,7 +49,7 @@ export function NotificationsScreen() {
       />
       <div className="ops-tabbar">
         <Segmented
-          label="Lọc thông báo đã tải"
+          label="Lọc thông báo"
           value={filter}
           onChange={setFilter}
           options={[
@@ -87,6 +98,7 @@ export function NotificationsScreen() {
         </p>
       )}
       <Card flush className="ops-inbox">
+        {!!items.length && <h2 className="admin-date-heading">Gần đây</h2>}
         {queue.loading && !queue.items.length && (
           <output className="staff-state">Đang tải thông báo…</output>
         )}
@@ -98,11 +110,11 @@ export function NotificationsScreen() {
         )}
         {!!queue.items.length && !items.length && (
           <Empty
-            title="Không có thông báo chưa đọc trong các mục đã tải"
+            title="Không có thông báo chưa đọc trên trang này"
             desc={
               queue.page?.hasMore
-                ? "Tải thêm để xem các thông báo trước đó."
-                : "Bạn đã đọc các thông báo đã tải."
+                ? "Chuyển trang để xem các thông báo trước đó."
+                : "Chọn trang khác hoặc xem tất cả thông báo."
             }
           />
         )}
@@ -119,12 +131,29 @@ export function NotificationsScreen() {
                 key={item.id}
               >
                 <span className="ops-notification-icon" aria-hidden="true">
-                  <Icon name="bell" size={20} />
+                  <Icon
+                    name={
+                      item.type.includes("report")
+                        ? "inbox"
+                        : item.type.includes("material")
+                          ? "file"
+                          : item.type.includes("learning-path")
+                            ? "calendar"
+                            : "bell"
+                    }
+                    size={20}
+                  />
                 </span>
                 <div className="stack ops-notification-copy">
                   <div className="row">
                     <strong>{notificationCopy(item).title}</strong>
-                    {!item.readAt && <Badge tone="brand">Chưa đọc</Badge>}
+                    {!item.readAt && (
+                      <span
+                        className="admin-unread-dot"
+                        role="img"
+                        aria-label="Chưa đọc"
+                      />
+                    )}
                   </div>
                   <p className="prose">{notificationCopy(item).body}</p>
                   <time className="muted" dateTime={item.createdAt}>
@@ -145,17 +174,17 @@ export function NotificationsScreen() {
                       : "Đánh dấu đã đọc"}
                   </button>
                 )}
+                {item.readAt && (
+                  <span className="admin-read-label">
+                    <Icon name="check" size={15} />
+                    Đã đọc
+                  </span>
+                )}
               </li>
             ))}
           </ul>
         )}
-        <Pager
-          loading={queue.loading}
-          hasMore={queue.page?.hasMore}
-          more={() => {
-            void queue.inbox.more().catch(() => {});
-          }}
-        />
+        <ListPagination query={pagination} />
       </Card>
     </section>
   );

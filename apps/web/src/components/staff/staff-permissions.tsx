@@ -1,4 +1,10 @@
 "use client";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import {
+  splitPages,
+  useListPages,
+} from "@/components/pagination/use-list-pages";
+import { useStaffListPages } from "./use-staff-list-pages";
 import { useState } from "react";
 import {
   Badge,
@@ -13,9 +19,9 @@ import {
   canDescribeStaffPermission,
   staffPermissionPresentation,
 } from "@/lib/staff/permission-presentation";
-import { useStaffList, useStaffResource } from "./hooks";
+import { useStaffResource } from "./hooks";
 import { useStaffSession } from "./session";
-import { DecisionDialog, Pager, QueueState } from "./common";
+import { DecisionDialog, QueueState } from "./common";
 type Staff = {
   userId: string;
   fullName: string;
@@ -31,7 +37,7 @@ type Permissions = {
 export function StaffPermissionsScreen({
   initialUserId = "",
 }: Readonly<{ initialUserId?: string }>) {
-  const users = useStaffList<Staff>("users?role=STAFF&limit=20");
+  const users = useStaffListPages<Staff>("users?role=STAFF&limit=20");
   const [userId, setUserId] = useState(initialUserId);
   const [search, setSearch] = useState("");
   const needle = search.trim().toLocaleLowerCase("vi");
@@ -40,7 +46,7 @@ export function StaffPermissionsScreen({
       .toLocaleLowerCase("vi")
       .includes(needle),
   );
-  const selected = users.items.find((user) => user.userId === userId);
+  const selected = users.allItems.find((user) => user.userId === userId);
   return (
     <section className="ops-permissions">
       <PageHeader
@@ -50,8 +56,8 @@ export function StaffPermissionsScreen({
       <div className="ops-permission-layout">
         <Card className="ops-staff-picker" title="Nhân viên">
           <SearchBox
-            label="Tìm trong nhân viên đã tải"
-            placeholder="Tìm trong nhân viên đã tải…"
+            label="Tìm nhân viên trên trang này"
+            placeholder="Tìm nhân viên trên trang này…"
             value={search}
             onChange={setSearch}
           />
@@ -81,16 +87,10 @@ export function StaffPermissionsScreen({
               ))}
             </div>
             {!visible.length && (
-              <p className="muted">
-                Không có kết quả trong các nhân viên đã tải.
-              </p>
+              <p className="muted">Không có kết quả trên trang hiện tại.</p>
             )}
           </QueueState>
-          <Pager
-            loading={users.loading}
-            more={users.more}
-            hasMore={users.page?.hasMore}
-          />
+          <ListPagination query={users} />
         </Card>
         {userId ? (
           <PermissionEditor key={userId} userId={userId} staff={selected} />
@@ -110,11 +110,20 @@ function PermissionEditor({
   userId,
   staff,
 }: Readonly<{ userId: string; staff?: Staff }>) {
-  const { api } = useStaffSession();
+  const { api, actor } = useStaffSession();
   const catalog = useStaffResource<Catalog[]>("staff-permissions/catalog");
   const permissions = useStaffResource<Permissions>(
     `staff-permissions/${userId}`,
   );
+  const catalogPages = useListPages({
+    scope: `permissions:${actor?.userId}:${userId}`,
+    chunks: splitPages(catalog.data ?? []),
+    loading: catalog.loading,
+    error: catalog.error,
+    hasMore: false,
+    more: () => {},
+    reload: catalog.reload,
+  });
   const [code, setCode] = useState("");
   const [effect, setEffect] = useState("GRANT");
   const [password, setPassword] = useState("");
@@ -168,7 +177,7 @@ function PermissionEditor({
               className="ops-permission-table"
               aria-label="Danh mục quyền nhân viên"
             >
-              {catalog.data.map((permission) => {
+              {catalogPages.items.map((permission) => {
                 const text = staffPermissionPresentation(permission.code);
                 const override = permissions.data!.overrides.find(
                   (row) => row.code === permission.code,
@@ -230,6 +239,7 @@ function PermissionEditor({
                 );
               })}
             </ul>
+            <ListPagination query={catalogPages} />
             {code && (
               <DecisionDialog
                 key={code}

@@ -3,7 +3,8 @@ import { systemCodeLabel } from "@/lib/system-text";
 import { useState } from "react";
 import { Card, PageHeader } from "@/components/console/ui";
 import { Identifier, useOperation } from "./operation-tools";
-import { useStaffResource } from "./hooks";
+import { useStaffListPages } from "./use-staff-list-pages";
+import { ListPagination } from "@/components/pagination/list-pagination";
 import { useStaffSession } from "./session";
 import { DecisionDialog, QueueState } from "./common";
 import { fmtDateTime } from "@/lib/console/format";
@@ -79,7 +80,7 @@ export function RestrictionReviewsScreen({
 }
 function PendingReviews({ userId }: Readonly<{ userId: string }>) {
   const { api } = useStaffSession();
-  const resource = useStaffResource<Restriction[]>(
+  const resource = useStaffListPages<Restriction>(
     `reputation/users/${userId}/restriction-reviews`,
   );
   const [selected, setSelected] = useState<{
@@ -90,7 +91,7 @@ function PendingReviews({ userId }: Readonly<{ userId: string }>) {
     <QueueState
       loading={resource.loading}
       error={resource.error}
-      empty={!resource.data?.length}
+      empty={!resource.items.length}
       reload={resource.reload}
     >
       <div className="table-wrap">
@@ -103,7 +104,7 @@ function PendingReviews({ userId }: Readonly<{ userId: string }>) {
             </tr>
           </thead>
           <tbody>
-            {resource.data?.map((r) => (
+            {resource.items.map((r) => (
               <tr key={r.id}>
                 <td>
                   {r.scope === "REQUIRE_ADMIN_REVIEW"
@@ -142,6 +143,7 @@ function PendingReviews({ userId }: Readonly<{ userId: string }>) {
           </tbody>
         </table>
       </div>
+      <ListPagination query={resource} />
       {selected && (
         <DecisionDialog
           title={

@@ -3,7 +3,9 @@ import { useState } from "react";
 import { Card, StatusBadge } from "@/components/console/ui";
 import type { CatalogSkill, SkillLevel } from "@/lib/staff/admin-types";
 import { DecisionDialog, QueueState } from "./common";
-import { useStaffCommand, useStaffList } from "./hooks";
+import { useStaffCommand } from "./hooks";
+import { useStaffListPages } from "./use-staff-list-pages";
+import { ListPagination } from "@/components/pagination/list-pagination";
 
 type Editor = {
   level?: SkillLevel;
@@ -18,7 +20,7 @@ export function SkillLevelsPanel({
   onClose,
 }: Readonly<{ skill: CatalogSkill; onClose: () => void }>) {
   const path = `skills/${skill.id}/levels`;
-  const queue = useStaffList<SkillLevel>(path);
+  const queue = useStaffListPages<SkillLevel>(path);
   const command = useStaffCommand();
   const [editor, setEditor] = useState<Editor | null>(null);
   const [success, setSuccess] = useState("");
@@ -102,6 +104,7 @@ export function SkillLevelsPanel({
           </table>
         </div>
       </QueueState>
+      <ListPagination query={queue} />
       {editor && (
         <DecisionDialog
           title={editor.level ? "Chỉnh sửa cấp độ" : "Thêm cấp độ"}

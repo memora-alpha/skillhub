@@ -1,4 +1,6 @@
 "use client";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useStaffListPages } from "./use-staff-list-pages";
 import { useRef, useState } from "react";
 import {
   DataTable,
@@ -11,9 +13,9 @@ import {
 } from "@/components/console/ui";
 import { fmtDateTime } from "@/lib/console/format";
 import type { CatalogSkill } from "@/lib/staff/admin-types";
-import { useStaffList } from "./hooks";
+
 import { useStaffSession } from "./session";
-import { DecisionDialog, Pager, QueueState } from "./common";
+import { DecisionDialog, QueueState } from "./common";
 import { SkillLevelsPanel } from "./skill-levels";
 type Editor = {
   skill?: CatalogSkill;
@@ -39,7 +41,7 @@ export function CatalogScreen() {
   const params = new URLSearchParams({ limit: "20" });
   if (search) params.set("q", search);
   if (status) params.set("status", status);
-  const queue = useStaffList<CatalogSkill>(`skills?${params}`);
+  const queue = useStaffListPages<CatalogSkill>(`skills?${params}`);
   const reload = async () => {
     setLevels(null);
     setEditor(null);
@@ -175,12 +177,7 @@ export function CatalogScreen() {
             ))}
           </DataTable>
         </QueueState>
-        <div className="table-foot">{queue.items.length} kỹ năng đã tải</div>
-        <Pager
-          loading={queue.loading}
-          more={queue.more}
-          hasMore={queue.page?.hasMore}
-        />
+        <ListPagination query={queue} />
       </Card>
       {levels && (
         <SkillLevelsPanel
