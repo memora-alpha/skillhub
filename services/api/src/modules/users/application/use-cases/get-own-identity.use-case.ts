@@ -22,6 +22,7 @@ export class GetOwnIdentityUseCase {
       emailVerified: user.emailVerified,
       accountStatus: user.accountStatus,
       roles: grants.roles,
+      permissions: [...grants.permissions].sort((a, b) => a.localeCompare(b)),
       profile: await this.profiles.profile(userId),
     };
   }

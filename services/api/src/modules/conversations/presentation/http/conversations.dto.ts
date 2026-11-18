@@ -42,7 +42,11 @@ export class MessageQueryDto extends InboxGroupQueryDto {
 }
 export class SendMessageDto {
   @ApiProperty({ format: "uuid" }) @IsUUID() clientMessageId!: string;
-  @ApiPropertyOptional({ maxLength: 2000 })
+  @ApiPropertyOptional({
+    maxLength: 2000,
+    description:
+      "Plain text; email, phone and recognized contact/profile links are rejected with CONTACT_INFORMATION_NOT_ALLOWED.",
+  })
   @ValidateIf((_object: unknown, value: unknown) => value !== undefined)
   @IsString()
   @MaxLength(2000)

@@ -13,6 +13,14 @@ export const MATERIAL_STATES = [
   "ARCHIVED",
 ] as const;
 export type MaterialState = (typeof MATERIAL_STATES)[number];
+/** Drafts remain owner-private; ALL in the Staff queue expands to these states. */
+export const STAFF_MATERIAL_STATES = [
+  "PENDING_REVIEW",
+  "PUBLISHED",
+  "REJECTED",
+  "HIDDEN",
+  "ARCHIVED",
+] as const satisfies readonly MaterialState[];
 export type ModerationAction = "approve" | "reject" | "hide" | "unhide";
 
 export const MATERIAL_PERMISSIONS = {

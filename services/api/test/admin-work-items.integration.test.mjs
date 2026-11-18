@@ -184,6 +184,53 @@ test(
         "HIGH",
       );
 
+      // More than the old per-source cap, including a tie with another kind.
+      const tiedTags = Array.from({ length: 131 }, (_, index) => ({
+        id: randomUUID(),
+        label: index === 130 ? "literal needle_% match" : "ordinary tie tag",
+        labelKey: `admin-tie-${randomUUID()}`,
+        requestedByUserId: owner.user.id,
+        createdAt: times[3],
+      }));
+      await f.db.tagCreationRequest.createMany({ data: tiedTags });
+      const searched = await reader.list({ q: "needle_%", limit: 20 });
+      assert.deepEqual(
+        searched.data.map((row) => row.id),
+        [tiedTags.at(-1).id],
+      );
+      assert.equal(searched.pagination.hasMore, false);
+      const assigned = await reader.list({
+        severity: "HIGH",
+        waitingOn: "ASSIGNEE",
+        assignee: admin.user.id,
+        minAgeHours: 1,
+      });
+      assert.deepEqual(
+        assigned.data.map((row) => row.id),
+        [incident.id],
+      );
+
+      const expectedIds = [
+        ...page.data.map((row) => row.id),
+        ...tiedTags.map((row) => row.id),
+      ].sort((left, right) => left.localeCompare(right));
+      for (const sort of ["oldest", "newest"]) {
+        const seen = [];
+        let cursor;
+        for (let pageNo = 0; pageNo < 10; pageNo += 1) {
+          const result = await reader.list({ limit: 20, sort, cursor });
+          seen.push(...result.data.map((row) => row.id));
+          if (!result.pagination.hasMore) break;
+          assert.ok(result.pagination.nextCursor);
+          cursor = result.pagination.nextCursor;
+        }
+        assert.equal(new Set(seen).size, seen.length);
+        assert.deepEqual(
+          seen.sort((left, right) => left.localeCompare(right)),
+          expectedIds,
+        );
+      }
+
       const detail = await reader.detail(
         admin.principal,
         "PAYMENT_REVIEW",

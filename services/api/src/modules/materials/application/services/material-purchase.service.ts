@@ -24,6 +24,11 @@ import {
 } from "../../domain/material.policy";
 import { orderView } from "../contracts/material-view";
 import {
+  materialFilterScope,
+  materialListWhere,
+  type MaterialListFilters,
+} from "./material-list-filters";
+import {
   auditContext,
   lockMaterial,
   requirePermission,
@@ -286,14 +291,48 @@ export class MaterialPurchaseService {
 
   async listOrders(
     principal: Principal,
-    query: { limit?: number; cursor?: string } = {},
+    query: MaterialListFilters & { limit?: number; cursor?: string } = {},
   ) {
-    const scope = JSON.stringify(["material-orders-v1", principal.userId]);
+    const filters = materialListWhere({
+      ...query,
+      q: undefined,
+      ownerId: undefined,
+    });
+    const q = query.q?.trim();
+    const scope = JSON.stringify([
+      "material-orders-v1",
+      principal.userId,
+      ...materialFilterScope(query),
+    ]);
     const { limit, cursor } = listInput(query, scope);
     return this.transactions.run(async (tx) => {
       const rows = await tx.materialOrder.findMany({
         where: {
           buyerId: principal.userId,
+          ...(query.ownerId ? { sellerId: query.ownerId } : {}),
+          ...(Object.keys(filters).length ? { materialIdRecord: filters } : {}),
+          // Search the purchase snapshot, matching the title/file shown in this list.
+          // Legacy snapshots without a title remain searchable by original filename.
+          ...(q
+            ? {
+                OR: [
+                  {
+                    purchasedFileSnapshot: {
+                      path: ["title"],
+                      string_contains: q,
+                      mode: "insensitive" as const,
+                    },
+                  },
+                  {
+                    purchasedFileSnapshot: {
+                      path: ["originalFilename"],
+                      string_contains: q,
+                      mode: "insensitive" as const,
+                    },
+                  },
+                ],
+              }
+            : {}),
           ...listBoundary("createdAt", cursor),
         },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],

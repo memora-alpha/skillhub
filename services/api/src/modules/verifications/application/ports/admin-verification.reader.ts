@@ -1,3 +1,4 @@
+import type { AdminWorkSourcePage } from "../../../administration/application/contracts/admin-work-source-page";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
 
 export type AdminVerificationWorkRow = {
@@ -13,7 +14,7 @@ export type AdminVerificationWorkRow = {
 export abstract class AdminVerificationReaderPort {
   abstract pendingWork(
     tx: TransactionContext,
-    page: { receivedAt?: Date; order: "asc" | "desc"; take: number },
+    page: AdminWorkSourcePage,
   ): Promise<AdminVerificationWorkRow[]>;
 
   abstract detail(

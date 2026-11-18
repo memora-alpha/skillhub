@@ -127,6 +127,8 @@ export class ConversationsController {
   @ApiSuccessResponse(202, PendingMessageResponse)
   @ApiOperation({
     summary: "Send immutable text/files using clientMessageId idempotency",
+    description:
+      "Returns 400 CONTACT_INFORMATION_NOT_ALLOWED for email, phone or recognized contact/profile links in message text, before allocating a receipt or persisting/publishing a message. Attachments are not inspected for contact information.",
   })
   async send(
     @CurrentIdentity() actor: Principal,

@@ -32,6 +32,7 @@ import { ConversationAccessService } from "./conversation-access.service";
 import { ChatPublicationService } from "./chat-publication.service";
 import type { RequestContext } from "../../../../shared/http/request-context";
 import { conversationView } from "../../domain/conversation-view";
+import { assertNoContactInformation } from "../../domain/contact-information.policy";
 
 @Injectable()
 export class ConversationsService {
@@ -102,8 +103,9 @@ export class ConversationsService {
     },
     context: RequestContext,
   ) {
-    const body = normalizeMessage(input),
-      commandDigest = fingerprintCommand(body);
+    const body = normalizeMessage(input);
+    assertNoContactInformation(body.messageText);
+    const commandDigest = fingerprintCommand(body);
     await this.chat.ready(); // fail before allocating a receipt when transaction/index prerequisites are absent
     const receipt = await this.transactions.run(async (tx) => {
       await this.access.require(

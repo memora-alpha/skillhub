@@ -1,4 +1,3 @@
-import { ListPageQuery } from "../../../../shared/http/list-page";
 import {
   Body,
   Controller,
@@ -29,7 +28,11 @@ import type { Principal } from "../../../auth/application/services/sessions.serv
 import { MaterialCatalogService } from "../../application/services/material-catalog.service";
 import { MaterialPurchaseService } from "../../application/services/material-purchase.service";
 import { MaterialReportsService } from "../../application/services/material-reports.service";
-import { PurchaseMaterialDto, ReportMaterialDto } from "./materials.dto";
+import {
+  MaterialListQueryDto,
+  PurchaseMaterialDto,
+  ReportMaterialDto,
+} from "./materials.dto";
 import { MaterialFavoritesService } from "../../application/services/material-favorites.service";
 
 @ApiTags("materials")
@@ -122,7 +125,7 @@ export class MaterialAccessController {
   @Get("me/material-orders")
   async orders(
     @CurrentIdentity() actor: Principal,
-    @Query() query: ListPageQuery,
+    @Query() query: MaterialListQueryDto,
   ) {
     const result = await this.purchases.listOrders(actor, query);
     return paginated(result.data, result.pagination);
@@ -132,7 +135,7 @@ export class MaterialAccessController {
   @ApiOperation({ summary: "Page FREE materials downloaded by the caller" })
   async freeLibrary(
     @CurrentIdentity() actor: Principal,
-    @Query() query: ListPageQuery,
+    @Query() query: MaterialListQueryDto,
   ) {
     const result = await this.catalog.listFreeAccesses(actor, query);
     return paginated(result.data, result.pagination);
@@ -141,7 +144,7 @@ export class MaterialAccessController {
   @Get("me/material-favorites")
   async savedMaterials(
     @CurrentIdentity() actor: Principal,
-    @Query() query: ListPageQuery,
+    @Query() query: MaterialListQueryDto,
   ) {
     const result = await this.favorites.list(actor, query);
     return paginated(result.data, result.pagination);

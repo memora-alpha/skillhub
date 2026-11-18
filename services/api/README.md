@@ -6,6 +6,14 @@ Learning fees remain 4%; hiding a review does not reverse reputation history.
 
 # SkillHub API
 
+Web integration readiness (2026-11-18): work-item filters/cursors now apply before
+source limits; `/me` includes effective `permissions`; chat rejects contact details;
+material catalog/private lists support search and owner/time filters, Staff has
+`status=ALL`, and moderation history is pageable. Admin audit metadata is available
+at `GET /api/v1/admin/audit-logs` with ADMIN plus `audit:read`. Run the existing
+identity seed workflow to grant that new permission; no migration or env change.
+See [FE contracts and rollout](docs/web-api-readiness.md).
+
 Material publication lock (2026-11-18): apply migration
 `20261118000000_material_publication_lock` before starting the new API. Stop old
 writers during rollout. Published IDs keep immutable content and pricing through

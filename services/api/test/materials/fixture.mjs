@@ -13,6 +13,7 @@ import { MaterialThumbnailsService } from "../../dist/modules/materials/applicat
 import { MaterialReviewsService } from "../../dist/modules/materials/application/services/material-reviews.service.js";
 import { MaterialReviewModerationService } from "../../dist/modules/materials/application/services/material-review-moderation.service.js";
 import { MaterialFavoritesService } from "../../dist/modules/materials/application/services/material-favorites.service.js";
+import { AuditReader } from "../../dist/modules/audit/application/services/audit-reader.js";
 
 /** Fresh UUID schema with all migrations, fee policies and one ACTIVE skill. */
 export async function createMaterialFixture() {
@@ -68,7 +69,11 @@ export async function createMaterialFixture() {
     distributionRightsConfirmed: true,
     ...overrides,
   });
-  const moderation = new MaterialModerationService(f.transactions, f.audit);
+  const moderation = new MaterialModerationService(
+    f.transactions,
+    f.audit,
+    new AuditReader(f.db),
+  );
   const catalog = new MaterialCatalogService(
     f.transactions,
     f.storage,

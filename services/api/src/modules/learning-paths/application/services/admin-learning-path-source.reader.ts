@@ -1,49 +1,43 @@
+import { Prisma } from "../../../../generated/prisma/client";
+import {
+  adminWorkSourceQuery,
+  type AdminWorkSourcePage,
+} from "../../../administration/application/contracts/admin-work-source-page";
 import { Injectable } from "@nestjs/common";
-import type {
-  LearningPathStatus,
-  Prisma,
-} from "../../../../generated/prisma/client";
+import type { LearningPathStatus } from "../../../../generated/prisma/client";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
 import {
   ADMIN_PATH_DETAIL_INCLUDE,
   ADMIN_PATH_LIST_INCLUDE,
   AdminLearningPathReaderPort,
+  type AdminTerminationWorkRow,
 } from "../ports/admin-learning-path.reader";
 import { learningStage } from "./path-overview.projection";
 
 @Injectable()
 export class AdminLearningPathSourceReader extends AdminLearningPathReaderPort {
-  terminationWork(
-    tx: TransactionContext,
-    page: { receivedAt?: Date; order: "asc" | "desc"; take: number },
-  ) {
-    return tx.learningChangeRequest.findMany({
-      where: {
-        kind: "PATH_TERMINATION",
-        status: { in: ["PENDING", "STAFF_REVIEW"] },
-        ...(page.receivedAt
-          ? {
-              createdAt:
-                page.order === "desc"
-                  ? { lte: page.receivedAt }
-                  : { gte: page.receivedAt },
-            }
-          : {}),
-      },
-      orderBy: [{ createdAt: page.order }, { id: "asc" }],
-      take: page.take,
-      select: {
-        id: true,
-        pathId: true,
-        status: true,
-        reason: true,
-        resolvedByUserId: true,
-        requesterId: true,
-        createdAt: true,
-        expiresAt: true,
-        version: true,
-      },
-    });
+  terminationWork(tx: TransactionContext, page: AdminWorkSourcePage) {
+    return tx.$queryRaw<AdminTerminationWorkRow[]>(
+      adminWorkSourceQuery(
+        Prisma.sql`SELECT
+        change_request_id AS id,
+        path_id AS "pathId",
+        status,
+        reason,
+        resolved_by_user_id AS "resolvedByUserId",
+        requester_id AS "requesterId",
+        created_at AS "createdAt",
+        created_at AS "receivedAt",
+        expires_at AS "expiresAt",
+        version,
+        'Path termination ' || left(path_id::text, 8) AS title,
+        'UNCLASSIFIED'::text AS severity,
+        resolved_by_user_id AS assignee
+      FROM learning_change_requests WHERE kind = 'PATH_TERMINATION' AND status IN ('PENDING', 'STAFF_REVIEW')`,
+        "PATH_TERMINATION",
+        page,
+      ),
+    );
   }
 
   terminationDetail(tx: TransactionContext, id: string) {
