@@ -11,9 +11,10 @@ export function NotificationPreferences() {
   return (
     <Panel title="Nội dung thông báo">
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       {query.data && (
         <div className="learner-stack">
@@ -49,6 +50,7 @@ export function NotificationPreferences() {
       <CommandFeedback command={command} />
       {command.uncertain && (
         <button
+          type="button"
           className="btn"
           onClick={async () => {
             try {

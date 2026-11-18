@@ -1,0 +1,229 @@
+.screen {
+  min-width: 0;
+}
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.toolbar > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+}
+.refresh {
+  width: 42px;
+  padding: 0;
+}
+.settings {
+  margin: 0 0 18px;
+}
+.settings > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 6px 0;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+  list-style: none;
+}
+.settings > summary::-webkit-details-marker {
+  display: none;
+}
+.settings[open] > summary > svg {
+  transform: rotate(90deg);
+}
+.settingsBody {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 10px;
+}
+.notice {
+  display: block;
+  color: var(--app-forest, var(--brand-strong));
+  font-size: 13px;
+}
+.notice:empty {
+  display: none;
+}
+.notice:not(:empty) {
+  margin-bottom: 14px;
+}
+.inbox {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 16px;
+  padding: 22px 24px;
+}
+.row + .row {
+  border-top: 1px solid var(--line);
+}
+.row[data-unread="true"] {
+  background: color-mix(in srgb, var(--brand-soft) 35%, var(--surface));
+}
+.icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  background: var(--surface-2);
+  color: var(--muted);
+  border-radius: 12px;
+}
+.row[data-unread="true"] .icon {
+  color: var(--brand);
+  background: var(--brand-soft);
+}
+.content {
+  min-width: 0;
+}
+.heading {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+.heading h2 {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.row[data-unread="true"] h2 {
+  font-weight: 700;
+}
+.dot {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--brand);
+}
+.content p {
+  margin: 6px 0 10px;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--ink-2, var(--muted));
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.content time {
+  color: var(--muted);
+  font-size: 12px;
+}
+.actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 6px;
+  padding-top: 1px;
+}
+.actions .detail,
+.actions .markRead {
+  min-width: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 13px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.actions .detail {
+  border: 1px solid var(--line-strong, var(--line));
+  background: var(--surface);
+  color: var(--brand-strong);
+  font-weight: 600;
+}
+.actions .markRead {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+}
+.actions .detail:hover,
+.actions .markRead:hover:not(:disabled) {
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+}
+.actions button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.screen :is(button, a, summary):focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+}
+.empty {
+  padding: 44px 20px;
+  text-align: center;
+  color: var(--muted);
+}
+.empty > svg {
+  margin: 0 auto 8px;
+}
+.empty > p {
+  margin: 8px 0 0;
+  font-size: 13px;
+}
+.empty :global(.learner-empty) {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+@media (max-width: 800px) {
+  .row {
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: 12px;
+    padding: 18px;
+  }
+  .icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+  .actions {
+    grid-column: 2;
+    justify-content: start;
+    padding: 0;
+  }
+  .settingsBody {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 480px) {
+  .toolbar {
+    width: 100%;
+  }
+  .toolbar > button:first-child {
+    flex: 1;
+  }
+  .row {
+    padding: 16px 12px;
+    gap: 10px;
+  }
+  .heading h2 {
+    font-size: 14px;
+  }
+  .content p {
+    font-size: 13px;
+  }
+}

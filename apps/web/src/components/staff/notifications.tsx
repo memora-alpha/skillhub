@@ -1,4 +1,6 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 import { useState } from "react";
 import { Icon } from "@/components/console/icon";
 import { notificationCopy } from "@/lib/i18n/system-copy";
@@ -37,14 +39,15 @@ export function NotificationsScreen() {
         title="Thông báo"
         desc="Thông báo của tài khoản đang đăng nhập, mới nhất trước."
         actions={
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={queue.loading || !!queue.pendingId}
             onClick={reload}
+            loading={!!(queue.loading || !!queue.pendingId)}
           >
             {queue.loading ? "Đang tải…" : "Làm mới"}
-          </button>
+          </LoadingButton>
         }
       />
       <div className="ops-tabbar">
@@ -63,7 +66,12 @@ export function NotificationsScreen() {
         data-state={queue.live}
       >
         {queue.live === "connected" && "Đang nhận cập nhật trực tiếp"}
-        {queue.live === "connecting" && "Đang kết nối cập nhật trực tiếp…"}
+        {queue.live === "connecting" && (
+          <LoadingSkeleton
+            variant="inline"
+            label="Đang kết nối cập nhật trực tiếp"
+          />
+        )}
         {queue.live === "paused" && "Tạm dừng cập nhật khi tab ở nền."}
         {queue.live === "unavailable" && (
           <>
@@ -82,14 +90,15 @@ export function NotificationsScreen() {
           <p className="staff-error" role="alert">
             {queue.error}
           </p>
-          <button
+          <LoadingButton
             type="button"
             className="btn btn-sm"
             disabled={queue.loading}
             onClick={reload}
+            loading={!!queue.loading}
           >
             Thử tải lại
-          </button>
+          </LoadingButton>
         </div>
       )}
       {queue.actionError && (
@@ -99,9 +108,7 @@ export function NotificationsScreen() {
       )}
       <Card flush className="ops-inbox">
         {!!items.length && <h2 className="admin-date-heading">Gần đây</h2>}
-        {queue.loading && !queue.items.length && (
-          <output className="staff-state">Đang tải thông báo…</output>
-        )}
+        {queue.loading && !queue.items.length && <LoadingSkeleton />}
         {!queue.loading && !queue.error && !queue.items.length && (
           <Empty
             title="Chưa có thông báo"
@@ -124,64 +131,72 @@ export function NotificationsScreen() {
             aria-label="Danh sách thông báo"
             aria-busy={queue.loading}
           >
-            {items.map((item) => (
-              <li
-                className="staff-notification"
-                data-unread={!item.readAt}
-                key={item.id}
-              >
-                <span className="ops-notification-icon" aria-hidden="true">
-                  <Icon
-                    name={
-                      item.type.includes("report")
-                        ? "inbox"
-                        : item.type.includes("material")
-                          ? "file"
-                          : item.type.includes("learning-path")
-                            ? "calendar"
-                            : "bell"
-                    }
-                    size={20}
-                  />
-                </span>
-                <div className="stack ops-notification-copy">
-                  <div className="row">
-                    <strong>{notificationCopy(item).title}</strong>
-                    {!item.readAt && (
-                      <span
-                        className="admin-unread-dot"
-                        role="img"
-                        aria-label="Chưa đọc"
-                      />
-                    )}
-                  </div>
-                  <p className="prose">{notificationCopy(item).body}</p>
-                  <time className="muted" dateTime={item.createdAt}>
-                    {fmtDateTime(item.createdAt)}
-                  </time>
-                </div>
-                {!item.readAt && (
-                  <button
-                    type="button"
-                    className="btn btn-sm"
-                    disabled={!!queue.pendingId}
-                    onClick={() => {
-                      void queue.inbox.markRead(item.id);
-                    }}
-                  >
-                    {queue.pendingId === item.id
-                      ? "Đang lưu…"
-                      : "Đánh dấu đã đọc"}
-                  </button>
-                )}
-                {item.readAt && (
-                  <span className="admin-read-label">
-                    <Icon name="check" size={15} />
-                    Đã đọc
+            {items.map((item) => {
+              function notificationIcon() {
+                if (item.type.includes("report")) {
+                  return "inbox" as const;
+                }
+                if (item.type.includes("material")) {
+                  return "file" as const;
+                }
+                if (item.type.includes("learning-path")) {
+                  return "calendar" as const;
+                }
+                return "bell" as const;
+              }
+              return (
+                <li
+                  className="staff-notification"
+                  data-unread={!item.readAt}
+                  key={item.id}
+                >
+                  <span className="ops-notification-icon" aria-hidden="true">
+                    <Icon name={notificationIcon()} size={20} />
                   </span>
-                )}
-              </li>
-            ))}
+                  <div className="stack ops-notification-copy">
+                    <div className="row">
+                      <strong>{notificationCopy(item).title}</strong>
+                      {!item.readAt && (
+                        <>
+                          <span
+                            className="admin-unread-dot"
+                            aria-hidden="true"
+                          />
+                          <span className="sr-only">Chưa đọc</span>
+                        </>
+                      )}
+                    </div>
+                    <p className="prose">{notificationCopy(item).body}</p>
+                    <time className="muted" dateTime={item.createdAt}>
+                      {fmtDateTime(item.createdAt)}
+                    </time>
+                  </div>
+                  {!item.readAt && (
+                    <LoadingButton
+                      type="button"
+                      className="btn btn-sm"
+                      disabled={!!queue.pendingId}
+                      onClick={() => {
+                        void queue.inbox.markRead(item.id);
+                      }}
+                      loading={
+                        !!(!!queue.pendingId || queue.pendingId === item.id)
+                      }
+                    >
+                      {queue.pendingId === item.id
+                        ? "Đang lưu…"
+                        : "Đánh dấu đã đọc"}
+                    </LoadingButton>
+                  )}
+                  {item.readAt && (
+                    <span className="admin-read-label">
+                      <Icon name="check" size={15} />
+                      Đã đọc
+                    </span>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
         <ListPagination query={pagination} />
