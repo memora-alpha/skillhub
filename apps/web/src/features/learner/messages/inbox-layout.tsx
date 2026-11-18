@@ -42,9 +42,10 @@ export function InboxLayout({ children }: Readonly<{ children: ReactNode }>) {
             <span>Trao đổi và kết nối</span>
           </div>
           <Feedback
-            loading={groups.loading}
+            loading={groups.initialLoading}
             error={groups.error}
             reload={groups.reload}
+            refreshing={!!(groups.loading && !groups.initialLoading)}
           />
           <div className={styles.groupList}>
             {groups.items.map((group) => {

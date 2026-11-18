@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { formText } from "../components/form-data";
 
 import { useState } from "react";
@@ -123,13 +124,14 @@ export function AgreementCreator({
           kế hoạch và lịch trước khi chốt.
         </p>
         <CommandFeedback command={command} />
-        <button
+        <LoadingButton
           type="submit"
           className="btn btn-primary"
           disabled={command.pending || command.uncertain}
+          loading={!!command.pending}
         >
           {path ? "Lưu điều chỉnh" : "Tạo thỏa thuận để cùng xác nhận"}
-        </button>
+        </LoadingButton>
       </form>
     </Panel>
   );

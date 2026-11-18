@@ -27,9 +27,10 @@ export function TerminationPreview({ pathId }: Readonly<{ pathId: string }>) {
     <section>
       <h3>Credit dự kiến khi dừng</h3>
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       {query.data && (
         <>

@@ -89,9 +89,10 @@ function RequestChats({ id }: Readonly<{ id: string }>) {
   return (
     <div className={styles.requestBody}>
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       {query.items.map((conversation) => (
         <Link
@@ -156,9 +157,10 @@ function RequestProposals({
         </select>
       </label>
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       {query.items.map((proposal) => (
         <ProposalCard key={proposal.id} proposal={proposal} />

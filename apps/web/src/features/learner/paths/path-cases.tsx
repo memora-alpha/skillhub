@@ -47,9 +47,10 @@ export function PathCases({
           {cases.cursor ? "+" : ""})
         </Heading>
         <Feedback
-          loading={cases.loading}
+          loading={cases.initialLoading}
           error={cases.error}
           reload={cases.reload}
+          refreshing={!!(cases.loading && !cases.initialLoading)}
         />
         <div className={styles.caseList}>
           {cases.items.map((item) => (
@@ -87,9 +88,10 @@ export function PathCases({
           onClose={() => onSelect(undefined)}
         >
           <Feedback
-            loading={summary.loading}
+            loading={summary.initialLoading}
             error={summary.error}
             reload={summary.reload}
+            refreshing={!!(summary.loading && !summary.initialLoading)}
           />
           {current && !summary.error && (
             <>

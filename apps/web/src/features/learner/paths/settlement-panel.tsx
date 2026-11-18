@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import Link from "next/link";
 import { useState } from "react";
 import { useUserSession } from "../auth/session";
@@ -76,7 +77,7 @@ export function SettlementPanel({
       )}
       <CommandFeedback command={command} />
       <div className="learner-actions">
-        <button
+        <LoadingButton
           type="button"
           className="btn btn-primary"
           disabled={
@@ -86,9 +87,10 @@ export function SettlementPanel({
             (command.uncertain && !command.canRetry)
           }
           onClick={() => void check()}
+          loading={!!command.pending}
         >
           {settlementButton}
-        </button>
+        </LoadingButton>
         <Link className="btn" href="/learn/wallet">
           Xem ví & lịch sử Credit
         </Link>

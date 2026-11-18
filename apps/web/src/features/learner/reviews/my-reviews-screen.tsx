@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useUserPagedList } from "../hooks/use-user-paged-list";
 import Link from "next/link";
@@ -56,14 +57,15 @@ export function MyReviewsScreen() {
             </button>
           ))}
         </div>
-        <button
+        <LoadingButton
           type="button"
           className="btn"
           disabled={query.loading}
           onClick={query.reload}
+          loading={!!query.loading}
         >
           <ProductIcon name="refresh" size={16} /> Làm mới
-        </button>
+        </LoadingButton>
       </div>
 
       {query.summary && <ReceivedSummary summary={query.summary} />}
@@ -77,6 +79,7 @@ export function MyReviewsScreen() {
           loading={query.initialLoading}
           error={query.error}
           reload={query.reload}
+          refreshing={!!(query.loading && !query.initialLoading)}
         />
         {!query.initialLoading && !query.error && !query.rows.length && (
           <div className={styles.empty}>
@@ -201,6 +204,7 @@ function ChooseReviewPath() {
           loading={query.initialLoading}
           error={query.error}
           reload={query.reload}
+          refreshing={!!(query.loading && !query.initialLoading)}
         />
         <div className={styles.pathList}>
           {completed.map((path) => (

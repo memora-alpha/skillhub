@@ -64,9 +64,10 @@ export function CalendarScreen() {
         }
       />
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       <section className={styles.month} aria-labelledby="calendar-month-title">
         <h2 id="calendar-month-title" className={styles.monthTitle}>

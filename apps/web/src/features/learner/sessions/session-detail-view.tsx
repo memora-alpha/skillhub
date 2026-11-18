@@ -1,4 +1,5 @@
 "use client";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 import { useState } from "react";
 import Link from "next/link";
 import { useUserSession } from "../auth/session";
@@ -73,6 +74,7 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
           loading={query.initialLoading}
           error={query.error}
           reload={query.reload}
+          refreshing={!!(query.loading && !query.initialLoading)}
         />
       </div>
     );
@@ -85,6 +87,9 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
     (session.rescheduleCount ?? 0) < 3 &&
     !!path.data &&
     ["SCHEDULED", "ACTIVE"].includes(path.data.status);
+  const missingPathContent = path.error
+    ? "Chưa tải được nội dung lộ trình."
+    : "Chưa có nội dung chi tiết cho buổi học này.";
   return (
     <div className={styles.page}>
       <SessionDetailHeader
@@ -110,7 +115,14 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
               <p>
                 {outline ||
                   plan?.learningGoal ||
-                  "Đang tải nội dung từ lộ trình…"}
+                  (path.initialLoading ? (
+                    <LoadingSkeleton
+                      variant="inline"
+                      label="Đang tải nội dung từ lộ trình"
+                    />
+                  ) : (
+                    missingPathContent
+                  ))}
               </p>
               <Link
                 className={styles.link}

@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { useState } from "react";
 import type { LearningPath } from "../types";
 import { useUserSession } from "../auth/session";
@@ -91,9 +92,10 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
   return (
     <Panel title="Đánh giá sau lộ trình">
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={readError ?? query.error ?? contractError}
         reload={() => void reconcile()}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       <div className={styles.reviewList}>
         {rows?.map((r) => (
@@ -150,7 +152,7 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
               />
               <small>{comment.length}/1.000 ký tự</small>
             </label>
-            <button
+            <LoadingButton
               type="submit"
               className="btn btn-primary"
               disabled={
@@ -163,22 +165,24 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
                 !!contractError ||
                 !rows
               }
+              loading={!!(checking || command.pending || query.loading)}
             >
               {command.pending ? "Đang gửi đánh giá…" : "Gửi đánh giá"}
-            </button>
+            </LoadingButton>
           </form>
         )
       )}
       {!own && !submitted && <CommandFeedback command={command} />}
       {command.uncertain && !own && !submitted && (
-        <button
+        <LoadingButton
           type="button"
           className="btn"
           disabled={checking || command.pending}
           onClick={() => void reconcile()}
+          loading={!!(checking || command.pending)}
         >
           {checking ? "Đang kiểm tra…" : "Kiểm tra lại kết quả"}
-        </button>
+        </LoadingButton>
       )}
       {command.uncertain && !own && !submitted && (
         <p>

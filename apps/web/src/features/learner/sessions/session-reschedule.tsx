@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { formText } from "../components/form-data";
 
 import { useState } from "react";
@@ -126,7 +127,7 @@ export function SessionReschedule({
             </div>
           </dl>
           <output className="muted">{confirmationMessage()}</output>
-          <button
+          <LoadingButton
             type="button"
             className="btn btn-primary"
             disabled={!!ownConfirmed || blocked}
@@ -152,9 +153,10 @@ export function SessionReschedule({
                   }),
               );
             }}
+            loading={!!command.pending}
           >
             {confirmationLabel()}
-          </button>
+          </LoadingButton>
         </>
       ) : (
         <form
@@ -218,9 +220,14 @@ export function SessionReschedule({
               disabled={blocked}
             />
           </label>
-          <button type="submit" className="btn btn-primary" disabled={blocked}>
+          <LoadingButton
+            type="submit"
+            className="btn btn-primary"
+            disabled={blocked}
+            loading={!!command.pending}
+          >
             {proposalLabel()}
-          </button>
+          </LoadingButton>
         </form>
       )}
       {error && <p className="learner-error">{error}</p>}

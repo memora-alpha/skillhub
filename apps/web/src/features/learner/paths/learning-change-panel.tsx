@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { systemCodeLabel } from "@/lib/system-text";
 import { useRef, useState } from "react";
 import { useUserSession } from "../auth/session";
@@ -103,22 +104,24 @@ export function LearningChangePanel({
         </p>
       )}
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       {!sessionId && (composing || open) && (
         <TerminationPreview pathId={pathId} />
       )}
       {!open && canRequest && !composing && !create.uncertain && (
-        <button
+        <LoadingButton
           type="button"
           className="btn"
           disabled={disabled}
           onClick={() => setComposing(true)}
+          loading={!!(query.loading || create.pending || decision.pending)}
         >
           {sessionId ? "Yêu cầu hủy buổi" : "Yêu cầu dừng lộ trình"}
-        </button>
+        </LoadingButton>
       )}
       {!open && canRequest && (composing || create.uncertain) && (
         <form
@@ -142,13 +145,14 @@ export function LearningChangePanel({
               }}
             />
           </label>
-          <button
+          <LoadingButton
             type="submit"
             className="btn"
             disabled={disabled || !query.data}
+            loading={!!(query.loading || create.pending || decision.pending)}
           >
             Gửi yêu cầu cho đối tác
-          </button>
+          </LoadingButton>
           {!create.pending && !create.uncertain && (
             <button
               type="button"
@@ -161,14 +165,15 @@ export function LearningChangePanel({
         </form>
       )}
       {create.canRetry && (
-        <button
+        <LoadingButton
           type="button"
           className="btn"
           disabled={create.pending}
           onClick={() => void send()}
+          loading={!!create.pending}
         >
           Kiểm tra lại cùng yêu cầu đã gửi
-        </button>
+        </LoadingButton>
       )}
       {query.data?.map((row) => (
         <article key={row.id}>
@@ -197,14 +202,17 @@ export function LearningChangePanel({
           {row.status === "PENDING" && (
             <>
               {row.requesterId === actor.userId ? (
-                <button
+                <LoadingButton
                   type="button"
                   className="btn"
                   disabled={disabled}
                   onClick={() => void act(row, "withdraw")}
+                  loading={
+                    !!(query.loading || create.pending || decision.pending)
+                  }
                 >
                   Rút yêu cầu này
-                </button>
+                </LoadingButton>
               ) : (
                 <>
                   <label>
@@ -217,22 +225,28 @@ export function LearningChangePanel({
                     />
                   </label>
                   <div className="learner-actions">
-                    <button
+                    <LoadingButton
                       type="button"
                       className="btn"
                       disabled={disabled}
                       onClick={() => void act(row, "response", true)}
+                      loading={
+                        !!(query.loading || create.pending || decision.pending)
+                      }
                     >
                       Đồng ý yêu cầu
-                    </button>
-                    <button
+                    </LoadingButton>
+                    <LoadingButton
                       type="button"
                       className="btn"
                       disabled={disabled}
                       onClick={() => void act(row, "response", false)}
+                      loading={
+                        !!(query.loading || create.pending || decision.pending)
+                      }
                     >
                       Từ chối
-                    </button>
+                    </LoadingButton>
                   </div>
                 </>
               )}
@@ -240,14 +254,17 @@ export function LearningChangePanel({
           )}
           {["ACCEPTED", "STAFF_REVIEW"].includes(row.status) &&
             row.requesterId === actor.userId && (
-              <button
+              <LoadingButton
                 type="button"
                 className="btn"
                 disabled={disabled}
                 onClick={() => void act(row, "withdraw")}
+                loading={
+                  !!(query.loading || create.pending || decision.pending)
+                }
               >
                 Rút yêu cầu chưa thực thi
-              </button>
+              </LoadingButton>
             )}
           {!sessionId && ["PENDING", "ACCEPTED"].includes(row.status) && (
             <div className="learner-form">
@@ -260,14 +277,17 @@ export function LearningChangePanel({
                   onChange={(e) => setNote(e.target.value)}
                 />
               </label>
-              <button
+              <LoadingButton
                 type="button"
                 className="btn"
                 disabled={disabled || note.trim().length < 3}
                 onClick={() => void act(row, "escalate")}
+                loading={
+                  !!(query.loading || create.pending || decision.pending)
+                }
               >
                 Chuyển nhân sự xem xét
-              </button>
+              </LoadingButton>
             </div>
           )}
         </article>
@@ -280,14 +300,15 @@ export function LearningChangePanel({
       )}
       <CommandFeedback command={create} />
       <CommandFeedback command={decision} />
-      <button
+      <LoadingButton
         type="button"
         className="btn"
         disabled={query.loading || create.pending || decision.pending}
         onClick={() => query.reload()}
+        loading={!!(query.loading || create.pending || decision.pending)}
       >
         Làm mới
-      </button>
+      </LoadingButton>
     </Panel>
   );
 }

@@ -23,9 +23,10 @@ export function PathsScreen() {
     <>
       <PageHeading title="Lộ trình học của tôi" />
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       <div className="learner-post-grid">
         {query.items.map((path) => (

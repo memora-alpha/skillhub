@@ -1,4 +1,5 @@
 "use client";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 import {
   useCallback,
   useEffect,
@@ -133,7 +134,7 @@ export function ChatFiles({
       </label>
       {uploading && (
         <p>
-          <output>Đang tải tệp lên…</output>
+          <LoadingSkeleton variant="inline" label="Đang tải tệp lên" />
         </p>
       )}
       <Feedback error={error} />
