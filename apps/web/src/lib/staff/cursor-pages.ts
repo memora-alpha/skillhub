@@ -62,6 +62,29 @@ export function createCursorPages<T extends { id: string }>(
     if (cached.size > 40) cached.delete(cached.keys().next().value!);
     return { ...data, pageNumber, totalPages: lastPage ?? totalPages };
   }
+  function nearestKnownPage(target: number) {
+    let index = 1;
+    for (const known of cursors.keys())
+      if (known <= target && known > index) index = known;
+    return index;
+  }
+  function assertPageProgress(
+    page: Pagination,
+    cursor: string | undefined,
+    index: number,
+  ) {
+    if (limit !== undefined && page.limit !== limit)
+      throw new StaffApiError(502, "API_RESPONSE_INVALID");
+    const nextPosition = page.nextCursor
+      ? positions.get(page.nextCursor)
+      : undefined;
+    if (
+      page.nextCursor &&
+      (page.nextCursor === cursor ||
+        (nextPosition !== undefined && nextPosition !== index + 1))
+    )
+      throw new StaffApiError(502, "API_RESPONSE_INVALID");
+  }
   async function get(
     target: number,
     signal: AbortSignal,
@@ -72,26 +95,14 @@ export function createCursorPages<T extends { id: string }>(
     if (lastPage !== undefined) target = Math.min(target, lastPage);
     const found = cached.get(target);
     if (found) return result(target, found);
-    let index = 1;
-    for (const known of cursors.keys())
-      if (known <= target && known > index) index = known;
+    let index = nearestKnownPage(target);
     while (index <= target) {
       assertActive(signal);
       const cursor = cursors.get(index);
       const reply = await read(appendCursor(path, cursor), signal);
       assertActive(signal);
       const page = checkedPagination(reply);
-      if (limit !== undefined && page.limit !== limit)
-        throw new StaffApiError(502, "API_RESPONSE_INVALID");
-      const nextPosition = page.nextCursor
-        ? positions.get(page.nextCursor)
-        : undefined;
-      if (
-        page.nextCursor &&
-        (page.nextCursor === cursor ||
-          (nextPosition !== undefined && nextPosition !== index + 1))
-      )
-        throw new StaffApiError(502, "API_RESPONSE_INVALID");
+      assertPageProgress(page, cursor, index);
       limit = page.limit;
       if (page.total !== undefined)
         totalPages = Math.max(1, Math.ceil(page.total / page.limit));

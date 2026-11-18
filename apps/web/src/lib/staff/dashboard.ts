@@ -149,7 +149,12 @@ export function workItemHref(
     case "REPORT_INCIDENT":
       return `/admin/disputes?incidentId=${id}`;
     case "PATH_TERMINATION":
-      return `/admin/learning-changes?requestId=${id}${item.related.pathId ? `&pathId=${encodeURIComponent(item.related.pathId)}` : ""}`;
+      return (
+        `/admin/learning-changes?requestId=${id}` +
+        (item.related.pathId
+          ? "&pathId=" + encodeURIComponent(item.related.pathId)
+          : "")
+      );
     case "SKILL_VERIFICATION":
       return `/admin/evidence?verificationId=${id}`;
     case "TAG_REQUEST":

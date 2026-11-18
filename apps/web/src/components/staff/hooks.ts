@@ -125,17 +125,24 @@ export function useStaffList<T extends { id?: string; userId?: string }>(
             throw new StaffApiError(502, "API_RESPONSE_INVALID");
           if (cursor) cursors.current.add(cursor);
           else cursors.current.clear();
-          setState((s) => ({
-            path: scope,
-            items: cursor ? mergePage(s.items, result.data) : result.data,
-            chunks: cursor
-              ? [...s.chunks, result.data]
-              : result.meta?.pagination
-                ? [result.data]
-                : splitPages(result.data),
-            page: result.meta?.pagination,
-            loading: false,
-          }));
+          setState((s) => {
+            function resultChunks() {
+              if (cursor) {
+                return [...s.chunks, result.data];
+              }
+              if (result.meta?.pagination) {
+                return [result.data];
+              }
+              return splitPages(result.data);
+            }
+            return {
+              path: scope,
+              items: cursor ? mergePage(s.items, result.data) : result.data,
+              chunks: resultChunks(),
+              page: result.meta?.pagination,
+              loading: false,
+            };
+          });
         })
         .catch((e: unknown) => {
           if (controller.signal.aborted) return;

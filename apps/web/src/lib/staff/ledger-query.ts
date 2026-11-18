@@ -30,6 +30,17 @@ export const emptyLedgerFilters: LedgerFilters = {
   transactionId: "",
 };
 const uuid = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
+function parseLedgerDate(value: string) {
+  const date = new Date(value + ":00.000Z");
+  if (
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value) ||
+    !Number.isFinite(date.getTime()) ||
+    date.toISOString().slice(0, 16) !== value
+  )
+    throw new Error("Chọn thời gian hợp lệ theo UTC.");
+  return date;
+}
+
 export function ledgerQuery(filters: LedgerFilters) {
   for (const key of ["userId", "operationId", "transactionId"] as const)
     if (filters[key] && !uuid.test(filters[key]))
@@ -56,14 +67,7 @@ export function ledgerQuery(filters: LedgerFilters) {
   const stamps: number[] = [];
   for (const key of ["from", "before"] as const) {
     if (!filters[key]) continue;
-    const value = filters[key];
-    const date = new Date(value + ":00.000Z");
-    if (
-      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value) ||
-      !Number.isFinite(date.getTime()) ||
-      date.toISOString().slice(0, 16) !== value
-    )
-      throw new Error("Chọn thời gian hợp lệ theo UTC.");
+    const date = parseLedgerDate(filters[key]);
     params.set(key, date.toISOString());
     stamps.push(date.getTime());
   }
