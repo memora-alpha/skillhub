@@ -1,4 +1,4 @@
-/* Only the five selected Admin workspaces opt into this presentation. */
+/* Selected Admin workspaces opt into this presentation. */
 .staff-shell[data-admin-redesign="true"] {
   --bg: #f8fafc;
   --surface: #fff;
