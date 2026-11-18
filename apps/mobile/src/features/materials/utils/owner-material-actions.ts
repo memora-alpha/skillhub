@@ -70,7 +70,7 @@ export function createOwnerMaterialActions(deps: {
             ? await remove(intent)
             : action === "withdraw"
               ? await deps.api.withdraw(row.id, intent.version)
-              : await deps.api[action](row.id);
+              : await deps.api[action](row.id, intent.version);
         if (!deps.isCurrent()) return;
         if ("status" in result) await deps.onResult(result);
         emit({});

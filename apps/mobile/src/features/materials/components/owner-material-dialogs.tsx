@@ -7,6 +7,7 @@ import {
   canEditMaterial,
   canDeleteMaterial,
   canWithdrawMaterial,
+  materialEditHint,
   materialDate,
   materialFileSize,
   materialFileType,
@@ -35,6 +36,11 @@ export function OwnerMaterialDetails({
   onWithdraw: () => void;
 }>) {
   const archivePresentation = material && materialArchivePresentation(material);
+  const editable = !!material && canEditMaterial(material);
+  const withdrawable = !!material && canWithdrawMaterial(material);
+  const deletable = !!material && canDeleteMaterial(material);
+  const hasPrimaryActions = editable || !!archivePresentation || withdrawable;
+  const editHint = material && materialEditHint(material);
   return (
     <InfoModal
       title={material?.title ?? null}
@@ -42,42 +48,51 @@ export function OwnerMaterialDetails({
       onClose={onClose}
       showConfirm={false}
       footer={
-        material && canEditMaterial(material) ? (
-          <View style={styles.row}>
-            <Button
-              variant="paper"
-              size="sm"
-              leadingIcon="edit"
-              disabled={disabled}
-              onPress={onEdit}
-            >
-              Chỉnh sửa
-            </Button>
-            {archivePresentation && (
-              <Button
-                variant="ghost"
-                size="sm"
-                leadingIcon={archivePresentation.icon}
-                disabled={disabled}
-                onPress={onArchive}
-              >
-                {archivePresentation.label}
-              </Button>
+        material && (hasPrimaryActions || deletable) ? (
+          <View style={styles.detailActions}>
+            {hasPrimaryActions && (
+              <View style={styles.dialogActions}>
+                {editable && (
+                  <Button
+                    variant="craft"
+                    size="sm"
+                    style={styles.dialogAction}
+                    leadingIcon="edit"
+                    disabled={disabled}
+                    onPress={onEdit}
+                  >
+                    Chỉnh sửa
+                  </Button>
+                )}
+                {archivePresentation && (
+                  <Button
+                    variant="paper"
+                    size="sm"
+                    style={styles.dialogAction}
+                    leadingIcon={archivePresentation.icon}
+                    disabled={disabled}
+                    onPress={onArchive}
+                  >
+                    {archivePresentation.label}
+                  </Button>
+                )}
+                {withdrawable && (
+                  <Button
+                    variant="paper"
+                    size="sm"
+                    style={styles.dialogAction}
+                    leadingIcon="close"
+                    disabled={disabled}
+                    onPress={onWithdraw}
+                  >
+                    Rút yêu cầu duyệt
+                  </Button>
+                )}
+              </View>
             )}
-            {canWithdrawMaterial(material) && (
+            {deletable && (
               <Button
-                variant="ghost"
-                size="sm"
-                leadingIcon="close"
-                disabled={disabled}
-                onPress={onWithdraw}
-              >
-                Rút yêu cầu duyệt
-              </Button>
-            )}
-            {canDeleteMaterial(material) && (
-              <Button
-                variant="ghost"
+                variant="danger"
                 size="sm"
                 leadingIcon="trash"
                 disabled={disabled}
@@ -133,21 +148,11 @@ export function OwnerMaterialDetails({
               Xét duyệt {materialDate(material.reviewedAt)}
             </Text>
           )}
-          {material.status === "PUBLISHED" && (
-            <Text style={styles.meta}>
-              Chỉnh sửa sẽ chuyển tài liệu về trạng thái chờ duyệt.
-            </Text>
-          )}
-          {material.status === "PENDING_REVIEW" && (
-            <Text style={styles.meta}>
-              Bạn có thể chỉnh sửa hoặc rút yêu cầu duyệt về bản nháp để gửi lại
-              sau.
-            </Text>
-          )}
+          {!!editHint && <Text style={styles.meta}>{editHint}</Text>}
           {material.status === "ARCHIVED" && (
             <Text style={styles.meta}>
-              Tài liệu đã ngừng chia sẻ. Bạn có thể chỉnh sửa và gửi duyệt lại
-              trên cùng bài đăng.
+              Tài liệu đã ngừng chia sẻ. Bạn có thể gửi duyệt lại nguyên nội
+              dung trên cùng bài đăng.
             </Text>
           )}
           {material.status === "HIDDEN" && (
@@ -196,8 +201,9 @@ export function OwnerMaterialActionDialog({
             title: "Rút yêu cầu duyệt?",
             label: "Rút yêu cầu",
             icon: "close" as const,
-            description:
-              "Tài liệu sẽ trở về bản nháp và dừng chờ duyệt. Bạn có thể chỉnh sửa rồi gửi duyệt lại.",
+            description: material?.hasBeenPublished
+              ? "Tài liệu sẽ trở về bản nháp và dừng chờ duyệt. Nội dung đã từng đăng được giữ nguyên; bạn có thể gửi duyệt lại."
+              : "Tài liệu sẽ trở về bản nháp và dừng chờ duyệt. Bạn có thể chỉnh sửa rồi gửi duyệt lại.",
           }
         : action === "submit"
           ? {
@@ -223,17 +229,31 @@ export function OwnerMaterialActionDialog({
       busy={busy}
       showConfirm={false}
       footer={
-        <View style={styles.row}>
-          <Button variant="paper" disabled={busy} onPress={onClose}>
+        <View style={styles.dialogActions}>
+          <Button
+            variant="paper"
+            size="sm"
+            style={styles.dialogAction}
+            disabled={busy}
+            onPress={onClose}
+          >
             Hủy
           </Button>
           {uncertain ? (
-            <Button variant="craft" disabled={busy} onPress={onReconcile}>
+            <Button
+              variant="craft"
+              size="sm"
+              style={styles.dialogAction}
+              disabled={busy}
+              onPress={onReconcile}
+            >
               {busy ? "Đang kiểm tra…" : "Kiểm tra kết quả"}
             </Button>
           ) : (
             <Button
               variant={action === "delete" ? "danger" : "craft"}
+              size="sm"
+              style={styles.dialogAction}
               leadingIcon={presentation?.icon}
               disabled={disabled}
               onPress={onConfirm}

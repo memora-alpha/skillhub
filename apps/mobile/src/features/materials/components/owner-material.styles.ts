@@ -97,12 +97,22 @@ export const ownerMaterialStyles = StyleSheet.create({
   actions: {
     flexDirection: "row",
     flexWrap: "wrap",
+    justifyContent: "flex-end",
     gap: 8,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    paddingTop: 6,
+    paddingTop: 10,
   },
-  action: { flexGrow: 1, flexBasis: 100 },
+  action: { flexGrow: 1, flexBasis: 112 },
+  singleAction: { flexGrow: 0, flexBasis: "auto", minWidth: 128 },
+  detailActions: {
+    gap: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: 12,
+  },
+  dialogActions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  dialogAction: { flexGrow: 1, flexBasis: 120 },
   reason: {
     fontFamily: fonts.body,
     ...typography.secondary,
@@ -110,7 +120,6 @@ export const ownerMaterialStyles = StyleSheet.create({
   },
   pressed: { opacity: 0.7 },
   detail: { gap: 12 },
-  detailHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
   detailNotice: {
     padding: 12,
     borderRadius: appRadius.control,

@@ -5,6 +5,7 @@ import { useCatalogName } from "@/features/connections";
 import type { useMaterialEditor } from "../hooks/use-material-editor";
 import {
   canEditMaterial,
+  materialEditHint,
   materialPrice,
 } from "../utils/owner-material-presentation";
 import { materialFailure } from "../utils/material-failure";
@@ -89,8 +90,8 @@ export function MaterialEditorConflict({
             </>
           ) : (
             <FormNotice tone="info" compact>
-              Tài liệu hiện không thể chỉnh sửa. Bạn vẫn có thể xem và sao chép
-              nội dung đang sửa phía trên.
+              {materialEditHint(latest)} Bạn vẫn có thể xem và sao chép nội dung
+              đang sửa phía trên.
             </FormNotice>
           )}
         </View>

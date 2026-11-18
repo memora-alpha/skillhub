@@ -16,7 +16,7 @@ import {
 import { uploadedFileSchema } from "@/lib/http/file-upload";
 import { AppError } from "@/lib/http/errors";
 import {
-  materialSchema,
+  ownerMaterialSchema,
   materialInput,
   type MaterialInput,
   type ApiMaterial,
@@ -26,15 +26,17 @@ export function createMaterialsApi(
   userId: string,
 ) {
   const root = (id: string) => resourcePath("me/materials", id);
-  const post = (path: string, body?: unknown, idempotencyKey?: string) =>
+  const post = (path: string, body?: unknown) =>
     call(path, {
       method: "POST",
       body,
-      idempotencyKey,
       replayAfterRenewal: false,
     });
   async function ownerDetail(id: string, signal?: AbortSignal) {
-    const row = parse(materialSchema, await call(root(id), { signal }));
+    const row = parse<ApiMaterial>(
+      ownerMaterialSchema,
+      await call(root(id), { signal }),
+    );
     if (row.id !== id || row.ownerId !== userId) throw new AppError("protocol");
     return row;
   }
@@ -45,8 +47,8 @@ export function createMaterialsApi(
       signal?: AbortSignal,
       status?: ApiMaterial["status"],
     ) {
-      const page = parsePage(
-        materialSchema,
+      const page = parsePage<ApiMaterial>(
+        ownerMaterialSchema,
         await call(
           `/me/materials?${pageQuery(cursor)}${status ? `&status=${status}` : ""}`,
           {
@@ -65,8 +67,8 @@ export function createMaterialsApi(
     },
     async create(body: MaterialInput) {
       if (body.coverFileId === null) throw new AppError("protocol");
-      const row = parse(
-        materialSchema,
+      const row = parse<ApiMaterial>(
+        ownerMaterialSchema,
         await post("/me/materials", parse(materialInput, body)),
       );
       if (row.ownerId !== userId) throw new AppError("protocol");
@@ -77,8 +79,8 @@ export function createMaterialsApi(
       expectedListingVersion: number,
       body: MaterialInput,
     ) {
-      const row = parse(
-        materialSchema,
+      const row = parse<ApiMaterial>(
+        ownerMaterialSchema,
         await call(root(id), {
           method: "PATCH",
           body: { ...parse(materialInput, body), expectedListingVersion },
@@ -89,26 +91,40 @@ export function createMaterialsApi(
         throw new AppError("protocol");
       return row;
     },
-    async submit(id: string) {
-      const row = parse(materialSchema, await post(root(id) + "/submit"));
+    async submit(id: string, expectedListingVersion: number) {
+      parse(version, expectedListingVersion);
+      const row = parse<ApiMaterial>(
+        ownerMaterialSchema,
+        await post(root(id) + "/submit", { expectedListingVersion }),
+      );
       if (
         row.id !== id ||
         row.ownerId !== userId ||
-        row.status !== "PENDING_REVIEW"
+        row.status !== "PENDING_REVIEW" ||
+        row.listingVersion <= expectedListingVersion
       )
         throw new AppError("protocol");
       return row;
     },
-    async archive(id: string) {
-      const row = parse(materialSchema, await post(root(id) + "/archive"));
-      if (row.id !== id || row.ownerId !== userId || row.status !== "ARCHIVED")
+    async archive(id: string, expectedListingVersion: number) {
+      parse(version, expectedListingVersion);
+      const row = parse<ApiMaterial>(
+        ownerMaterialSchema,
+        await post(root(id) + "/archive", { expectedListingVersion }),
+      );
+      if (
+        row.id !== id ||
+        row.ownerId !== userId ||
+        row.status !== "ARCHIVED" ||
+        row.listingVersion <= expectedListingVersion
+      )
         throw new AppError("protocol");
       return row;
     },
     async withdraw(id: string, expectedListingVersion: number) {
       parse(version, expectedListingVersion);
-      const row = parse(
-        materialSchema,
+      const row = parse<ApiMaterial>(
+        ownerMaterialSchema,
         await post(root(id) + "/withdraw", { expectedListingVersion }),
       );
       if (row.id !== id || row.ownerId !== userId || row.status !== "DRAFT")

@@ -1,8 +1,28 @@
 # Tài liệu — hiện trạng
 
-Cập nhật tài liệu: 2026-11-18T13:02:49+07:00. Trạng thái FE: **Ready for review — Chi tiết trong Khám phá bỏ khối Bản bạn đã mua, dùng nhãn Tải tài liệu**. Mỗi bài một file nội dung, dùng Thay tệp; không yêu cầu gỡ file nội dung. Thẻ đã mua giữ đồng bộ thông tin hiện tại với Chi tiết và thông tin lúc mua riêng trong Thư viện. Source/fixture đã kiểm chứng; API có đăng nhập, migration thực, Android/iOS và UAT chưa nghiệm thu. Probe thư viện miễn phí401 là bằng chứng cũ ngày16, không phải lần kiểm có đăng nhập mới. Phạm vi theo [plan](plan.md); các mục có thời điểm bên dưới giữ bằng chứng lịch sử.
+Cập nhật tài liệu: 2026-11-18T13:55:15+07:00. Trạng thái FE: **Ready for review — source đã dọn, khóa nội dung và version lifecycle theo BE PR109, nhóm nút owner đã căn lại**. Nội dung, tệp, ảnh bìa và giá của ID từng đăng giữ nguyên qua archive/resubmit/withdraw/reject; thay đổi cần ID mới. PENDING_REVIEW cần rút về DRAFT trước khi sửa và chỉ ID chưa từng đăng được sửa. Source/test/web export và preview vị trí nút đã kiểm chứng; API có đăng nhập, migration thực, Android/iOS và UAT chưa nghiệm thu. Phạm vi theo [plan](plan.md); các mục có thời điểm bên dưới giữ bằng chứng lịch sử, quy tắc cho sửa ARCHIVED/PUBLISHED/PENDING_REVIEW ở các mốc trước đã được PR109 thay thế.
 
 Lượt dọn source trước đó được ghi tại [kiểm tra trước commit](../mobile-ui-density/status.md#dọn-code-và-kiểm-tra-trước-commit--2026-11-16t2107540700); các kết quả scoped dưới đây giữ đúng thời điểm thực hiện.
+
+## Dọn source và kiểm tra toàn mobile — 2026-11-18T13:55:15+07:00
+
+- Bỏ helper materialRefundReason và style detailHeader không còn consumer; bỏ tham số idempotencyKey không dùng của POST owner, giữ cơ chế idempotency riêng của purchase/review. Gom quyền edit/withdraw/delete và nhóm thao tác trong OwnerMaterialDetails, không thay điều kiện hoặc cách bố trí.
+- Import graph có xét native/web/ios/android:1.052 source files, không có module mồ côi ngoài declaration. Các module sửa có consumer; không có import test/fixture/.expo vào runtime sửa hoặc style local dư được phát hiện. Rà từ khóa runtime chỉ còn sample múi giờ hợp lệ; mock/fixture của kiểm thử và preview nằm ở tests/.expo, không nằm trong bản export.
+- Full mobile **1.238/1.238 PASS**, không fail/skip/cancel; full TypeScript/ESLint, structure **1.052 source files**, Prettier các TS/TSX sửa, whitespace và commit-scope **6/6 PASS**. Expo web export PASS `.expo/material-prepush-web`, dotenv/telemetry tắt và API URL localhost chỉ làm cấu hình bundle; không gọi tài khoản/giao dịch thật. Logs ignored `.expo/material-prepush-{tests,types,lint,export}.log`; audit scripts `.expo/commit-readiness-audit.cjs`, `.expo/cleanup-runtime-graph.cjs`.
+- Không thay BE/shared package hoặc dependency. Native/API có đăng nhập, migration triển khai và UAT vẫn chưa nghiệm thu; web export/test không thay các bằng chứng này.
+
+## Căn nhóm nút owner — 2026-11-18T13:47:47+07:00
+
+- Thẻ owner cân cặp Chỉnh sửa/Gửi duyệt, đổi Chỉnh sửa sang paper; nút đơn giữ gọn bên phải. Chi tiết tách thao tác chính và Xóa thành hai hàng, Xóa dùng danger. Hủy/action trong xác nhận cùng chiều rộng, wrap khi màn hẹp; Đăng tài liệu mới nằm cuối form bị khóa thay Lưu vô hiệu hóa. Copy rút duyệt phân biệt nội dung đã từng đăng vẫn bị khóa.
+- Đã xem preview component thật qua react-native-web ở320/390/430px và chữ lớn: thẻ, chi tiết và xác nhận không tràn ngang; màn320 hẹp cho cặp nút modal xuống hàng. Dữ liệu, hành động và SafeArea trong harness mô phỏng; chưa nghiệm thu Android/iOS hoặc API. Script/ảnh ignored `.expo/material-action-layout-preview.cjs`, `.expo/material-action-layout-preview/cards-390.jpg`.
+- Focused Materials **70/70 PASS**, full TypeScript, scoped ESLint, Prettier và whitespace PASS; không thêm test chỉ để khóa cách bố trí. Log ignored `.expo/material-action-layout-tests.log`.
+
+## Khóa nội dung và version lifecycle — 2026-11-18T13:30:41+07:00
+
+- Đối chiếu `origin/dev@8d89ee25`, PR109 gồm `29eca3a9` (publication lock) và `d91fa9ef` (submit/archive version). Owner projection bổ sung hasBeenPublished/canEdit/editBlockedReason; mọi PATCH của ID từng đăng trả MATERIAL_CONTENT_LOCKED, PENDING_REVIEW cần withdraw trước. Submit/archive bắt buộc expectedListingVersion; approve/reject/hide/unhide cũng tăng version. BE cần migration `20261118000000_material_publication_lock` và rollout client tương thích; chưa xác minh migration/deployment thực.
+- Mobile parse đầy đủ quyền owner và khóa sửa theo BE; public projection vẫn không yêu cầu field owner. Tách điều kiện nút Chỉnh sửa khỏi Đăng lại/Ngừng chia sẻ/Rút duyệt/Xóa. Deep link edit bị khóa giữ nội dung chỉ đọc và điểm đăng mới; không upload/PATCH. Trường hợp editor đang mở bị khóa/version conflict cho đọc owner detail, giữ draft và không adopt bản không còn được sửa.
+- Submit/archive gửi version của row đã xác nhận, kiểm receipt đúng owner/id/status và version mới; lỗi409 giữ mã/làm mới dữ liệu, unknown chỉ read reconciliation, không replay POST. Đăng lại nguyên nội dung giữ entitlement/snapshot/giá mua; regression chuyển tình huống nội dung/giá mới sang ID riêng.
+- Full mobile tests **1.238/1.238 PASS**, không fail/skip; focused Materials sau chỉnh kiểu dữ liệu **70/70 PASS**. Full TypeScript/ESLint, structure **1.052 source files**, Prettier các TS/TSX thay đổi và whitespace PASS. Rà component theo React checklist: giữ hooks/boundaries, không thêm read/effect hoặc shared dependency, disabled/accessibility và nút lifecycle được kiểm bằng regression UI. Logs ignored `.expo/material-publication-lock-{tests,types,focused}.log`. Chưa chạy browser, API có đăng nhập, DB migration hoặc Android/iOS; chưa có nghiệm thu sản phẩm.
 
 ## Kiểm tra trước commit — 2026-11-18T13:10:05+07:00
 

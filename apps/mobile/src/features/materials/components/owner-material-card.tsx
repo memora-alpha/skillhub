@@ -48,6 +48,8 @@ export function OwnerMaterialCard({
   const fileType = materialFileType(material);
   const size = materialFileSize(material.file?.sizeBytes);
   const submitHint = materialSubmitHint(material);
+  const editable = canEditMaterial(material);
+  const showSubmit = ["DRAFT", "ARCHIVED"].includes(material.status);
   return (
     <View style={styles.card}>
       <Pressable
@@ -86,25 +88,27 @@ export function OwnerMaterialCard({
         </Text>
       )}
       {!!submitHint && <Text style={styles.caption}>{submitHint}</Text>}
-      {canEditMaterial(material) && (
+      {(editable || showSubmit) && (
         <View style={styles.actions}>
-          <Button
-            variant="ghost"
-            size="sm"
-            leadingIcon="edit"
-            style={styles.action}
-            disabled={disabled}
-            accessibilityLabel={`Chỉnh sửa ${material.title}`}
-            onPress={onEdit}
-          >
-            Chỉnh sửa
-          </Button>
-          {["DRAFT", "ARCHIVED"].includes(material.status) && (
+          {editable && (
+            <Button
+              variant="paper"
+              size="sm"
+              leadingIcon="edit"
+              style={[styles.action, !showSubmit && styles.singleAction]}
+              disabled={disabled}
+              accessibilityLabel={`Chỉnh sửa ${material.title}`}
+              onPress={onEdit}
+            >
+              Chỉnh sửa
+            </Button>
+          )}
+          {showSubmit && (
             <Button
               variant="craft"
               size="sm"
               leadingIcon="send"
-              style={styles.action}
+              style={[styles.action, !editable && styles.singleAction]}
               disabled={disabled || !canSubmitMaterial(material)}
               accessibilityLabel={`${material.status === "ARCHIVED" ? "Đăng lại" : "Gửi duyệt"} ${material.title}`}
               onPress={onSubmit}

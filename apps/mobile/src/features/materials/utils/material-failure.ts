@@ -42,8 +42,10 @@ const messages: Readonly<Record<string, string>> = {
   MATERIAL_ACCESS_CHANGED:
     "Quyền truy cập đã thay đổi. Hãy kiểm tra lại đơn mua.",
   MATERIAL_NOT_EDITABLE: "Tài liệu hiện không thể chỉnh sửa.",
+  MATERIAL_CONTENT_LOCKED:
+    "Tài liệu đã từng được đăng nên không thể sửa nội dung, tệp, ảnh bìa hoặc giá. Hãy đăng tài liệu mới nếu cần thay đổi.",
   MATERIAL_VERSION_CONFLICT:
-    "Thông tin tài liệu đã thay đổi. Tải lại trước khi lưu.",
+    "Thông tin tài liệu đã thay đổi. Tải lại và xác nhận trước khi thao tác.",
   MATERIAL_TRANSITION_INVALID:
     "Trạng thái tài liệu đã thay đổi. Tải lại trước khi thao tác.",
   MATERIAL_RIGHTS_CONFIRMATION_REQUIRED:
@@ -57,10 +59,4 @@ export function materialFailure(error: unknown) {
   if (error instanceof AppError && Object.hasOwn(messages, error.code))
     return messages[error.code]!;
   return connectionError(error);
-}
-export function materialRefundReason(code: string | null) {
-  return (
-    (code && Object.hasOwn(messages, code) && messages[code]) ||
-    "Đơn mua hiện chưa đủ điều kiện hoàn tiền tự động."
-  );
 }

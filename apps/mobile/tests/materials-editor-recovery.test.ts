@@ -264,6 +264,35 @@ test("editor stays after successful saves, adopts receipts and resolves conflict
       "hidden materials cannot be adopted for editing",
     );
     assert.equal(hook.blocked, true);
+    for (const code of ["MATERIAL_CONTENT_LOCKED", "MATERIAL_NOT_EDITABLE"]) {
+      commandError = new AppError("http", 409, code);
+      server = fixtureMaterial({
+        status: "DRAFT",
+        hasBeenPublished: true,
+        listingVersion: 6,
+      });
+      const draftTitle = values.title;
+      hook = render();
+      assert.equal(hook.blocked, true);
+      assert.equal(hook.recovery.conflict, true);
+      await hook.recovery.reload();
+      hook = render();
+      assert.equal(hook.recovery.latest?.hasBeenPublished, true);
+      hook.resolveConflict(true);
+      assert.equal(render().material.listingVersion, 4);
+      assert.equal(
+        values.title,
+        draftTitle,
+        "a newly locked receipt cannot discard the unsaved draft",
+      );
+      const calls: number = sent.length;
+      await render().save();
+      assert.equal(
+        sent.length,
+        calls,
+        "a content lock cannot trigger another PATCH",
+      );
+    }
     server = { ...server, status: "DRAFT" };
     waitRead = true;
     const pending = hook.recovery.reload();

@@ -31,7 +31,11 @@ export function useMaterialEditorRecovery(
     commandError !== handled &&
     commandError instanceof AppError &&
     commandError.kind === "http" &&
-    commandError.code === "MATERIAL_VERSION_CONFLICT";
+    [
+      "MATERIAL_VERSION_CONFLICT",
+      "MATERIAL_CONTENT_LOCKED",
+      "MATERIAL_NOT_EDITABLE",
+    ].includes(commandError.code);
   const reload = async () => {
     if (
       !conflict ||

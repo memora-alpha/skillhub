@@ -163,11 +163,20 @@ test("editor saves a file-less draft, gates upload/read-only states and validate
       body: editorMaterialInput(values),
     });
     assert.equal(navigation, "/materials/mine?tab=posted");
-    for (const status of ["PENDING_REVIEW", "HIDDEN", "ARCHIVED"] as const)
-      assert.equal(
-        useMaterialEditor({ ...material, status }).disabled,
-        status === "HIDDEN",
-      );
+    for (const status of [
+      "PENDING_REVIEW",
+      "PUBLISHED",
+      "HIDDEN",
+      "ARCHIVED",
+    ] as const)
+      assert.equal(useMaterialEditor({ ...material, status }).disabled, true);
+    for (const status of ["DRAFT", "REJECTED"] as const) {
+      const locked = fixtureMaterial({ status, hasBeenPublished: true });
+      const before = calls;
+      assert.equal(useMaterialEditor(locked).disabled, true);
+      await useMaterialEditor(locked).save();
+      assert.equal(calls, before, "locked edit deep links cannot PATCH");
+    }
     uploadBusy = true;
     await useMaterialEditor().save();
     assert.equal(calls, 1);

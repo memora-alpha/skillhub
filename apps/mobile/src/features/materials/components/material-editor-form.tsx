@@ -8,6 +8,10 @@ import { FormNotice } from "@/components/FormNotice";
 import { ServerFilePicker } from "@/components/server-file-picker";
 import { appColors } from "@/constants/theme";
 import { materialFailure } from "../utils/material-failure";
+import {
+  canEditMaterial,
+  materialEditHint,
+} from "../utils/owner-material-presentation";
 import type { ApiMaterial } from "../api/material-contracts";
 import { useMaterialEditor } from "../hooks/use-material-editor";
 import {
@@ -45,6 +49,12 @@ export function MaterialEditorForm({
     save,
   } = editor;
   const access = form.watch("accessType");
+  const readOnlyMaterial =
+    initialMaterial && !canEditMaterial(initialMaterial)
+      ? initialMaterial
+      : material && !canEditMaterial(material)
+        ? material
+        : undefined;
   return (
     <View style={styles.page}>
       {material && (
@@ -52,9 +62,9 @@ export function MaterialEditorForm({
           <MaterialStatusBadge material={material} />
         </View>
       )}
-      {material?.status === "PUBLISHED" && (
+      {readOnlyMaterial && (
         <FormNotice tone="info" compact>
-          Chỉnh sửa sẽ chuyển tài liệu về trạng thái chờ duyệt.
+          {materialEditHint(readOnlyMaterial)}
         </FormNotice>
       )}
       <View style={styles.formSection}>
@@ -223,18 +233,29 @@ export function MaterialEditorForm({
           </Button>
         </>
       )}
-      <Button
-        variant="craft"
-        leadingIcon="check"
-        disabled={blocked || form.formState.isSubmitting}
-        onPress={() => void save()}
-      >
-        {command.pending
-          ? "Đang lưu…"
-          : !material || ["DRAFT", "REJECTED"].includes(material.status)
-            ? "Lưu bản nháp"
-            : "Lưu thay đổi"}
-      </Button>
+      {readOnlyMaterial?.hasBeenPublished ? (
+        <Button
+          variant="craft"
+          leadingIcon="plus"
+          disabled={command.pending || command.uncertain}
+          onPress={() => router.push("/materials/new")}
+        >
+          Đăng tài liệu mới
+        </Button>
+      ) : (
+        <Button
+          variant="craft"
+          leadingIcon="check"
+          disabled={blocked || form.formState.isSubmitting}
+          onPress={() => void save()}
+        >
+          {command.pending
+            ? "Đang lưu…"
+            : !material || ["DRAFT", "REJECTED"].includes(material.status)
+              ? "Lưu bản nháp"
+              : "Lưu thay đổi"}
+        </Button>
+      )}
     </View>
   );
 }

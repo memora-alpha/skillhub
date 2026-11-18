@@ -9,7 +9,7 @@ import {
   materialOwnerId,
 } from "./fixtures/materials-data";
 
-test("ownership remains bound to the purchased material ID and snapshot across archive, unchanged republication and new listing price/file", async () => {
+test("ownership retains its original snapshot across archive and unchanged republication; changed content requires a separate listing ID", async () => {
   const original = fixtureMaterial({
     status: "PUBLISHED",
     accessType: "PAID",
@@ -31,17 +31,6 @@ test("ownership remains bound to the purchased material ID and snapshot across a
   for (const current of [
     { ...original, status: "ARCHIVED" as const, listingVersion: 2 },
     { ...original, listingVersion: 4 },
-    {
-      ...original,
-      title: "Bản nội dung mới",
-      priceCredit: "50.00",
-      listingVersion: 8,
-      file: {
-        ...original.file!,
-        originalFilename: "ban-moi.pdf",
-        sizeBytes: "2000000",
-      },
-    },
   ]) {
     const api = createMaterialsApi(async (path, options) => {
       requests.push(path);
@@ -93,4 +82,27 @@ test("ownership remains bound to the purchased material ID and snapshot across a
     ),
     false,
   );
+  const newListing = fixtureMaterial({
+    id: "123e4567-e89b-42d3-a456-000000000099",
+    status: "PUBLISHED",
+    title: "Tài liệu nội dung mới",
+    accessType: "PAID",
+    priceCredit: "50.00",
+    file: { ...original.file!, originalFilename: "ban-moi.pdf" },
+  });
+  const api = createMaterialsApi(async (path) => {
+    if (path === `/materials/${newListing.id}`) return newListing;
+    if (path.startsWith("/me/material-orders?"))
+      return {
+        data: [order],
+        meta: { pagination: { limit: 20, hasMore: false, nextCursor: null } },
+      };
+    throw Error("Unexpected request " + path);
+  }, materialOtherId);
+  assert.equal(await api.ownedOrder(newListing.id), null);
+  assert.equal(
+    (await api.publicDetail(newListing.id)).file?.originalFilename,
+    "ban-moi.pdf",
+  );
+  assert.equal((await api.ownedOrder(original.id))?.grossCredit, "10.00");
 });

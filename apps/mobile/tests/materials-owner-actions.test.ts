@@ -19,7 +19,7 @@ import {
 } from "../src/features/materials/utils/owner-material-presentation";
 import { fixtureMaterial } from "./fixtures/materials-data";
 
-test("only published materials can stop sharing while editable states retain edit and draft submit", () => {
+test("published content stays locked across its lifecycle while archive, submit, withdrawal and deletion remain separate", () => {
   assert.equal(canArchiveMaterial(fixtureMaterial()), false);
   assert.equal(canEditMaterial(fixtureMaterial()), true);
   assert.equal(
@@ -47,13 +47,35 @@ test("only published materials can stop sharing while editable states retain edi
   );
   assert.equal(
     canEditMaterial(fixtureMaterial({ status: "PENDING_REVIEW" })),
-    true,
+    false,
   );
   assert.equal(
     canArchiveMaterial(fixtureMaterial({ status: "PENDING_REVIEW" })),
     false,
   );
-  assert.equal(canEditMaterial(fixtureMaterial({ status: "ARCHIVED" })), true);
+  assert.equal(canEditMaterial(fixtureMaterial({ status: "ARCHIVED" })), false);
+  for (const status of [
+    "DRAFT",
+    "PENDING_REVIEW",
+    "PUBLISHED",
+    "REJECTED",
+    "HIDDEN",
+    "ARCHIVED",
+  ] as const) {
+    assert.equal(
+      canEditMaterial(fixtureMaterial({ status, hasBeenPublished: true })),
+      false,
+      `previously published ${status} cannot be edited`,
+    );
+  }
+  assert.equal(canEditMaterial(fixtureMaterial({ status: "REJECTED" })), true);
+  for (const change of [
+    { hasBeenPublished: undefined },
+    { canEdit: undefined },
+    { canEdit: false },
+    { editBlockedReason: "MATERIAL_CONTENT_LOCKED" as const },
+  ])
+    assert.equal(canEditMaterial(fixtureMaterial(change)), false);
   assert.equal(
     canSubmitMaterial(fixtureMaterial({ status: "ARCHIVED" })),
     true,

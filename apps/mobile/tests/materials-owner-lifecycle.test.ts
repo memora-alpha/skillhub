@@ -102,8 +102,8 @@ test("unknown withdrawal reads its target without replaying POST, then resubmits
         reads.push(id);
         return draft;
       },
-      submit: async (id) => {
-        writes.push(["submit", id]);
+      submit: async (id, version) => {
+        writes.push(["submit", id, version]);
         return { ...draft, status: "PENDING_REVIEW" };
       },
       archive: async () => {
@@ -135,7 +135,7 @@ test("unknown withdrawal reads its target without replaying POST, then resubmits
   await actions.run("submit", draft);
   assert.deepEqual(writes, [
     ["withdraw", pending.id, 7],
-    ["submit", pending.id],
+    ["submit", pending.id, 8],
   ]);
 });
 
@@ -185,4 +185,56 @@ test("archived deletion retries its original ID/version after uncertainty and do
   assert.deepEqual(versions, [4, 4]);
   assert.deepEqual(removed, [archived.id]);
   assert.equal(state.uncertain, undefined);
+});
+
+test("lifecycle conflicts never retry automatically; a new explicit action sends the refreshed row version", async () => {
+  for (const action of ["submit", "archive"] as const) {
+    const row = fixtureMaterial({
+      status: action === "submit" ? "ARCHIVED" : "PUBLISHED",
+      listingVersion: 3,
+    });
+    const calls: unknown[] = [];
+    const conflict = new AppError("http", 409, "MATERIAL_VERSION_CONFLICT");
+    const api = createMaterialsApi(async (path, options) => {
+      calls.push([path, options?.body]);
+      if (calls.length === 1) throw conflict;
+      return fixtureMaterial({
+        status: action === "submit" ? "PENDING_REVIEW" : "ARCHIVED",
+        hasBeenPublished: true,
+        listingVersion: 5,
+      });
+    }, materialOwnerId);
+    let state: OwnerActionState = {};
+    let invalidations = 0;
+    let results = 0;
+    const actions = createOwnerMaterialActions({
+      api,
+      isCurrent: () => true,
+      onChange: (value) => {
+        state = value;
+      },
+      onResult: async () => {
+        results++;
+      },
+      onDeleted: async () => {},
+      onFailure: () => {
+        invalidations++;
+      },
+    });
+    await actions.run(action, row);
+    assert.equal(state.error, conflict);
+    assert.equal(state.uncertain, undefined);
+    assert.equal(invalidations, 1);
+    await actions.reconcile();
+    assert.equal(calls.length, 1, "a known conflict cannot replay a mutation");
+    await actions.run(action, { ...row, listingVersion: 4 });
+    assert.deepEqual(
+      calls,
+      [3, 4].map((expectedListingVersion) => [
+        `/me/materials/${row.id}/${action}`,
+        { expectedListingVersion },
+      ]),
+    );
+    assert.equal(results, 1);
+  }
 });

@@ -63,18 +63,18 @@ test("owner submit and archive use exact paths without renewal replay and valida
     return {
       ...material,
       status: path.endsWith("/submit") ? "PENDING_REVIEW" : "ARCHIVED",
+      listingVersion: material.listingVersion + 1,
     };
   }, materialOwnerId);
-  await api.submit(material.id);
-  await api.archive(material.id);
+  await api.submit(material.id, material.listingVersion);
+  await api.archive(material.id, material.listingVersion);
   assert.deepEqual(
     calls,
     ["submit", "archive"].map((action) => [
       `/me/materials/${material.id}/${action}`,
       {
         method: "POST",
-        body: undefined,
-        idempotencyKey: undefined,
+        body: { expectedListingVersion: material.listingVersion },
         replayAfterRenewal: false,
       },
     ]),
@@ -85,12 +85,16 @@ test("owner submit and archive use exact paths without renewal replay and valida
     material,
   ]) {
     await assert.rejects(
-      createMaterialsApi(async () => row, materialOwnerId).archive(material.id),
+      createMaterialsApi(async () => row, materialOwnerId).archive(
+        material.id,
+        1,
+      ),
     );
   }
   await assert.rejects(
     createMaterialsApi(async () => material, materialOwnerId).submit(
       material.id,
+      1,
     ),
   );
 });
@@ -105,4 +109,77 @@ test("legacy detail reads the owned target after public 404 without scanning own
   }, materialOwnerId);
   assert.equal((await api.detail(row.id)).status, "ARCHIVED");
   assert.deepEqual(paths, [`/materials/${row.id}`, `/me/materials/${row.id}`]);
+});
+
+test("owner publication permissions survive parsing, and missing permissions cannot enable editing", async () => {
+  const row = fixtureMaterial({ status: "DRAFT", hasBeenPublished: true });
+  const result = await createMaterialsApi(
+    async () => row,
+    materialOwnerId,
+  ).ownerDetail(row.id);
+  assert.equal(result.hasBeenPublished, true);
+  assert.equal(result.canEdit, false);
+  assert.equal(result.editBlockedReason, "MATERIAL_CONTENT_LOCKED");
+  for (const field of [
+    "hasBeenPublished",
+    "canEdit",
+    "editBlockedReason",
+  ] as const) {
+    const invalid = { ...row, [field]: undefined };
+    const api = createMaterialsApi(
+      async (path) => (path.includes("?") ? page([invalid]) : invalid),
+      materialOwnerId,
+    );
+    await assert.rejects(
+      api.ownerDetail(row.id),
+      (error) => error instanceof AppError && error.kind === "protocol",
+    );
+    await assert.rejects(
+      api.minePage(),
+      (error) => error instanceof AppError && error.kind === "protocol",
+    );
+  }
+  const { hasBeenPublished, canEdit, editBlockedReason, ...publicRow } =
+    fixtureMaterial({ status: "PUBLISHED" });
+  assert.equal(hasBeenPublished, true);
+  assert.equal(canEdit, false);
+  assert.equal(editBlockedReason, "MATERIAL_CONTENT_LOCKED");
+  assert.equal(
+    (
+      await createMaterialsApi(
+        async () => publicRow,
+        materialOtherId,
+      ).publicDetail(row.id)
+    ).id,
+    row.id,
+  );
+});
+
+test("submit and archive reject invalid versions before dispatch, stale receipts and preserve backend conflicts", async () => {
+  const row = fixtureMaterial();
+  for (const action of ["submit", "archive"] as const) {
+    let calls = 0;
+    const api = createMaterialsApi(async () => {
+      calls++;
+      return fixtureMaterial({
+        status: action === "submit" ? "PENDING_REVIEW" : "ARCHIVED",
+        listingVersion: 4,
+      });
+    }, materialOwnerId);
+    for (const invalid of [0, -1, 1.5, NaN, Infinity])
+      await assert.rejects(api[action](row.id, invalid));
+    assert.equal(calls, 0);
+    await assert.rejects(
+      api[action](row.id, 4),
+      (error) => error instanceof AppError && error.kind === "protocol",
+    );
+    const conflict = new AppError("http", 409, "MATERIAL_VERSION_CONFLICT");
+    const stale = createMaterialsApi(async () => {
+      throw conflict;
+    }, materialOwnerId);
+    await assert.rejects(
+      stale[action](row.id, 4),
+      (error) => error === conflict,
+    );
+  }
 });

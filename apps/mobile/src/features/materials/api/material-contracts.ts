@@ -46,6 +46,12 @@ export const materialSchema = z.object({
   rejectReason: z.string().nullable().optional(),
   reviewedAt: timestamp.nullable().optional(),
   distributionRightsConfirmedAt: timestamp.nullable().optional(),
+  hasBeenPublished: z.boolean().optional(),
+  canEdit: z.boolean().optional(),
+  editBlockedReason: z
+    .enum(["MATERIAL_CONTENT_LOCKED", "MATERIAL_NOT_EDITABLE"])
+    .nullable()
+    .optional(),
   cover: z
     .object({
       attached: z.boolean(),
@@ -66,6 +72,11 @@ export const materialSchema = z.object({
     })
     .refine((value) => value.attached === (value.file !== null))
     .optional(),
+});
+export const ownerMaterialSchema = materialSchema.required({
+  hasBeenPublished: true,
+  canEdit: true,
+  editBlockedReason: true,
 });
 export const orderSchema = z.object({
   id: uuid,

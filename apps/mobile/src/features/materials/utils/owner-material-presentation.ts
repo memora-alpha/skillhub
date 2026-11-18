@@ -19,14 +19,23 @@ export const materialFilters = [
   "HIDDEN",
   "ARCHIVED",
 ] as const;
-const editable = new Set<MaterialStatus>([
-  "DRAFT",
-  "PENDING_REVIEW",
-  "PUBLISHED",
-  "REJECTED",
-  "ARCHIVED",
-]);
-export const canEditMaterial = (row: ApiMaterial) => editable.has(row.status);
+export const canEditMaterial = (row: ApiMaterial) =>
+  row.canEdit === true &&
+  row.hasBeenPublished === false &&
+  row.editBlockedReason === null &&
+  (row.status === "DRAFT" || row.status === "REJECTED");
+export function materialEditHint(row: ApiMaterial) {
+  if (canEditMaterial(row)) return null;
+  if (
+    row.hasBeenPublished ||
+    row.editBlockedReason === "MATERIAL_CONTENT_LOCKED" ||
+    row.status === "PUBLISHED"
+  )
+    return "Tài liệu đã từng được đăng nên nội dung và giá được giữ nguyên. Muốn thay đổi, hãy đăng tài liệu mới.";
+  if (row.status === "PENDING_REVIEW")
+    return "Rút yêu cầu duyệt về bản nháp trước khi chỉnh sửa.";
+  return "Tài liệu hiện không thể chỉnh sửa. Tải lại để kiểm tra quyền hiện tại.";
+}
 export const canArchiveMaterial = (row: ApiMaterial) =>
   row.status === "PUBLISHED";
 export const canDeleteMaterial = (row: ApiMaterial) =>
@@ -40,7 +49,7 @@ export function materialArchivePresentation(row: ApiMaterial) {
       label: "Ngừng chia sẻ",
       title: "Ngừng chia sẻ tài liệu?",
       description:
-        "Tài liệu sẽ ngừng xuất hiện công khai và không nhận lượt mua hoặc truy cập mới. Người đã mua vẫn giữ quyền tải bản đã mua. Bạn có thể chỉnh sửa và gửi duyệt lại trong mục Đã ngừng chia sẻ.",
+        "Tài liệu sẽ ngừng xuất hiện công khai và không nhận lượt mua hoặc truy cập mới. Người đã mua vẫn giữ quyền tải. Bạn có thể gửi duyệt lại nguyên nội dung trong mục Đã ngừng chia sẻ.",
       notice: "Đã ngừng chia sẻ tài liệu.",
     };
 }

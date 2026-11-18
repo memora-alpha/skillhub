@@ -19,12 +19,18 @@ Owner list đã nối cursor/submit/archive nhưng dùng Panel và nhiều nút 
 
 ## Task
 
+- [x] Rà source/import graph và mock runtime; bỏ helper/style/tham số adapter không còn consumer, gom điều kiện quyền lặp. Chạy full mobile tests, TypeScript/lint/structure, web export, định dạng/whitespace và commit-scope checks.
+
+- [x] Căn lại nhóm nút owner: cặp Chỉnh sửa/Gửi duyệt cân đối, nút đơn căn phải; footer chi tiết tách Xóa, xác nhận Hủy/action đều chiều rộng và wrap màn nhỏ. Đưa Đăng tài liệu mới xuống cuối form bị khóa thay nút Lưu vô hiệu hóa; kiểm preview và regression quyền/lifecycle.
+
+- [x] Đồng bộ BE PR109 `origin/dev@8d89ee25`: parse bộ quyền hasBeenPublished/canEdit/editBlockedReason, khóa sửa sau lần đăng đầu và PENDING_REVIEW; giữ lifecycle độc lập với edit, gửi expectedListingVersion cho submit/archive, xử lý conflict mà không replay và giữ draft. Nội dung/giá mới dùng ID mới.
+
 - [x] Giữ màn chỉnh sửa sau Lưu thay đổi/Lưu bản nháp cho tài liệu hiện có; nhận version/metadata từ receipt, reset form/file/cover đã lưu và toast. Kiểm lưu tiếp, lỗi/phiên cũ và giữ recovery xung đột; tạo mới vẫn về danh sách như trước.
 - [x] Ghi luồng mục tiêu tách Ngừng chia sẻ và Xóa mềm, đối chiếu source và lập [danh sách BE cần bổ sung](status.md#be-cần-bổ-sung--tách-ngừng-chia-sẻ-và-xóa-mềm) trước khi sửa runtime.
 - [x] Đối chiếu BE PR108 `origin/dev@a4b13dc9`: deletedAt/legacyArchiveUnclassified, DELETE/replay, status filter/owner detail, submit ARCHIVED, withdraw và buyer download/thumbnail.
 - [x] Nối owner list theo status, query/cursor riêng; thêm Đã ngừng chia sẻ trong thanh lọc, khóa đổi khi mutation pending/uncertain, cache gỡ row khỏi filter cũ sau transition.
 - [x] Nối GET owner detail cho editor/recovery và legacy detail fallback; bỏ helper quét hết owner list không còn consumer.
-- [x] Nối chỉnh sửa/đăng lại ARCHIVED cùng ID, xóa DRAFT/ARCHIVED có xác nhận/toast, rút duyệt đúng version; bỏ copy yêu cầu tạo tài liệu mới.
+- [x] Nối đăng lại ARCHIVED nguyên nội dung cùng ID, xóa DRAFT/ARCHIVED có xác nhận/toast, rút duyệt đúng version; thay nội dung/giá của tài liệu từng đăng cần ID mới theo PR109.
 - [x] Làm rõ mỗi bài một file nội dung, dùng Thay tệp; bỏ tệp mới giữ file đã gắn, không gửi fileId:null. Ảnh bìa là mục riêng.
 - [ ] Nghiệm thu luồng lifecycle mới với API có đăng nhập, migration dữ liệu cũ và Android/iOS; source/fixture không thay nghiệm thu triển khai.
 

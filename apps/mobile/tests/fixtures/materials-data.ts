@@ -4,6 +4,15 @@ export const materialOtherId = "123e4567-e89b-42d3-a456-000000000002";
 export function fixtureMaterial(
   overrides: Partial<ApiMaterial> = {},
 ): ApiMaterial {
+  const status = overrides.status ?? "DRAFT";
+  const hasBeenPublished =
+    overrides.hasBeenPublished ??
+    (status === "PUBLISHED" || status === "ARCHIVED");
+  const editBlockedReason = hasBeenPublished
+    ? "MATERIAL_CONTENT_LOCKED"
+    : status === "DRAFT" || status === "REJECTED"
+      ? null
+      : "MATERIAL_NOT_EDITABLE";
   return {
     id: "123e4567-e89b-42d3-a456-000000000010",
     ownerId: materialOwnerId,
@@ -26,6 +35,9 @@ export function fixtureMaterial(
     rejectReason: null,
     reviewedAt: null,
     distributionRightsConfirmedAt: "2026-11-13T08:00:00Z",
+    hasBeenPublished,
+    canEdit: editBlockedReason === null,
+    editBlockedReason,
     ...overrides,
   };
 }
