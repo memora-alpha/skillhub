@@ -70,14 +70,6 @@ export const materialStyles = {
     },
     accent: { color: colors.primary },
     divider: { height: 1, backgroundColor: colors.border },
-    payment: {
-      padding: 16,
-      gap: 14,
-      borderWidth: 1,
-      borderColor: colors.primaryMuted,
-      backgroundColor: colors.primarySoft,
-      borderRadius: appRadius.card,
-    },
     formSection: {
       gap: 12,
       padding: 16,

@@ -14,11 +14,6 @@ export function MaterialDownloadFeedback({
           {materialFailure(download.error)}
         </FormNotice>
       )}
-      {download.complete && (
-        <FormNotice tone="success" compact>
-          Đã gửi tệp đến nơi lưu bạn chọn.
-        </FormNotice>
-      )}
       {download.awaitingConfirmation && (
         <InfoModal
           title="Tải tài liệu đã mua?"

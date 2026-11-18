@@ -40,6 +40,9 @@ test("purchased cards show current listing metadata while preserving purchase hi
   let issued: (() => void) | undefined;
   let publicMaterial: ReturnType<typeof fixtureMaterial> | undefined;
   let publicError: unknown;
+  let downloadPending = false,
+    awaitingConfirmation = false,
+    refunds = 0;
   const downloads: boolean[] = [];
   const invalidations: unknown[] = [];
   const contexts = Object.entries({
@@ -78,8 +81,8 @@ test("purchased cards show current listing metadata while preserving purchase hi
       useMaterialDownload: (_id: string, onIssued: () => void) => {
         issued = onIssued;
         return {
-          pending: false,
-          awaitingConfirmation: false,
+          pending: downloadPending,
+          awaitingConfirmation,
           start: async (confirm: boolean) => {
             downloads.push(confirm);
           },
@@ -91,6 +94,8 @@ test("purchased cards show current listing metadata while preserving purchase hi
     },
     "./material-summary": { MaterialFileBadge: "FileBadge" },
     "./material-cover": { MaterialCover: "Cover" },
+    "./material-order-details": { MaterialOrderDetails: "OrderDetails" },
+    "./material-order.styles": { materialOrderStyles: {} },
     "./material.styles": { materialStyles: {} },
   }).map(([name, namedExports]) =>
     mock.module(pathToFileURL(local.resolve(name)), { namedExports }),
@@ -131,13 +136,15 @@ test("purchased cards show current listing metadata while preserving purchase hi
         evaluatedAt: at,
       },
     };
-    const render = (visible = true) =>
+    const render = (visible = true, disabled = false) =>
       nodes(
         MaterialOrderCard({
           order,
           visible,
-          disabled: false,
-          onRefund() {},
+          disabled,
+          onRefund() {
+            refunds++;
+          },
         }),
       );
     let tree = render();
@@ -159,15 +166,25 @@ test("purchased cards show current listing metadata while preserving purchase hi
       tree.some((node) => node.props.children === "Tên phiên bản mới"),
       false,
     );
+    assert.equal(
+      tree.find((node) => node.type === "OrderDetails")!.props.order,
+      order,
+    );
     assert.equal(button("Hoàn tiền").props.disabled, true);
-    assert.equal(button("Tải tài liệu").props.disabled, false);
+    (button("Hoàn tiền").props.onPress as () => void)();
+    assert.equal(
+      refunds,
+      0,
+      "ineligible orders cannot open refund confirmation",
+    );
+    assert.equal(button("Tải bản đã mua").props.disabled, false);
     (
       tree.find((node) => node.type === "Pressable")!.props
         .onPress as () => void
     )();
     assert.equal(route, `/materials/${order.materialId}`);
     assert.deepEqual(downloads, [], "opening details never issues a download");
-    await (button("Tải tài liệu").props.onPress as () => Promise<void>)();
+    await (button("Tải bản đã mua").props.onPress as () => Promise<void>)();
     assert.deepEqual(downloads, [true]);
     publicMaterial = fixtureMaterial({
       title: "Tên phiên bản mới",
@@ -187,11 +204,13 @@ test("purchased cards show current listing metadata while preserving purchase hi
       tree.find((node) => node.type === "Cover")!.props.material,
       publicMaterial,
     );
-    const contents = tree.map(text).join(" ");
-    assert.match(contents, /Tên lúc mua: Tên lúc mua/);
-    assert.match(contents, /Tệp đã mua: ban-cu\.pdf/);
-    assert.match(contents, /Giá lúc mua: 10 CR/);
-    assert.match(contents, /Bản đã mua v1/);
+    assert.equal(
+      tree.find((node) => node.type === "Cover")!.props.compact,
+      true,
+    );
+    const details = tree.find((node) => node.type === "OrderDetails")!;
+    assert.equal(details.props.order, order);
+    assert.equal(details.props.currentTitle, publicMaterial.title);
     assert.equal(order.grossCredit, "10.00");
     (
       tree.find((node) => node.type === "Pressable")!.props
@@ -203,7 +222,7 @@ test("purchased cards show current listing metadata while preserving purchase hi
     tree = render();
     assert.ok(tree.some((node) => node.props.children === "Tên lúc mua"));
     assert.match(tree.map(text).join(" "), /Thông tin hiện tại chưa khả dụng/);
-    assert.equal(button("Tải tài liệu").props.disabled, false);
+    assert.equal(button("Tải bản đã mua").props.disabled, false);
     (button("Viết đánh giá").props.onPress as () => void)();
     assert.equal(route, `/materials/${order.materialId}/review`);
     issued?.();
@@ -228,6 +247,29 @@ test("purchased cards show current listing metadata while preserving purchase hi
       canReview: false,
       reasonCode: "MATERIAL_REVIEW_ALREADY_EXISTS",
     };
+    order.refundEligibility = {
+      ...order.refundEligibility!,
+      canRefund: true,
+      reasonCode: null,
+    };
+    tree = render(true, true);
+    assert.equal(button("Hoàn tiền").props.disabled, true);
+    downloadPending = true;
+    tree = render();
+    assert.equal(button("Hoàn tiền").props.disabled, true);
+    downloadPending = false;
+    awaitingConfirmation = true;
+    tree = render();
+    assert.equal(button("Hoàn tiền").props.disabled, true);
+    awaitingConfirmation = false;
+    tree = render();
+    assert.equal(button("Hoàn tiền").props.disabled, false);
+    (button("Hoàn tiền").props.onPress as () => void)();
+    assert.equal(
+      refunds,
+      1,
+      "visible refund action opens the existing confirmation",
+    );
     order.status = "REFUNDED";
     tree = render();
     (
@@ -238,11 +280,88 @@ test("purchased cards show current listing metadata while preserving purchase hi
     assert.ok(button("Xem đánh giá"));
     assert.equal(
       tree.some(
-        (node) =>
-          node.type === "Button" && node.props.children === "Tải tài liệu",
+        (node) => node.type === "Button" && node.props.children === "Hoàn tiền",
       ),
       false,
     );
+    assert.equal(
+      tree.some(
+        (node) =>
+          node.type === "Button" && node.props.children === "Tải bản đã mua",
+      ),
+      false,
+    );
+  } finally {
+    contexts.reverse().forEach((context) => context.restore());
+    delete local.cache[file];
+  }
+});
+
+test("purchase summary shows the original file and paid price without a disclosure after the listing changes", () => {
+  const local = createRequire(
+    new URL(
+      "../src/features/materials/components/material-order-details.tsx",
+      import.meta.url,
+    ),
+  );
+  const contexts = Object.entries({
+    "react/jsx-runtime": { jsx, jsxs: jsx },
+    "react-native": { View: "View", Text: "Text" },
+    "./material.styles": { materialStyles: {} },
+    "./material-order.styles": { materialOrderStyles: {} },
+  }).map(([name, namedExports]) =>
+    mock.module(pathToFileURL(local.resolve(name)), { namedExports }),
+  );
+  const file = local.resolve("./material-order-details.tsx");
+  try {
+    delete local.cache[file];
+    const { MaterialOrderDetails } = local(file);
+    const order: MaterialOrder = {
+      id: materialOtherId,
+      materialId: fixtureMaterial().id,
+      sellerId: materialOwnerId,
+      listingVersion: 1,
+      grossCredit: "10.00",
+      feeAmount: "1.00",
+      sellerNetCredit: "9.00",
+      status: "SUCCESS",
+      createdAt: at,
+      purchasedMaterial: {
+        title: "Tên lúc mua",
+        originalFilename: "ban-cu.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: "1000",
+      },
+      refundEligibility: {
+        canRefund: false,
+        reasonCode: "MATERIAL_ALREADY_CONSUMED",
+        deadline: at,
+        evaluatedAt: at,
+      },
+    };
+    const render = (currentTitle = "Tên phiên bản mới") =>
+      nodes(
+        MaterialOrderDetails({
+          order,
+          currentTitle,
+        }),
+      );
+    const tree = render();
+    const contents = tree.map(text).join(" ");
+    assert.match(contents, /10 CR/);
+    assert.match(contents, /Tên lúc mua: Tên lúc mua/);
+    assert.match(contents, /Tệp đã mua: ban-cu\.pdf/);
+    assert.equal(
+      tree.some((node) => typeof node.props.onPress === "function"),
+      false,
+    );
+    assert.doesNotMatch(
+      render("Tên lúc mua").map(text).join(" "),
+      /Tên lúc mua:/,
+    );
+    assert.equal(order.grossCredit, "10.00");
+    order.status = "REFUNDED";
+    assert.match(render().map(text).join(" "), /Đã hoàn tiền/);
   } finally {
     contexts.reverse().forEach((context) => context.restore());
     delete local.cache[file];
@@ -309,10 +428,12 @@ test("saved cover removal waits for explicit save and preserves listing version;
       useMaterialEditorRecovery: () => ({
         material,
         adopt: () => material,
+        acceptSaved: () => material,
         loading: false,
         conflict: false,
       }),
     },
+    "@/providers/ToastProvider": { useToast: () => ({ showToast() {} }) },
   }).map(([name, namedExports]) =>
     mock.module(pathToFileURL(local.resolve(name)), { namedExports }),
   );

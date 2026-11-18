@@ -69,7 +69,9 @@ test("editor saves a file-less draft, gates upload/read-only states and validate
   let keepSnapshot = false;
   let defaults: { rights: boolean } | undefined;
   const snapshots: { current: unknown }[] = [];
-  let refIndex = 0;
+  const states: unknown[] = [];
+  let refIndex = 0,
+    stateIndex = 0;
   const api = createMaterialsApi(async (path, options) => {
     calls++;
     sent = { path, body: options?.body };
@@ -84,21 +86,33 @@ test("editor saves a file-less draft, gates upload/read-only states and validate
           : { current: value };
       },
       useEffect() {},
-      useState: (value: unknown) => [
-        typeof value === "boolean" && !value ? uploadBusy : value,
-        () => {},
-      ],
+      useState: (value: unknown) => {
+        const n = stateIndex++;
+        if (keepSnapshot && !(n in states)) states[n] = value;
+        return [
+          typeof value === "boolean" && !value
+            ? uploadBusy
+            : keepSnapshot
+              ? states[n]
+              : value,
+          (next: unknown) => {
+            if (keepSnapshot) states[n] = next;
+          },
+        ];
+      },
     },
     "react-hook-form": {
       useForm: (options: { defaultValues: { rights: boolean } }) => {
         defaults = options.defaultValues;
         return {
+          reset() {},
           handleSubmit: (send: (values: unknown) => Promise<unknown>) => () =>
             send(values),
         };
       },
     },
     "@hookform/resolvers/zod": { zodResolver: () => undefined },
+    "@/providers/ToastProvider": { useToast: () => ({ showToast() {} }) },
     "expo-router": {
       useRouter: () => ({
         replace: (target: unknown) => {
@@ -123,7 +137,7 @@ test("editor saves a file-less draft, gates upload/read-only states and validate
     delete local.cache[file];
     const { useMaterialEditor: renderEditor } = local(file);
     const useMaterialEditor = (row?: typeof material, readBlocked = false) => {
-      refIndex = 0;
+      refIndex = stateIndex = 0;
       return renderEditor(row, readBlocked);
     };
     await useMaterialEditor().save();

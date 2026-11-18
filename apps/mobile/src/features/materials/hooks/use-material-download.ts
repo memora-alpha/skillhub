@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useConnections } from "@/features/connections";
 import { uuid } from "@/lib/http/contracts";
+import { useToast } from "@/providers/ToastProvider";
 import { useMaterialsApi } from "./use-materials";
 import {
   prepareMaterialDownload,
@@ -10,6 +11,7 @@ import {
 export function useMaterialDownload(id: string, onIssued?: () => void) {
   const runtime = useConnections();
   const api = useMaterialsApi();
+  const { showToast } = useToast();
   const flight = useRef(false);
   const alive = useRef(true);
   const controller = useRef<AbortController | undefined>(undefined);
@@ -21,7 +23,6 @@ export function useMaterialDownload(id: string, onIssued?: () => void) {
     target: MaterialDownloadTarget;
   }>();
   const [error, setError] = useState<unknown>();
-  const [complete, setComplete] = useState(false);
   const current = () => alive.current && runtime.isCurrent();
   useEffect(() => {
     alive.current = true;
@@ -38,7 +39,7 @@ export function useMaterialDownload(id: string, onIssued?: () => void) {
       if (!current()) return;
       onIssued?.();
       await target(file.url, abort.signal);
-      if (current()) setComplete(true);
+      if (current()) showToast("Đã gửi tệp đến nơi lưu bạn chọn.", "success");
     } catch (cause) {
       if (current() && !abort.signal.aborted) setError(cause);
     }
@@ -54,7 +55,6 @@ export function useMaterialDownload(id: string, onIssued?: () => void) {
     flight.current = true;
     setPending(true);
     setError(undefined);
-    setComplete(false);
     try {
       const target = await prepareMaterialDownload();
       if (!target || !current()) return;
@@ -86,7 +86,6 @@ export function useMaterialDownload(id: string, onIssued?: () => void) {
   return {
     pending,
     error,
-    complete,
     awaitingConfirmation: !!confirmation,
     start,
     confirm,

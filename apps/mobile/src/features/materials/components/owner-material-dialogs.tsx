@@ -201,11 +201,16 @@ export function OwnerMaterialActionDialog({
           }
         : action === "submit"
           ? {
-              title: "Gửi duyệt để đăng lại?",
+              title:
+                material?.status === "ARCHIVED"
+                  ? "Gửi duyệt để đăng lại?"
+                  : "Gửi tài liệu để duyệt?",
               label: "Gửi duyệt",
               icon: "send" as const,
               description:
-                "Tài liệu sẽ được xét duyệt lại trước khi xuất hiện công khai. Lịch sử và đánh giá của bài đăng vẫn được giữ.",
+                material?.status === "ARCHIVED"
+                  ? "Tài liệu sẽ được xét duyệt lại trước khi xuất hiện công khai. Lịch sử và đánh giá của bài đăng vẫn được giữ."
+                  : "Tài liệu sẽ được gửi để xét duyệt trước khi xuất hiện công khai.",
             }
           : material
             ? materialArchivePresentation(material)
@@ -228,7 +233,7 @@ export function OwnerMaterialActionDialog({
             </Button>
           ) : (
             <Button
-              variant="craft"
+              variant={action === "delete" ? "danger" : "craft"}
               leadingIcon={presentation?.icon}
               disabled={disabled}
               onPress={onConfirm}
@@ -239,6 +244,7 @@ export function OwnerMaterialActionDialog({
         </View>
       }
     >
+      {material && <Text style={styles.title}>{material.title}</Text>}
       <Text style={styles.text}>{material && presentation?.description}</Text>
       {!!error && (
         <FormNotice tone="error" compact>

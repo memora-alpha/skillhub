@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "expo-router";
 import { useConnectionCommand, useConnections } from "@/features/connections";
+import { useToast } from "@/providers/ToastProvider";
 import type { ApiMaterial } from "../api/material-contracts";
 import type { UploadedFile } from "@/lib/http/file-upload";
 import { canEditMaterial } from "../utils/owner-material-presentation";
@@ -32,6 +33,7 @@ export function useMaterialEditor(
   const api = useMaterialsApi();
   const runtime = useConnections();
   const router = useRouter();
+  const { showToast } = useToast();
   const command = useConnectionCommand<ApiMaterial>([["materials"]]);
   const recovery = useMaterialEditorRecovery(currentMaterial, command.error);
   const material = recovery.material;
@@ -86,8 +88,17 @@ export function useMaterialEditor(
           ? api.update(material.id, material.listingVersion, body)
           : api.create(body),
     );
-    if (saved && runtime.isCurrent())
+    if (!saved || !runtime.isCurrent()) return;
+    if (!material) {
       router.replace("/materials/mine?tab=posted");
+      return;
+    }
+    if (!recovery.acceptSaved(saved)) return;
+    form.reset(editorValues(saved));
+    setFiles([]);
+    setCoverFiles([]);
+    setRemoveCover(false);
+    showToast("Đã lưu thay đổi.", "success");
   });
   return {
     api,

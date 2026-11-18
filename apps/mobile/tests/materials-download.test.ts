@@ -29,6 +29,7 @@ test("download is explicit, confirms purchased consumption, blocks duplicates, c
   let releaseRead: (() => void) | undefined,
     waitRead = false;
   let lastSignal: AbortSignal | undefined;
+  const toasts: unknown[] = [];
   const contexts = Object.entries({
     react: {
       useState: (initial: unknown) => {
@@ -54,6 +55,11 @@ test("download is explicit, confirms purchased consumption, blocks duplicates, c
     },
     "@/features/connections": {
       useConnections: () => ({ isCurrent: () => current }),
+    },
+    "@/providers/ToastProvider": {
+      useToast: () => ({
+        showToast: (...args: unknown[]) => toasts.push(args),
+      }),
     },
     "./use-materials": {
       useMaterialsApi: () => ({
@@ -99,7 +105,6 @@ test("download is explicit, confirms purchased consumption, blocks duplicates, c
         start: (purchased: boolean) => Promise<void>;
         confirm: () => Promise<void>;
         cancel: () => void;
-        complete: boolean;
         awaitingConfirmation: boolean;
         error: unknown;
       };
@@ -116,6 +121,7 @@ test("download is explicit, confirms purchased consumption, blocks duplicates, c
     };
     let hook = render();
     assert.equal(reads, 0);
+    assert.equal(toasts.length, 0);
     assert.equal(issued, 0);
     cancelled = true;
     await hook.start(true);
@@ -142,7 +148,7 @@ test("download is explicit, confirms purchased consumption, blocks duplicates, c
     releaseRead?.();
     await paid;
     hook = render();
-    assert.equal(hook.complete, true);
+    assert.deepEqual(toasts, [["Đã gửi tệp đến nơi lưu bạn chọn.", "success"]]);
     assert.equal(saves, 1);
     assert.equal(
       issued,
@@ -160,6 +166,7 @@ test("download is explicit, confirms purchased consumption, blocks duplicates, c
     await first;
     assert.equal(reads, 2);
     assert.equal(saves, 2);
+    assert.equal(toasts.length, 2);
     reset();
     hook = render();
     waitRead = true;
@@ -172,6 +179,7 @@ test("download is explicit, confirms purchased consumption, blocks duplicates, c
     await old;
     assert.equal(saves, 2, "no file save after logout/unmount");
     assert.equal(issued, 2, "an old session cannot refresh review eligibility");
+    assert.equal(toasts.length, 2, "old sessions cannot show a success toast");
     reset();
     hook = render("invalid-id");
     const prior = picks;

@@ -243,9 +243,23 @@ export function MaterialReviewEditor({
         showConfirm={false}
         busy={command.pending}
         footer={
-          <Button variant="craft" disabled={busy} onPress={() => void remove()}>
-            Xác nhận xóa
-          </Button>
+          <View style={styles.formActions}>
+            <Button
+              variant="paper"
+              disabled={command.pending}
+              onPress={() => setDeleting(false)}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="danger"
+              leadingIcon="trash"
+              disabled={busy}
+              onPress={() => void remove()}
+            >
+              Xác nhận xóa
+            </Button>
+          </View>
         }
       >
         Bạn muốn xóa đánh giá này?
