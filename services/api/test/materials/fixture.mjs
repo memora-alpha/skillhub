@@ -105,7 +105,11 @@ export async function createMaterialFixture() {
       owner.principal,
       draftInput({ fileId: file.id, ...overrides }),
     );
-    const submitted = await materials.submit(owner.principal, draft.id);
+    const submitted = await materials.submit(
+      owner.principal,
+      draft.id,
+      draft.listingVersion,
+    );
     return moderation.moderate(moderator.principal, draft.id, "approve", {
       expectedListingVersion: submitted.listingVersion,
     });

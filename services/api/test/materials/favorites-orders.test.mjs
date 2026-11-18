@@ -8,7 +8,7 @@ test("saved materials and buyer order projections on isolated PostgreSQL", async
     const seller = await f.account();
     const buyer = await f.account();
     await f.fund(buyer, 5000n);
-    const paid = await f.publishedMaterial(seller, {
+    let paid = await f.publishedMaterial(seller, {
       title: "Historical Kubernetes handbook",
       accessType: "PAID",
       priceCredit: "20",
@@ -54,10 +54,15 @@ test("saved materials and buyer order projections on isolated PostgreSQL", async
         });
         const page = await f.favorites.list(buyer.principal, {});
         assert.equal(page.data.length, 0);
-        await f.moderation.moderate(f.moderator.principal, paid.id, "unhide", {
-          expectedListingVersion: paid.listingVersion,
-          reason: "Safety review cleared",
-        });
+        paid = await f.moderation.moderate(
+          f.moderator.principal,
+          paid.id,
+          "unhide",
+          {
+            expectedListingVersion: paid.listingVersion + 1,
+            reason: "Safety review cleared",
+          },
+        );
       },
     );
 

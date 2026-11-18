@@ -62,7 +62,11 @@ test("owner material lifecycle on isolated PostgreSQL", async (t) => {
     });
     await t.test("submit needs a file", async () => {
       await assert.rejects(
-        f.materials.submit(owner.principal, material.id),
+        f.materials.submit(
+          owner.principal,
+          material.id,
+          material.listingVersion,
+        ),
         /MATERIAL_FILE_REQUIRED/,
       );
     });
@@ -118,7 +122,11 @@ test("owner material lifecycle on isolated PostgreSQL", async (t) => {
     });
     await t.test("submit moves DRAFT to PENDING_REVIEW", async () => {
       const draftVersion = material.listingVersion;
-      material = await f.materials.submit(owner.principal, material.id);
+      material = await f.materials.submit(
+        owner.principal,
+        material.id,
+        material.listingVersion,
+      );
       assert.equal(material.status, "PENDING_REVIEW");
       assert.equal(material.moderationStatus, "PENDING");
       assert.equal(material.listingVersion, draftVersion + 1);
@@ -132,17 +140,26 @@ test("owner material lifecycle on isolated PostgreSQL", async (t) => {
       "only published materials can be archived and the owner can still find them",
       async () => {
         await assert.rejects(
-          f.materials.archive(owner.principal, material.id),
+          f.materials.archive(
+            owner.principal,
+            material.id,
+            material.listingVersion,
+          ),
           /MATERIAL_TRANSITION_INVALID/,
         );
         const published = await f.publishedMaterial(owner);
         await assert.rejects(
-          f.materials.archive(other.principal, published.id),
+          f.materials.archive(
+            other.principal,
+            published.id,
+            published.listingVersion,
+          ),
           /MATERIAL_NOT_FOUND/,
         );
         const archived = await f.materials.archive(
           owner.principal,
           published.id,
+          published.listingVersion,
         );
         assert.equal(archived.status, "ARCHIVED");
         assert.equal(archived.listingVersion, published.listingVersion + 1);
@@ -260,9 +277,17 @@ test("owner material lifecycle on isolated PostgreSQL", async (t) => {
           },
         });
         const second = await f.publishedMaterial(owner);
-        await f.materials.archive(owner.principal, second.id);
+        await f.materials.archive(
+          owner.principal,
+          second.id,
+          second.listingVersion,
+        );
         const third = await f.publishedMaterial(owner);
-        await f.materials.archive(owner.principal, third.id);
+        await f.materials.archive(
+          owner.principal,
+          third.id,
+          third.listingVersion,
+        );
         const ids = [existing.id, second.id, third.id].sort((left, right) =>
           right.localeCompare(left),
         );
@@ -335,11 +360,11 @@ test("owner material lifecycle on isolated PostgreSQL", async (t) => {
             /MATERIAL_NOT_FOUND/,
           );
           await assert.rejects(
-            f.materials.archive(owner.principal, id),
+            f.materials.archive(owner.principal, id, current.listingVersion),
             /MATERIAL_NOT_FOUND/,
           );
           await assert.rejects(
-            f.materials.submit(owner.principal, id),
+            f.materials.submit(owner.principal, id, current.listingVersion),
             /MATERIAL_NOT_FOUND/,
           );
           await assert.rejects(
@@ -394,7 +419,7 @@ test("owner material lifecycle on isolated PostgreSQL", async (t) => {
             expectedListingVersion: hidden.listingVersion,
             title: "Escaping review",
           }),
-          /MATERIAL_NOT_EDITABLE/,
+          /MATERIAL_CONTENT_LOCKED/,
         );
         const restored = await f.moderation.moderate(
           f.moderator.principal,
@@ -417,37 +442,41 @@ test("owner material lifecycle on isolated PostgreSQL", async (t) => {
       },
     );
     await t.test(
-      "editing a PUBLISHED material returns it to review",
+      "published content is locked and unpublished rejections remain editable",
       async () => {
         const live = await f.publishedMaterial(owner);
-        const edited = await f.materials.update(owner.principal, live.id, {
-          expectedListingVersion: live.listingVersion,
-          description: "Updated description text",
-        });
-        assert.equal(edited.status, "PENDING_REVIEW");
+        await assert.rejects(
+          f.materials.update(owner.principal, live.id, {
+            expectedListingVersion: live.listingVersion,
+            description: "Updated description text",
+          }),
+          /MATERIAL_CONTENT_LOCKED/,
+        );
+        const file = await f.materialFile(owner);
+        const draft = await f.materials.create(
+          owner.principal,
+          f.draftInput({ fileId: file.id }),
+        );
+        const pending = await f.materials.submit(
+          owner.principal,
+          draft.id,
+          draft.listingVersion,
+        );
         const rejected = await f.moderation.moderate(
           f.moderator.principal,
-          live.id,
+          draft.id,
           "reject",
           {
-            expectedListingVersion: edited.listingVersion,
+            expectedListingVersion: pending.listingVersion,
             reason: "Needs clearer scope",
           },
         );
-        assert.equal(rejected.status, "REJECTED");
-        assert.equal(rejected.rejectReason, "Needs clearer scope");
-        const queue = await f.moderation.queue(
-          f.moderator.principal,
-          "REJECTED",
-        );
-        assert.ok(queue.data.some((m) => m.id === live.id));
-        // Editing a rejected listing makes a clean DRAFT again (D3).
-        const redrafted = await f.materials.update(owner.principal, live.id, {
+        const redrafted = await f.materials.update(owner.principal, draft.id, {
           expectedListingVersion: rejected.listingVersion,
           title: "Docker basics, clearer scope",
         });
         assert.equal(redrafted.status, "DRAFT");
-        assert.equal(redrafted.moderationStatus, "NONE");
+        assert.equal(redrafted.canEdit, true);
         assert.equal(redrafted.rejectReason, null);
       },
     );
@@ -459,11 +488,29 @@ test("owner material lifecycle on isolated PostgreSQL", async (t) => {
           owner.principal,
           f.draftInput({ fileId: file.id }),
         );
-        const pending = await f.materials.submit(owner.principal, draft.id);
-        const edited = await f.materials.update(owner.principal, draft.id, {
-          expectedListingVersion: pending.listingVersion,
-          description: "Swapped content after submission",
-        });
+        const pending = await f.materials.submit(
+          owner.principal,
+          draft.id,
+          draft.listingVersion,
+        );
+        const withdrawn = await f.materials.withdraw(
+          owner.principal,
+          draft.id,
+          pending.listingVersion,
+        );
+        const editedDraft = await f.materials.update(
+          owner.principal,
+          draft.id,
+          {
+            expectedListingVersion: withdrawn.listingVersion,
+            description: "Swapped content after submission",
+          },
+        );
+        const edited = await f.materials.submit(
+          owner.principal,
+          draft.id,
+          editedDraft.listingVersion,
+        );
         assert.equal(edited.status, "PENDING_REVIEW");
         await assert.rejects(
           f.moderation.moderate(f.moderator.principal, draft.id, "approve", {
@@ -490,21 +537,25 @@ test("owner material lifecycle on isolated PostgreSQL", async (t) => {
           own.principal,
           f.draftInput({ fileId: file.id }),
         );
-        const pending = await f.materials.submit(own.principal, draft.id);
+        const pending = await f.materials.submit(
+          own.principal,
+          draft.id,
+          draft.listingVersion,
+        );
         const version = { expectedListingVersion: pending.listingVersion };
         await assert.rejects(
           f.moderation.moderate(own.principal, draft.id, "approve", version),
           /MATERIAL_SELF_REVIEW_FORBIDDEN/,
         );
         const peer = await f.account("STAFF");
-        await f.moderation.moderate(
+        const approved = await f.moderation.moderate(
           peer.principal,
           draft.id,
           "approve",
           version,
         );
         await f.moderation.moderate(own.principal, draft.id, "hide", {
-          ...version,
+          expectedListingVersion: approved.listingVersion,
           reason: "Pulling my own listing",
         });
         await assert.rejects(
@@ -532,13 +583,15 @@ test("owner material lifecycle on isolated PostgreSQL", async (t) => {
           published.listingVersion,
           "delete-history-purchase",
         );
-        const pending = await f.materials.update(
+        const archived = await f.materials.archive(
           owner.principal,
           published.id,
-          {
-            expectedListingVersion: published.listingVersion,
-            description: "A changed version awaiting a new moderation decision",
-          },
+          published.listingVersion,
+        );
+        const pending = await f.materials.submit(
+          owner.principal,
+          published.id,
+          archived.listingVersion,
         );
         const rejected = await f.moderation.moderate(
           f.moderator.principal,
@@ -549,13 +602,21 @@ test("owner material lifecycle on isolated PostgreSQL", async (t) => {
             reason: "Needs revision before it can be published again",
           },
         );
-        const redrafted = await f.materials.update(
+        await assert.rejects(
+          f.materials.update(owner.principal, published.id, {
+            expectedListingVersion: rejected.listingVersion,
+            title: "Locked old listing",
+          }),
+          /MATERIAL_CONTENT_LOCKED/,
+        );
+        // Represents legacy content already returned to DRAFT before the lock rollout.
+        await f.db.material.update({
+          where: { id: published.id },
+          data: { status: "DRAFT" },
+        });
+        const redrafted = await f.materials.getMine(
           owner.principal,
           published.id,
-          {
-            expectedListingVersion: rejected.listingVersion,
-            title: "Purchased material under revision",
-          },
         );
         await f.materials.remove(
           owner.principal,
@@ -574,7 +635,7 @@ test("owner material lifecycle on isolated PostgreSQL", async (t) => {
   }
 });
 
-test("a stopped material can be edited and republished only after fresh Staff review", async () => {
+test("a stopped material stays immutable and can be republished only after fresh Staff review", async () => {
   const f = await createMaterialFixture();
   try {
     const owner = await f.account();
@@ -583,16 +644,23 @@ test("a stopped material can be edited and republished only after fresh Staff re
       accessType: "PAID",
       priceCredit: "10",
     });
-    const archived = await f.materials.archive(owner.principal, published.id);
+    const archived = await f.materials.archive(
+      owner.principal,
+      published.id,
+      published.listingVersion,
+    );
     await assert.rejects(
-      f.materials.submit(other.principal, archived.id),
+      f.materials.submit(other.principal, archived.id, archived.listingVersion),
       /MATERIAL_NOT_FOUND/,
     );
-    const edited = await f.materials.update(owner.principal, archived.id, {
-      expectedListingVersion: archived.listingVersion,
-      title: "Updated archived material",
-    });
-    assert.equal(edited.status, "ARCHIVED");
+    await assert.rejects(
+      f.materials.update(owner.principal, archived.id, {
+        expectedListingVersion: archived.listingVersion,
+        title: "Updated archived material",
+      }),
+      /MATERIAL_CONTENT_LOCKED/,
+    );
+    const edited = archived;
     const oldApproval = { expectedListingVersion: edited.listingVersion };
     await assert.rejects(
       f.moderation.moderate(
@@ -614,7 +682,11 @@ test("a stopped material can be edited and republished only after fresh Staff re
       /MATERIAL_NOT_PUBLISHED/,
     );
 
-    const pending = await f.materials.submit(owner.principal, edited.id);
+    const pending = await f.materials.submit(
+      owner.principal,
+      edited.id,
+      edited.listingVersion,
+    );
     assert.equal(pending.id, published.id);
     assert.equal(pending.listingVersion, edited.listingVersion + 1);
     assert.equal(pending.status, "PENDING_REVIEW");
@@ -647,17 +719,38 @@ test("a stopped material can be edited and republished only after fresh Staff re
     );
     assert.equal(republished.id, published.id);
     assert.equal((await f.catalog.detail(republished.id)).title, edited.title);
+    await assert.rejects(
+      f.materials.archive(
+        owner.principal,
+        republished.id,
+        published.listingVersion,
+      ),
+      /MATERIAL_VERSION_CONFLICT/,
+    );
 
     const archivedAgain = await f.materials.archive(
       owner.principal,
       republished.id,
+      republished.listingVersion,
+    );
+    await assert.rejects(
+      f.materials.submit(
+        owner.principal,
+        archivedAgain.id,
+        archived.listingVersion,
+      ),
+      /MATERIAL_VERSION_CONFLICT/,
     );
     await f.db.material.update({
       where: { id: republished.id },
       data: { distributionRightsConfirmedAt: null },
     });
     await assert.rejects(
-      f.materials.submit(owner.principal, archivedAgain.id),
+      f.materials.submit(
+        owner.principal,
+        archivedAgain.id,
+        archivedAgain.listingVersion,
+      ),
       /MATERIAL_FILE_REQUIRED/,
     );
     await f.db.material.update({
@@ -668,7 +761,11 @@ test("a stopped material can be edited and republished only after fresh Staff re
       },
     });
     await assert.rejects(
-      f.materials.submit(owner.principal, archivedAgain.id),
+      f.materials.submit(
+        owner.principal,
+        archivedAgain.id,
+        archivedAgain.listingVersion,
+      ),
       /MATERIAL_FILE_REQUIRED/,
     );
     const { storageKey } = await f.db.material.update({
@@ -689,14 +786,22 @@ test("a stopped material can be edited and republished only after fresh Staff re
       data: { storageKey: rejectedFile.objectKey },
     });
     await assert.rejects(
-      f.materials.submit(owner.principal, archivedAgain.id),
+      f.materials.submit(
+        owner.principal,
+        archivedAgain.id,
+        archivedAgain.listingVersion,
+      ),
       /MATERIAL_FILE_REQUIRED/,
     );
     await f.db.material.update({
       where: { id: republished.id },
       data: { storageKey },
     });
-    const direct = await f.materials.submit(owner.principal, archivedAgain.id);
+    const direct = await f.materials.submit(
+      owner.principal,
+      archivedAgain.id,
+      archivedAgain.listingVersion,
+    );
     assert.equal(direct.status, "PENDING_REVIEW");
     await f.db.material.update({
       where: { id: republished.id },
@@ -720,10 +825,10 @@ test("a stopped material can be edited and republished only after fresh Staff re
         expectedListingVersion: hidden.listingVersion,
         title: "No longer editable",
       }),
-      /MATERIAL_NOT_EDITABLE/,
+      /MATERIAL_CONTENT_LOCKED/,
     );
     await assert.rejects(
-      f.materials.submit(owner.principal, hidden.id),
+      f.materials.submit(owner.principal, hidden.id, hidden.listingVersion),
       /MATERIAL_TRANSITION_INVALID/,
     );
   } finally {
@@ -741,7 +846,11 @@ test("withdrawal and Staff decisions serialize in both orders on PostgreSQL", as
         owner.principal,
         f.draftInput({ fileId: file.id }),
       );
-      return f.materials.submit(owner.principal, draft.id);
+      return f.materials.submit(
+        owner.principal,
+        draft.id,
+        draft.listingVersion,
+      );
     };
     for (const winner of ["approve", "reject", "withdraw"]) {
       const pending = await newPending();
@@ -774,8 +883,8 @@ test("withdrawal and Staff decisions serialize in both orders on PostgreSQL", as
         const currentStatus = winner === "approve" ? "PUBLISHED" : "REJECTED";
         assert.equal(first.value.status, currentStatus);
         assert.deepEqual(second.reason.getResponse(), {
-          message: "MATERIAL_TRANSITION_INVALID",
-          details: { currentStatus, currentListingVersion: listingVersion },
+          message: "MATERIAL_VERSION_CONFLICT",
+          details: { currentStatus, currentListingVersion: listingVersion + 1 },
         });
         assert.equal(
           (await f.materials.getMine(owner.principal, id)).status,
@@ -792,7 +901,11 @@ test("withdrawal and Staff decisions serialize in both orders on PostgreSQL", as
             (row) => row.id === id,
           ),
         );
-        const resubmitted = await f.materials.submit(owner.principal, id);
+        const resubmitted = await f.materials.submit(
+          owner.principal,
+          id,
+          first.value.listingVersion,
+        );
         assert.equal(resubmitted.listingVersion, listingVersion + 2);
         await assert.rejects(
           moderation(f.transactions, "approve"),
@@ -824,6 +937,57 @@ test("withdrawal and Staff decisions serialize in both orders on PostgreSQL", as
         }),
         staffWins ? 1 : 0,
       );
+    }
+  } finally {
+    await f.dispose();
+  }
+});
+
+test("approve and PATCH serialize without modifying published content", async () => {
+  const f = await createMaterialFixture();
+  try {
+    const owner = await f.account();
+    for (const firstAction of ["approve", "patch"]) {
+      const file = await f.materialFile(owner);
+      const draft = await f.materials.create(
+        owner.principal,
+        f.draftInput({ fileId: file.id }),
+      );
+      const pending = await f.materials.submit(
+        owner.principal,
+        draft.id,
+        draft.listingVersion,
+      );
+      const approve = (runner) =>
+        new MaterialModerationService(runner, f.audit).moderate(
+          f.moderator.principal,
+          pending.id,
+          "approve",
+          { expectedListingVersion: pending.listingVersion },
+        );
+      const patch = (runner) =>
+        new MaterialsService(runner).update(owner.principal, pending.id, {
+          expectedListingVersion: pending.listingVersion,
+          title: "Unreviewed replacement",
+        });
+      const results = await runReviewRace(
+        f,
+        pending.id,
+        firstAction === "approve" ? approve : patch,
+        firstAction === "approve" ? patch : approve,
+      );
+      const patchResult = results[firstAction === "patch" ? 0 : 1];
+      const approveResult = results[firstAction === "approve" ? 0 : 1];
+      assert.equal(patchResult.status, "rejected");
+      assert.match(
+        patchResult.reason.message,
+        /MATERIAL_NOT_EDITABLE|MATERIAL_VERSION_CONFLICT/,
+      );
+      assert.equal(approveResult.status, "fulfilled");
+      const current = await f.materials.getMine(owner.principal, pending.id);
+      assert.equal(current.title, draft.title);
+      assert.equal(current.hasBeenPublished, true);
+      assert.equal(current.canEdit, false);
     }
   } finally {
     await f.dispose();

@@ -86,6 +86,8 @@ export class MaterialModerationService {
         where: { id },
         data: {
           status: next.status,
+          listingVersion: { increment: 1 },
+          ...(next.status === "PUBLISHED" ? { hasBeenPublished: true } : {}),
           moderationStatus: next.decision,
           reviewedByUserId: principal.userId,
           reviewedAt: new Date(),

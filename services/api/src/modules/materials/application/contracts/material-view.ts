@@ -3,6 +3,7 @@ import type {
   MaterialOrder,
 } from "../../../../generated/prisma/client";
 import { formatCredit } from "../../../credit/domain/money";
+import { materialEditBlockedReason } from "../../domain/material.policy";
 
 /** Metadata/preview only; the storage key never leaves the API (FR-MAT-03). */
 export function publicMaterialView(material: Material) {
@@ -30,8 +31,15 @@ export function publicMaterialView(material: Material) {
 
 /** Owner and moderator projection: adds review state, still no storage key. */
 export function ownerMaterialView(material: Material) {
+  const editBlockedReason = materialEditBlockedReason(
+    material.status,
+    material.hasBeenPublished,
+  );
   return {
     ...publicMaterialView(material),
+    hasBeenPublished: material.hasBeenPublished,
+    canEdit: editBlockedReason === null,
+    editBlockedReason,
     scanStatus: material.scanStatus,
     moderationStatus: material.moderationStatus,
     rejectReason: material.rejectReason,

@@ -1321,6 +1321,7 @@ model Material {
   distributionRightsConfirmedAt DateTime?          @map("distribution_rights_confirmed_at") @db.Timestamptz(3)
   uploadedAt                    DateTime?          @map("uploaded_at") @db.Timestamptz(3)
   listingVersion                Int                @map("listing_version")
+  hasBeenPublished              Boolean            @default(false) @map("has_been_published")
   // Open vocabulary; owning feature must validate it before release.
   moderationStatus              String             @map("moderation_status") @db.Text
   status                        MaterialStatus     @map("status")

@@ -1,5 +1,11 @@
 # 011 — Learning Materials (SH-115 → SH-119)
 
+Amendment 2026-11-18 supersedes D3's published-edit behavior: once published,
+the ID's content and pricing are immutable through every later lifecycle state.
+Only unpublished DRAFT/REJECTED rows may be edited; withdraw pending review first.
+Archive/resubmit unchanged content remains available. Changed content needs a new ID.
+See the [current owner contract](../016-material-reviews-thumbnails/contracts.md#buyer-library-and-owner-material-management).
+
 Nguồn: task sheet SH-115..SH-119, SRS 1.6 (FR-MAT-01..06, BR-42..44, AC-21/22, §18.41),
 logical ERD v3 (`docs/SkillHub_Logical_Data_Model_v3.md`) và schema runtime
 `prisma/schema.prisma` (Material, MaterialOrder, MaterialEntitlement đã có).

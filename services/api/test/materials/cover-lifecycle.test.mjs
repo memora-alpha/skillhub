@@ -26,10 +26,13 @@ test("material cover lifecycle on isolated PostgreSQL", async () => {
     const owner = await f.account();
     const processor = new MaterialThumbnailProcessor(f.db, f.objectStorage);
     const firstCover = await makeCover(f, owner, { r: 20, g: 60, b: 100 });
-    const material = await f.publishedMaterial(owner, {
-      title: "Material with a custom cover",
-      coverFileId: firstCover.id,
-    });
+    const material = await f.materials.create(
+      owner.principal,
+      f.draftInput({
+        title: "Material with a custom cover",
+        coverFileId: firstCover.id,
+      }),
+    );
     const firstThumbnail = await f.db.materialThumbnail.findFirstOrThrow({
       where: { materialId: material.id, sourceGeneration: 1 },
     });
@@ -40,10 +43,10 @@ test("material cover lifecycle on isolated PostgreSQL", async () => {
       ),
       "READY",
     );
-    const detail = await f.catalog.detail(material.id);
-    assert.equal(detail.thumbnail.kind, "GENERATED");
-    assert.equal("smallObjectKey" in detail.thumbnail, false);
-    assert.equal("largeObjectKey" in detail.thumbnail, false);
+    const detail = await f.materials.getMine(owner.principal, material.id);
+    assert.equal(detail.cover.preview.kind, "GENERATED");
+    assert.equal("smallObjectKey" in detail.cover.preview, false);
+    assert.equal("largeObjectKey" in detail.cover.preview, false);
     const mine = await f.materials.listMine(owner.principal, {});
     const ownerItem = mine.data.find((item) => item.id === material.id);
     assert.ok(ownerItem);
@@ -58,7 +61,7 @@ test("material cover lifecycle on isolated PostgreSQL", async () => {
       expectedListingVersion: material.listingVersion,
       coverFileId: secondCover.id,
     });
-    assert.equal(replaced.status, "PENDING_REVIEW");
+    assert.equal(replaced.status, "DRAFT");
     assert.equal(replaced.listingVersion, material.listingVersion + 1);
     assert.equal(replaced.cover.file.id, secondCover.id);
     assert.equal(replaced.cover.processingStatus, "PENDING");
@@ -74,17 +77,11 @@ test("material cover lifecycle on isolated PostgreSQL", async () => {
     });
     assert.equal(await processor.process(secondThumbnail.id, 2), "READY");
 
-    const approved = await f.moderation.moderate(
-      f.moderator.principal,
-      material.id,
-      "approve",
-      { expectedListingVersion: replaced.listingVersion },
-    );
     const removed = await f.materials.update(owner.principal, material.id, {
-      expectedListingVersion: approved.listingVersion,
+      expectedListingVersion: replaced.listingVersion,
       coverFileId: null,
     });
-    assert.equal(removed.status, "PENDING_REVIEW");
+    assert.equal(removed.status, "DRAFT");
     assert.equal(removed.cover.file, null);
     assert.equal(removed.cover.processingStatus, "NONE");
     assert.equal(
@@ -103,7 +100,11 @@ test("archived covers can finish but a stale job cannot restore a superseded thu
     const owner = await f.account();
     const cover = await makeCover(f, owner, "blue");
     const live = await f.publishedMaterial(owner, { coverFileId: cover.id });
-    let material = await f.materials.archive(owner.principal, live.id);
+    let material = await f.materials.archive(
+      owner.principal,
+      live.id,
+      live.listingVersion,
+    );
     const currentThumbnail = () =>
       f.db.materialThumbnail.findUniqueOrThrow({
         where: {
@@ -124,18 +125,23 @@ test("archived covers can finish but a stale job cannot restore a superseded thu
       "GENERATED",
     );
 
-    const nextCover = await makeCover(f, owner, "orange");
-    material = await f.materials.update(owner.principal, live.id, {
-      expectedListingVersion: material.listingVersion,
-      coverFileId: nextCover.id,
-    });
-    assert.equal(material.status, "ARCHIVED");
-    const next = await currentThumbnail();
-    assert.equal(
-      await processor.process(first.id, first.sourceGeneration),
-      "SUPERSEDED",
+    await assert.rejects(
+      f.materials.update(owner.principal, live.id, {
+        expectedListingVersion: material.listingVersion,
+        coverFileId: null,
+      }),
+      /MATERIAL_CONTENT_LOCKED/,
     );
-
+    // Seed a pending job for the immutable cover, then exercise deletion during its read.
+    await f.db.materialThumbnail.update({
+      where: { id: first.id },
+      data: {
+        status: "PENDING",
+        smallObjectKey: null,
+        largeObjectKey: null,
+      },
+    });
+    const next = await currentThumbnail();
     const entered = Promise.withResolvers();
     const release = Promise.withResolvers();
     const blockedProcessor = new MaterialThumbnailProcessor(f.db, {
