@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { useState } from "react";
 import { useUserSession } from "../auth/session";
 import { useUserCommand } from "../hooks/use-user-command";
@@ -152,9 +153,11 @@ export function MaterialEditor({
         {fileId && (
           <>
             <Feedback
+              variant="inline"
               error={file.error}
-              loading={file.loading}
+              loading={file.initialLoading}
               reload={file.reload}
+              refreshing={!!(file.loading && !file.initialLoading)}
             />
             <p>
               Trạng thái tệp:{" "}
@@ -163,9 +166,14 @@ export function MaterialEditor({
                 label={file.data?.state === "READY" ? "Sẵn sàng" : undefined}
               />
             </p>
-            <button type="button" className="btn" onClick={file.reload}>
+            <LoadingButton
+              type="button"
+              className="btn"
+              onClick={file.reload}
+              loading={!!command.pending}
+            >
               Kiểm tra tệp
-            </button>
+            </LoadingButton>
             <label className="product-consent">
               <input type="checkbox" name="rights" required />
               <span>Tôi có quyền phân phối tệp thay thế.</span>
@@ -182,7 +190,7 @@ export function MaterialEditor({
         </p>
       )}
       <div className="learner-actions">
-        <button
+        <LoadingButton
           type="submit"
           className="btn btn-primary"
           disabled={
@@ -192,10 +200,11 @@ export function MaterialEditor({
             !skillId ||
             (!!fileId && file.data?.state !== "READY")
           }
+          loading={!!(command.pending || uploading)}
         >
           Lưu thay đổi
-        </button>
-        <button
+        </LoadingButton>
+        <LoadingButton
           type="button"
           className="btn"
           disabled={command.pending}
@@ -203,9 +212,10 @@ export function MaterialEditor({
             reload();
             close();
           }}
+          loading={!!command.pending}
         >
           Đóng và làm mới
-        </button>
+        </LoadingButton>
       </div>
     </form>
   );

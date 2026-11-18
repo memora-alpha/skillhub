@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { MaterialThumbnail } from "./material-cover";
 import { MaterialRating } from "./material-reviews";
 import { SearchInput } from "@/components/search-input";
@@ -91,21 +92,23 @@ export function MaterialsScreen() {
       </div>
       <Feedback error={skills.error} reload={skills.reload} />
       {skills.cursor && (
-        <button
+        <LoadingButton
           type="button"
           className="btn"
           disabled={skills.loading}
           onClick={() => {
             void skills.more();
           }}
+          loading={!!skills.loading}
         >
           Tải thêm kỹ năng cho bộ lọc
-        </button>
+        </LoadingButton>
       )}
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       <div className="product-materials">
         {query.data?.map((material) => (

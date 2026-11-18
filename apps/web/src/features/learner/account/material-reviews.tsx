@@ -1,4 +1,6 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useUserPagedList } from "../hooks/use-user-paged-list";
 import Link from "next/link";
@@ -80,9 +82,15 @@ export function MaterialReviews({
   return (
     <Panel title="Đánh giá tài liệu">
       <Feedback
-        loading={list.loading || eligibility.loading}
+        loading={list.initialLoading || eligibility.initialLoading}
         error={list.error || eligibility.error}
         reload={reload}
+        refreshing={
+          !!(
+            (list.loading || eligibility.loading) &&
+            !(list.initialLoading || eligibility.initialLoading)
+          )
+        }
       />
       <MaterialRating summary={list.ratingSummary} />
       {list.ratingSummary && list.ratingSummary.total > 0 && (
@@ -116,7 +124,14 @@ export function MaterialReviews({
         <div className={styles.own}>
           <p>
             {eligibilityLabels[eligibility.data?.reasonCode ?? ""] ??
-              "Đang kiểm tra điều kiện đánh giá."}
+              (eligibility.initialLoading ? (
+                <LoadingSkeleton
+                  variant="inline"
+                  label="Đang kiểm tra điều kiện đánh giá"
+                />
+              ) : (
+                "Chưa có thông tin về điều kiện đánh giá."
+              ))}
           </p>
           {own && (
             <>
@@ -271,26 +286,28 @@ function ReviewEditor({
       </label>
       <CommandFeedback command={command} />
       <div className={styles.row}>
-        <button
+        <LoadingButton
           type="submit"
           className="btn btn-primary"
           disabled={command.pending || (command.uncertain && !command.canRetry)}
+          loading={!!command.pending}
         >
           {submitLabel}
-        </button>
+        </LoadingButton>
         {onCancel && (
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={command.pending}
             onClick={onCancel}
+            loading={!!command.pending}
           >
             Hủy
-          </button>
+          </LoadingButton>
         )}
       </div>
       {(command.failure || command.uncertain) && (
-        <button
+        <LoadingButton
           type="button"
           className="btn"
           disabled={command.pending}
@@ -299,9 +316,10 @@ function ReviewEditor({
               .then(onSaved)
               .catch(() => undefined);
           }}
+          loading={!!command.pending}
         >
           Tải lại đánh giá của tôi
-        </button>
+        </LoadingButton>
       )}
     </form>
   );
@@ -317,7 +335,7 @@ function RemoveReview({
       <summary>Xóa đánh giá</summary>
       <p>Đánh giá sẽ không còn xuất hiện công khai.</p>
       <CommandFeedback command={command} />
-      <button
+      <LoadingButton
         type="button"
         className="btn"
         disabled={command.pending || (command.uncertain && !command.canRetry)}
@@ -332,18 +350,20 @@ function RemoveReview({
           );
           if (result) onRemoved();
         }}
+        loading={!!command.pending}
       >
         Xác nhận xóa
-      </button>
+      </LoadingButton>
       {(command.failure || command.uncertain) && (
-        <button
+        <LoadingButton
           type="button"
           className="btn"
           disabled={command.pending}
           onClick={onRemoved}
+          loading={!!command.pending}
         >
           Kiểm tra lại đánh giá
-        </button>
+        </LoadingButton>
       )}
     </details>
   );
@@ -402,23 +422,25 @@ function ReviewReport({
             />
           </label>
           <CommandFeedback command={command} />
-          <button
+          <LoadingButton
             type="submit"
             className="btn btn-primary"
             disabled={command.pending || command.uncertain}
+            loading={!!command.pending}
           >
             Gửi báo cáo
-          </button>
+          </LoadingButton>
         </form>
       )}
-      <button
+      <LoadingButton
         type="button"
         className="btn"
         onClick={onClose}
         disabled={command.pending}
+        loading={!!command.pending}
       >
         Đóng
-      </button>
+      </LoadingButton>
     </section>
   );
 }

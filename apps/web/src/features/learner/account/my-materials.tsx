@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useUserPagedList } from "../hooks/use-user-paged-list";
 import Link from "next/link";
@@ -44,8 +45,9 @@ const explanations: Record<MaterialAction, string> = {
 export function MyMaterials() {
   const { actor } = useUserSession();
   const [status, setStatus] = useState("");
+  const statusQuery = status ? "&status=" + status : "";
   const query = useUserPagedList<OwnedMaterial>(
-    `me/materials?limit=20${status ? `&status=${status}` : ""}`,
+    `me/materials?limit=20${statusQuery}`,
   );
   return (
     <>
@@ -70,9 +72,10 @@ export function MyMaterials() {
         </select>
       </label>
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       <div className="learner-stack">
         {query.items.map((material) => (
@@ -114,6 +117,18 @@ function OwnerCard({
       throw new UserApiError(502, "API_RESPONSE_INVALID");
     return result.data;
   }
+  function selectMaterialAction(
+    fresh: OwnedMaterial,
+    next?: MaterialAction | "edit",
+  ) {
+    if (next === "edit") {
+      if (canEditMaterial(fresh)) setEditing(true);
+      else setError(materialEditHint(fresh));
+    } else if (next) {
+      if (canManageMaterial(fresh, next)) setAction(next);
+      else setError("Trạng thái đã thay đổi. Hãy chọn thao tác đang có sẵn.");
+    }
+  }
   async function inspect(next?: MaterialAction | "edit") {
     if (lock.current) return;
     lock.current = true;
@@ -125,13 +140,7 @@ function OwnerCard({
       setEditing(false);
       setAction(undefined);
       command.resetAfterRead();
-      if (next === "edit") {
-        if (canEditMaterial(fresh)) setEditing(true);
-        else setError(materialEditHint(fresh));
-      } else if (next) {
-        if (canManageMaterial(fresh, next)) setAction(next);
-        else setError("Trạng thái đã thay đổi. Hãy chọn thao tác đang có sẵn.");
-      }
+      selectMaterialAction(fresh, next);
       if (!next) reload();
     } catch (cause) {
       if (
@@ -201,25 +210,8 @@ function OwnerCard({
     );
   return (
     <Panel>
-      <div className="learner-card-top">
-        <h2>{current.title}</h2>
-        <Status value={current.status} />
-      </div>
-      <p className="learner-prose">{current.description}</p>
-      <p>
-        {current.accessType === "FREE"
-          ? "Miễn phí"
-          : `${current.priceCredit} CR`}{" "}
-        · Phiên bản {current.listingVersion}
-      </p>
-      {current.rejectReason && (
-        <p className="learner-error">{current.rejectReason}</p>
-      )}
-      <MaterialCoverStatus cover={current.cover} />
-      {!canEditMaterial(current) && (
-        <p className="muted">{materialEditHint(current)}</p>
-      )}
-      <Feedback error={error} loading={reading} />
+      <OwnerMaterialSummary material={current} />
+      <Feedback variant="inline" error={error} loading={reading} />
       {editing ? (
         <MaterialEditor
           key={`${current.id}:${current.listingVersion}`}
@@ -230,36 +222,39 @@ function OwnerCard({
       ) : (
         <div className="learner-actions">
           {canEditMaterial(current) && (
-            <button
+            <LoadingButton
               type="button"
               className="btn"
               disabled={busy}
               onClick={() => void inspect("edit")}
+              loading={!!busy}
             >
               Sửa tài liệu
-            </button>
+            </LoadingButton>
           )}
           {(Object.keys(labels) as MaterialAction[])
             .filter((a) => canManageMaterial(current, a))
             .map((a) => (
-              <button
+              <LoadingButton
                 key={a}
                 type="button"
                 className="btn"
                 disabled={busy}
                 onClick={() => void inspect(a)}
+                loading={!!busy}
               >
                 {labels[a]}
-              </button>
+              </LoadingButton>
             ))}
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={reading || command.pending}
             onClick={() => void inspect()}
+            loading={!!command.pending}
           >
             Cập nhật trạng thái
-          </button>
+          </LoadingButton>
         </div>
       )}
       {action && (
@@ -272,36 +267,66 @@ function OwnerCard({
           </h3>
           <p>{explanations[action]}</p>
           <div className="learner-actions">
-            <button
+            <LoadingButton
               type="button"
               className="btn btn-primary"
               disabled={busy}
               onClick={() => void confirm()}
+              loading={!!busy}
             >
               {labels[action]}
-            </button>
-            <button
+            </LoadingButton>
+            <LoadingButton
               type="button"
               className="btn"
               disabled={command.pending}
               onClick={() => setAction(undefined)}
+              loading={!!command.pending}
             >
               Hủy
-            </button>
+            </LoadingButton>
           </div>
         </section>
       )}
       <CommandFeedback command={command} />
       {command.uncertain && (
-        <button
+        <LoadingButton
+          loading={reading}
           type="button"
           className="btn"
           disabled={reading}
           onClick={() => void inspect()}
         >
           Kiểm tra kết quả vừa gửi
-        </button>
+        </LoadingButton>
       )}
     </Panel>
+  );
+}
+
+function OwnerMaterialSummary({
+  material,
+}: Readonly<{ material: OwnedMaterial }>) {
+  return (
+    <>
+      <div className="learner-card-top">
+        <h2>{material.title}</h2>
+        <Status value={material.status} />
+      </div>
+      <p className="learner-prose">{material.description}</p>
+      <p>
+        {material.accessType === "FREE"
+          ? "Miễn phí"
+          : `${material.priceCredit} CR`}{" "}
+        · Phiên bản {material.listingVersion}
+      </p>
+      {material.rejectReason && (
+        <p className="learner-error">{material.rejectReason}</p>
+      )}
+      <MaterialCoverStatus cover={material.cover} />
+      {!canEditMaterial(material) && (
+        <p className="muted">{materialEditHint(material)}</p>
+      )}
+    </>
   );
 }

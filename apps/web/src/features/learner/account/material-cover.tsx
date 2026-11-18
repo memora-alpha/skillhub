@@ -1,5 +1,7 @@
 "use client";
-import Image from "next/image";
+import { LoadingButton } from "@/components/loading-button";
+import { LoadingImage as Image } from "@/components/loading-image";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 import { useState } from "react";
 import { useUserResource } from "../hooks/use-user-resource";
 import { UploadControl } from "../components/upload-control";
@@ -23,7 +25,14 @@ export function MaterialCoverStatus({
   return (
     <details>
       <summary>
-        {labels[cover.processingStatus] ?? "Đang kiểm tra ảnh bìa"}
+        {["PENDING", "PROCESSING"].includes(cover.processingStatus) ? (
+          <LoadingSkeleton
+            variant="inline"
+            label={labels[cover.processingStatus]}
+          />
+        ) : (
+          (labels[cover.processingStatus] ?? "Chưa có kết quả kiểm tra ảnh bìa")
+        )}
       </summary>
       <div style={{ width: "min(100%, 320px)", aspectRatio: "16 / 9" }}>
         <MaterialThumbnail thumbnail={cover.preview} />
@@ -128,9 +137,13 @@ export function MaterialCoverControl({
       {cover.coverFileId && (
         <>
           <Feedback
-            loading={cover.status.loading}
+            variant="inline"
+            loading={cover.status.initialLoading}
             error={cover.status.error}
             reload={cover.status.reload}
+            refreshing={
+              !!(cover.status.loading && !cover.status.initialLoading)
+            }
           />
           <p>
             Ảnh bìa đã chọn ·{" "}
@@ -144,14 +157,15 @@ export function MaterialCoverControl({
         </>
       )}
       {(cover.coverFileId || (existing && cover.coverFileId !== null)) && (
-        <button
+        <LoadingButton
           type="button"
           className="btn"
           disabled={disabled || cover.uploading}
           onClick={() => cover.setCoverFileId(null)}
+          loading={!!cover.uploading}
         >
           Dùng ảnh bìa mặc định
-        </button>
+        </LoadingButton>
       )}
       {cover.coverFileId === null && (
         <small className="muted">Sẽ dùng hình minh họa mặc định.</small>

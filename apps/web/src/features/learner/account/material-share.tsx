@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { formText } from "../components/form-data";
 import Link from "next/link";
 import { useState } from "react";
@@ -40,7 +41,7 @@ export function MaterialShare() {
               <p className="learner-notice">
                 <output>Đã lưu bản nháp: {created.title}.</output>
               </p>
-              <button
+              <LoadingButton
                 type="button"
                 className="btn btn-primary"
                 disabled={
@@ -65,11 +66,12 @@ export function MaterialShare() {
                       if (result) setCreated(result.data);
                     });
                 }}
+                loading={!!submit.pending}
               >
                 {created.status === "PENDING_REVIEW"
                   ? "Đã gửi duyệt"
                   : "Gửi duyệt tài liệu"}
-              </button>
+              </LoadingButton>
               <CommandFeedback command={submit} />
               <p>
                 <Link
@@ -166,9 +168,11 @@ export function MaterialShare() {
               {fileId && (
                 <div>
                   <Feedback
-                    loading={file.loading}
+                    variant="inline"
+                    loading={file.initialLoading}
                     error={file.error}
                     reload={file.reload}
+                    refreshing={!!(file.loading && !file.initialLoading)}
                   />
                   <p>
                     Trạng thái tệp:{" "}
@@ -183,14 +187,15 @@ export function MaterialShare() {
                       "Đang đọc trạng thái…"
                     )}
                   </p>
-                  <button
+                  <LoadingButton
                     type="button"
                     className="btn"
                     onClick={file.reload}
                     disabled={file.loading}
+                    loading={!!file.loading}
                   >
                     Kiểm tra tệp
-                  </button>
+                  </LoadingButton>
                 </div>
               )}
               <MaterialCoverControl
@@ -207,7 +212,7 @@ export function MaterialShare() {
                 Tôi có quyền phân phối tài liệu này.
               </label>
               <CommandFeedback command={command} />
-              <button
+              <LoadingButton
                 type="submit"
                 className="btn btn-primary"
                 disabled={
@@ -217,9 +222,10 @@ export function MaterialShare() {
                   command.pending ||
                   command.uncertain
                 }
+                loading={!!command.pending}
               >
                 Lưu bản nháp
-              </button>
+              </LoadingButton>
             </form>
           )}
         </Panel>

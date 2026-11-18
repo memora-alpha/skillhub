@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { useEffect, useRef, useState } from "react";
 import { useUserSession } from "../auth/session";
 import { Feedback } from "../components/common";
@@ -62,7 +63,7 @@ export function MaterialOrderDownload({
   }
   return (
     <div>
-      <button
+      <LoadingButton
         type="button"
         className="btn"
         disabled={disabled || pending || confirming}
@@ -70,9 +71,10 @@ export function MaterialOrderDownload({
           setConfirming(true);
           onConfirmingChange(true);
         }}
+        loading={!!pending}
       >
         Tải tài liệu đã mua
-      </button>
+      </LoadingButton>
       {confirming && (
         <section
           className="learner-notice"
@@ -84,15 +86,16 @@ export function MaterialOrderDownload({
             động, kể cả khi việc tải bị gián đoạn.
           </p>
           <div className="learner-actions">
-            <button
+            <LoadingButton
               type="button"
               className="btn btn-primary"
               disabled={disabled || pending}
               onClick={() => void download()}
+              loading={!!pending}
             >
               {pending ? "Đang chuẩn bị tải…" : "Xác nhận và tải"}
-            </button>
-            <button
+            </LoadingButton>
+            <LoadingButton
               type="button"
               className="btn"
               disabled={pending}
@@ -100,9 +103,10 @@ export function MaterialOrderDownload({
                 setConfirming(false);
                 onConfirmingChange(false);
               }}
+              loading={!!pending}
             >
               Để sau
-            </button>
+            </LoadingButton>
           </div>
         </section>
       )}

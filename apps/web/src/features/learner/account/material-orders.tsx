@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useUserPagedList } from "../hooks/use-user-paged-list";
 import Link from "next/link";
@@ -32,9 +33,10 @@ export function MaterialOrders() {
         description="Xem tài liệu tại thời điểm mua và điều kiện hoàn của từng đơn."
       />
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       <div className="learner-stack">
         {query.items.map((order) => (
@@ -160,14 +162,15 @@ function OrderCard({
           </Link>
         )}
         {refundable && !review && (
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={checking || command.pending || downloadConfirming}
             onClick={() => void inspect()}
+            loading={!!(checking || command.pending)}
           >
             {checking ? "Đang kiểm tra…" : "Yêu cầu hoàn đơn"}
-          </button>
+          </LoadingButton>
         )}
       </div>
       {!done &&
@@ -206,15 +209,16 @@ function OrderCard({
             động.
           </p>
           <div className="learner-actions">
-            <button
+            <LoadingButton
               type="button"
               className="btn btn-primary"
               disabled={command.pending}
               onClick={() => void refund()}
+              loading={!!command.pending}
             >
               {command.pending ? "Đang kiểm tra…" : confirmLabel}
-            </button>
-            <button
+            </LoadingButton>
+            <LoadingButton
               type="button"
               className="btn"
               disabled={command.pending}
@@ -222,22 +226,24 @@ function OrderCard({
                 setReview(false);
                 reload();
               }}
+              loading={!!command.pending}
             >
               Đóng và làm mới
-            </button>
+            </LoadingButton>
           </div>
         </div>
       )}
       <CommandFeedback command={command} />
       {command.uncertain && (
-        <button
+        <LoadingButton
           type="button"
           className="btn"
           disabled={checking || command.pending}
           onClick={() => void inspect()}
+          loading={!!(checking || command.pending)}
         >
           Kiểm tra kết quả hoàn đơn
-        </button>
+        </LoadingButton>
       )}
       {done && (
         <p>

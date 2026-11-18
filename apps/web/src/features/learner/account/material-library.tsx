@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import Link from "next/link";
 import { useState } from "react";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
@@ -63,9 +64,18 @@ function FavoriteButton({
   const { actor, request } = useUserSession();
   const cache = useQueryClient();
   const command = useUserCommand(true);
+  function saveLabel() {
+    if (command.pending) {
+      return "Đang lưu…" as const;
+    }
+    if (saved) {
+      return "Bỏ lưu tài liệu" as const;
+    }
+    return "Lưu tài liệu" as const;
+  }
   return (
     <div>
-      <button
+      <LoadingButton
         type="button"
         className="btn"
         aria-pressed={saved}
@@ -91,13 +101,10 @@ function FavoriteButton({
                 query.queryKey[2].startsWith("me/material-favorites"),
             });
         }}
+        loading={!!command.pending}
       >
-        {command.pending
-          ? "Đang lưu…"
-          : saved
-            ? "Bỏ lưu tài liệu"
-            : "Lưu tài liệu"}
-      </button>
+        {saveLabel()}
+      </LoadingButton>
       <CommandFeedback command={command} />
     </div>
   );
@@ -113,7 +120,7 @@ export function MaterialLibrary() {
         title="Thư viện của tôi"
         description="Tìm lại tài liệu đã lưu và tài liệu miễn phí bạn đã tải."
       />
-      <div className="learner-actions" role="group" aria-label="Loại thư viện">
+      <fieldset className="learner-actions" aria-label="Loại thư viện">
         <button
           type="button"
           className="btn"
@@ -133,7 +140,7 @@ export function MaterialLibrary() {
         <Link className="btn" href="/learn/materials/orders">
           Đã mua
         </Link>
-      </div>
+      </fieldset>
       <LibraryList key={`${actor.userId}:${tab}`} free={tab === "free"} />
     </>
   );
@@ -193,6 +200,7 @@ function LibraryList({ free }: Readonly<{ free: boolean }>) {
         reload={() => {
           void pagination.reload();
         }}
+        refreshing={!!(query.isFetching && !query.isPending)}
       />
       {!denied && (
         <div className="learner-stack">
