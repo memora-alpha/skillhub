@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useState, type ReactNode } from "react";
@@ -7,6 +8,7 @@ import { Icon, type IconName } from "@/components/console/icon";
 import { isRedesignedAdminPath } from "@/lib/staff/admin-redesign";
 import { StaffSessionProvider, useStaffSession } from "./session";
 import { StaffLogin } from "./login";
+import { StaffShellSkeleton } from "./shell-skeleton";
 import {
   NotificationsProvider,
   useNotificationInbox,
@@ -154,10 +156,7 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
       ?.querySelector<HTMLElement>('[aria-current="page"]')
       ?.scrollIntoView({ block: "nearest" });
   }, [pathname, actor?.userId, sidebarRef]);
-  if (loading)
-    return (
-      <output className="staff-loading">Đang kiểm tra phiên làm việc…</output>
-    );
+  if (loading) return <StaffShellSkeleton />;
   if (!actor) return <StaffLogin />;
   const current = links.find((item) =>
     item.href === `/${portal}`
@@ -249,7 +248,7 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
               <div className="who-role">{actor.roles.join(" · ")}</div>
             </div>
           </div>
-          <button
+          <LoadingButton
             type="button"
             className="nav-link subtle"
             disabled={busy}
@@ -263,10 +262,11 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
                 );
               }
             }}
+            loading={!!busy}
           >
             <Icon name="logout" />
             {busy ? "Đang đăng xuất…" : "Đăng xuất"}
-          </button>
+          </LoadingButton>
         </div>
       </Sidebar>
       {open && (

@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { formText } from "../learner/components/form-data";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -204,14 +205,15 @@ export function LoginScreen() {
                 </p>
               )}
             </div>
-            <button
+            <LoadingButton
               type="submit"
               className="auth-submit"
               disabled={checking || pending}
+              loading={!!(checking || pending)}
             >
               {submitLabel}
               <span aria-hidden="true">→</span>
-            </button>
+            </LoadingButton>
           </form>
           <p className="auth-account-links">
             <Link href="/forgot-password">Quên mật khẩu?</Link>
@@ -219,7 +221,7 @@ export function LoginScreen() {
           </p>
           <div className="auth-tools">
             {canReset && (
-              <button
+              <LoadingButton
                 type="button"
                 className="auth-reset"
                 disabled={checking || pending}
@@ -239,9 +241,10 @@ export function LoginScreen() {
                     setPending(false);
                   }
                 }}
+                loading={!!(checking || pending)}
               >
                 Kết thúc phiên cũ / đổi tài khoản
-              </button>
+              </LoadingButton>
             )}
           </div>
         </section>

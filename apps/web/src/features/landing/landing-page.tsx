@@ -1,5 +1,5 @@
 import Link from "next/link";
-import Image from "next/image";
+import { LoadingImage as Image } from "@/components/loading-image";
 import { Icon, type IconName } from "./icon";
 import { skills, steps, faqs } from "./content";
 import { LandingHeader } from "./landing-header";
