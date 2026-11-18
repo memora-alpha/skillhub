@@ -7,7 +7,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useStaffList, useStaffResource } from "./hooks";
+import { useStaffResource } from "./hooks";
+import { useStaffListPages } from "./use-staff-list-pages";
 
 const RefreshContext = createContext({ revision: 0, refresh: () => {} });
 export function DashboardRefreshProvider({
@@ -42,7 +43,7 @@ export function useDashboardResource<T>(path: string) {
   return resource;
 }
 export function useDashboardList<T extends { id: string }>(path: string) {
-  const list = useStaffList<T>(path);
+  const list = useStaffListPages<T>(path);
   useRefreshRevision(list.reload);
   return list;
 }

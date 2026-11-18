@@ -6,6 +6,7 @@ import { Badge, StatusBadge } from "@/components/console/ui";
 import { severityTone } from "@/lib/staff/report-presentation";
 import { fmtDateTime } from "@/lib/console/format";
 import { systemCodeLabel } from "@/lib/system-text";
+import { financeNumber } from "@/lib/staff/finance-presentation";
 import {
   workKinds,
   workItemHref,
@@ -13,7 +14,8 @@ import {
 } from "@/lib/staff/dashboard";
 import { useStaffResource } from "./hooks";
 import { useStaffSession } from "./session";
-import { Pager, QueueState } from "./common";
+import { QueueState } from "./common";
+import { ListPagination } from "@/components/pagination/list-pagination";
 import { useDashboardList } from "./dashboard-data";
 import { DashboardPanel, DashboardPerson } from "./dashboard-widgets";
 import styles from "./dashboard.module.css";
@@ -61,12 +63,7 @@ export function DashboardWork({ filter = "" }: Readonly<{ filter?: string }>) {
         title="Ưu tiên xử lý"
         description="Các việc cần chú ý theo mức độ và thời gian chờ."
         className={styles.workPanel}
-        actions={
-          <span className={styles.scopePill}>
-            Toàn hệ thống · {work.items.length}
-            {work.page?.hasMore ? "+" : ""} việc đã tải
-          </span>
-        }
+        actions={<span className={styles.scopePill}>Toàn hệ thống</span>}
       >
         <form
           className={`${styles.filters} ${styles.queueFilters}`}
@@ -213,11 +210,7 @@ export function DashboardWork({ filter = "" }: Readonly<{ filter?: string }>) {
               </tbody>
             </table>
           </div>
-          <Pager
-            loading={work.loading}
-            hasMore={work.page?.hasMore}
-            more={work.more}
-          />
+          <ListPagination query={work} />
         </QueueState>
         {selected && (
           <WorkDetail
@@ -232,9 +225,21 @@ export function DashboardWork({ filter = "" }: Readonly<{ filter?: string }>) {
 }
 
 type WorkDetailData = {
+  kind: AdminWorkItem["kind"];
+  id: string;
   status?: string;
   resolutionNote?: string | null;
   resolvedAt?: string | null;
+  creditAmount?: string;
+  paymentAmountVnd?: string;
+  currency?: string;
+  gateway?: string;
+  createdAt?: string;
+  pathId?: string;
+  attemptCount?: number;
+  outcome?: string;
+  errorCode?: string | null;
+  checkedAt?: string;
 };
 function WorkDetail({
   item,
@@ -285,8 +290,61 @@ function WorkDetail({
           reload={detail.reload}
           empty={!detail.data}
         >
-          <StatusBadge status={detail.data?.status ?? item.status} />
+          <StatusBadge
+            status={detail.data?.status ?? detail.data?.outcome ?? item.status}
+          />
           <dl className={styles.facts}>
+            {item.kind === "PAYMENT_REVIEW" && detail.data && (
+              <>
+                <dt>Số Credit</dt>
+                <dd>
+                  {detail.data.creditAmount
+                    ? financeNumber(detail.data.creditAmount) + " CR"
+                    : "Chưa có dữ liệu"}
+                </dd>
+                <dt>Số tiền thanh toán</dt>
+                <dd>
+                  {detail.data.paymentAmountVnd
+                    ? financeNumber(detail.data.paymentAmountVnd) +
+                      " " +
+                      (detail.data.currency ?? "VND")
+                    : "Chưa có dữ liệu"}
+                </dd>
+                <dt>Cổng thanh toán</dt>
+                <dd>{detail.data.gateway ?? "Chưa có dữ liệu"}</dd>
+              </>
+            )}
+            {item.kind === "SETTLEMENT_REVIEW" && detail.data && (
+              <>
+                <dt>Số lần thử</dt>
+                <dd>{detail.data.attemptCount ?? "Chưa có dữ liệu"}</dd>
+                <dt>Kết quả gần nhất</dt>
+                <dd>
+                  {systemCodeLabel(
+                    detail.data.outcome ?? "",
+                    "Cần kiểm tra quyết toán",
+                  )}
+                </dd>
+                <dt>Kiểm tra gần nhất</dt>
+                <dd>
+                  {detail.data.checkedAt
+                    ? fmtDateTime(detail.data.checkedAt)
+                    : "Chưa có dữ liệu"}
+                </dd>
+                {detail.data.errorCode && (
+                  <>
+                    <dt>Lỗi gần nhất</dt>
+                    <dd>
+                      {systemCodeLabel(
+                        detail.data.errorCode,
+                        "Cần kiểm tra điều kiện quyết toán",
+                      )}{" "}
+                      <code>{detail.data.errorCode}</code>
+                    </dd>
+                  </>
+                )}
+              </>
+            )}
             <dt>Tiếp nhận</dt>
             <dd>{fmtDateTime(item.receivedAt)}</dd>
             <dt>Thời gian chờ</dt>
@@ -324,6 +382,13 @@ function WorkDetail({
           {item.related.pathId && (
             <Link href={`/admin/learning-paths/${item.related.pathId}`}>
               Xem lộ trình liên quan →
+            </Link>
+          )}
+          {item.kind === "SETTLEMENT_REVIEW" && !item.related.pathId && (
+            <Link
+              href={`/admin/learning-paths/${encodeURIComponent(detail.data?.pathId ?? item.id)}`}
+            >
+              Xem lộ trình cần quyết toán →
             </Link>
           )}
           <p className={styles.notice}>
