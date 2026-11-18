@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useUserPagedList } from "../hooks/use-user-paged-list";
 import { formText } from "../components/form-data";
@@ -106,27 +107,30 @@ export function VerificationScreen({ id }: Readonly<{ id: string }>) {
               {fileId && (
                 <div>
                   <Feedback
-                    loading={file.loading}
+                    variant="inline"
+                    loading={file.initialLoading}
                     error={file.error}
                     reload={file.reload}
+                    refreshing={!!(file.loading && !file.initialLoading)}
                   />
                   {file.data && (
                     <p>
                       Trạng thái tệp: <Status value={file.data.state} />
                     </p>
                   )}
-                  <button
+                  <LoadingButton
                     type="button"
                     className="btn"
                     onClick={file.reload}
                     disabled={file.loading}
+                    loading={!!file.loading}
                   >
                     Kiểm tra tệp
-                  </button>
+                  </LoadingButton>
                 </div>
               )}
               <CommandFeedback command={command} />
-              <button
+              <LoadingButton
                 type="submit"
                 className="btn btn-primary"
                 disabled={
@@ -134,17 +138,19 @@ export function VerificationScreen({ id }: Readonly<{ id: string }>) {
                   command.pending ||
                   (command.uncertain && !command.canRetry)
                 }
+                loading={!!command.pending}
               >
                 {submitLabel}
-              </button>
+              </LoadingButton>
             </form>
           )}
         </Panel>
         <Panel title="Lịch sử xác minh">
           <Feedback
-            loading={history.loading}
+            loading={history.initialLoading}
             error={history.error}
             reload={history.reload}
+            refreshing={!!(history.loading && !history.initialLoading)}
           />
           {history.items.map((item) => (
             <article className="product-pending" key={item.id}>
@@ -189,7 +195,7 @@ function OwnEvidenceDownload({
   }>();
   return (
     <span>
-      <button
+      <LoadingButton
         type="button"
         className="btn"
         disabled={loading}
@@ -218,9 +224,10 @@ function OwnEvidenceDownload({
             setLoading(false);
           }
         }}
+        loading={!!loading}
       >
         {loading ? "Đang lấy tệp…" : "Xem bằng chứng"}
-      </button>
+      </LoadingButton>
       {download && (
         <a
           href={download.url}
