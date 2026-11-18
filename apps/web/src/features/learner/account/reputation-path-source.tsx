@@ -1,4 +1,5 @@
 "use client";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useUserResource } from "../hooks/use-user-resource";
@@ -45,8 +46,8 @@ export function ReputationPathSource({ pathId }: Readonly<{ pathId: string }>) {
       ) : (
         <p>Chưa có tham chiếu lộ trình hợp lệ.</p>
       )}
-      {valid && query.loading && (
-        <span className={styles.hint}>Đang tải tên lộ trình…</span>
+      {valid && query.initialLoading && (
+        <LoadingSkeleton variant="inline" label="Đang tải tên lộ trình" />
       )}
       {valid && query.error && (
         <div className={styles.retry}>

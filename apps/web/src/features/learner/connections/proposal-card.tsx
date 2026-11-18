@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -126,7 +127,7 @@ export function ProposalCard({
             {proposal.status === "PENDING" &&
               (proposal.recipientId === actor.userId ? (
                 <>
-                  <button
+                  <LoadingButton
                     type="button"
                     className="btn btn-primary"
                     disabled={
@@ -136,34 +137,37 @@ export function ProposalCard({
                     onClick={() => {
                       void decide("accept");
                     }}
+                    loading={!!command.pending}
                   >
                     Chấp nhận và trao đổi
-                  </button>
-                  <button
+                  </LoadingButton>
+                  <LoadingButton
                     type="button"
                     className="btn"
                     disabled={command.pending || command.uncertain}
                     onClick={() => {
                       setClosing("reject");
                     }}
+                    loading={!!command.pending}
                   >
                     Từ chối
-                  </button>
+                  </LoadingButton>
                 </>
               ) : (
-                <button
+                <LoadingButton
                   type="button"
                   className="btn"
                   disabled={command.pending || command.uncertain}
                   onClick={() => {
                     setClosing("withdraw");
                   }}
+                  loading={!!command.pending}
                 >
                   Rút đề xuất
-                </button>
+                </LoadingButton>
               ))}
             {proposal.status === "ACCEPTED" && (
-              <button
+              <LoadingButton
                 type="button"
                 className="btn btn-primary"
                 disabled={opening}
@@ -191,22 +195,24 @@ export function ProposalCard({
                     )
                     .finally(() => setOpening(false));
                 }}
+                loading={!!opening}
               >
                 Mở tin nhắn
-              </button>
+              </LoadingButton>
             )}
           </div>
           {proposal.status === "PENDING" &&
             proposal.proposerId === actor.userId && (
               <>
-                <button
+                <LoadingButton
                   type="button"
                   className="btn"
                   disabled={command.pending || command.uncertain || editing}
                   onClick={() => setEditing(true)}
+                  loading={!!command.pending}
                 >
                   Sửa đề xuất
-                </button>
+                </LoadingButton>
                 {editing && (
                   <ProposalEditor
                     proposal={proposal}
@@ -227,24 +233,26 @@ export function ProposalCard({
                   : "Rút đề nghị này? Người nhận sẽ không thể chấp nhận sau khi bạn rút."}
               </p>
               <div className="learner-actions">
-                <button
+                <LoadingButton
                   type="button"
                   className="btn btn-primary"
                   disabled={command.pending || command.uncertain}
                   onClick={() => {
                     void decide(closing);
                   }}
+                  loading={!!command.pending}
                 >
                   Xác nhận {closing === "reject" ? "từ chối" : "rút đề nghị"}
-                </button>
-                <button
+                </LoadingButton>
+                <LoadingButton
                   type="button"
                   className="btn"
                   disabled={command.pending}
                   onClick={() => setClosing(undefined)}
+                  loading={!!command.pending}
                 >
                   Giữ đề nghị
-                </button>
+                </LoadingButton>
               </div>
             </section>
           )}

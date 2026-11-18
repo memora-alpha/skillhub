@@ -49,9 +49,10 @@ export function ReportDetail({ id }: Readonly<{ id: string }>) {
       <Back href="/learn/reports" />
       <PageHeading title="Theo dõi báo cáo" />
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       {report && (
         <div className={styles.detailGrid}>
@@ -112,9 +113,10 @@ export function ReportDetail({ id }: Readonly<{ id: string }>) {
             <Panel title="Trao đổi riêng với hỗ trợ">
               {report.relatedPathId && (
                 <Feedback
-                  loading={summary.loading}
+                  loading={summary.initialLoading}
                   error={summary.error}
                   reload={summary.reload}
+                  refreshing={!!(summary.loading && !summary.initialLoading)}
                 />
               )}
               {(!report.relatedPathId || summary.data) && (

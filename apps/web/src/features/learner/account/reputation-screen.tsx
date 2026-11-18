@@ -106,9 +106,10 @@ export function ReputationScreen() {
         description="Theo dõi sự tin cậy bạn xây dựng qua mỗi lần học cùng nhau."
       />
       <Feedback
-        loading={query.isFetching}
+        loading={query.isPending}
         error={query.error?.message}
         reload={() => void pagination.reload()}
+        refreshing={!!(query.isFetching && !query.isPending)}
       />
       {!denied && current && (
         <>
@@ -118,8 +119,10 @@ export function ReputationScreen() {
           </Panel>
           <Panel title="Hạn chế đang áp dụng">
             {current.activeRestrictions.length ? (
-              current.activeRestrictions.map((restriction, index) => (
-                <p key={restriction.scope + index}>
+              current.activeRestrictions.map((restriction) => (
+                <p
+                  key={`${restriction.scope}:${restriction.reasonCode}:${restriction.endsAt}`}
+                >
                   {scopes[restriction.scope] ??
                     systemCodeLabel(restriction.scope)}{" "}
                   ·{" "}

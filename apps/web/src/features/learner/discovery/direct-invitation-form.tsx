@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -98,9 +99,14 @@ export function DirectInvitationForm({
       </fieldset>
       <Feedback error={validation} />
       <CommandFeedback command={command} />
-      <button type="submit" className="btn btn-primary" disabled={disabled}>
+      <LoadingButton
+        type="submit"
+        className="btn btn-primary"
+        disabled={disabled}
+        loading={!!command.pending}
+      >
         {command.pending ? "Đang gửi lời mời…" : sendLabel}
-      </button>
+      </LoadingButton>
     </form>
   );
 }

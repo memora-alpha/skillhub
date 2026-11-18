@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
@@ -26,9 +27,10 @@ export function PostProposalForm({ post }: Readonly<{ post: Post }>) {
   return (
     <div className={styles.proposalForm}>
       <Feedback
-        loading={skills.loading}
+        loading={skills.initialLoading}
         error={skills.error}
         reload={skills.reload}
+        refreshing={!!(skills.loading && !skills.initialLoading)}
       />
       <More
         cursor={skills.cursor}
@@ -110,15 +112,16 @@ export function PostProposalForm({ post }: Readonly<{ post: Post }>) {
           />
           <Feedback error={validation} />
           <CommandFeedback command={command} />
-          <button
+          <LoadingButton
             type="submit"
             className="btn btn-primary"
             disabled={
               command.pending || (command.uncertain && !command.canRetry)
             }
+            loading={!!command.pending}
           >
             Gửi đề xuất
-          </button>
+          </LoadingButton>
         </form>
       ) : (
         !skills.loading && (

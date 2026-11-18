@@ -51,9 +51,10 @@ export function WalletScreen() {
         }
       />
       <Feedback
-        loading={wallet.loading}
+        loading={wallet.initialLoading}
         error={wallet.error}
         reload={wallet.reload}
+        refreshing={!!(wallet.loading && !wallet.initialLoading)}
       />
       <div className="wallet-overview">
         <article className="product-balance primary">
@@ -122,9 +123,10 @@ export function WalletScreen() {
           </label>
         </div>
         <Feedback
-          loading={ledger.loading}
+          loading={ledger.initialLoading}
           error={ledger.error}
           reload={ledger.reload}
+          refreshing={!!(ledger.loading && !ledger.initialLoading)}
         />
         {!!ledger.items.length && (
           <div className="product-table-scroll">
@@ -228,9 +230,10 @@ function WalletTransactionDetail({
           Đóng chi tiết
         </button>
         <Feedback
-          loading={query.loading}
+          loading={query.initialLoading}
           error={query.error}
           reload={query.reload}
+          refreshing={!!(query.loading && !query.initialLoading)}
         />
         {row && (
           <div className="learner-stack">

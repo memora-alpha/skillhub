@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useUserPagedList } from "../hooks/use-user-paged-list";
 import { achievementTitle } from "@/lib/i18n/system-copy";
@@ -26,9 +27,11 @@ export function ProfileScreen() {
   return (
     <>
       <Feedback
-        loading={query.loading}
+        variant="profile"
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       {me && (
         <>
@@ -148,13 +151,14 @@ export function ProfileScreen() {
                       <output>Đã lưu hồ sơ.</output>
                     </p>
                   )}
-                  <button
+                  <LoadingButton
                     type="submit"
                     className="btn btn-primary"
                     disabled={command.pending || command.uncertain}
+                    loading={!!command.pending}
                   >
                     {command.pending ? "Đang lưu…" : "Lưu thay đổi"}
-                  </button>
+                  </LoadingButton>
                 </form>
               </Panel>
               <Panel>
@@ -200,9 +204,10 @@ export function ProfileScreen() {
                 <summary>Kỹ năng của bạn</summary>
                 <Panel title="Kỹ năng của bạn">
                   <Feedback
-                    loading={skills.loading}
+                    loading={skills.initialLoading}
                     error={skills.error}
                     reload={skills.reload}
+                    refreshing={!!(skills.loading && !skills.initialLoading)}
                   />
                   {skills.items.map((skill) => (
                     <div className="product-pending" key={skill.id}>

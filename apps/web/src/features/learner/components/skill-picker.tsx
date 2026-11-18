@@ -4,6 +4,7 @@ import { SearchInput } from "@/components/search-input";
 import { useUserList, useUserResource } from "../hooks/use-user-resource";
 import type { Skill } from "../types";
 import { Feedback, More } from "./common";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 export function SkillPicker({
   value,
   onChange,
@@ -28,12 +29,23 @@ export function SkillPicker({
     <fieldset className="learner-picker" disabled={disabled}>
       <legend>Kỹ năng muốn học / chia sẻ</legend>
       <p>
-        {value
-          ? "Đã chọn: " +
-            (selected.data?.name ??
+        {value ? (
+          <>
+            Đã chọn:{" "}
+            {selected.data?.name ??
               query.items.find((item) => item.id === value)?.name ??
-              "Đang tải…")
-          : "Chọn một kỹ năng trong danh mục."}
+              (selected.error ? (
+                "Không tải được tên kỹ năng"
+              ) : (
+                <LoadingSkeleton
+                  variant="inline"
+                  label="Đang tải tên kỹ năng"
+                />
+              ))}
+          </>
+        ) : (
+          "Chọn một kỹ năng trong danh mục."
+        )}
       </p>
       <div className="learner-search">
         <SearchInput
@@ -47,9 +59,10 @@ export function SkillPicker({
       </div>
       <Feedback error={searchError} />
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       <div className="learner-choice-list">
         {query.items.map((skill) => (

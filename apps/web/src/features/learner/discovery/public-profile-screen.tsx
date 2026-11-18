@@ -31,9 +31,11 @@ export function PublicProfileScreen({ userId }: Readonly<{ userId: string }>) {
       <Back href="/learn/explore?view=sharers">Tìm người chia sẻ</Back>
       <PageHeading title="Hồ sơ công khai" />
       <Feedback
-        loading={query.loading}
+        variant="profile"
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       {profile && (
         <>
@@ -105,9 +107,11 @@ function PublicSkills({
         không xuất hiện ở đây.
       </p>
       <Feedback
-        loading={query.loading}
+        variant="profile"
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       <div className="learner-stack">
         {query.items.map((skill) => (

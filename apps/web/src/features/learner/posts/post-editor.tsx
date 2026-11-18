@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { formText } from "../components/form-data";
 
 import { useState } from "react";
@@ -30,20 +31,22 @@ export function PostEditor({ id }: Readonly<{ id?: string }>) {
         title={id ? "Chỉnh sửa bài đăng" : "Bạn muốn học điều gì?"}
       />
       {id && (
-        <button
+        <LoadingButton
           type="button"
           className="btn"
           disabled={query.loading}
           onClick={query.reload}
+          loading={!!query.loading}
         >
           Kiểm tra phiên bản mới trên máy chủ
-        </button>
+        </LoadingButton>
       )}
       {id && (
         <Feedback
-          loading={query.loading}
+          loading={query.initialLoading}
           error={query.error}
           reload={query.reload}
+          refreshing={!!(query.loading && !query.initialLoading)}
         />
       )}
       <div className="product-form-layout">
@@ -292,9 +295,14 @@ function PostForm({ post }: Readonly<{ post?: Post }>) {
             trước khi bắt đầu yêu cầu khác.
           </p>
         )}
-        <button type="submit" className="btn btn-primary" disabled={blocked}>
+        <LoadingButton
+          type="submit"
+          className="btn btn-primary"
+          disabled={blocked}
+          loading={!!command.pending}
+        >
           {command.pending ? "Đang lưu…" : saveLabel}
-        </button>
+        </LoadingButton>
         <p className="muted">
           Bài mới được lưu nháp trước để bạn xem lại và xuất bản.
         </p>

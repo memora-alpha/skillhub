@@ -1,8 +1,10 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useUserPagedList } from "../hooks/use-user-paged-list";
 import Link from "next/link";
-import Image from "next/image";
+import { LoadingImage as Image } from "@/components/loading-image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -67,7 +69,7 @@ function PaymentQr({ payload }: Readonly<{ payload: string }>) {
   if (!source)
     return (
       <div className={styles.qr}>
-        <output>Đang tạo mã QR…</output>
+        <LoadingSkeleton variant="image" label="Đang tạo mã QR" />
       </div>
     );
   return (
@@ -123,8 +125,11 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
   const [recoveryError, setRecoveryError] = useState<string>();
   const [recoveryNotice, setRecoveryNotice] = useState<string>();
   const payment = current.data;
-  const pending = payment && ["CREATED", "PENDING"].includes(payment.status);
+  const pending = isPendingPayment(payment);
   const unresolved = pending || payment?.status === "REVIEW";
+  const currentAmount = unresolved ? payment?.paymentAmountVnd : amount;
+  const amountLocked =
+    command.pending || command.uncertain || !!savedIntent || !!unresolved;
   useEffect(() => {
     if (!payment?.id || !payment.status) return;
     // A verified receipt refreshes the shared wallet, history and creation gate.
@@ -143,29 +148,30 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
       },
     });
   }, [cache, actor.userId, payment?.id, payment?.status]);
-  let createLabel: string;
-  if (command.pending) createLabel = "Đang tạo mã QR…";
-  else if (savedIntent || command.canRetry)
-    createLabel = "Kiểm tra yêu cầu nạp trước";
-  else createLabel = "Tạo mã QR thanh toán";
+  const createLabel = paymentCreateLabel(
+    command.pending,
+    !!savedIntent || command.canRetry,
+  );
+  function paymentPanelTitle() {
+    if (unresolved) {
+      return "Thông tin đơn nạp" as const;
+    }
+    if (payment?.status === "PAID") {
+      return "Nạp thêm Credit" as const;
+    }
+    return "Chọn số tiền nạp" as const;
+  }
   return (
     <>
       <Back href="/learn/wallet" />
       <PageHeading title="Nạp Credit" />
       <div className={styles.layout}>
-        <Panel
-          title={
-            unresolved
-              ? "Thông tin đơn nạp"
-              : payment?.status === "PAID"
-                ? "Nạp thêm Credit"
-                : "Chọn số tiền nạp"
-          }
-        >
+        <Panel title={paymentPanelTitle()}>
           <Feedback
             loading={policy.initialLoading}
             error={policy.error}
             reload={policy.reload}
+            refreshing={!!(policy.loading && !policy.initialLoading)}
           />
           {unresolved && (
             <p className="learner-notice">
@@ -173,27 +179,7 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
               khi tạo yêu cầu nạp mới.
             </p>
           )}
-          {policy.data &&
-            !policy.data.canCreate &&
-            policy.data.existingPaymentId !== paymentId && (
-              <p className="learner-notice">
-                {policy.data.existingPaymentId ? (
-                  <>
-                    {paymentPolicyText(policy.data.reasonCode)}{" "}
-                    <Link
-                      href={
-                        "/learn/wallet/topup?paymentId=" +
-                        policy.data.existingPaymentId
-                      }
-                    >
-                      Xem lệnh nạp hiện tại
-                    </Link>
-                  </>
-                ) : (
-                  paymentPolicyText(policy.data.reasonCode)
-                )}
-              </p>
-            )}
+          <PaymentCreationNotice policy={policy.data} paymentId={paymentId} />
           <form
             className="learner-form"
             onSubmit={async (e) => {
@@ -228,26 +214,19 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
           >
             <div className="learner-actions">
               {[50000, 100000, 200000, 500000].map((value) => (
-                <button
+                <LoadingButton
                   type="button"
                   className={
-                    (unresolved ? payment?.paymentAmountVnd : amount) ===
-                    String(value)
-                      ? "btn btn-primary"
-                      : "btn"
+                    currentAmount === String(value) ? "btn btn-primary" : "btn"
                   }
                   aria-pressed={amount === String(value)}
                   key={value}
-                  disabled={
-                    command.pending ||
-                    command.uncertain ||
-                    !!savedIntent ||
-                    !!unresolved
-                  }
+                  disabled={amountLocked}
                   onClick={() => setAmount(String(value))}
+                  loading={!!(command.pending || !!unresolved)}
                 >
                   {value.toLocaleString("vi-VN")} ₫
-                </button>
+                </LoadingButton>
               ))}
             </div>
             <label>
@@ -257,20 +236,15 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
                 min={1000}
                 max={2000000}
                 step={1000}
-                value={unresolved ? payment?.paymentAmountVnd : amount}
+                value={currentAmount}
                 required
-                disabled={
-                  command.pending ||
-                  command.uncertain ||
-                  !!savedIntent ||
-                  !!unresolved
-                }
+                disabled={amountLocked}
                 onChange={(e) => setAmount(e.target.value)}
               />
               <small>Từ 1.000 đến 2.000.000 VND, bội số của 1.000.</small>
             </label>
             <div className="payment-create-actions">
-              <button
+              <LoadingButton
                 type="submit"
                 className="btn btn-primary"
                 disabled={
@@ -279,10 +253,11 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
                   !!unresolved ||
                   (!savedIntent && !command.canRetry && !policy.data?.canCreate)
                 }
+                loading={!!(command.pending || checking || !!unresolved)}
               >
                 {createLabel}
-              </button>
-              <button
+              </LoadingButton>
+              <LoadingButton
                 type="button"
                 className="btn payment-refresh"
                 aria-label="Kiểm tra lại lệnh nạp và lịch sử"
@@ -321,17 +296,24 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
                     setChecking(false);
                   }
                 }}
+                loading={!!(checking || command.pending)}
               >
                 <ProductIcon name="refresh" size={19} />
-              </button>
+              </LoadingButton>
             </div>
           </form>
           <CommandFeedback command={command} />
           {savedIntent && (
             <p className="learner-notice">
-              Đang kiểm tra yêu cầu nạp{" "}
-              {Number(savedIntent.amount).toLocaleString("vi-VN")} VND. Chưa đổi
-              số tiền cho đến khi có kết quả để tránh tạo đơn trùng.
+              {(checking || command.pending) && (
+                <LoadingSkeleton
+                  variant="inline"
+                  label="Đang kiểm tra yêu cầu nạp"
+                />
+              )}
+              Yêu cầu nạp {Number(savedIntent.amount).toLocaleString("vi-VN")}{" "}
+              VND. Chưa đổi số tiền cho đến khi có kết quả để tránh tạo đơn
+              trùng.
             </p>
           )}
           <Feedback error={recoveryError} />
@@ -356,6 +338,7 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
               loading={current.initialLoading}
               error={current.error}
               reload={current.reload}
+              refreshing={!!(current.loading && !current.initialLoading)}
             />
           )}
           {payment ? (
@@ -376,7 +359,7 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
                 </p>
               )}
               <div className="learner-actions">
-                <button
+                <LoadingButton
                   type="button"
                   className="btn"
                   aria-label="Làm mới trạng thái thanh toán"
@@ -387,12 +370,13 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
                     policy.reload();
                   }}
                   disabled={current.loading}
+                  loading={!!current.loading}
                 >
                   <ProductIcon name="refresh" size={19} />{" "}
                   {current.loading ? "Đang kiểm tra…" : "Kiểm tra thanh toán"}
-                </button>
+                </LoadingButton>
                 {pending && !payment.recoveryRequired && (
-                  <button
+                  <LoadingButton
                     type="button"
                     className="btn"
                     disabled={cancel.pending}
@@ -408,9 +392,10 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
                           if (result) current.reload();
                         });
                     }}
+                    loading={!!cancel.pending}
                   >
                     {cancel.pending ? "Đang gửi…" : "Hủy lệnh chưa thanh toán"}
-                  </button>
+                  </LoadingButton>
                 )}
               </div>
               <CommandFeedback command={cancel} />
@@ -428,6 +413,7 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
             loading={history.initialLoading}
             error={history.error}
             reload={history.reload}
+            refreshing={!!(history.loading && !history.initialLoading)}
           />
           {history.items.map((row) => (
             <Link
@@ -454,19 +440,18 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
 
 function PaymentCheckout({ payment }: Readonly<{ payment: Payment }>) {
   const now = useClock();
-  const pending = ["CREATED", "PENDING"].includes(payment.status);
+  const pending = isPendingPayment(payment);
   const expired = !!payment.expiresAt && Date.parse(payment.expiresAt) <= now;
   let unavailable = "Lệnh này hiện không có mã QR để thanh toán.";
   if (expired)
     unavailable =
       "Mã QR đã hết thời gian thanh toán. Kiểm tra lại trạng thái lệnh.";
-  else if (pending)
-    unavailable =
-      "Đang chuẩn bị thông tin thanh toán. Kiểm tra lại sau ít giây.";
   if (payment.status === "PAID")
     return (
-      <section className={styles.success} role="status">
-        <h3>Thanh toán thành công</h3>
+      <section className={styles.success}>
+        <h3>
+          <output>Thanh toán thành công</output>
+        </h3>
         <p>Đã ghi nhận {payment.creditAmount} Credit vào ví của bạn.</p>
         <Link className="btn btn-primary" href="/learn/wallet">
           Xem ví Credit
@@ -491,5 +476,46 @@ function PaymentCheckout({ payment }: Readonly<{ payment: Payment }>) {
         {payment.expiresAt && <p>Hết hạn: {formatTime(payment.expiresAt)}</p>}
       </>
     );
+  if (pending && !expired)
+    return (
+      <LoadingSkeleton
+        variant="image"
+        label="Đang chuẩn bị thông tin thanh toán"
+      />
+    );
   return <p className="learner-notice">{unavailable}</p>;
+}
+
+function paymentCreateLabel(pending: boolean, recovery: boolean) {
+  if (pending) return "Đang tạo mã QR…";
+  if (recovery) return "Kiểm tra yêu cầu nạp trước";
+  return "Tạo mã QR thanh toán";
+}
+
+function PaymentCreationNotice({
+  policy,
+  paymentId,
+}: Readonly<{ policy: PaymentPolicy | undefined; paymentId?: string }>) {
+  if (!policy || policy.canCreate || policy.existingPaymentId === paymentId)
+    return null;
+  return (
+    <p className="learner-notice">
+      {policy.existingPaymentId ? (
+        <>
+          {paymentPolicyText(policy.reasonCode)}{" "}
+          <Link
+            href={"/learn/wallet/topup?paymentId=" + policy.existingPaymentId}
+          >
+            Xem lệnh nạp hiện tại
+          </Link>
+        </>
+      ) : (
+        paymentPolicyText(policy.reasonCode)
+      )}
+    </p>
+  );
+}
+
+function isPendingPayment(payment: Payment | undefined) {
+  return !!payment && ["CREATED", "PENDING"].includes(payment.status);
 }

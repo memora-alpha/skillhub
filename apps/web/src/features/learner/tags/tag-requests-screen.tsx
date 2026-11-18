@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useUserPagedList } from "../hooks/use-user-paged-list";
 import Link from "next/link";
@@ -92,13 +93,14 @@ export function TagRequestsScreen() {
               <output>{notice}</output>
             </p>
           )}
-          <button
+          <LoadingButton
             className="btn btn-primary"
             disabled={command.pending}
             type="submit"
+            loading={!!command.pending}
           >
             {command.canRetry ? "Kiểm tra lại cùng đề xuất" : "Gửi Admin duyệt"}
-          </button>
+          </LoadingButton>
         </form>
       </Panel>
       <label>
@@ -111,18 +113,20 @@ export function TagRequestsScreen() {
         </select>
       </label>
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
-      <button
+      <LoadingButton
         type="button"
         className="btn"
         onClick={query.reload}
         disabled={query.loading}
+        loading={!!query.loading}
       >
         Tải lại trạng thái duyệt
-      </button>
+      </LoadingButton>
       <div className="learner-stack">
         {query.items.map((row) => (
           <Panel key={row.id} title={row.label}>

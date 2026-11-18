@@ -60,6 +60,7 @@ export function ProfileReviews({
             ["sent", "Đã gửi"],
           ].map(([value, label]) => (
             <button
+              type="button"
               className="btn"
               aria-pressed={direction === value}
               key={value}
@@ -71,9 +72,10 @@ export function ProfileReviews({
         </div>
       )}
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       {query.items.map((row) => {
         const person = direction === "sent" ? row.reviewee : row.reviewer;

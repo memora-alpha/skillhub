@@ -147,9 +147,10 @@ export function ConnectionsScreen({
         </p>
       )}
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       <div className={styles.cards}>
         {items.map((proposal) => (

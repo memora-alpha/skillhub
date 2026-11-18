@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { useState } from "react";
 import { useUserSession } from "../auth/session";
 import { useUserCommand } from "../hooks/use-user-command";
@@ -79,18 +80,24 @@ export function ProposalEditor({
       <Feedback error={error} />
       <CommandFeedback command={command} />
       <div className="learner-actions">
-        <button type="submit" className="btn btn-primary" disabled={disabled}>
+        <LoadingButton
+          type="submit"
+          className="btn btn-primary"
+          disabled={disabled}
+          loading={!!command.pending}
+        >
           Lưu đề xuất
-        </button>
+        </LoadingButton>
         {command.canRetry && sent && (
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={command.pending}
             onClick={() => void send(sent)}
+            loading={!!command.pending}
           >
             Thử lại cùng yêu cầu
-          </button>
+          </LoadingButton>
         )}
         {stale && proposal.status === "PENDING" && !command.uncertain && (
           <button
@@ -101,14 +108,15 @@ export function ProposalEditor({
             Thay bản nhập bằng phiên bản mới
           </button>
         )}
-        <button
+        <LoadingButton
           type="button"
           className="btn"
           disabled={command.pending || command.uncertain}
           onClick={onClose}
+          loading={!!command.pending}
         >
           Đóng chỉnh sửa
-        </button>
+        </LoadingButton>
       </div>
     </form>
   );

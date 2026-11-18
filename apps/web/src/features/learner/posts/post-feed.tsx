@@ -75,9 +75,10 @@ export function PostFeed({
             </button>
           ))}
           <Feedback
-            loading={skills.loading}
+            loading={skills.initialLoading}
             error={skills.error}
             reload={skills.reload}
+            refreshing={!!(skills.loading && !skills.initialLoading)}
           />
           <ListPagination query={skills} />
         </aside>
@@ -93,9 +94,10 @@ export function PostFeed({
             />
           </div>
           <Feedback
-            loading={query.loading}
+            loading={query.initialLoading}
             error={query.error}
             reload={query.reload}
+            refreshing={!!(query.loading && !query.initialLoading)}
           />
           <div className="learner-post-grid product-requests">
             {query.items.map((post) => (

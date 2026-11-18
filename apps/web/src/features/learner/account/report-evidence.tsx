@@ -2,6 +2,7 @@
 import { useEffect } from "react";
 import { useUserResource } from "../hooks/use-user-resource";
 import { Feedback } from "../components/common";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 
 export function ReportEvidence({
   id,
@@ -24,16 +25,26 @@ export function ReportEvidence({
     },
   );
   const state = query.data?.fileId === id ? query.data.state : undefined;
-  let stateLabel = "Đang kiểm tra tệp";
+  let stateLabel = "Chưa có kết quả kiểm tra tệp";
   if (state === "READY") stateLabel = "Sẵn sàng gửi";
   else if (state === "REJECTED") stateLabel = "Tệp bị từ chối, hãy bỏ tệp này";
+  else if (state === "FAILED") stateLabel = "Kiểm tra tệp không thành công";
+  else if (state === "DELETED") stateLabel = "Tệp đã bị xóa";
+  const processing =
+    !query.error &&
+    (!state || !["READY", "REJECTED", "DELETED", "FAILED"].includes(state));
   useEffect(() => {
     if (state) onState(id, state);
   }, [id, state, onState]);
   return (
     <div>
       <p>
-        Bằng chứng {id.slice(0, 8)} · {stateLabel}
+        Bằng chứng {id.slice(0, 8)} ·{" "}
+        {processing ? (
+          <LoadingSkeleton variant="inline" label="Đang kiểm tra tệp" />
+        ) : (
+          stateLabel
+        )}
       </p>
       <Feedback error={query.error} reload={query.reload} />
       <button

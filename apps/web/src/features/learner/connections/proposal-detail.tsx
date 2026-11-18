@@ -18,9 +18,10 @@ export function ProposalDetail({ id }: Readonly<{ id: string }>) {
       <Back href="/learn/connections" />
       <PageHeading title="Chi tiết đề nghị" />
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       {proposal && (
         <div className={styles.detail}>

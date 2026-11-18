@@ -63,9 +63,10 @@ function SharerResults({
   return (
     <div aria-live="polite">
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       <div className="learner-post-grid">
         {people.map((row) => (

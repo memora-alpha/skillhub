@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { useEffect, useRef, useState } from "react";
 import { useUserSession } from "../auth/session";
 import { Feedback } from "../components/common";
@@ -120,7 +121,7 @@ export function AvatarEditor({ onSaved }: Readonly<{ onSaved: () => void }>) {
         />
       </label>
       <div className="learner-actions">
-        <button
+        <LoadingButton
           type="button"
           className="btn"
           disabled={!file || !!avatarFileError(file) || uploading || !!assetId}
@@ -159,20 +160,22 @@ export function AvatarEditor({ onSaved }: Readonly<{ onSaved: () => void }>) {
               if (!signal?.aborted) setUploading(false);
             }
           }}
+          loading={!!uploading}
         >
           {uploading ? "Đang xử lý…" : "Tải ảnh lên"}
-        </button>
+        </LoadingButton>
         {assetId && (
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={uploading || checking}
             onClick={() => setAttempt((value) => value + 1)}
+            loading={!!(uploading || checking)}
           >
             Kiểm tra trạng thái ảnh
-          </button>
+          </LoadingButton>
         )}
-        <button
+        <LoadingButton
           type="button"
           className="btn"
           disabled={uploading}
@@ -201,9 +204,10 @@ export function AvatarEditor({ onSaved }: Readonly<{ onSaved: () => void }>) {
               if (!signal?.aborted) setUploading(false);
             }
           }}
+          loading={!!uploading}
         >
           Xóa ảnh đại diện
-        </button>
+        </LoadingButton>
       </div>
       <Feedback error={error} />
       {notice && (

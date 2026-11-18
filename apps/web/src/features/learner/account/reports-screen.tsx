@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { reportDescriptionText } from "@/lib/system-text";
 import Link from "next/link";
 import { useCallback, useState } from "react";
@@ -45,9 +46,10 @@ export function ReportsScreen() {
         description="Theo dõi phản hồi và bổ sung thông tin cho các báo cáo bạn đã gửi."
       />
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       <div className={styles.filters} aria-label="Trạng thái báo cáo">
         {[["ALL", "Tất cả"], ...reportStatuses].map(([code, label]) => (
@@ -297,7 +299,7 @@ function ReportSubmission({
           Kiểm tra báo cáo đã gửi trước khi thao tác tiếp
         </Link>
       )}
-      <button
+      <LoadingButton
         type="submit"
         className="btn btn-primary"
         disabled={
@@ -307,9 +309,10 @@ function ReportSubmission({
           files.some((file) => file.state !== "READY") ||
           ("status" in target && target.status === "CANCELLED")
         }
+        loading={!!(uploading || command.pending)}
       >
         {command.pending ? "Đang gửi…" : "Gửi báo cáo"}
-      </button>
+      </LoadingButton>
     </form>
   );
 }
@@ -377,9 +380,10 @@ export function ReportForm({
       <div className="learner-two-columns">
         <Panel title={sessionId ? "Báo cáo buổi học" : "Báo cáo tài liệu"}>
           <Feedback
-            loading={target.loading}
+            loading={target.initialLoading}
             error={target.error}
             reload={target.reload}
+            refreshing={!!(target.loading && !target.initialLoading)}
           />
           {content}
         </Panel>

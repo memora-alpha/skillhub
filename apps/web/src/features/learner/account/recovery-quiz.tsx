@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { useId, useState } from "react";
 import styles from "./reputation-recovery.module.css";
 export type RecoveryQuizData = {
@@ -86,13 +87,14 @@ export function RecoveryQuiz({
               ? "Bạn đã trả lời đủ. Sẵn sàng kiểm tra kết quả!"
               : "Trả lời đủ các câu để nộp bài."}
           </p>
-          <button
+          <LoadingButton
             className="btn btn-primary"
             type="submit"
             disabled={disabled || !complete}
+            loading={!!pending}
           >
             {pending ? "Đang kiểm tra…" : "Nộp bài kiểm tra"}
-          </button>
+          </LoadingButton>
         </div>
       </form>
     </section>

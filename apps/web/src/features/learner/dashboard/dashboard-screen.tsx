@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
+import { useState, type ReactNode } from "react";
 import { useUserSession } from "../auth/session";
 import { useUserList, useUserResource } from "../hooks/use-user-resource";
 import type { LearningSession, PathSummary, Proposal } from "../types";
@@ -34,7 +35,7 @@ export function DashboardScreen() {
       ?.filter((s) => !["CANCELLED", "COMPLETED", "CLOSED"].includes(s.status))
       .sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt)),
     next = upcoming?.[0];
-  let nextLabel = "Chưa có lịch";
+  let nextLabel: ReactNode = "Chưa có lịch";
   if (next)
     nextLabel = new Intl.DateTimeFormat("vi-VN", {
       timeZone: "Asia/Ho_Chi_Minh",
@@ -43,14 +44,16 @@ export function DashboardScreen() {
       hour: "2-digit",
       minute: "2-digit",
     }).format(new Date(next.startAt));
-  else if (sessions.loading) nextLabel = "Đang tải…";
+  else if (sessions.loading) nextLabel = <LoadingSkeleton variant="inline" />;
   else if (sessions.error) nextLabel = "Chưa tải được";
-  let pathsLabel = paths.items.length + (paths.cursor ? "+" : "") + " lộ trình";
-  if (paths.loading && !paths.items.length) pathsLabel = "Đang tải…";
+  let pathsLabel: ReactNode =
+    paths.items.length + (paths.cursor ? "+" : "") + " lộ trình";
+  if (paths.loading && !paths.items.length)
+    pathsLabel = <LoadingSkeleton variant="inline" />;
   else if (paths.error) pathsLabel = "Chưa tải được";
-  let walletLabel = "Chưa tải được";
+  let walletLabel: ReactNode = "Chưa tải được";
   if (wallet.data) walletLabel = wallet.data.availableCredit + " khả dụng";
-  else if (wallet.loading) walletLabel = "Đang tải…";
+  else if (wallet.loading) walletLabel = <LoadingSkeleton variant="inline" />;
   if (sessions.initialLoading || paths.initialLoading || wallet.initialLoading)
     return <LearnerContentSkeleton />;
   return (
@@ -115,9 +118,10 @@ export function DashboardScreen() {
             <Link href="/learn/calendar">Xem lịch →</Link>
           </div>
           <Feedback
-            loading={sessions.loading}
+            loading={sessions.initialLoading}
             error={sessions.error}
             reload={sessions.reload}
+            refreshing={!!(sessions.loading && !sessions.initialLoading)}
           />
           {next && (
             <div className="upcoming-session">
@@ -166,9 +170,10 @@ export function DashboardScreen() {
             <Link href="/learn/connections">Xem tất cả</Link>
           </div>
           <Feedback
-            loading={proposals.loading}
+            loading={proposals.initialLoading}
             error={proposals.error}
             reload={proposals.reload}
+            refreshing={!!(proposals.loading && !proposals.initialLoading)}
           />
           {proposals.items.map((p) => (
             <Link
@@ -198,9 +203,10 @@ export function DashboardScreen() {
           <Link href="/learn/paths">Xem lộ trình →</Link>
         </div>
         <Feedback
-          loading={paths.loading}
+          loading={paths.initialLoading}
           error={paths.error}
           reload={paths.reload}
+          refreshing={!!(paths.loading && !paths.initialLoading)}
         />
         <div className="product-dash-paths">
           {paths.items.slice(0, 4).map((p) => (
