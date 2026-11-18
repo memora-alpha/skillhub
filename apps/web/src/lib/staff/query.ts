@@ -46,7 +46,8 @@ function staffQueryNames(path: string): string[] {
       "orderCode",
       "gatewayTransactionId",
     );
-  if (path === "reports/support/queue") names.push("severity", "handlerId");
+  if (path === "reports/support/queue")
+    names.push("severity", "handlerId", "source");
   if (path === "dashboard/work-items")
     names.push(
       "kind",
