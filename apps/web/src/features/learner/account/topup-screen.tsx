@@ -1,11 +1,13 @@
 "use client";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useUserPagedList } from "../hooks/use-user-paged-list";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUserSession } from "../auth/session";
-import { useUserResource, useUserList } from "../hooks/use-user-resource";
+import { useUserResource } from "../hooks/use-user-resource";
 import { useUserCommand } from "../hooks/use-user-command";
 import { ProductIcon } from "../components/product-icon";
 import { useClock } from "../hooks/use-clock";
@@ -14,7 +16,6 @@ import {
   CommandFeedback,
   Empty,
   Feedback,
-  More,
   PageHeading,
   Panel,
   Status,
@@ -100,7 +101,7 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
         pollOnTemporaryError: true,
       },
     ),
-    history = useUserList<Payment>("payments?limit=10");
+    history = useUserPagedList<Payment>("payments?limit=10");
   const storageKey = "skillhub-user-draft:" + actor.userId + ":payment-intent";
   const [savedIntent, setSavedIntent] = useState<PaymentIntent | null>(() => {
     try {
@@ -444,13 +445,7 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
           {!history.loading && !history.error && !history.items.length && (
             <Empty>Bạn chưa tạo lệnh nạp Credit.</Empty>
           )}
-          <More
-            cursor={history.cursor}
-            loading={history.loading}
-            onMore={() => {
-              void history.more();
-            }}
-          />
+          <ListPagination query={history} />
         </Panel>
       </div>
     </>

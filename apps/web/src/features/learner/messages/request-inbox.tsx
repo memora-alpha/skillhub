@@ -1,10 +1,12 @@
 "use client";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useUserPagedList } from "../hooks/use-user-paged-list";
 import { useState } from "react";
 import Link from "next/link";
-import { useUserList } from "../hooks/use-user-resource";
+
 import { useUserSession } from "../auth/session";
 import type { Conversation, Proposal } from "../types";
-import { Feedback, More, statusText } from "../components/common";
+import { Feedback, statusText } from "../components/common";
 import { MemberIdentity } from "../components/member-identity";
 import { ProductIcon } from "../components/product-icon";
 import { ProposalCard } from "../connections/proposal-card";
@@ -81,7 +83,7 @@ export function RequestInbox({
 
 function RequestChats({ id }: Readonly<{ id: string }>) {
   const { actor } = useUserSession();
-  const query = useUserList<Conversation>(
+  const query = useUserPagedList<Conversation>(
     "conversations?limit=20&learningRequestId=" + id,
   );
   return (
@@ -114,13 +116,7 @@ function RequestChats({ id }: Readonly<{ id: string }>) {
           nhận.
         </p>
       )}
-      <More
-        cursor={query.cursor}
-        loading={query.loading}
-        onMore={() => {
-          void query.more();
-        }}
-      />
+      <ListPagination query={query} />
     </div>
   );
 }
@@ -136,7 +132,7 @@ function RequestProposals({
     direction,
   });
   if (status !== "all") params.set("status", status);
-  const query = useUserList<Proposal>("proposals?" + params);
+  const query = useUserPagedList<Proposal>("proposals?" + params);
   return (
     <div className={styles.requestBody}>
       <label className={styles.statusFilter}>
@@ -170,13 +166,7 @@ function RequestProposals({
       {!query.loading && !query.error && !query.items.length && (
         <p className={styles.empty}>Chưa có đề nghị ở trạng thái này.</p>
       )}
-      <More
-        cursor={query.cursor}
-        loading={query.loading}
-        onMore={() => {
-          void query.more();
-        }}
-      />
+      <ListPagination query={query} />
     </div>
   );
 }

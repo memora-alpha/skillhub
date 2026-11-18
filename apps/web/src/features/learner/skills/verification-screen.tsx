@@ -1,15 +1,16 @@
 "use client";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useUserPagedList } from "../hooks/use-user-paged-list";
 import { formText } from "../components/form-data";
 import { useState } from "react";
 import { useUserSession } from "../auth/session";
-import { useUserList, useUserResource } from "../hooks/use-user-resource";
+import { useUserResource } from "../hooks/use-user-resource";
 import { useUserCommand } from "../hooks/use-user-command";
 import {
   Back,
   CommandFeedback,
   Empty,
   Feedback,
-  More,
   PageHeading,
   Panel,
   Status,
@@ -34,7 +35,7 @@ export function VerificationScreen({ id }: Readonly<{ id: string }>) {
   const file = useUserResource<{ fileId: string; state: string }>(
       fileId ? "me/skills/" + id + "/evidence-files/" + fileId : null,
     ),
-    history = useUserList<Verification>(
+    history = useUserPagedList<Verification>(
       "me/skills/" + id + "/verifications?limit=20",
     );
   let submitLabel: string;
@@ -169,13 +170,7 @@ export function VerificationScreen({ id }: Readonly<{ id: string }>) {
           {!history.loading && !history.error && !history.items.length && (
             <Empty>Chưa có yêu cầu xác minh.</Empty>
           )}
-          <More
-            cursor={history.cursor}
-            loading={history.loading}
-            onMore={() => {
-              void history.more();
-            }}
-          />
+          <ListPagination query={history} />
         </Panel>
       </div>
     </>

@@ -1,16 +1,12 @@
 "use client";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useUserPagedList } from "../hooks/use-user-paged-list";
 import Link from "next/link";
 import { useState } from "react";
-import {
-  Feedback,
-  More,
-  PageHeading,
-  Panel,
-  formatTime,
-} from "../components/common";
+import { Feedback, PageHeading, Panel, formatTime } from "../components/common";
 import { ProductIcon } from "../components/product-icon";
 import { ProfileAvatar } from "../components/profile-avatar";
-import { useUserList } from "../hooks/use-user-resource";
+
 import type { PathSummary } from "../types";
 import { useMyReviews } from "./use-my-reviews";
 import { ReviewStars } from "./review-stars";
@@ -147,11 +143,7 @@ export function MyReviewsScreen() {
             );
           })}
         </div>
-        <More
-          cursor={query.cursor}
-          loading={query.loading}
-          onMore={query.more}
-        />
+        <ListPagination query={query} />
       </section>
     </div>
   );
@@ -195,7 +187,7 @@ function ReceivedSummary({ summary }: Readonly<{ summary: ReviewSummary }>) {
 }
 
 function ChooseReviewPath() {
-  const query = useUserList<PathSummary & { title?: string | null }>(
+  const query = useUserPagedList<PathSummary & { title?: string | null }>(
     "learning-paths/mine?limit=20",
   );
   const completed = query.items.filter((row) => row.status === "COMPLETED");
@@ -223,17 +215,11 @@ function ChooseReviewPath() {
         </div>
         {!query.loading && !query.error && !completed.length && (
           <p>
-            Chưa có lộ trình hoàn tất trong danh sách đã tải.
+            Chưa có lộ trình hoàn tất trên trang hiện tại.
             {query.cursor ? " Xem thêm để tìm các lộ trình trước đó." : ""}
           </p>
         )}
-        <More
-          cursor={query.cursor}
-          loading={query.loading}
-          onMore={() => {
-            void query.more();
-          }}
-        />
+        <ListPagination query={query} />
       </Panel>
     </section>
   );

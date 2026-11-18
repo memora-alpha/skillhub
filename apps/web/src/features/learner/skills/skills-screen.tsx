@@ -1,9 +1,11 @@
 "use client";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useUserPagedList } from "../hooks/use-user-paged-list";
 import { formText } from "../components/form-data";
 
 import { useState } from "react";
 import { useUserSession } from "../auth/session";
-import { useUserList, useUserResource } from "../hooks/use-user-resource";
+import { useUserResource } from "../hooks/use-user-resource";
 import { useUserCommand } from "../hooks/use-user-command";
 import type { SharingSkill } from "../types";
 import { SkillPicker } from "../components/skill-picker";
@@ -11,7 +13,6 @@ import {
   CommandFeedback,
   Empty,
   Feedback,
-  More,
   PageHeading,
   Panel,
 } from "../components/common";
@@ -25,7 +26,7 @@ type Level = {
 };
 export function SkillsScreen() {
   const [includeArchived, setIncludeArchived] = useState(false);
-  const query = useUserList<SharingSkill>(
+  const query = useUserPagedList<SharingSkill>(
       "me/skills?limit=20&includeArchived=" + includeArchived,
     ),
     { request } = useUserSession(),
@@ -64,13 +65,7 @@ export function SkillsScreen() {
           {!query.loading && !query.error && !query.items.length && (
             <Empty>Bạn chưa khai báo kỹ năng chia sẻ.</Empty>
           )}
-          <More
-            cursor={query.cursor}
-            loading={query.loading}
-            onMore={() => {
-              void query.more();
-            }}
-          />
+          <ListPagination query={query} />
         </div>
         <Panel title="Thêm kỹ năng">
           <form

@@ -1,7 +1,9 @@
 "use client";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useUserPagedList } from "../hooks/use-user-paged-list";
 import Link from "next/link";
 import { notificationCopy } from "@/lib/i18n/system-copy";
-import { useUserList } from "../hooks/use-user-resource";
+
 import { useUserCommand } from "../hooks/use-user-command";
 import { useUnreadNotifications } from "../hooks/use-unread-notifications";
 import { useUserSession } from "../auth/session";
@@ -9,7 +11,6 @@ import {
   CommandFeedback,
   Empty,
   Feedback,
-  More,
   PageHeading,
   Panel,
   formatTime,
@@ -20,7 +21,7 @@ import type { InboxNotification } from "./account-types";
 import { WebPushSettings } from "../notifications/web-push-settings";
 import { NotificationPreferences } from "../notifications/notification-preferences";
 export function NotificationsScreen() {
-  const query = useUserList<InboxNotification>("notifications?limit=20"),
+  const query = useUserPagedList<InboxNotification>("notifications?limit=20"),
     command = useUserCommand(),
     { request } = useUserSession();
   const unread = useUnreadNotifications();
@@ -115,13 +116,7 @@ export function NotificationsScreen() {
       {!query.loading && !query.error && !query.items.length && (
         <Empty>Bạn chưa có thông báo.</Empty>
       )}
-      <More
-        cursor={query.cursor}
-        loading={query.loading}
-        onMore={() => {
-          void query.more();
-        }}
-      />
+      <ListPagination query={query} />
     </>
   );
 }

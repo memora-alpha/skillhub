@@ -1,16 +1,17 @@
 "use client";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useUserPagedList } from "../hooks/use-user-paged-list";
 import { systemCodeLabel } from "@/lib/system-text";
 
 import Link from "next/link";
 import { achievementTitle } from "@/lib/i18n/system-copy";
 import { useState } from "react";
 import { useUserSession } from "../auth/session";
-import { useUserList, useUserResource } from "../hooks/use-user-resource";
+import { useUserResource } from "../hooks/use-user-resource";
 import {
   Back,
   Empty,
   Feedback,
-  More,
   PageHeading,
   Panel,
   Status,
@@ -88,7 +89,7 @@ function PublicSkills({
   userId,
   fullName,
 }: Readonly<{ userId: string; fullName: string }>) {
-  const query = useUserList<PublicSharingSkill>(
+  const query = useUserPagedList<PublicSharingSkill>(
     "profiles/" + userId + "/skills?limit=20",
   );
   const { actor } = useUserSession();
@@ -122,13 +123,7 @@ function PublicSkills({
       {!query.loading && !query.error && !query.items.length && (
         <Empty>Thành viên chưa có kỹ năng công khai.</Empty>
       )}
-      <More
-        cursor={query.cursor}
-        loading={query.loading}
-        onMore={() => {
-          void query.more();
-        }}
-      />
+      <ListPagination query={query} />
     </section>
   );
 }

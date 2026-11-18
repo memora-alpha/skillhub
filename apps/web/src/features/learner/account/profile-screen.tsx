@@ -1,19 +1,15 @@
 "use client";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useUserPagedList } from "../hooks/use-user-paged-list";
 import { achievementTitle } from "@/lib/i18n/system-copy";
 import { formText } from "../components/form-data";
 import Link from "next/link";
 import { useState } from "react";
 import type { SharingSkill } from "../types";
-import { useUserResource, useUserList } from "../hooks/use-user-resource";
+import { useUserResource } from "../hooks/use-user-resource";
 import { useUserCommand } from "../hooks/use-user-command";
 import { useUserSession } from "../auth/session";
-import {
-  CommandFeedback,
-  Feedback,
-  Panel,
-  Status,
-  More,
-} from "../components/common";
+import { CommandFeedback, Feedback, Panel, Status } from "../components/common";
 import type { OwnIdentity } from "./account-types";
 import { ProfileAvatar } from "../components/profile-avatar";
 import { AvatarEditor } from "./avatar-editor";
@@ -21,7 +17,7 @@ import { AccountSecurity } from "./account-security";
 import { RatingSummary } from "./profile-reviews";
 import styles from "../components/learning-layout.module.css";
 export function ProfileScreen() {
-  const skills = useUserList<SharingSkill>("me/skills?limit=3");
+  const skills = useUserPagedList<SharingSkill>("me/skills?limit=3");
   const query = useUserResource<OwnIdentity>("me"),
     command = useUserCommand(),
     { request, actor } = useUserSession(),
@@ -231,13 +227,7 @@ export function ProfileScreen() {
                   {!skills.loading && !skills.error && !skills.items.length && (
                     <p>Bạn chưa khai báo kỹ năng chia sẻ.</p>
                   )}
-                  <More
-                    cursor={skills.cursor}
-                    loading={skills.loading}
-                    onMore={() => {
-                      void skills.more();
-                    }}
-                  />
+                  <ListPagination query={skills} />
                   <p>
                     <Link className="btn" href="/learn/skills">
                       Quản lý kỹ năng

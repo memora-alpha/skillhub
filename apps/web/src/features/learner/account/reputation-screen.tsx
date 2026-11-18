@@ -4,6 +4,8 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { useUserSession } from "../auth/session";
 import { ReputationPathSource } from "./reputation-path-source";
 import { ReputationRecovery } from "./reputation-recovery";
+import { useListPages } from "@/components/pagination/use-list-pages";
+import { ListPagination } from "@/components/pagination/list-pagination";
 import {
   Back,
   Empty,
@@ -81,18 +83,21 @@ export function ReputationScreen() {
         ? page.nextCursor
         : undefined,
   });
-  const current = query.data?.pages[0],
-    entries = [
-      ...new Map(
-        query.data?.pages
-          .flatMap((page) => page.items)
-          .map((entry) => [entry.id, entry]) ?? [],
-      ).values(),
-    ];
+  const current = query.data?.pages[0];
   const denied =
     !!query.error &&
     "status" in query.error &&
     [401, 403, 404].includes(Number(query.error.status));
+  const pagination = useListPages({
+    scope: `${actor.userId}:reputation`,
+    chunks: denied ? [] : (query.data?.pages.map((page) => page.items) ?? []),
+    loading: query.isFetching,
+    hasMore: !!query.hasNextPage && !denied,
+    error: query.error?.message,
+    more: () => query.fetchNextPage({ cancelRefetch: false }),
+    reload: () => query.refetch(),
+  });
+  const entries = pagination.items;
   return (
     <>
       <Back href="/learn/profile" />
@@ -103,7 +108,7 @@ export function ReputationScreen() {
       <Feedback
         loading={query.isFetching}
         error={query.error?.message}
-        reload={() => void query.refetch()}
+        reload={() => void pagination.reload()}
       />
       {!denied && current && (
         <>
@@ -174,15 +179,7 @@ export function ReputationScreen() {
       {!query.isPending && !query.error && !entries.length && (
         <Empty>Chưa có biến động uy tín.</Empty>
       )}
-      {query.hasNextPage && !denied && (
-        <button
-          className="btn"
-          disabled={query.isFetching}
-          onClick={() => void query.fetchNextPage()}
-        >
-          Xem lịch sử cũ hơn
-        </button>
-      )}
+      {!denied && <ListPagination query={pagination} />}
     </>
   );
 }

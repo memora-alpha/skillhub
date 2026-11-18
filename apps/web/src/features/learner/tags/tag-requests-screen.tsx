@@ -1,15 +1,16 @@
 "use client";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useUserPagedList } from "../hooks/use-user-paged-list";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { useUserSession } from "../auth/session";
-import { useUserList } from "../hooks/use-user-resource";
+
 import { useUserCommand } from "../hooks/use-user-command";
 import {
   Back,
   CommandFeedback,
   Empty,
   Feedback,
-  More,
   PageHeading,
   Panel,
   Status,
@@ -32,7 +33,7 @@ export function TagRequestsScreen() {
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
   const submitted = useRef("");
-  const query = useUserList<TagRequest>(
+  const query = useUserPagedList<TagRequest>(
     "me/tag-requests?limit=20" + (status ? "&status=" + status : ""),
   );
   return (
@@ -143,13 +144,7 @@ export function TagRequestsScreen() {
       {!query.loading && !query.error && !query.items.length && (
         <Empty>Chưa có yêu cầu trong mục này.</Empty>
       )}
-      <More
-        cursor={query.cursor}
-        loading={query.loading}
-        onMore={() => {
-          void query.more();
-        }}
-      />
+      <ListPagination query={query} />
     </>
   );
 }
