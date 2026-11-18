@@ -1,4 +1,6 @@
 "use client";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useStaffListPages } from "./use-staff-list-pages";
 import Link from "next/link";
 import { useState } from "react";
 import {
@@ -10,8 +12,8 @@ import {
 import { fmtDateTime } from "@/lib/console/format";
 import { systemCodeLabel } from "@/lib/system-text";
 import { useStaffSession } from "./session";
-import { useStaffList } from "./hooks";
-import { DecisionDialog, Pager, QueueState } from "./common";
+
+import { DecisionDialog, QueueState } from "./common";
 import styles from "./dashboard.module.css";
 type Review = {
   id: string;
@@ -33,7 +35,8 @@ export function MaterialReviewModeration() {
   const { api, portal } = useStaffSession();
   const [status, setStatus] = useState("REPORTED");
   const [selected, setSelected] = useState<Review>();
-  const list = useStaffList<Review>(
+  const [dismissReports, setDismissReports] = useState(false);
+  const list = useStaffListPages<Review>(
     `material-reviews?status=${status}&limit=20`,
   );
   return (
@@ -117,41 +120,60 @@ export function MaterialReviewModeration() {
                   <button
                     type="button"
                     className="btn"
-                    onClick={() => setSelected(review)}
+                    onClick={() => {
+                      setDismissReports(false);
+                      setSelected(review);
+                    }}
                   >
                     {review.status === "HIDDEN"
                       ? "Khôi phục đánh giá"
                       : "Ẩn đánh giá"}
                   </button>
+                  {review.status === "VISIBLE" && review.reports.length > 0 && (
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => {
+                        setDismissReports(true);
+                        setSelected(review);
+                      }}
+                    >
+                      Bác báo cáo, giữ đánh giá
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
           </DataTable>
-          <Pager
-            loading={list.loading}
-            hasMore={list.page?.hasMore}
-            more={list.more}
-          />
+          <ListPagination query={list} />
         </QueueState>
       </Card>
       {selected && (
         <DecisionDialog
           key={`${selected.id}:${selected.version}`}
           title={
-            selected.status === "HIDDEN" ? "Khôi phục đánh giá" : "Ẩn đánh giá"
+            dismissReports
+              ? "Bác báo cáo, giữ đánh giá"
+              : selected.status === "HIDDEN"
+                ? "Khôi phục đánh giá"
+                : "Ẩn đánh giá"
           }
           description={`Tài liệu: ${selected.material.title}. Ghi lý do để lưu quyết định kiểm duyệt.`}
           min={1}
           max={2000}
           confirmLabel={
-            selected.status === "HIDDEN" ? "Xác nhận khôi phục" : "Xác nhận ẩn"
+            dismissReports
+              ? "Xác nhận bác báo cáo"
+              : selected.status === "HIDDEN"
+                ? "Xác nhận khôi phục"
+                : "Xác nhận ẩn"
           }
-          danger={selected.status !== "HIDDEN"}
+          danger={!dismissReports && selected.status !== "HIDDEN"}
           onClose={() => setSelected(undefined)}
           onReload={list.reload}
           onSubmit={async (reason) => {
             await api(
-              `material-reviews/${selected.id}/${selected.status === "HIDDEN" ? "restore" : "hide"}`,
+              `material-reviews/${selected.id}/${dismissReports ? "dismiss-reports" : selected.status === "HIDDEN" ? "restore" : "hide"}`,
               {
                 method: "POST",
                 body: { expectedVersion: selected.version, reason },
