@@ -70,15 +70,32 @@ test("material search, preview and download rules on isolated PostgreSQL", async
       });
       return { buyer, entitlement, storageKey: current.storageKey };
     }
-    /** Owner edit, then Staff re-approval (D3: every edit of a live listing is re-reviewed). */
+    /** Simulate a legacy replacement already persisted before publication locking. */
     async function edit(material, changes) {
-      const current = await f.db.material.findUniqueOrThrow({
-        where: { id: material.id },
-      });
-      return f.materials.update(owner.principal, material.id, {
-        expectedListingVersion: current.listingVersion,
-        distributionRightsConfirmed: true,
+      const data = {
         ...changes,
+        status: "PENDING_REVIEW",
+        listingVersion: { increment: 1 },
+      };
+      delete data.distributionRightsConfirmed;
+      if (data.priceCredit !== undefined)
+        data.priceCredit = BigInt(Number(data.priceCredit) * 100);
+      return f.transactions.run(async (tx) => {
+        if (data.fileId) {
+          const file = await f.attachments.attachReady(
+            tx,
+            owner.principal,
+            data.fileId,
+            {
+              type: "MATERIAL",
+              id: material.id,
+              purpose: "MATERIAL",
+            },
+          );
+          data.storageKey = file.key;
+          delete data.fileId;
+        }
+        return tx.material.update({ where: { id: material.id }, data });
       });
     }
     const approve = (edited) =>
@@ -210,7 +227,11 @@ test("material search, preview and download rules on isolated PostgreSQL", async
             next.objectKey,
           ),
         );
-        await f.materials.archive(owner.principal, item.id);
+        await f.materials.archive(
+          owner.principal,
+          item.id,
+          edited.listingVersion + 1,
+        );
         // ARCHIVED stops FREE downloads (D9) but not the purchased file.
         assert.ok(
           served(await f.catalog.download(buyer.principal, item.id), original),
@@ -240,7 +261,7 @@ test("material search, preview and download rules on isolated PostgreSQL", async
         served(await f.catalog.download(owner.principal, item.id), storageKey),
       );
       await f.moderation.moderate(f.moderator.principal, item.id, "unhide", {
-        expectedListingVersion: item.listingVersion,
+        expectedListingVersion: item.listingVersion + 1,
         reason: "Cleared",
       });
       assert.ok(
@@ -352,7 +373,11 @@ test("buyers retain the purchased file and history after the owner replaces or d
         history[0].purchasedFileSnapshot.storageKey,
         original.objectKey,
       );
-      material = await f.materials.archive(owner.principal, id);
+      material = await f.materials.archive(
+        owner.principal,
+        id,
+        material.listingVersion,
+      );
       await checkUnavailable();
       if (deleteFrom === "ARCHIVED") {
         await f.db.material.update({
@@ -369,16 +394,21 @@ test("buyers retain the purchased file and history after the owner replaces or d
           data: { legacyArchiveUnclassified: false },
         });
       }
-      const replacement = await f.materialFile(owner);
-      material = await f.materials.update(owner.principal, id, {
-        expectedListingVersion: material.listingVersion,
-        fileId: replacement.id,
-        distributionRightsConfirmed: true,
-        accessType: "FREE",
-        priceCredit: "0",
-      });
+      const replacement = original;
+      await assert.rejects(
+        f.materials.update(owner.principal, id, {
+          expectedListingVersion: material.listingVersion,
+          accessType: "FREE",
+          priceCredit: "0",
+        }),
+        /MATERIAL_CONTENT_LOCKED/,
+      );
       await checkUnavailable();
-      material = await f.materials.submit(owner.principal, id);
+      material = await f.materials.submit(
+        owner.principal,
+        id,
+        material.listingVersion,
+      );
       await checkUnavailable();
       if (deleteFrom === "DRAFT") {
         material = await f.materials.withdraw(
@@ -394,13 +424,16 @@ test("buyers retain the purchased file and history after the owner replaces or d
           { expectedListingVersion: material.listingVersion },
         );
         await checkBuyer();
-        const { url } = await f.catalog.download(visitor.principal, id);
-        assert.equal(
-          new URL(url).searchParams.get("key"),
-          replacement.objectKey,
+        await assert.rejects(
+          f.catalog.download(visitor.principal, id),
+          /MATERIAL_ACCESS_DENIED/,
         );
         assert.equal((await f.reviews.list(id, {})).summary.total, 1);
-        material = await f.materials.archive(owner.principal, id);
+        material = await f.materials.archive(
+          owner.principal,
+          id,
+          material.listingVersion,
+        );
       }
       assert.equal(material.status, deleteFrom);
       await checkUnavailable();

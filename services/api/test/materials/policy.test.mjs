@@ -48,13 +48,24 @@ test("listing text counts code points like PostgreSQL char_length", () => {
   );
 });
 
-test("editing a live listing sends it back to review", () => {
-  assert.equal(statusAfterEdit("PUBLISHED"), "PENDING_REVIEW");
+test("only unpublished drafts and rejected listings are editable", () => {
+  assert.throws(() => statusAfterEdit("PUBLISHED"), /MATERIAL_NOT_EDITABLE/);
   assert.equal(statusAfterEdit("REJECTED"), "DRAFT");
   assert.equal(statusAfterEdit("DRAFT"), "DRAFT");
-  assert.equal(statusAfterEdit("PENDING_REVIEW"), "PENDING_REVIEW");
+  assert.throws(
+    () => statusAfterEdit("PENDING_REVIEW"),
+    /MATERIAL_NOT_EDITABLE/,
+  );
   assert.throws(() => statusAfterEdit("HIDDEN"), /MATERIAL_NOT_EDITABLE/);
-  assert.equal(statusAfterEdit("ARCHIVED"), "ARCHIVED");
+  assert.throws(() => statusAfterEdit("ARCHIVED"), /MATERIAL_NOT_EDITABLE/);
+  assert.throws(
+    () => statusAfterEdit("DRAFT", true),
+    /MATERIAL_CONTENT_LOCKED/,
+  );
+  assert.throws(
+    () => statusAfterEdit("REJECTED", true),
+    /MATERIAL_CONTENT_LOCKED/,
+  );
 });
 
 test("only a published material can stop sharing", () => {

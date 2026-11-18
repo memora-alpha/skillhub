@@ -99,9 +99,35 @@ test("lifecycle migration holds ambiguous archives and preserves the purchase sn
   const materialIds = [...archivedIds, publishedId];
   let beforeMaterials;
   let beforeOrder;
+  const historyIds = Array.from({ length: 4 }, () => randomUUID());
 
   const fixture = await createSkillFixture(undefined, undefined, undefined, {
     afterMigration: async (client, name) => {
+      if (name === "20261117000000_material_owner_lifecycle") {
+        // No buyers and no current PUBLISHED/APPROVED state: historical evidence
+        // must still lock these IDs. reviewedAt alone must not lock the other two.
+        await client.query(
+          `INSERT INTO materials(material_id,owner_id,skill_id,title,description,
+          access_type,price_credit,listing_version,moderation_status,status,reviewed_at,updated_at)
+          SELECT id,$1,$2,'Historical material','Historical publication fixture','FREE',0,3,
+            'NONE',state::"MaterialStatus",CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
+          FROM (VALUES ($3::uuid,'DRAFT'),($4::uuid,'REJECTED'),($5::uuid,'DRAFT'),
+            ($6::uuid,'REJECTED')) AS seed(id,state)`,
+          [ownerId, skillId, ...historyIds],
+        );
+        await client.query(
+          `INSERT INTO audit_logs(audit_id,action,target_type,target_id,after_data)
+          VALUES ($1,'MATERIAL_MODERATE','MATERIAL',$2,'{"status":"PUBLISHED"}')`,
+          [randomUUID(), historyIds[0]],
+        );
+        await client.query(
+          `INSERT INTO outbox_events(event_id,aggregate_type,aggregate_id,
+          aggregate_version,event_type,payload,dedupe_key,correlation_id)
+          VALUES ($1,'MATERIAL',$2,2,'material.moderated','{"action":"approve"}',$2,$1)`,
+          [randomUUID(), historyIds[1]],
+        );
+        return;
+      }
       if (name !== "20261115000000_material_favorites_order_views") return;
       await client.query(
         `INSERT INTO users(user_id,role_id,normalized_email,account_status,email_verified,
@@ -183,8 +209,14 @@ test("lifecycle migration holds ambiguous archives and preserves the purchase sn
     );
     assert.equal(rows.length, materialIds.length);
     const originalFields = rows.map(
-      ({ deleted_at, legacy_archive_unclassified, ...row }) => {
+      ({
+        deleted_at,
+        legacy_archive_unclassified,
+        has_been_published,
+        ...row
+      }) => {
         assert.equal(deleted_at, null);
+        assert.equal(has_been_published, row.material_id !== deletedDraftId);
         assert.equal(
           legacy_archive_unclassified,
           archivedIds.includes(row.material_id),
@@ -193,6 +225,11 @@ test("lifecycle migration holds ambiguous archives and preserves the purchase sn
       },
     );
     assert.deepEqual(originalFields, beforeMaterials);
+    for (const [index, id] of historyIds.entries()) {
+      const row = await db.material.findUniqueOrThrow({ where: { id } });
+      assert.equal(row.hasBeenPublished, index < 2);
+      assert.equal(row.listingVersion, 3);
+    }
     assert.deepEqual(
       (
         await client.query(

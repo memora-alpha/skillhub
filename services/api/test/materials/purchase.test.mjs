@@ -221,22 +221,32 @@ test("PAID material purchase on isolated PostgreSQL", async (t) => {
       },
     );
     await t.test(
-      "price change keeps the old order and file snapshot",
+      "published price/file changes are rejected and a new ID requires a separate purchase",
       async () => {
         const { storageKey: original } = await f.db.material.findUniqueOrThrow({
           where: { id: paid.id },
         });
         const file = await f.materialFile(seller);
         assert.notEqual(file.objectKey, original);
-        const edited = await f.materials.update(seller.principal, paid.id, {
-          expectedListingVersion: paid.listingVersion,
+        await assert.rejects(
+          f.materials.update(seller.principal, paid.id, {
+            expectedListingVersion: paid.listingVersion,
+            priceCredit: "30",
+            fileId: file.id,
+            distributionRightsConfirmed: true,
+          }),
+          /MATERIAL_CONTENT_LOCKED/,
+        );
+        const edited = await f.publishedMaterial(seller, {
+          accessType: "PAID",
           priceCredit: "30",
           fileId: file.id,
-          distributionRightsConfirmed: true,
         });
-        await f.moderation.moderate(f.moderator.principal, paid.id, "approve", {
-          expectedListingVersion: edited.listingVersion,
-        });
+        assert.notEqual(edited.id, paid.id);
+        await assert.rejects(
+          f.catalog.download(buyer.principal, edited.id),
+          /MATERIAL_ACCESS_DENIED/,
+        );
         const order = await f.db.materialOrder.findUniqueOrThrow({
           where: { id: first.order.id },
         });
@@ -246,6 +256,15 @@ test("PAID material purchase on isolated PostgreSQL", async (t) => {
           served(await f.catalog.download(buyer.principal, paid.id), original),
         );
         assert.equal(edited.priceCredit, "30.00");
+        const independent = await f.purchases.purchase(
+          buyer.principal,
+          edited.id,
+          edited.listingVersion,
+          "purchase-new-material-id",
+        );
+        assert.notEqual(independent.order.id, first.order.id);
+        assert.equal(independent.order.materialId, edited.id);
+        assert.equal(independent.order.grossCredit, "30.00");
       },
     );
     await t.test("HIDDEN blocks new purchases", async () => {
