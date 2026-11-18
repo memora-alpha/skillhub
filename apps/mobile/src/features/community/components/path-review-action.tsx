@@ -25,17 +25,15 @@ export function PathReviewAction({
     !reviews.error &&
     !reviews.denied &&
     !reviews.isFetching;
+  let label = own ? "Xem đánh giá đã gửi" : "Xem đánh giá";
+  if (canWrite) label = "Đánh giá người dạy";
   return (
     <Button
       variant={canWrite ? "craft" : "paper"}
       leadingIcon={canWrite ? "star" : "message"}
       onPress={() => router.push(`/paths/${path.id}/review`)}
     >
-      {canWrite
-        ? "Đánh giá người dạy"
-        : own
-          ? "Xem đánh giá đã gửi"
-          : "Xem đánh giá"}
+      {label}
     </Button>
   );
 }

@@ -17,6 +17,12 @@ import { useMaterialsApi } from "../hooks/use-materials";
 import { materialFailure } from "../utils/material-failure";
 import { materialStyles as styles } from "./material.styles";
 
+function favoriteLabel(pending: boolean, uncertain: boolean, value?: boolean) {
+  if (pending) return "Đang cập nhật…";
+  if (uncertain) return "Thử lại thao tác lưu";
+  return value ? "Bỏ lưu" : "Lưu để xem sau";
+}
+
 export function MaterialFavoriteButton({
   materialId,
   saved,
@@ -37,13 +43,8 @@ export function MaterialFavoriteButton({
     saved === undefined &&
     (state.isFetching || value === undefined || !!state.error);
   const error = command.error || (saved === undefined && state.error);
-  const label = command.pending
-    ? "Đang cập nhật…"
-    : command.uncertain
-      ? "Thử lại thao tác lưu"
-      : value
-        ? "Bỏ lưu"
-        : "Lưu để xem sau";
+  const label = favoriteLabel(command.pending, command.uncertain, value);
+  const bookmarkIcon = value ? "bookmark-check" : "bookmark";
   const disabled = command.pending || (!command.uncertain && checking);
   const toggle = () => {
     setDismissedError(undefined);
@@ -72,13 +73,7 @@ export function MaterialFavoriteButton({
           ]}
         >
           <Icon
-            name={
-              command.uncertain
-                ? "refresh"
-                : value
-                  ? "bookmark-check"
-                  : "bookmark"
-            }
+            name={command.uncertain ? "refresh" : bookmarkIcon}
             size={22}
             color={appColors.primary}
           />
@@ -87,7 +82,7 @@ export function MaterialFavoriteButton({
         <Button
           variant="paper"
           size="sm"
-          leadingIcon={value ? "bookmark-check" : "bookmark"}
+          leadingIcon={bookmarkIcon}
           accessibilityState={{
             selected: value === true,
             busy: command.pending,

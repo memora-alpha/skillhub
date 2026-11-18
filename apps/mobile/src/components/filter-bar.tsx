@@ -33,6 +33,9 @@ export function FilterBar<T extends string>({
     if (x !== undefined)
       scroll.current?.scrollTo({ x: Math.max(0, x - 4), animated: false });
   }, [value]);
+  let groupRole: "radiogroup" | "tablist" | undefined;
+  if (role === "radio") groupRole = "radiogroup";
+  else if (role === "tab") groupRole = "tablist";
   return (
     <View style={styles.toolbar}>
       <ScrollView
@@ -43,16 +46,7 @@ export function FilterBar<T extends string>({
         contentContainerStyle={styles.options}
         accessibilityLabel={label}
       >
-        <View
-          style={styles.options}
-          accessibilityRole={
-            role === "radio"
-              ? "radiogroup"
-              : role === "tab"
-                ? "tablist"
-                : undefined
-          }
-        >
+        <View style={styles.options} accessibilityRole={groupRole}>
           {options.map((option, index) => {
             const selected = option.value === value;
             return (

@@ -7,6 +7,46 @@ import { materialArchivePresentation } from "../utils/owner-material-presentatio
 import { ownerMaterialStyles as styles } from "./owner-material.styles";
 import type { OwnerMaterialAction } from "../utils/owner-material-actions";
 
+function actionPresentation(
+  action: OwnerMaterialAction,
+  material?: ApiMaterial,
+) {
+  switch (action) {
+    case "delete": {
+      const draft = material?.status === "DRAFT";
+      return {
+        title: draft ? "Xóa bản nháp?" : "Xóa tài liệu?",
+        label: draft ? "Xóa bản nháp" : "Xóa tài liệu",
+        icon: "trash" as const,
+        description:
+          "Tài liệu sẽ bị xóa khỏi mục Đã đăng. Bạn sẽ không thể khôi phục hoặc đăng lại tài liệu này. Người đã mua vẫn giữ quyền tải.",
+      };
+    }
+    case "withdraw":
+      return {
+        title: "Rút yêu cầu duyệt?",
+        label: "Rút yêu cầu",
+        icon: "close" as const,
+        description: material?.hasBeenPublished
+          ? "Tài liệu sẽ trở về bản nháp và dừng chờ duyệt. Nội dung đã từng đăng được giữ nguyên; bạn có thể gửi duyệt lại."
+          : "Tài liệu sẽ trở về bản nháp và dừng chờ duyệt. Bạn có thể chỉnh sửa rồi gửi duyệt lại.",
+      };
+    case "submit": {
+      const archived = material?.status === "ARCHIVED";
+      return {
+        title: archived ? "Đăng lại tài liệu?" : "Gửi tài liệu để duyệt?",
+        label: archived ? "Gửi duyệt lại" : "Gửi duyệt",
+        icon: "send" as const,
+        description: archived
+          ? "Tài liệu sẽ được xét duyệt lại. Khi được chấp thuận, tài liệu sẽ xuất hiện trở lại trong Khám phá. Nội dung, giá và các đánh giá cũ được giữ nguyên."
+          : "Tài liệu sẽ được gửi để xét duyệt trước khi xuất hiện công khai.",
+      };
+    }
+    default:
+      return material ? materialArchivePresentation(material) : undefined;
+  }
+}
+
 export function OwnerMaterialActionDialog({
   material,
   action,
@@ -28,42 +68,7 @@ export function OwnerMaterialActionDialog({
   onConfirm: () => void;
   onReconcile: () => void;
 }>) {
-  const presentation =
-    action === "delete"
-      ? {
-          title:
-            material?.status === "DRAFT" ? "Xóa bản nháp?" : "Xóa tài liệu?",
-          label: material?.status === "DRAFT" ? "Xóa bản nháp" : "Xóa tài liệu",
-          icon: "trash" as const,
-          description:
-            "Tài liệu sẽ bị xóa khỏi mục Đã đăng. Bạn sẽ không thể khôi phục hoặc đăng lại tài liệu này. Người đã mua vẫn giữ quyền tải.",
-        }
-      : action === "withdraw"
-        ? {
-            title: "Rút yêu cầu duyệt?",
-            label: "Rút yêu cầu",
-            icon: "close" as const,
-            description: material?.hasBeenPublished
-              ? "Tài liệu sẽ trở về bản nháp và dừng chờ duyệt. Nội dung đã từng đăng được giữ nguyên; bạn có thể gửi duyệt lại."
-              : "Tài liệu sẽ trở về bản nháp và dừng chờ duyệt. Bạn có thể chỉnh sửa rồi gửi duyệt lại.",
-          }
-        : action === "submit"
-          ? {
-              title:
-                material?.status === "ARCHIVED"
-                  ? "Đăng lại tài liệu?"
-                  : "Gửi tài liệu để duyệt?",
-              label:
-                material?.status === "ARCHIVED" ? "Gửi duyệt lại" : "Gửi duyệt",
-              icon: "send" as const,
-              description:
-                material?.status === "ARCHIVED"
-                  ? "Tài liệu sẽ được xét duyệt lại. Khi được chấp thuận, tài liệu sẽ xuất hiện trở lại trong Khám phá. Nội dung, giá và các đánh giá cũ được giữ nguyên."
-                  : "Tài liệu sẽ được gửi để xét duyệt trước khi xuất hiện công khai.",
-            }
-          : material
-            ? materialArchivePresentation(material)
-            : undefined;
+  const presentation = actionPresentation(action, material);
   return (
     <InfoModal
       title={material ? (presentation?.title ?? null) : null}

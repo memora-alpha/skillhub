@@ -23,6 +23,7 @@ export const emptyCatalogFilter: MaterialCatalogFilter = {
   access: "ALL",
   skillId: "",
 };
+const accessLabels = { ALL: "Tất cả", FREE: "Miễn phí", PAID: "Trả phí" };
 
 export function MaterialCatalogFilters({
   search,
@@ -165,11 +166,7 @@ export function MaterialCatalogFilters({
                             draft.access === value && styles.selectedText,
                           ]}
                         >
-                          {value === "ALL"
-                            ? "Tất cả"
-                            : value === "FREE"
-                              ? "Miễn phí"
-                              : "Trả phí"}
+                          {accessLabels[value]}
                         </Text>
                       </Pressable>
                     ))}

@@ -26,6 +26,12 @@ export function waitForUploadCheck(ms: number, signal: AbortSignal) {
     else signal.addEventListener("abort", cancel, { once: true });
   });
 }
+function uploadCheckDelay(elapsed: number) {
+  if (elapsed < 10_000) return 1000;
+  if (elapsed < 30_000) return 2000;
+  return 5000;
+}
+
 export async function watchUploadStatus({
   files,
   read,
@@ -83,12 +89,6 @@ export async function watchUploadStatus({
     const elapsed = now() - started;
     const remaining = UPLOAD_SCAN_TIMEOUT_MS - elapsed;
     if (remaining <= 0) throw new UploadScanPending();
-    await sleep(
-      Math.min(
-        elapsed < 10_000 ? 1000 : elapsed < 30_000 ? 2000 : 5000,
-        remaining,
-      ),
-      signal,
-    );
+    await sleep(Math.min(uploadCheckDelay(elapsed), remaining), signal);
   }
 }

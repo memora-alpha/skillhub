@@ -47,15 +47,13 @@ export function createMaterialsApi(
       signal?: AbortSignal,
       status?: ApiMaterial["status"],
     ) {
+      const statusQuery = status ? `&status=${status}` : "";
       const page = parsePage<ApiMaterial>(
         ownerMaterialSchema,
-        await call(
-          `/me/materials?${pageQuery(cursor)}${status ? `&status=${status}` : ""}`,
-          {
-            includeMeta: true,
-            signal,
-          },
-        ),
+        await call(`/me/materials?${pageQuery(cursor)}${statusQuery}`, {
+          includeMeta: true,
+          signal,
+        }),
       );
       if (
         page.items.some(

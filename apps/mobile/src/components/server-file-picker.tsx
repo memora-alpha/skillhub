@@ -184,52 +184,64 @@ export function ServerFilePicker({
   }
   return (
     <>
-      {files.map((file) =>
-        renderFile ? (
-          <View key={file.fileId}>
-            {renderFile({
-              file,
-              disabled: disabled || pending,
-              statusLabel: fileStatusLabel(file.state, checkOnSubmit, disabled),
-              remove: () => {
-                if (!disabled && !pending && isCurrent())
-                  onChange(files.filter((item) => item.fileId !== file.fileId));
-              },
-            })}
-          </View>
-        ) : compact ? (
-          <View key={file.fileId} style={styles.file}>
-            <Icon name="file" size={20} color={colors.forest} />
-            <View style={styles.grow}>
-              <Text numberOfLines={2} style={styles.name}>
-                {file.name}
-              </Text>
-              <Text style={styles.hint}>
-                {fileStatusLabel(file.state, checkOnSubmit, disabled)}
-              </Text>
+      {files.map((file) => {
+        if (renderFile)
+          return (
+            <View key={file.fileId}>
+              {renderFile({
+                file,
+                disabled: disabled || pending,
+                statusLabel: fileStatusLabel(
+                  file.state,
+                  checkOnSubmit,
+                  disabled,
+                ),
+                remove: () => {
+                  if (!disabled && !pending && isCurrent())
+                    onChange(
+                      files.filter((item) => item.fileId !== file.fileId),
+                    );
+                },
+              })}
             </View>
-            {file.state === "READY" && (
-              <Icon name="check-circle" size={18} color={colors.forest} />
-            )}
-            <Button
-              variant="ghost"
-              accessibilityLabel={`Bỏ tệp ${file.name}`}
-              disabled={disabled || pending}
-              style={styles.remove}
-              onPress={() => {
-                if (!disabled && !pending && isCurrent())
-                  onChange(files.filter((item) => item.fileId !== file.fileId));
-              }}
-            >
-              <Icon name="close" size={18} color={colors.body} />
-            </Button>
-          </View>
-        ) : (
+          );
+        if (compact)
+          return (
+            <View key={file.fileId} style={styles.file}>
+              <Icon name="file" size={20} color={colors.forest} />
+              <View style={styles.grow}>
+                <Text numberOfLines={2} style={styles.name}>
+                  {file.name}
+                </Text>
+                <Text style={styles.hint}>
+                  {fileStatusLabel(file.state, checkOnSubmit, disabled)}
+                </Text>
+              </View>
+              {file.state === "READY" && (
+                <Icon name="check-circle" size={18} color={colors.forest} />
+              )}
+              <Button
+                variant="ghost"
+                accessibilityLabel={`Bỏ tệp ${file.name}`}
+                disabled={disabled || pending}
+                style={styles.remove}
+                onPress={() => {
+                  if (!disabled && !pending && isCurrent())
+                    onChange(
+                      files.filter((item) => item.fileId !== file.fileId),
+                    );
+                }}
+              >
+                <Icon name="close" size={18} color={colors.body} />
+              </Button>
+            </View>
+          );
+        return (
           <Copy key={file.fileId}>
             {file.name}: {file.state === "READY" ? "Sẵn sàng" : file.state}
           </Copy>
-        ),
-      )}
+        );
+      })}
       {showHint && (
         <Copy muted size={compact ? "hint" : "body"}>
           {formats ? `Định dạng hỗ trợ: ${formats}.\n` : ""}

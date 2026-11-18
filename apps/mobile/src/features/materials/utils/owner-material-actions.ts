@@ -11,6 +11,17 @@ import {
 } from "./owner-material-presentation";
 
 export type OwnerMaterialAction = "submit" | "archive" | "delete" | "withdraw";
+const actionPermissions = {
+  submit: canSubmitMaterial,
+  archive: canArchiveMaterial,
+  delete: canDeleteMaterial,
+  withdraw: canWithdrawMaterial,
+};
+function actionNotice(action: OwnerMaterialAction, row: ApiMaterial) {
+  if (action === "submit") return "Đã gửi tài liệu để duyệt.";
+  if (action === "withdraw") return "Đã rút yêu cầu duyệt.";
+  return materialArchivePresentation(row)?.notice;
+}
 type Intent = { id: string; action: OwnerMaterialAction; version: number };
 export type OwnerActionState = {
   pending?: Intent;
@@ -51,16 +62,7 @@ export function createOwnerMaterialActions(deps: {
     },
     async run(action: OwnerMaterialAction, row: ApiMaterial) {
       if (busy || uncertain || !deps.isCurrent()) return;
-      if (
-        !(action === "delete"
-          ? canDeleteMaterial(row)
-          : action === "submit"
-            ? canSubmitMaterial(row)
-            : action === "withdraw"
-              ? canWithdrawMaterial(row)
-              : canArchiveMaterial(row))
-      )
-        return;
+      if (!actionPermissions[action](row)) return;
       busy = true;
       const intent = { action, id: row.id, version: row.listingVersion };
       emit({ pending: intent });
@@ -68,20 +70,11 @@ export function createOwnerMaterialActions(deps: {
         const result =
           action === "delete"
             ? await remove(intent)
-            : action === "withdraw"
-              ? await deps.api.withdraw(row.id, intent.version)
-              : await deps.api[action](row.id, intent.version);
+            : await deps.api[action](row.id, intent.version);
         if (!deps.isCurrent()) return;
         if ("status" in result) await deps.onResult(result);
         emit({});
-        if (action !== "delete")
-          notify(
-            action === "submit"
-              ? "Đã gửi tài liệu để duyệt."
-              : action === "withdraw"
-                ? "Đã rút yêu cầu duyệt."
-                : materialArchivePresentation(row)?.notice,
-          );
+        if (action !== "delete") notify(actionNotice(action, row));
         return result;
       } catch (error) {
         if (!deps.isCurrent()) return;

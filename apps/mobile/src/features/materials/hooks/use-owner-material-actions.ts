@@ -7,6 +7,43 @@ import {
   type OwnerActionState,
 } from "../utils/owner-material-actions";
 import { useMaterialsApi } from "./use-materials";
+import type { ApiMaterial } from "../api/material-contracts";
+
+type OwnerPage = Awaited<
+  ReturnType<ReturnType<typeof useMaterialsApi>["minePage"]>
+>;
+type OwnerPages = InfiniteData<OwnerPage>;
+
+function removeFromOwnerPages(data: OwnerPages | undefined, id: string) {
+  if (!data) return data;
+  return {
+    ...data,
+    pages: data.pages.map((page) => ({
+      ...page,
+      items: page.items.filter((item) => item.id !== id),
+    })),
+  };
+}
+
+function updateOwnerPages(
+  data: OwnerPages | undefined,
+  row: ApiMaterial,
+  filter: unknown,
+) {
+  if (!data) return data;
+  const keep =
+    filter === "CURRENT" ? row.status !== "ARCHIVED" : filter === row.status;
+  return {
+    ...data,
+    pages: data.pages.map((page) => ({
+      ...page,
+      items: page.items.flatMap((item) => {
+        if (item.id !== row.id) return [item];
+        return keep ? [row] : [];
+      }),
+    })),
+  };
+}
 
 export function useOwnerMaterialActions() {
   const runtime = useConnections();
@@ -31,17 +68,9 @@ export function useOwnerMaterialActions() {
       onDeleted: async (id) => {
         await cache.cancelQueries({ queryKey: base });
         if (!runtime.isCurrent()) return;
-        type Page = Awaited<ReturnType<typeof api.minePage>>;
-        cache.setQueriesData<InfiniteData<Page>>(
+        cache.setQueriesData<OwnerPages>(
           { queryKey: [...base, "mine", "pages"] },
-          (data) =>
-            data && {
-              ...data,
-              pages: data.pages.map((page) => ({
-                ...page,
-                items: page.items.filter((item) => item.id !== id),
-              })),
-            },
+          (data) => removeFromOwnerPages(data, id),
         );
         cache.removeQueries({ queryKey: [...base, "detail", id], exact: true });
         cache.removeQueries({ queryKey: [...base, "owner", id], exact: true });
@@ -51,31 +80,12 @@ export function useOwnerMaterialActions() {
       onResult: async (row) => {
         await cache.cancelQueries({ queryKey: base });
         if (!runtime.isCurrent()) return;
-        type Page = Awaited<ReturnType<typeof api.minePage>>;
         for (const [key] of cache.getQueriesData({
           queryKey: [...base, "mine", "pages"],
         })) {
           const filter = key.at(-1);
-          cache.setQueryData<InfiniteData<Page>>(
-            key,
-            (data) =>
-              data && {
-                ...data,
-                pages: data.pages.map((page) => ({
-                  ...page,
-                  items: page.items.flatMap((item) =>
-                    item.id !== row.id
-                      ? [item]
-                      : (
-                            filter === "CURRENT"
-                              ? row.status !== "ARCHIVED"
-                              : filter === row.status
-                          )
-                        ? [row]
-                        : [],
-                  ),
-                })),
-              },
+          cache.setQueryData<OwnerPages>(key, (data) =>
+            updateOwnerPages(data, row, filter),
           );
         }
         cache.setQueryData([...base, "detail", row.id], row);

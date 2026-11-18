@@ -26,6 +26,42 @@ import { MaterialDetailSkeleton } from "../components/material-detail-skeleton";
 import { MaterialFavoriteButton } from "../components/material-favorite-button";
 import { MaterialUnavailable } from "../components/material-unavailable";
 import { isMaterialUnavailable } from "../utils/material-availability";
+import type { ApiMaterial } from "../api/material-contracts";
+
+function detailAccess(
+  query: ReturnType<typeof useMaterial>,
+  material: ApiMaterial | undefined,
+  own: boolean,
+  ownership: ReturnType<typeof useMaterialOwnership>,
+) {
+  const open = own || !!ownership.data || material?.accessType === "FREE";
+  const available =
+    !!material &&
+    (own
+      ? !!material.file
+      : !!ownership.data || material.status === "PUBLISHED");
+  const locked =
+    query.isFetching ||
+    !!query.error ||
+    (!own &&
+      (ownership.isFetching ||
+        !!ownership.error ||
+        ownership.data === undefined));
+  const checkingAccess =
+    !own && ownership.isFetching && ownership.data === undefined;
+  return { open, available, locked, checkingAccess };
+}
+
+function detailActionLabel(
+  material: ApiMaterial,
+  checking: boolean,
+  pending: boolean,
+  open: boolean,
+) {
+  if (checking) return "Đang kiểm tra quyền truy cập…";
+  if (pending) return "Đang tải…";
+  return open ? "Tải tài liệu" : `Mua tài liệu · ${materialPrice(material)}`;
+}
 
 export function MaterialDetailScreen() {
   const params = useLocalSearchParams<{ id: string }>();
@@ -55,21 +91,12 @@ function DetailContent({ id }: Readonly<{ id: string }>) {
       exact: true,
     });
   });
-  const open = own || !!ownership.data || material?.accessType === "FREE";
-  const available =
-    !!material &&
-    (own
-      ? !!material.file
-      : !!ownership.data || material.status === "PUBLISHED");
-  const locked =
-    query.isFetching ||
-    !!query.error ||
-    (!own &&
-      (ownership.isFetching ||
-        !!ownership.error ||
-        ownership.data === undefined));
-  const checkingAccess =
-    !own && ownership.isFetching && ownership.data === undefined;
+  const { open, available, locked, checkingAccess } = detailAccess(
+    query,
+    material,
+    own,
+    ownership,
+  );
   const refresh = async () => {
     if (refreshing || query.isFetching || ownership.isFetching) return;
     setRefreshing(true);
@@ -152,13 +179,12 @@ function DetailContent({ id }: Readonly<{ id: string }>) {
                 else router.push(`/materials/${id}/purchase`);
               }}
             >
-              {checkingAccess
-                ? "Đang kiểm tra quyền truy cập…"
-                : download.pending
-                  ? "Đang tải…"
-                  : open
-                    ? "Tải tài liệu"
-                    : `Mua tài liệu · ${materialPrice(material)}`}
+              {detailActionLabel(
+                material,
+                checkingAccess,
+                download.pending,
+                open,
+              )}
             </Button>
           </View>
         ) : undefined

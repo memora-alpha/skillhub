@@ -14,6 +14,16 @@ import { materialFailure } from "../utils/material-failure";
 import { reviewStyles as styles } from "./material-review.styles";
 import { FeaturePage } from "@/components/feature-page";
 
+function saveLabel(pending: boolean, current: OwnMaterialReview | null) {
+  if (pending) return "Đang lưu…";
+  return current ? "Lưu đánh giá" : "Gửi đánh giá";
+}
+
+function pageTitle(editing: boolean, current: OwnMaterialReview | null) {
+  if (!editing) return "Đánh giá tài liệu";
+  return current ? "Sửa đánh giá" : "Viết đánh giá";
+}
+
 export function MaterialReviewEditor({
   materialId,
   current,
@@ -110,11 +120,7 @@ export function MaterialReviewEditor({
         }
         onPress={() => void submit()}
       >
-        {command.pending
-          ? "Đang lưu…"
-          : current
-            ? "Lưu đánh giá"
-            : "Gửi đánh giá"}
+        {saveLabel(command.pending, current)}
       </Button>
     </View>
   );
@@ -268,13 +274,7 @@ export function MaterialReviewEditor({
   );
   return (
     <FeaturePage
-      title={
-        editing
-          ? current
-            ? "Sửa đánh giá"
-            : "Viết đánh giá"
-          : "Đánh giá tài liệu"
-      }
+      title={pageTitle(editing, current)}
       back="/materials/mine?tab=library"
       backBehavior="history"
       keyboardDismissMode="on-drag"

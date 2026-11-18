@@ -43,6 +43,10 @@ export function CalendarScreen() {
   const visible = sessions.filter(
     (s) => day === null || sessionDay(s.startAt, timezone) === day,
   );
+  const period = day === null ? "Trong tháng" : `Ngày ${day}/${month + 1}`;
+  const summary = query.data
+    ? `${period} · ${visible.length} buổi học`
+    : "Buổi học";
   return (
     <AppScreenLayout
       title="Lịch học"
@@ -70,11 +74,7 @@ export function CalendarScreen() {
               setDay(null);
             }}
           />
-          <Text style={styles.summary}>
-            {query.data
-              ? `${day === null ? "Trong tháng" : `Ngày ${day}/${month + 1}`} · ${visible.length} buổi học`
-              : "Buổi học"}
-          </Text>
+          <Text style={styles.summary}>{summary}</Text>
           <SessionFeedback
             {...query}
             quietTransient

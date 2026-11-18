@@ -11,6 +11,9 @@ export function ReviewPathCard({ path }: Readonly<{ path: PathSummary }>) {
   const router = useRouter();
   const profile = useParticipantProfile(path.counterpartId);
   const name = profile.data?.fullName ?? "Người trao đổi";
+  let exchangeLabel = "Lộ trình học";
+  if (path.exchangeType === "TWO_WAY") exchangeLabel = "Trao đổi hai chiều";
+  else if (path.exchangeType === "ONE_WAY") exchangeLabel = "Học một chiều";
   return (
     <Pressable
       accessibilityRole="button"
@@ -23,13 +26,7 @@ export function ReviewPathCard({ path }: Readonly<{ path: PathSummary }>) {
           <Icon name="check-circle" size={14} color={colors.forest} />
           <Text style={styles.statusText}>Đã hoàn tất</Text>
         </View>
-        <Text style={styles.meta}>
-          {path.exchangeType === "TWO_WAY"
-            ? "Trao đổi hai chiều"
-            : path.exchangeType === "ONE_WAY"
-              ? "Học một chiều"
-              : "Lộ trình học"}
-        </Text>
+        <Text style={styles.meta}>{exchangeLabel}</Text>
       </View>
       <Text style={styles.cardTitle}>
         {path.title?.trim() || "Lộ trình học cùng đối tác"}

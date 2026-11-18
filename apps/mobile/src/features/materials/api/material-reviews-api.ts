@@ -84,16 +84,17 @@ export type OwnMaterialReview = z.infer<typeof ownMaterialReview>;
 export type MaterialReview = z.infer<typeof publicMaterialReview>;
 export type MaterialReviewInput = z.infer<typeof materialReviewInput>;
 
+function own(value: unknown, materialId: string, reviewId?: string) {
+  const row = parse(ownMaterialReview, value);
+  if (row.materialId !== materialId || (reviewId && row.id !== reviewId))
+    throw new AppError("protocol");
+  return row;
+}
+
 export function createMaterialReviewsApi(
   call: (path: string, options?: RequestOptions) => Promise<unknown>,
 ) {
   const root = (id: string) => resourcePath("materials", id);
-  function own(value: unknown, materialId: string, reviewId?: string) {
-    const row = parse(ownMaterialReview, value);
-    if (row.materialId !== materialId || (reviewId && row.id !== reviewId))
-      throw new AppError("protocol");
-    return row;
-  }
   return {
     async reviews(materialId: string, cursor?: string, signal?: AbortSignal) {
       const result = await call(

@@ -69,8 +69,8 @@ const normalize = (text: string) =>
   text
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
-    .replace(/Đ/g, "D")
+    .replaceAll("đ", "d")
+    .replaceAll("Đ", "D")
     .toLowerCase();
 export function filterOwnerMaterials(
   items: ApiMaterial[],

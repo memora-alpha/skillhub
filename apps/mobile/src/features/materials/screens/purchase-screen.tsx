@@ -14,6 +14,12 @@ import { materialPurchaseStyles as styles } from "../components/material-purchas
 import { MaterialPurchaseDialog } from "../components/material-purchase-dialog";
 import type { ApiMaterial } from "../api/material-contracts";
 
+function purchaseAccessNotice(own: boolean, bought: boolean) {
+  if (own) return "Đây là tài liệu của bạn.";
+  if (bought) return "Tài liệu đã có trong thư viện của bạn.";
+  return "Tài liệu này được chia sẻ miễn phí.";
+}
+
 export function MaterialPurchaseScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const id = typeof params.id === "string" ? params.id : "";
@@ -144,11 +150,7 @@ function PurchaseContent({ id }: Readonly<{ id: string }>) {
           />
           {!needsPurchase && (
             <FormNotice tone="info" compact>
-              {own
-                ? "Đây là tài liệu của bạn."
-                : bought
-                  ? "Tài liệu đã có trong thư viện của bạn."
-                  : "Tài liệu này được chia sẻ miễn phí."}
+              {purchaseAccessNotice(own, bought)}
             </FormNotice>
           )}
           {needsPurchase && material.status !== "PUBLISHED" && (

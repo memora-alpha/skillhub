@@ -72,6 +72,8 @@ export function MaterialOrderCard({
     disabled || download.pending || download.awaitingConfirmation;
   const refundLocked =
     downloadLocked || order.refundEligibility?.canRefund === false;
+  let reviewLabel = canReview ? "Viết đánh giá" : "Đánh giá tài liệu";
+  if (hasReview) reviewLabel = "Xem đánh giá";
   return (
     <View style={orderStyles.card}>
       <Pressable
@@ -141,11 +143,7 @@ export function MaterialOrderCard({
                 router.push(`/materials/${order.materialId}/review`)
               }
             >
-              {hasReview
-                ? "Xem đánh giá"
-                : canReview
-                  ? "Viết đánh giá"
-                  : "Đánh giá tài liệu"}
+              {reviewLabel}
             </Button>
           )}
         </View>

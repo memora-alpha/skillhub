@@ -17,6 +17,23 @@ const labels: Record<string, string> = {
   GOOD_BEHAVIOR_STREAK: "Duy trì hoạt động tích cực",
   COMMITMENT_RECOVERY: "Hoàn thành cam kết học tập",
 };
+function missionProgress(
+  item: { code: string; progress: { current: number; target: number } },
+  questionCount: number,
+) {
+  if (item.code === "POLICY_AWARENESS")
+    return `${questionCount} câu hỏi về nguyên tắc cộng đồng`;
+  const unit = item.code === "GOOD_BEHAVIOR_STREAK" ? "ngày" : "buổi học";
+  return `${item.progress.current}/${item.progress.target} ${unit}`;
+}
+
+function recoveryNotice(notice: RecoveryResult) {
+  if (!notice.passed) return "Chưa đạt. Hãy xem lại nguyên tắc và thử lần nữa.";
+  return notice.awarded > 0
+    ? `Đã ghi nhận ${notice.awarded} điểm phục hồi.`
+    : "Nhiệm vụ đã được ghi nhận, không có điểm mới được cộng.";
+}
+
 export function RecoveryPanel() {
   const runtime = useConnections();
   return <RecoveryContent key={runtime.key.join(":")} />;
@@ -94,9 +111,7 @@ function RecoveryContent() {
           </View>
           {!item.claimed && (
             <Text style={styles.meta}>
-              {item.code === "POLICY_AWARENESS"
-                ? `${data.quiz?.questions.length ?? 0} câu hỏi về nguyên tắc cộng đồng`
-                : `${item.progress.current}/${item.progress.target} ${item.code === "GOOD_BEHAVIOR_STREAK" ? "ngày" : "buổi học"}`}
+              {missionProgress(item, data.quiz?.questions.length ?? 0)}
             </Text>
           )}
           {!item.claimed &&
@@ -148,11 +163,7 @@ function RecoveryContent() {
       )}
       {notice && (
         <FormNotice compact tone={notice.passed ? "success" : "info"}>
-          {notice.passed
-            ? notice.awarded > 0
-              ? `Đã ghi nhận ${notice.awarded} điểm phục hồi.`
-              : "Nhiệm vụ đã được ghi nhận, không có điểm mới được cộng."
-            : "Chưa đạt. Hãy xem lại nguyên tắc và thử lần nữa."}
+          {recoveryNotice(notice)}
         </FormNotice>
       )}
       {command.uncertain && (

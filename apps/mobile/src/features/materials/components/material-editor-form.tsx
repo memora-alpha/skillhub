@@ -49,12 +49,15 @@ export function MaterialEditorForm({
     save,
   } = editor;
   const access = form.watch("accessType");
-  const readOnlyMaterial =
-    initialMaterial && !canEditMaterial(initialMaterial)
-      ? initialMaterial
-      : material && !canEditMaterial(material)
-        ? material
-        : undefined;
+  let readOnlyMaterial =
+    material && !canEditMaterial(material) ? material : undefined;
+  if (initialMaterial && !canEditMaterial(initialMaterial))
+    readOnlyMaterial = initialMaterial;
+  let saveLabel =
+    !material || ["DRAFT", "REJECTED"].includes(material.status)
+      ? "Lưu bản nháp"
+      : "Lưu thay đổi";
+  if (command.pending) saveLabel = "Đang lưu…";
   return (
     <View style={styles.page}>
       {material && (
@@ -249,11 +252,7 @@ export function MaterialEditorForm({
           disabled={blocked || form.formState.isSubmitting}
           onPress={() => void save()}
         >
-          {command.pending
-            ? "Đang lưu…"
-            : !material || ["DRAFT", "REJECTED"].includes(material.status)
-              ? "Lưu bản nháp"
-              : "Lưu thay đổi"}
+          {saveLabel}
         </Button>
       )}
     </View>

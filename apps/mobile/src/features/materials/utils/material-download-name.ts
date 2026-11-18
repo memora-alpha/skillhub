@@ -1,7 +1,10 @@
 export function materialDownloadName(value: string) {
   return (
     [...value]
-      .filter((char) => char.charCodeAt(0) >= 32 && char.charCodeAt(0) !== 127)
+      .filter((char) => {
+        const code = char.codePointAt(0) ?? 0;
+        return code >= 32 && code !== 127;
+      })
       .join("")
       .replace(/[\\/:*?"<>|]/g, "_")
       .slice(-160)

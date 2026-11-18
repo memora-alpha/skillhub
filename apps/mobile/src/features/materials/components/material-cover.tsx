@@ -12,6 +12,26 @@ import type { ApiMaterial } from "../api/material-contracts";
 import { materialFileType } from "../utils/owner-material-presentation";
 import { materialThumbnailUrl } from "../utils/material-thumbnail";
 
+function coverFormat(format: string) {
+  const labels: Readonly<Record<string, string>> = {
+    PowerPoint: "PPT",
+    Word: "DOC",
+    Excel: "XLS",
+    "Văn bản": "TXT",
+    Ảnh: "ẢNH",
+    PDF: "PDF",
+  };
+  return labels[format] ?? "TỆP";
+}
+
+function coverTone(format: string) {
+  if (format === "Word")
+    return { background: colors.infoSoft, ink: colors.info };
+  if (format === "Excel")
+    return { background: colors.forestSoft, ink: colors.forest };
+  return { background: colors.primarySoft, ink: colors.primary };
+}
+
 // A format cover, not a page preview: never issue a download to create artwork.
 export function MaterialCover({
   material,
@@ -47,26 +67,9 @@ export function MaterialCover({
       />
     );
   const format = materialFileType(material);
-  const label =
-    format === "PowerPoint"
-      ? "PPT"
-      : format === "Word"
-        ? "DOC"
-        : format === "Excel"
-          ? "XLS"
-          : format === "Văn bản"
-            ? "TXT"
-            : format === "Ảnh"
-              ? "ẢNH"
-              : format === "PDF"
-                ? "PDF"
-                : "TỆP";
-  const tone =
-    format === "Word"
-      ? { background: colors.infoSoft, ink: colors.info }
-      : format === "Excel"
-        ? { background: colors.forestSoft, ink: colors.forest }
-        : { background: colors.primarySoft, ink: colors.primary };
+  const label = coverFormat(format);
+  const tone = coverTone(format);
+  const regularIconSize = compact ? 18 : 24;
   return (
     <View
       accessible={false}
@@ -90,7 +93,7 @@ export function MaterialCover({
         </View>
         <Icon
           name={material.file?.mimeType.startsWith("image/") ? "image" : "file"}
-          size={large ? 30 : compact ? 18 : 24}
+          size={large ? 30 : regularIconSize}
           color={tone.ink}
         />
         <View style={styles.lines}>

@@ -50,6 +50,9 @@ export function MaterialSkillPicker({
     Keyboard.dismiss();
     setOpen(false);
   };
+  let fallbackLabel = "Chọn kỹ năng";
+  if (allowAll) fallbackLabel = compact ? "Kỹ năng" : "Tất cả kỹ năng";
+  if (value) fallbackLabel = "Kỹ năng đã chọn";
   return (
     <View
       style={[
@@ -69,14 +72,7 @@ export function MaterialSkillPicker({
         accessibilityState={{ expanded: open }}
         onPress={() => setOpen(true)}
       >
-        {name.data ??
-          (value
-            ? "Kỹ năng đã chọn"
-            : allowAll
-              ? compact
-                ? "Kỹ năng"
-                : "Tất cả kỹ năng"
-              : "Chọn kỹ năng")}
+        {name.data ?? fallbackLabel}
       </Button>
       <MaterialFieldError message={error} />
       {open && !disabled && (

@@ -6,6 +6,8 @@ Theo yêu cầu dọn mock/code thừa, kiểm tra lỗi logic và gom UI lặp.
 
 ## Task
 
+- [x] Sửa các cảnh báo Sonar trong27 file mobile: giảm cognitive complexity, bỏ điều kiện/template lồng nhau và callback quá sâu, đưa validator không dùng closure ra module, dùng codePointAt/replaceAll và giữ Promise contract của web download. Chạy SonarJS cục bộ cùng regression/type/lint/structure; không đổi nghiệp vụ hoặc dependency runtime.
+
 - [x] Chạy baseline lint/full tests, rà import graph và đối chiếu source/API contract.
 - [x] Gỡ sample file không có consumer và provider/path fixture không còn dùng.
 - [x] Bỏ hồ sơ/yêu cầu/statistics/testimonial/giao dịch mẫu khỏi UI chạy thật; giữ guest routes với hướng dẫn đăng nhập do API yêu cầu xác thực.

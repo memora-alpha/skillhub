@@ -27,6 +27,47 @@ import { ownerMaterialStyles as styles } from "../components/owner-material.styl
 function Separator() {
   return <View style={styles.separator} />;
 }
+
+function ownerActionError(uncertain: unknown, error: unknown) {
+  if (uncertain)
+    return "Chưa xác nhận được kết quả. Kiểm tra trạng thái trước khi tiếp tục.";
+  return error ? materialFailure(error) : undefined;
+}
+
+function ownerEmptyState({
+  query,
+  filter,
+  search,
+  mutationLocked,
+  onClear,
+}: {
+  query: ReturnType<typeof useMyMaterialPages>;
+  filter: MaterialFilter;
+  search: string;
+  mutationLocked: boolean;
+  onClear: () => void;
+}) {
+  if (!query.data || query.error || query.isLoading) return null;
+  const filtered = !!(query.items.length || filter !== "ALL" || search.trim());
+  let description = "Đăng tài liệu hữu ích để cùng cộng đồng học tập.";
+  if (filtered)
+    description = query.hasNextPage
+      ? "Thử bộ lọc khác hoặc xem thêm tài liệu để tiếp tục tìm."
+      : "Thử tên khác hoặc bỏ bộ lọc.";
+  return (
+    <EmptyState
+      title={
+        filtered ? "Không có tài liệu phù hợp" : "Chia sẻ tài liệu đầu tiên"
+      }
+      description={description}
+      icon="file"
+      titleStyle={styles.heading}
+      action={!mutationLocked && filtered ? "Bỏ bộ lọc" : undefined}
+      onAction={onClear}
+    />
+  );
+}
+
 export function PostedMaterialsContent({
   onCreateDisabledChange,
   onMutationLockChange,
@@ -56,11 +97,7 @@ export function PostedMaterialsContent({
     onMutationLockChange?.(mutationLocked);
     return () => onMutationLockChange?.(false);
   }, [mutationLocked, onMutationLockChange]);
-  const error = command.uncertain
-    ? "Chưa xác nhận được kết quả. Kiểm tra trạng thái trước khi tiếp tục."
-    : command.error
-      ? materialFailure(command.error)
-      : undefined;
+  const error = ownerActionError(command.uncertain, command.error);
   const refresh = async () => {
     if (command.pending || refreshing || query.isFetching || !runtime.enabled)
       return;
@@ -79,6 +116,7 @@ export function PostedMaterialsContent({
   const reconcile = async () => {
     if (await command.reconcile()) setArchiveId(undefined);
   };
+  const readRetry = query.isFetchNextPageError ? query.fetchNextPage : refresh;
   return (
     <>
       <RefreshableFlatList
@@ -136,13 +174,7 @@ export function PostedMaterialsContent({
             <ConnectionFeedback
               loading={query.isLoading}
               error={query.error}
-              retry={
-                command.pending
-                  ? undefined
-                  : query.isFetchNextPageError
-                    ? query.fetchNextPage
-                    : refresh
-              }
+              retry={command.pending ? undefined : readRetry}
             />
             {!!error && (
               <FormNotice
@@ -194,37 +226,17 @@ export function PostedMaterialsContent({
             }}
           />
         )}
-        ListEmptyComponent={
-          query.data && !query.error && !query.isLoading ? (
-            <EmptyState
-              title={
-                query.items.length || filter !== "ALL" || search.trim()
-                  ? "Không có tài liệu phù hợp"
-                  : "Chia sẻ tài liệu đầu tiên"
-              }
-              description={
-                query.items.length || filter !== "ALL" || search.trim()
-                  ? query.hasNextPage
-                    ? "Thử bộ lọc khác hoặc xem thêm tài liệu để tiếp tục tìm."
-                    : "Thử tên khác hoặc bỏ bộ lọc."
-                  : "Đăng tài liệu hữu ích để cùng cộng đồng học tập."
-              }
-              icon="file"
-              titleStyle={styles.heading}
-              action={
-                !mutationLocked &&
-                (query.items.length || filter !== "ALL" || search.trim())
-                  ? "Bỏ bộ lọc"
-                  : undefined
-              }
-              onAction={() => {
-                if (mutationLocked) return;
-                setFilter("ALL");
-                setSearch("");
-              }}
-            />
-          ) : null
-        }
+        ListEmptyComponent={ownerEmptyState({
+          query,
+          filter,
+          search,
+          mutationLocked,
+          onClear: () => {
+            if (mutationLocked) return;
+            setFilter("ALL");
+            setSearch("");
+          },
+        })}
         ListFooterComponent={
           query.hasNextPage ? (
             <View style={styles.footer}>

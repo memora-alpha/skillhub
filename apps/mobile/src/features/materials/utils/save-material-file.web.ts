@@ -5,10 +5,10 @@ export type MaterialDownloadTarget = (
   signal: AbortSignal,
 ) => Promise<void>;
 
-export async function prepareMaterialDownload(): Promise<
+export function prepareMaterialDownload(): Promise<
   MaterialDownloadTarget | undefined
 > {
-  return async (url, signal) => {
+  const target: MaterialDownloadTarget = async (url, signal) => {
     const response = await fetch(url, { signal, credentials: "omit" });
     if (!response.ok) throw new Error("Material download failed");
     const blob = await response.blob();
@@ -26,4 +26,5 @@ export async function prepareMaterialDownload(): Promise<
     anchor.remove();
     setTimeout(() => URL.revokeObjectURL(objectUrl), 30_000);
   };
+  return Promise.resolve(target);
 }
