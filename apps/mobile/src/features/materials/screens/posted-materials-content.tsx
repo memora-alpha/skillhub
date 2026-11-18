@@ -169,11 +169,6 @@ export function PostedMaterialsContent({
                 {command.pending ? "Đang kiểm tra…" : "Kiểm tra kết quả"}
               </Button>
             )}
-            {!!command.notice && (
-              <FormNotice tone="success" compact>
-                {command.notice}
-              </FormNotice>
-            )}
           </View>
         }
         renderItem={({ item }) => (
@@ -187,10 +182,8 @@ export function PostedMaterialsContent({
             onOpen={() => setSelectedId(item.id)}
             onEdit={() => edit(item.id)}
             onSubmit={() => {
-              if (item.status === "ARCHIVED") {
-                setAction("submit");
-                setArchiveId(item.id);
-              } else void command.run("submit", item);
+              setAction("submit");
+              setArchiveId(item.id);
             }}
           />
         )}

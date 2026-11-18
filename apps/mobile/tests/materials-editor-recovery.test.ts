@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url";
 import { AppError } from "../src/lib/http/errors";
 import { fixtureMaterial } from "./fixtures/materials-data";
 
-test("editor resolves version conflicts only after fresh read and explicit choice, preserving or replacing the draft", async () => {
+test("editor stays after successful saves, adopts receipts and resolves conflicts only after explicit recovery", async () => {
   const local = createRequire(
     new URL(
       "../src/features/materials/hooks/use-material-editor.ts",
@@ -31,6 +31,10 @@ test("editor resolves version conflicts only after fresh read and explicit choic
     waitRead = false,
     signal: AbortSignal | undefined;
   const sent: { version: number; body: unknown }[] = [];
+  const navigation: unknown[] = [],
+    toasts: unknown[] = [];
+  let saveFailure = false,
+    expireOnSave = false;
   const initialValues = {
     skillId: original.skillId,
     title: "Nội dung chưa lưu",
@@ -75,7 +79,14 @@ test("editor resolves version conflicts only after fresh read and explicit choic
       }),
     },
     "@hookform/resolvers/zod": { zodResolver() {} },
-    "expo-router": { useRouter: () => ({ replace() {} }) },
+    "expo-router": {
+      useRouter: () => ({ replace: (path: unknown) => navigation.push(path) }),
+    },
+    "@/providers/ToastProvider": {
+      useToast: () => ({
+        showToast: (...args: unknown[]) => toasts.push(args),
+      }),
+    },
     "@/features/connections": {
       useConnections: () => ({ isCurrent: () => current }),
       useConnectionCommand: () => ({
@@ -107,8 +118,15 @@ test("editor resolves version conflicts only after fresh read and explicit choic
         },
         update: async (_id: string, version: number, body: unknown) => {
           sent.push({ version, body });
+          if (saveFailure) throw new AppError("network");
           if (version !== server.listingVersion)
             throw new AppError("http", 409, "MATERIAL_VERSION_CONFLICT");
+          if (expireOnSave) current = false;
+          server = {
+            ...server,
+            ...(body as object),
+            listingVersion: version + 1,
+          };
           return server;
         },
       }),
@@ -125,6 +143,55 @@ test("editor resolves version conflicts only after fresh read and explicit choic
       return useMaterialEditor(original);
     };
     let hook = render();
+    // Successful edits stay on this screen and adopt the receipt for the next save.
+    server = original;
+    hook.setFiles([upload]);
+    hook.setCoverFiles([{ ...upload, name: "cover.png" }]);
+    hook = render();
+    await hook.save();
+    hook = render();
+    assert.deepEqual(navigation, []);
+    assert.deepEqual(toasts, [["Đã lưu thay đổi.", "success"]]);
+    assert.equal(hook.material.listingVersion, 2);
+    assert.equal(values.title, initialValues.title);
+    assert.deepEqual(hook.files, []);
+    assert.deepEqual(hook.coverFiles, []);
+    values.title = "Chỉnh sửa tiếp sau khi lưu";
+    await hook.save();
+    hook = render();
+    assert.equal(sent.at(-1)?.version, 2);
+    assert.equal(hook.material.listingVersion, 3);
+    assert.equal((sent.at(-1)?.body as { title: string }).title, values.title);
+    assert.equal("fileId" in (sent.at(-1)!.body as object), false);
+    assert.equal("coverFileId" in (sent.at(-1)!.body as object), false);
+    assert.equal(toasts.length, 2);
+    hook.setFiles([upload]);
+    saveFailure = true;
+    await render().save();
+    hook = render();
+    assert.equal(hook.material.listingVersion, 3);
+    assert.deepEqual(hook.files, [upload]);
+    assert.equal(toasts.length, 2);
+    saveFailure = false;
+    expireOnSave = true;
+    await hook.save();
+    hook = render();
+    assert.equal(hook.material.listingVersion, 3);
+    assert.deepEqual(hook.files, [upload]);
+    assert.equal(toasts.length, 2, "old-session receipts do not show success");
+    assert.deepEqual(navigation, []);
+    // Reset the fixture to exercise explicit conflict recovery independently.
+    states.length = refs.length = sent.length = 0;
+    mounted = false;
+    expireOnSave = false;
+    current = true;
+    commandError = undefined;
+    values = { ...initialValues };
+    server = fixtureMaterial({
+      listingVersion: 2,
+      title: "Tên mới trên máy chủ",
+    });
+    hook = render();
     hook.setFiles([upload]);
     hook = render();
     await hook.save();
@@ -163,7 +230,7 @@ test("editor resolves version conflicts only after fresh read and explicit choic
       initialValues.title,
     );
 
-    server = { ...server, listingVersion: 3, title: "Nội dung bản thứ ba" };
+    server = { ...server, listingVersion: 4, title: "Nội dung bản thứ tư" };
     await render().save();
     hook = render();
     assert.equal(
@@ -182,10 +249,10 @@ test("editor resolves version conflicts only after fresh read and explicit choic
       "adopting the server draft restores its recorded distribution-rights confirmation",
     );
     assert.deepEqual(hook.files, []);
-    assert.equal(hook.material.listingVersion, 3);
+    assert.equal(hook.material.listingVersion, 4);
 
     commandError = new AppError("http", 409, "MATERIAL_VERSION_CONFLICT");
-    server = { ...server, listingVersion: 4, status: "HIDDEN" };
+    server = { ...server, listingVersion: 5, status: "HIDDEN" };
     hook = render();
     await hook.recovery.reload();
     hook = render();
@@ -193,7 +260,7 @@ test("editor resolves version conflicts only after fresh read and explicit choic
     hook = render();
     assert.equal(
       hook.material.listingVersion,
-      3,
+      4,
       "hidden materials cannot be adopted for editing",
     );
     assert.equal(hook.blocked, true);

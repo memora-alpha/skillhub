@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { mock, test } from "node:test";
 import { pathToFileURL } from "node:url";
+import { fixtureMaterial } from "./fixtures/materials-data";
 
 type Node = { type: unknown; props: Record<string, unknown> };
 function nodes(value: unknown): Node[] {
@@ -23,14 +24,19 @@ for (const owner of [true, false]) {
       pending: boolean;
       uncertain: boolean;
       resetFeedback: () => void;
+      run: (action: string, row: unknown) => Promise<void>;
     } = {
       pending: false,
       uncertain: false,
       resetFeedback() {},
+      run: async (action, row) => {
+        sends.push([action, row]);
+      },
     };
+    const sends: unknown[] = [];
     const runtime = { enabled: true, key: ["owner", 1], isCurrent: () => true };
     const query = {
-      items: [],
+      items: [] as ReturnType<typeof fixtureMaterial>[],
       data: {},
       isFetching: false,
       refetch: async () => ({}),
@@ -82,6 +88,7 @@ for (const owner of [true, false]) {
       "@/components/EmptyState": { EmptyState: "Empty" },
       "@/components/FormNotice": { FormNotice: "Notice" },
       "@/components/InfoModal": { InfoModal: "Modal" },
+      "@/providers/ToastProvider": { useToast: () => ({ showToast() {} }) },
       "../hooks/use-materials": {
         useMyMaterialPages: () => query,
         useMaterialOrderPages: () => query,
@@ -130,6 +137,8 @@ for (const owner of [true, false]) {
         return {
           header: nodes(list.props.ListHeaderComponent),
           empty: list.props.ListEmptyComponent as Node,
+          dialog: nodes(root).find((node) => node.type === "ActionDialog"),
+          renderItem: list.props.renderItem as (props: unknown) => Node,
         };
       };
       const initial = render();
@@ -171,6 +180,30 @@ for (const owner of [true, false]) {
       );
       cleanups.at(-1)?.();
       assert.equal(locked, false);
+      if (owner) {
+        query.isFetching = false;
+        const draft = fixtureMaterial();
+        query.items = [draft];
+        const card = render().renderItem({ item: draft });
+        (card.props.onSubmit as () => void)();
+        assert.equal(
+          sends.length,
+          0,
+          "sending a draft opens confirmation without POST",
+        );
+        assert.equal(render().dialog?.props.action, "submit");
+        assert.equal(render().dialog?.props.material, draft);
+        (render().dialog!.props.onClose as () => void)();
+        assert.equal(
+          sends.length,
+          0,
+          "cancelling draft submission cannot send",
+        );
+        assert.equal(render().dialog?.props.material, undefined);
+        (card.props.onSubmit as () => void)();
+        (render().dialog!.props.onConfirm as () => void)();
+        assert.deepEqual(sends, [["submit", draft]]);
+      }
     } finally {
       contexts.reverse().forEach((context) => context.restore());
       delete local.cache[file];

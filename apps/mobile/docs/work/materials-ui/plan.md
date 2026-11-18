@@ -10,6 +10,7 @@ Theo yêu cầu ban đầu và mở rộng: đồng bộ toàn bộ màn tài li
 - [Contract](../../contracts/materials.md), controller/service/policy/view thật được dẫn trong contract.
 - Tham khảo [Google Drive search/filter chips](https://support.google.com/drive/answer/2375114?co=GENIE.Platform%3DAndroid&hl=en), [Drive list/grid](https://support.google.com/drive/answer/2375177?co=GENIE.Platform%3DAndroid&hl=en), [Dropbox mobile preview](https://learn.dropbox.com/video-library/how-to-use-the-dropbox-mobile-app). Không lấy assets của các app này.
 - Luồng xem/mua/thư viện tham khảo [Gumroad Library](https://gumroad.com/help/article/199-how-do-i-access-my-purchase); chỉ dùng nghiệp vụ Credit/entitlement của SkillHub.
+- Checkout tham khảo [Gumroad — payment form](https://gumroad.com/help/article/191-a-guide-to-buying-on-gumroad) và [Kobo — giỏ hàng/checkout](https://help.kobo.com/hc/en-us/articles/360017767333-Buy-eBooks-and-audiobooks-on-Kobo-com): tách sản phẩm đã chọn, phương thức thanh toán và hành động xác nhận. Bố cục sticky/footer, màu và font dùng pattern SkillHub; không lấy assets, thẻ ngân hàng, coupon, subscription hoặc chính sách thanh toán của app tham khảo.
 - Phần đánh giá tham khảo [Google Play Books — Ratings and reviews](https://play.google.com/store/books/details/Atomic_Habits_An_Easy_Proven_Way_to_Build_Good_Hab?hl=en-US&id=lFhbDwAAQBAJ) và [Apple Books — Rate and Review](https://support.apple.com/en-ie/guide/books/ibks7c0a2e26/mac): điểm tổng/sao/số lượng một cụm, viết theo thao tác rõ ràng. Bố cục rút gọn là lựa chọn cho SkillHub, giữ Nunito/theme hiện hữu, không sao chép assets hoặc chính sách của app tham khảo.
 
 ## Hiện trạng trước sửa
@@ -18,6 +19,7 @@ Owner list đã nối cursor/submit/archive nhưng dùng Panel và nhiều nút 
 
 ## Task
 
+- [x] Giữ màn chỉnh sửa sau Lưu thay đổi/Lưu bản nháp cho tài liệu hiện có; nhận version/metadata từ receipt, reset form/file/cover đã lưu và toast. Kiểm lưu tiếp, lỗi/phiên cũ và giữ recovery xung đột; tạo mới vẫn về danh sách như trước.
 - [x] Ghi luồng mục tiêu tách Ngừng chia sẻ và Xóa mềm, đối chiếu source và lập [danh sách BE cần bổ sung](status.md#be-cần-bổ-sung--tách-ngừng-chia-sẻ-và-xóa-mềm) trước khi sửa runtime.
 - [x] Đối chiếu BE PR108 `origin/dev@a4b13dc9`: deletedAt/legacyArchiveUnclassified, DELETE/replay, status filter/owner detail, submit ARCHIVED, withdraw và buyer download/thumbnail.
 - [x] Nối owner list theo status, query/cursor riêng; thêm Đã ngừng chia sẻ trong thanh lọc, khóa đổi khi mutation pending/uncertain, cache gỡ row khỏi filter cũ sau transition.
@@ -27,6 +29,11 @@ Owner list đã nối cursor/submit/archive nhưng dùng Panel và nhiều nút 
 - [ ] Nghiệm thu luồng lifecycle mới với API có đăng nhập, migration dữ liệu cũ và Android/iOS; source/fixture không thay nghiệm thu triển khai.
 
 - [x] Đồng bộ phần nhận diện thẻ đã mua với listing hiện tại như Chi tiết; ghi rõ thông tin lúc mua, giữ snapshot/quyền tải/hoàn tiền và giới hạn đọc metadata theo dòng visible/focus; kiểm lỗi metadata, cập nhật và màn nhỏ.
+- [x] Làm gọn thẻ đơn mua ở Thư viện: bìa nhỏ, gộp trạng thái/giá, tải/đánh giá cùng hàng; bỏ xổ thông tin, hiện Tệp đã mua và Hoàn tiền trực tiếp với eligibility/chú thích, giữ xác nhận và kiểm màn nhỏ/chữ lớn.
+- [x] Đối chiếu quyền người mua cũ khi archive/đăng lại nguyên trạng hoặc thay tệp/giá; giữ snapshot/giá gốc và không tự mua lại/nâng cấp. Thẻ Thư viện giữ thông tin lúc mua; Chi tiết trong Khám phá bỏ khối Bản bạn đã mua và dùng nhãn Tải tài liệu.
+- [x] Thiết kế lại màn mua tài liệu: thẻ bìa/nội dung đã chọn, phương thức Ví Credit, chính sách hoàn tiền và tổng/xác nhận cố định dưới; kiểm giá đổi, thiếu Credit, pending/unknown/retry, đơn đã hoàn tiền và màn nhỏ/chữ lớn.
+- [x] Bổ sung modal xác nhận mua và gửi duyệt DRAFT; giữ giá/version lúc mở, chặn bấm trùng/giá đổi, hủy không ghi. Rà modal xóa/ngừng chia sẻ/rút duyệt/đăng lại/hoàn tiền; hiển thị tên tài liệu khi xóa và nút Hủy/danger rõ ràng cho xóa tài liệu/đánh giá.
+- [x] Chuyển thông báo thành công owner/hoàn tiền/tải tệp sang toast tự ẩn; bỏ banner/state success, giữ lỗi/uncertain và không thông báo thành công từ kết quả chưa rõ hoặc phiên cũ.
 
 - [x] Đổi phản hồi xóa bản nháp thành toast dùng chung, bỏ banner thành công trong danh sách; chỉ thông báo sau receipt hợp lệ, giữ recovery và scope phiên.
 

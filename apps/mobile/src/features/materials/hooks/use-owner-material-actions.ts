@@ -27,6 +27,7 @@ export function useOwnerMaterialActions() {
       isCurrent: runtime.isCurrent,
       onChange: (value) => setSnapshot({ scope: runtime, value }),
       onFailure: invalidate,
+      onNotice: showToast,
       onDeleted: async (id) => {
         await cache.cancelQueries({ queryKey: base });
         if (!runtime.isCurrent()) return;

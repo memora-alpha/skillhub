@@ -16,7 +16,6 @@ export type OwnerActionState = {
   pending?: Intent;
   uncertain?: Intent;
   error?: unknown;
-  notice?: string;
 };
 export function createOwnerMaterialActions(deps: {
   api: Pick<
@@ -28,11 +27,18 @@ export function createOwnerMaterialActions(deps: {
   onResult: (row: ApiMaterial) => Promise<void>;
   onDeleted: (id: string) => Promise<void>;
   onFailure: () => void;
+  onNotice?: (message: string, tone: "success" | "info") => void;
 }) {
   let busy = false;
   let uncertain: Intent | undefined;
   const emit = (state: OwnerActionState) => {
     if (deps.isCurrent()) deps.onChange(state);
+  };
+  const notify = (
+    message: string | undefined,
+    tone: "success" | "info" = "success",
+  ) => {
+    if (message && deps.isCurrent()) deps.onNotice?.(message, tone);
   };
   const remove = async (intent: Intent) => {
     const receipt = await deps.api.remove(intent.id, intent.version);
@@ -67,18 +73,15 @@ export function createOwnerMaterialActions(deps: {
               : await deps.api[action](row.id);
         if (!deps.isCurrent()) return;
         if ("status" in result) await deps.onResult(result);
-        emit(
-          action === "delete"
-            ? {}
-            : {
-                notice:
-                  action === "submit"
-                    ? "Đã gửi tài liệu để duyệt."
-                    : action === "withdraw"
-                      ? "Đã rút yêu cầu duyệt. Bạn có thể sửa và gửi lại bản nháp."
-                      : materialArchivePresentation(row)?.notice,
-              },
-        );
+        emit({});
+        if (action !== "delete")
+          notify(
+            action === "submit"
+              ? "Đã gửi tài liệu để duyệt."
+              : action === "withdraw"
+                ? "Đã rút yêu cầu duyệt."
+                : materialArchivePresentation(row)?.notice,
+          );
         return result;
       } catch (error) {
         if (!deps.isCurrent()) return;
@@ -109,10 +112,11 @@ export function createOwnerMaterialActions(deps: {
         await deps.onResult(current);
         if (!deps.isCurrent()) return;
         uncertain = undefined;
-        emit({
-          notice:
-            "Đã cập nhật trạng thái tài liệu. Kiểm tra trước khi thao tác tiếp.",
-        });
+        emit({});
+        notify(
+          "Đã cập nhật trạng thái tài liệu. Kiểm tra trước khi thao tác tiếp.",
+          "info",
+        );
         return current;
       } catch (error) {
         if (uncertain?.action === "delete" && isRejectedCommand(error))

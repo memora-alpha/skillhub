@@ -74,11 +74,7 @@ test("uncertain draft deletion locks writes and explicitly retries the same ID a
   ]);
   assert.deepEqual(removed, [row.id]);
   assert.equal(state.uncertain, undefined);
-  assert.equal(
-    state.notice,
-    undefined,
-    "delete success does not leave a list banner",
-  );
+  assert.deepEqual(state, {}, "delete success clears pending feedback");
 });
 
 test("a rejected stale delete clears uncertainty for a fresh read and old-session receipts cannot update cache", async () => {
@@ -118,5 +114,4 @@ test("a rejected stale delete clears uncertainty for a fresh read and old-sessio
   assert.ok(state.error instanceof AppError);
   await actions.run("delete", { ...row, listingVersion: 2 });
   assert.equal(deleted, 0);
-  assert.equal(state.notice, undefined);
 });

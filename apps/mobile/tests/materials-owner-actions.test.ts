@@ -193,7 +193,7 @@ test("duplicate dispatches and completions from an old session cannot write cach
   await first;
   assert.equal(results, 0);
   assert.equal(states.length, 1);
-  assert.equal(states[0]!.notice, undefined);
+  assert.equal(states[0]!.pending?.action, "submit");
 });
 test("known conflicts stay retryable; failed reconciliation retains uncertain state and does not issue mutations", async () => {
   let state: OwnerActionState = {},
@@ -232,4 +232,65 @@ test("known conflicts stay retryable; failed reconciliation retains uncertain st
   await actions.reconcile();
   assert.equal(currentState().uncertain?.action, "submit");
   assert.equal(sends, 2);
+});
+
+test("owner success feedback is a one-time event; unknown results only notify after a read without claiming mutation success", async () => {
+  const published = fixtureMaterial({ status: "PUBLISHED" });
+  const archived = fixtureMaterial({ status: "ARCHIVED" });
+  const pending = fixtureMaterial({ status: "PENDING_REVIEW" });
+  const notices: unknown[] = [];
+  let mode: "unknown" | "success" | "conflict" = "unknown";
+  let active = true;
+  let state: OwnerActionState = {};
+  const actions = createOwnerMaterialActions({
+    api: {
+      archive: async () => {
+        if (mode !== "success")
+          throw mode === "unknown"
+            ? new AppError("network")
+            : new AppError("http", 409);
+        return archived;
+      },
+      submit: async () => pending,
+      withdraw: async () => fixtureMaterial(),
+      ownerDetail: async () => archived,
+      remove: async (id) => ({ id, deleted: true, replayed: false }),
+    },
+    isCurrent: () => active,
+    onChange: (next) => {
+      state = next;
+    },
+    onResult: async () => {},
+    onDeleted: async () => {},
+    onFailure() {},
+    onNotice: (...args) => notices.push(args),
+  });
+  await actions.run("archive", published);
+  assert.equal(notices.length, 0, "unknown requests do not claim success");
+  await actions.reconcile();
+  assert.deepEqual(notices, [
+    [
+      "Đã cập nhật trạng thái tài liệu. Kiểm tra trước khi thao tác tiếp.",
+      "info",
+    ],
+  ]);
+  assert.deepEqual(state, {});
+  await actions.run("submit", archived);
+  await actions.run("withdraw", pending);
+  assert.deepEqual(notices.slice(1), [
+    ["Đã gửi tài liệu để duyệt.", "success"],
+    ["Đã rút yêu cầu duyệt.", "success"],
+  ]);
+  actions.resetFeedback();
+  assert.equal(
+    notices.length,
+    3,
+    "resetting feedback cannot repeat success notifications",
+  );
+  mode = "conflict";
+  await actions.run("archive", published);
+  assert.equal(notices.length, 3);
+  active = false;
+  await actions.run("submit", archived);
+  assert.equal(notices.length, 3, "expired sessions cannot notify");
 });

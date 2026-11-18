@@ -8,17 +8,17 @@ import { appColors } from "@/constants/theme";
 import type { MaterialOrder } from "../api/material-contracts";
 import { usePublicMaterial } from "../hooks/use-materials";
 import {
-  materialDate,
   materialFileSize,
   materialFileType,
 } from "../utils/owner-material-presentation";
 import { MaterialFileBadge } from "./material-summary";
 import { MaterialCover } from "./material-cover";
+import { MaterialOrderDetails } from "./material-order-details";
+import { materialOrderStyles as orderStyles } from "./material-order.styles";
 import { materialStyles as styles } from "./material.styles";
 import { useMaterialDownload } from "../hooks/use-material-download";
 import { MaterialDownloadFeedback } from "./material-download-feedback";
 import { useMaterialReviewEligibility } from "../hooks/use-material-reviews";
-import { materialRefundReason } from "../utils/material-failure";
 
 export function MaterialOrderCard({
   order,
@@ -63,26 +63,37 @@ export function MaterialOrderCard({
   const hasReview =
     order.review?.hasReview ?? !!eligibility.data?.currentReview;
   const canReview = order.review?.canReview ?? eligibility.data?.canReview;
+  const showReview = !!(
+    hasReview ||
+    canReview ||
+    (!order.review && eligibility.error)
+  );
+  const downloadLocked =
+    disabled || download.pending || download.awaitingConfirmation;
+  const refundLocked =
+    downloadLocked || order.refundEligibility?.canRefund === false;
   return (
-    <View style={styles.catalogCard}>
+    <View style={orderStyles.card}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Xem ${title}`}
         onPress={() => router.push(`/materials/${order.materialId}`)}
-        style={styles.catalogRow}
+        style={orderStyles.header}
       >
         {material ? (
-          <MaterialCover material={material} />
+          <MaterialCover material={material} compact />
         ) : (
-          <MaterialFileBadge />
+          <View style={orderStyles.fallback}>
+            <MaterialFileBadge />
+          </View>
         )}
-        <View style={styles.catalogContent}>
+        <View style={orderStyles.content}>
           <Text style={styles.title} numberOfLines={2}>
             {title}
           </Text>
           {material ? (
             <>
-              <Text style={styles.caption}>
+              <Text style={styles.caption} numberOfLines={1}>
                 {[
                   materialFileType(material),
                   materialFileSize(material.file?.sizeBytes),
@@ -90,7 +101,7 @@ export function MaterialOrderCard({
                   .filter(Boolean)
                   .join(" · ")}
               </Text>
-              <Text style={styles.text} numberOfLines={2}>
+              <Text style={styles.text} numberOfLines={1}>
                 {material.description}
               </Text>
             </>
@@ -104,91 +115,60 @@ export function MaterialOrderCard({
         </View>
         <Icon name="chevron" size={18} color={appColors.muted} />
       </Pressable>
-      <Text style={styles.caption}>
-        Mua {materialDate(order.createdAt)} · Bản đã mua v{order.listingVersion}
-      </Text>
-      {!!snapshot?.originalFilename && (
-        <Text style={styles.meta} numberOfLines={2}>
-          Tệp đã mua: {snapshot.originalFilename}
-        </Text>
+      <MaterialOrderDetails order={order} currentTitle={material?.title} />
+      {(order.status === "SUCCESS" || showReview) && (
+        <View style={orderStyles.actions}>
+          {order.status === "SUCCESS" && (
+            <Button
+              variant="craft"
+              size="sm"
+              style={orderStyles.action}
+              leadingIcon="download"
+              disabled={downloadLocked}
+              onPress={() => void download.start(true)}
+            >
+              {download.pending ? "Đang tải…" : "Tải bản đã mua"}
+            </Button>
+          )}
+          {showReview && (
+            <Button
+              variant="paper"
+              size="sm"
+              leadingIcon="star"
+              style={orderStyles.action}
+              disabled={disabled || (!order.review && eligibility.isFetching)}
+              onPress={() =>
+                router.push(`/materials/${order.materialId}/review`)
+              }
+            >
+              {hasReview
+                ? "Xem đánh giá"
+                : canReview
+                  ? "Viết đánh giá"
+                  : "Đánh giá tài liệu"}
+            </Button>
+          )}
+        </View>
       )}
-      {material && snapshot?.title && snapshot.title !== material.title && (
-        <Text style={styles.caption} numberOfLines={2}>
-          Tên lúc mua: {snapshot.title}
-        </Text>
-      )}
-      <View style={styles.row}>
-        <Text
-          style={[
-            styles.caption,
-            order.status === "SUCCESS" ? styles.success : styles.meta,
-          ]}
-        >
-          {order.status === "SUCCESS" ? "Đã mua" : "Đã hoàn tiền"}
-        </Text>
-        <Text style={styles.meta}>
-          Giá lúc mua:{" "}
-          <Text style={styles.price}>
-            {Number(order.grossCredit).toLocaleString("vi-VN")} CR
-          </Text>
-        </Text>
-      </View>
       {order.status === "SUCCESS" && (
-        <View style={styles.actions}>
-          <Button
-            variant="craft"
-            size="sm"
-            style={styles.action}
-            leadingIcon="download"
-            disabled={
-              disabled || download.pending || download.awaitingConfirmation
-            }
-            onPress={() => void download.start(true)}
-          >
-            {download.pending ? "Đang tải…" : "Tải tài liệu"}
-          </Button>
+        <View style={orderStyles.refundRow}>
+          <Text style={[styles.caption, orderStyles.refundHint]}>
+            {order.refundEligibility?.canRefund === false
+              ? "Không đủ điều kiện hoàn tiền"
+              : "Điều kiện được kiểm tra khi gửi yêu cầu"}
+          </Text>
           <Button
             variant="ghost"
             size="sm"
-            style={styles.action}
-            disabled={
-              disabled ||
-              download.pending ||
-              download.awaitingConfirmation ||
-              order.refundEligibility?.canRefund === false
-            }
-            onPress={onRefund}
+            leadingIcon="wallet"
+            disabled={refundLocked}
+            onPress={() => {
+              if (!refundLocked) onRefund();
+            }}
           >
             Hoàn tiền
           </Button>
         </View>
-      )}
-      {order.status === "SUCCESS" &&
-        order.refundEligibility?.canRefund === false && (
-          <Text style={styles.caption}>
-            {materialRefundReason(order.refundEligibility.reasonCode)}
-          </Text>
-        )}
-      {order.status === "SUCCESS" && order.refundEligibility?.canRefund && (
-        <Text style={styles.caption}>
-          Hạn yêu cầu hoàn tiền:{" "}
-          {new Date(order.refundEligibility.deadline).toLocaleString("vi-VN")}
-        </Text>
-      )}
-      {(hasReview || canReview || (!order.review && eligibility.error)) && (
-        <Button
-          variant="paper"
-          size="sm"
-          leadingIcon="star"
-          disabled={disabled || (!order.review && eligibility.isFetching)}
-          onPress={() => router.push(`/materials/${order.materialId}/review`)}
-        >
-          {hasReview
-            ? "Xem đánh giá"
-            : canReview
-              ? "Viết đánh giá"
-              : "Đánh giá tài liệu"}
-        </Button>
       )}
       <MaterialDownloadFeedback download={download} />
     </View>

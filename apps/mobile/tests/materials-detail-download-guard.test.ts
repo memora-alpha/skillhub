@@ -98,6 +98,7 @@ test("detail waits for ownership even on free listings and confirms a purchased 
     assert.deepEqual(starts, []);
     ownership = { data: { id: "purchased-order" }, isFetching: false };
     assert.equal(render().disabled, false);
+    assert.equal(render().children, "Tải tài liệu");
     render().onPress();
     assert.deepEqual(starts, [true]);
     ownership = { data: null, isFetching: false };

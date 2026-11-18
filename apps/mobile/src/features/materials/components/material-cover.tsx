@@ -16,7 +16,8 @@ import { materialThumbnailUrl } from "../utils/material-thumbnail";
 export function MaterialCover({
   material,
   large = false,
-}: Readonly<{ material: ApiMaterial; large?: boolean }>) {
+  compact = false,
+}: Readonly<{ material: ApiMaterial; large?: boolean; compact?: boolean }>) {
   const [failedUrl, setFailedUrl] = useState<string>();
   const [now, setNow] = useState(Date.now);
   const thumbnail = material.cover?.preview ?? material.thumbnail;
@@ -37,7 +38,7 @@ export function MaterialCover({
     return (
       <Image
         source={{ uri }}
-        style={[styles.cover, large && styles.large]}
+        style={[styles.cover, compact && styles.compact, large && styles.large]}
         contentFit="cover"
         cachePolicy="none"
         recyclingKey={uri}
@@ -72,6 +73,7 @@ export function MaterialCover({
       importantForAccessibility="no-hide-descendants"
       style={[
         styles.cover,
+        compact && styles.compact,
         large && styles.large,
         { backgroundColor: tone.background },
       ]}
@@ -88,7 +90,7 @@ export function MaterialCover({
         </View>
         <Icon
           name={material.file?.mimeType.startsWith("image/") ? "image" : "file"}
-          size={large ? 30 : 24}
+          size={large ? 30 : compact ? 18 : 24}
           color={tone.ink}
         />
         <View style={styles.lines}>
@@ -113,6 +115,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   large: { width: 112, height: 148, padding: 14, paddingLeft: 18 },
+  compact: { width: 64, height: 84, padding: 6, paddingLeft: 10 },
   spine: {
     position: "absolute",
     left: 0,

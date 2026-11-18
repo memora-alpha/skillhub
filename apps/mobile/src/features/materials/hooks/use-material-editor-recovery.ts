@@ -10,7 +10,7 @@ export function useMaterialEditorRecovery(
   commandError: unknown,
 ) {
   // Background reads must not silently rebase an unsaved draft.
-  const base = useRef(currentMaterial);
+  const [base, setBase] = useState(currentMaterial);
   const api = useMaterialsApi();
   const runtime = useConnections();
   const [latest, setLatest] = useState<ApiMaterial>();
@@ -27,7 +27,7 @@ export function useMaterialEditorRecovery(
     };
   }, []);
   const conflict =
-    !!base.current &&
+    !!base &&
     commandError !== handled &&
     commandError instanceof AppError &&
     commandError.kind === "http" &&
@@ -46,7 +46,7 @@ export function useMaterialEditorRecovery(
     setLatest(undefined);
     setError(undefined);
     try {
-      const row = await api.ownerDetail(base.current!.id, request.signal);
+      const row = await api.ownerDetail(base!.id, request.signal);
       if (!mounted.current || request.signal.aborted || !runtime.isCurrent())
         return;
       setLatest(row);
@@ -68,20 +68,30 @@ export function useMaterialEditorRecovery(
       !runtime.isCurrent()
     )
       return;
-    base.current = latest;
+    setBase(latest);
     setHandled(commandError);
     setLatest(undefined);
     setError(undefined);
     return latest;
   };
+  const acceptSaved = (saved: ApiMaterial) => {
+    if (!mounted.current || !runtime.isCurrent() || saved.id !== base?.id)
+      return;
+    setBase(saved);
+    setLatest(undefined);
+    setError(undefined);
+    setHandled(undefined);
+    return saved;
+  };
   return {
-    material: base.current,
+    material: base,
     conflict,
     latest,
     loading,
     error,
     reload,
     adopt,
+    acceptSaved,
     handledError: commandError !== undefined && commandError === handled,
   };
 }

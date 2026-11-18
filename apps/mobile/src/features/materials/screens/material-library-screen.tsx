@@ -8,6 +8,7 @@ import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
 import { FormNotice } from "@/components/FormNotice";
 import { InfoModal } from "@/components/InfoModal";
+import { useToast } from "@/providers/ToastProvider";
 import {
   useConnections,
   useConnectionCommand,
@@ -59,6 +60,7 @@ function PurchasedMaterialsContent({
   onMutationLockChange?: (locked: boolean) => void;
 }>) {
   const focused = useIsFocused();
+  const { showToast } = useToast();
   const runtime = useConnections();
   const query = useMaterialOrderPages();
   const api = useMaterialsApi();
@@ -67,7 +69,6 @@ function PurchasedMaterialsContent({
   const command = useConnectionCommand<MaterialOrder>([["materials"]]);
   const { visibleIds, ...viewability } = useVisibleListRows();
   const [confirm, setConfirm] = useState<string>();
-  const [notice, setNotice] = useState<string>();
   const [refreshing, setRefreshing] = useState(false);
   const mutationLocked = command.pending || command.uncertain;
   useEffect(() => {
@@ -103,7 +104,7 @@ function PurchasedMaterialsContent({
     void cache.invalidateQueries({ queryKey: [...runtime.key, "materials"] });
     void refreshWallet()?.catch(() => undefined);
     setConfirm(undefined);
-    setNotice("Đã hoàn tiền theo kết quả từ hệ thống.");
+    showToast("Đã hoàn tiền tài liệu.", "success");
   };
   return (
     <>
@@ -130,11 +131,6 @@ function PurchasedMaterialsContent({
               error={query.error}
               retry={query.isFetchNextPageError ? query.fetchNextPage : refresh}
             />
-            {!!notice && (
-              <FormNotice tone="success" compact>
-                {notice}
-              </FormNotice>
-            )}
             {!!command.error && !confirm && (
               <FormNotice tone="error" compact>
                 {materialFailure(command.error)}
@@ -159,7 +155,6 @@ function PurchasedMaterialsContent({
             onRefund={() => {
               if (item.refundEligibility?.canRefund === false) return;
               setConfirm(item.id);
-              setNotice(undefined);
             }}
           />
         )}
