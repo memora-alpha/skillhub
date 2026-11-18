@@ -86,6 +86,18 @@ export function attendanceCase(
   return "UNVERIFIABLE";
 }
 
+/** Session states in which Staff may record an attendance (no-show) ruling. */
+export const NO_SHOW_RULING_STATUSES: readonly string[] = [
+  "NO_SHOW",
+  "DISPUTED",
+  "MAKEUP_REQUIRED",
+];
+/** Session states in which Staff may rule on the makeup of a cancelled occurrence. */
+export const CANCELLATION_RULING_STATUSES: readonly string[] = [
+  "DISPUTED",
+  "MAKEUP_REQUIRED",
+];
+
 export const isAbsentCase = (value: AttendanceCaseValue) =>
   value === "TEACHER_ABSENT" ||
   value === "LEARNER_ABSENT" ||

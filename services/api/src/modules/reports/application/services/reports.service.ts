@@ -16,6 +16,7 @@ import {
 import { lockLearningPath as lockPath } from "../../../learning-paths/application/services/learning-path-lock";
 import { hoursAfter } from "../../../learning-sessions/domain/attendance.policy";
 import { lockedSession } from "../../../learning-sessions/application/services/session-tx";
+import { loadSessionRulingOptions } from "../../../learning-sessions/application/services/session-ruling-options";
 import { randomUUID } from "node:crypto";
 import type { Readable } from "node:stream";
 import { FileAttachmentService } from "../../../../infrastructure/storage/file-attachment.service";
@@ -860,10 +861,15 @@ export class ReportsService {
           })
         : null;
       const [withSizes] = withEvidenceSizeText([item]);
+      // Advisory: resolve revalidates every ruling inside its own transaction.
+      const resolutionOptions = session
+        ? await loadSessionRulingOptions(tx, session.id)
+        : null;
       return {
         ...withSizes,
         session,
         path,
+        resolutionOptions,
         // Attendance evidence lets Staff reconcile a no-show report without uploads.
         attendanceOutcome: outcome && {
           ...outcome,

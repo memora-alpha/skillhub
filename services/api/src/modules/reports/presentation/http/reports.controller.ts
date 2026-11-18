@@ -130,6 +130,11 @@ export class ReportsController {
   }
 
   @Get("staff/:caseId")
+  @ApiOperation({
+    summary: "Staff report case detail with session ruling eligibility",
+    description:
+      "For a case linked to a Session, data.resolutionOptions projects the committed state checked by POST staff/:caseId/resolve: makeupQuotas per participant, eligibleMakeupUserIds, makeupAlreadyGranted, obligationsEnded, and noShowRulings (UPHOLD, EXCUSE, COMPLETE) and cancellationMakeupRulings (EXTEND, COMPLETE), each with allowed and blockedReason. It is null without a Session. This is advisory; resolve revalidates in its transaction and may still return 409 with the same codes.",
+  })
   async staffCaseDetail(
     @CurrentIdentity() actor: Principal,
     @Param("caseId", ParseUUIDPipe) caseId: string,

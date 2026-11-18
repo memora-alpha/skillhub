@@ -102,3 +102,54 @@ Cursor-based routes use the existing envelope:
 ## Rollout
 
 No new migration or environment variable is required. Existing migration prerequisites remain in effect. Run the existing `pnpm --filter api identity:seed` workflow to add `audit:read` to the permission catalog and ADMIN role, then restart/deploy the API. Until seeded, audit access returns 403. This work does not execute the seed against the application database or deploy the API.
+
+## Report ruling eligibility
+
+`GET /reports/staff/:caseId` adds `data.resolutionOptions`. It is `null` when the case has no related Session. Otherwise it projects the committed state that `POST /reports/staff/:caseId/resolve` checks for `noShowRuling` and `cancellationMakeupRuling`:
+
+```json
+{
+  "makeupQuotas": [
+    {
+      "userId": "...",
+      "reason": "SESSION_MAKEUP_LIMIT_REACHED",
+      "remaining": 1
+    }
+  ],
+  "eligibleMakeupUserIds": [],
+  "makeupAlreadyGranted": false,
+  "obligationsEnded": false,
+  "noShowRulings": [
+    {
+      "value": "UPHOLD",
+      "allowed": false,
+      "blockedReason": "SESSION_MAKEUP_LIMIT_REACHED"
+    },
+    {
+      "value": "EXCUSE",
+      "allowed": false,
+      "blockedReason": "SESSION_MAKEUP_LIMIT_REACHED"
+    },
+    { "value": "COMPLETE", "allowed": true, "blockedReason": null }
+  ],
+  "cancellationMakeupRulings": [
+    {
+      "value": "EXTEND",
+      "allowed": false,
+      "blockedReason": "CANCELLATION_MAKEUP_RULING_NOT_APPLICABLE"
+    },
+    {
+      "value": "COMPLETE",
+      "allowed": false,
+      "blockedReason": "CANCELLATION_MAKEUP_RULING_NOT_APPLICABLE"
+    }
+  ]
+}
+```
+
+- `makeupQuotas` lists both participants. `reason` is `SESSION_MAKEUP_LIMIT_REACHED` (this Session already used its makeup), `MAKEUP_ATTRIBUTION_REVIEW_REQUIRED` or `USER_MAKEUP_LIMIT_REACHED`; `eligibleMakeupUserIds` are participants without a reason.
+- `makeupAlreadyGranted` is `evidence.makeupGranted` of the current occurrence's attendance outcome. A ruling then extends that makeup and never reserves a second one. It does not mean the makeup lesson took place.
+- `obligationsEnded` means the Learning Path termination was approved; a ruling finalizes attendance without a makeup.
+- `UPHOLD` requires an absent attendance case on a `NO_SHOW` Session. Teacher or both absent then needs a makeup, so the absent parties' quota applies; learner absent does not. `EXCUSE` uses the absent parties' quota, or the selected participant when nobody is absent. `COMPLETE` is not limited by quota.
+- Values are advisory and computed without locks. Resolve revalidates in its transaction and may still return 409 with the same codes, for example after a concurrent change. Reload the case before retrying.
+- No-show and cancellation rulings do not refund or penalize Credit; Credit penalty/refund rates for no-show remain an open product decision.

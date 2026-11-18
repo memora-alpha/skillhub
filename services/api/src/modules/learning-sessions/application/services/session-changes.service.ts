@@ -15,6 +15,7 @@ import {
 import { databaseNow, lockedSession, lockSession } from "./session-tx";
 import { completeSession } from "./session-transitions";
 import { makeupQuota, reserveMakeup } from "./makeup-quota";
+import { CANCELLATION_RULING_STATUSES } from "../../domain/attendance.policy";
 
 @Injectable()
 export class SessionChangesService {
@@ -135,10 +136,7 @@ export class SessionChangesService {
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     });
-    if (
-      !cancellation ||
-      !["DISPUTED", "MAKEUP_REQUIRED"].includes(session.status)
-    )
+    if (!cancellation || !CANCELLATION_RULING_STATUSES.includes(session.status))
       throw new ConflictException("CANCELLATION_MAKEUP_RULING_NOT_APPLICABLE");
     if (ruling === "COMPLETE")
       return completeSession(tx, session, null, "COMPLETED_STAFF", now);

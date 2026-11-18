@@ -13,6 +13,7 @@ import {
   determinationAt,
   hoursAfter,
   isAbsentCase,
+  NO_SHOW_RULING_STATUSES,
   observationHealthy,
   participantVerdict,
   daysAfter,
@@ -397,10 +398,7 @@ export async function applyNoShowRuling(
 ) {
   const session = await lockedSession(tx, input.sessionId);
   const outcome = await currentOutcome(tx, session);
-  if (
-    !outcome ||
-    !["NO_SHOW", "DISPUTED", "MAKEUP_REQUIRED"].includes(session.status)
-  )
+  if (!outcome || !NO_SHOW_RULING_STATUSES.includes(session.status))
     throw new ConflictException("NO_SHOW_RULING_NOT_APPLICABLE");
   const absent = isAbsentCase(outcome.attendanceCase);
   const policy = outcomePolicy(outcome);
