@@ -1,0 +1,101 @@
+import { useEffect, useRef, useState } from "react";
+import { useConnections } from "@/features/connections";
+import { AppError } from "@/lib/http/errors";
+import type { ApiMaterial } from "../api/material-contracts";
+import { canEditMaterial } from "../utils/owner-material-presentation";
+import { useMaterialsApi } from "./use-materials";
+
+export function useMaterialEditorRecovery(
+  currentMaterial: ApiMaterial | undefined,
+  commandError: unknown,
+) {
+  // Background reads must not silently rebase an unsaved draft.
+  const [base, setBase] = useState(currentMaterial);
+  const api = useMaterialsApi();
+  const runtime = useConnections();
+  const [latest, setLatest] = useState<ApiMaterial>();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<unknown>();
+  const [handled, setHandled] = useState<unknown>();
+  const controller = useRef<AbortController | undefined>(undefined);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      controller.current?.abort();
+    };
+  }, []);
+  const conflict =
+    !!base &&
+    commandError !== handled &&
+    commandError instanceof AppError &&
+    commandError.kind === "http" &&
+    [
+      "MATERIAL_VERSION_CONFLICT",
+      "MATERIAL_CONTENT_LOCKED",
+      "MATERIAL_NOT_EDITABLE",
+    ].includes(commandError.code);
+  const reload = async () => {
+    if (
+      !conflict ||
+      !mounted.current ||
+      controller.current ||
+      !runtime.isCurrent()
+    )
+      return;
+    const request = new AbortController();
+    controller.current = request;
+    setLoading(true);
+    setLatest(undefined);
+    setError(undefined);
+    try {
+      const row = await api.ownerDetail(base!.id, request.signal);
+      if (!mounted.current || request.signal.aborted || !runtime.isCurrent())
+        return;
+      setLatest(row);
+    } catch (failure) {
+      if (mounted.current && !request.signal.aborted && runtime.isCurrent())
+        setError(failure);
+    } finally {
+      if (controller.current === request) controller.current = undefined;
+      if (mounted.current && runtime.isCurrent()) setLoading(false);
+    }
+  };
+  const adopt = () => {
+    if (
+      !conflict ||
+      !mounted.current ||
+      !latest ||
+      loading ||
+      !canEditMaterial(latest) ||
+      !runtime.isCurrent()
+    )
+      return;
+    setBase(latest);
+    setHandled(commandError);
+    setLatest(undefined);
+    setError(undefined);
+    return latest;
+  };
+  const acceptSaved = (saved: ApiMaterial) => {
+    if (!mounted.current || !runtime.isCurrent() || saved.id !== base?.id)
+      return;
+    setBase(saved);
+    setLatest(undefined);
+    setError(undefined);
+    setHandled(undefined);
+    return saved;
+  };
+  return {
+    material: base,
+    conflict,
+    latest,
+    loading,
+    error,
+    reload,
+    adopt,
+    acceptSaved,
+    handledError: commandError !== undefined && commandError === handled,
+  };
+}

@@ -12,7 +12,7 @@ export function PlanDetailScreen() {
   if (uuid.safeParse(id).success && uuid.safeParse(planId).success)
     return <ApiPlanDetailScreen />;
   return (
-    <FeaturePage title="Chi tiết lộ trình" demo={false}>
+    <FeaturePage title="Chi tiết lộ trình">
       <EmptyState
         title="Không tìm thấy lộ trình"
         description="Mở một lộ trình hợp lệ từ thỏa thuận của bạn."
@@ -32,7 +32,7 @@ export function PlanEditorScreen() {
   )
     return <ApiPlanEditorScreen />;
   return (
-    <FeaturePage title="Chỉnh sửa lộ trình" demo={false}>
+    <FeaturePage title="Chỉnh sửa lộ trình">
       <EmptyState
         title="Không tìm thấy lộ trình"
         description="Mở tạo hoặc chỉnh sửa từ một thỏa thuận hợp lệ."

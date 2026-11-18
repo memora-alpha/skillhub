@@ -197,10 +197,10 @@ test("own-list denial hides recently created skill overlays and disables creatio
       (tree.find((n) => n.type === "FlatList")!.props.data as unknown[]).length,
       0,
     );
-    assert.equal(
-      tree.find((n) => n.type === "SkillAction")!.props.disabled,
-      true,
-    );
+    const filters = tree.find((n) => n.type === "SkillFilters")!;
+    assert.equal(filters.props.disabled, true);
+    (filters.props.onAdd as () => void)();
+    assert.equal(ui.navigations(), 0);
     assert.equal((h.hooks.useOwnSkills!() as ReadResult).canRead(), false);
   } finally {
     h.client.clear();

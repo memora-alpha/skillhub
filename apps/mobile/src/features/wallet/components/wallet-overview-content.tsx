@@ -65,7 +65,7 @@ export function WalletOverviewContent({
         </View>
         <Icon name="chevron" color={colors.muted} size={18} />
       </Pressable>
-      <Panel title="Credit đồng hành cùng bạn">
+      <Panel>
         <Copy muted>
           {formatVnd(topUpPolicy.vndPerCredit)} = 1 Credit. Credit được dùng cho
           các hoạt động trên SkillHub.

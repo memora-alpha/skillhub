@@ -110,6 +110,7 @@ test("path list renders its first page, loads another on request, and only enric
       useVisibleListRows: () => ({ visibleIds: new Set([path.id]) }),
     },
     "@/components/Button": { Button: "Button" },
+    "@/components/filter-bar": { FilterBar: "FilterBar" },
     "@/components/feature-page": { Copy: "Copy", RouteButton: "RouteButton" },
     "@/components/EmptyState": { EmptyState: "Empty" },
     "@/components/Avatar": { Avatar: "Avatar" },
@@ -245,12 +246,14 @@ test("path list renders its first page, loads another on request, and only enric
       { cancelRefetch: false },
     ]);
     const choose = (label: string) => {
-      const option = elements(ApiPathsContent().props.ListHeaderComponent).find(
-        (node) =>
-          node.type === "Pressable" && node.props.accessibilityLabel === label,
-      );
+      const filters = elements(
+        ApiPathsContent().props.ListHeaderComponent,
+      ).find((node) => node.type === "FilterBar")!;
+      const option = (
+        filters.props.options as { value: string; label: string }[]
+      ).find((item) => item.label === label);
       assert.ok(option, `Missing filter: ${label}`);
-      (option.props.onPress as () => void)();
+      (filters.props.onChange as (value: string) => void)(option.value);
       return ApiPathsContent().props;
     };
     assert.equal(
@@ -283,11 +286,15 @@ test("path list renders its first page, loads another on request, and only enric
       cardText(filtered.ListHeaderComponent),
       /Đang lọc trong\s+3\s+lộ trình đã tải/,
     );
+    const selectedFilters = elements(filtered.ListHeaderComponent).find(
+      (node) => node.type === "FilterBar",
+    )!;
+    assert.equal(selectedFilters.props.role, "radio");
     assert.equal(
-      elements(filtered.ListHeaderComponent).find(
-        (node) => node.props.accessibilityLabel === "Chờ bắt đầu",
-      )?.props["aria-checked"],
-      true,
+      (
+        selectedFilters.props.options as { value: string; label: string }[]
+      ).find((item) => item.value === selectedFilters.props.value)?.label,
+      "Chờ bắt đầu",
     );
     query.error = new Error("Could not load more");
     query.isFetchNextPageError = true;

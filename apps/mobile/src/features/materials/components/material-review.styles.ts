@@ -1,0 +1,96 @@
+import { StyleSheet } from "react-native";
+import {
+  appColors as colors,
+  appRadius,
+  fonts,
+  typography,
+} from "@/constants/theme";
+
+export const reviewStyles = StyleSheet.create({
+  section: { gap: 16 },
+  heading: { fontFamily: fonts.bold, ...typography.heading, color: colors.ink },
+  summary: { flexDirection: "row", alignItems: "center", gap: 16 },
+  score: {
+    fontFamily: fonts.bold,
+    fontSize: 40,
+    lineHeight: 48,
+    color: colors.ink,
+    fontVariant: ["tabular-nums"],
+  },
+  summaryInfo: { gap: 6, flex: 1, minWidth: 0 },
+  meta: {
+    fontFamily: fonts.body,
+    ...typography.secondary,
+    color: colors.muted,
+  },
+  name: {
+    fontFamily: fonts.bold,
+    ...typography.secondary,
+    color: colors.ink,
+    flexShrink: 1,
+  },
+  body: { fontFamily: fonts.body, ...typography.body, color: colors.body },
+  row: {
+    paddingVertical: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    gap: 10,
+  },
+  reviewer: { flexDirection: "row", alignItems: "center", gap: 10 },
+  author: { flex: 1, minWidth: 0, gap: 5 },
+  ratingLine: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 8,
+  },
+  verified: {
+    fontFamily: fonts.body,
+    ...typography.caption,
+    color: colors.muted,
+  },
+  own: {
+    padding: 14,
+    gap: 10,
+    backgroundColor: colors.surfaceLow,
+    borderRadius: appRadius.control,
+  },
+  ownHeader: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  ownInfo: { flex: 1, minWidth: 110, gap: 6 },
+  actions: { flexDirection: "row", alignItems: "center", gap: 2 },
+  smallAction: { minHeight: 44, paddingHorizontal: 10 },
+  iconAction: {
+    width: 44,
+    minHeight: 44,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    flexShrink: 0,
+  },
+  editor: { gap: 12 },
+  formActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 8,
+  },
+  submit: { flexGrow: 1, minWidth: 140 },
+  ratingPanel: { alignItems: "center", paddingVertical: 12 },
+  counter: {
+    fontFamily: fonts.body,
+    ...typography.caption,
+    color: colors.muted,
+    textAlign: "right",
+  },
+  footer: {
+    padding: 16,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+});

@@ -88,9 +88,8 @@ Phase 07 đã sửa availability cho `CONFIRMED`/`READY` và cutoff 60 phút. Fo
 
 ## Ranh giới LiveKit và Report
 
-- Backend Session hiện có `join` metadata và endpoint token. Phần nối chúng vào mobile thuộc **nhánh LiveKit khác**; Phase 07 không đổi route `room.tsx`, SDK/dependencies/app config hoặc tự đặt join window. RoomScreen chỉ chuyển import sang provider chỉ đọc trong `preview/context.tsx`. Khi ghép nhánh, cần đối chiếu import này cùng schema detail, CTA và cache/session cleanup để giữ cả hai thay đổi.
-- [Backend Report controller](../../../../services/api/src/modules/reports/presentation/http/reports.controller.ts) đã có create theo Session, mine, upload/status evidence. [Mobile reports](../../src/features/reports/screens.tsx) vẫn dùng preview. Không nối Session thật sang editor local để báo thành công giả.
-- Work Phase 08 cần tiếp nhận toàn luồng report riêng: POST body reasonCode/description/evidenceFileIds, quyền/scan/recovery, list/detail owner. Hiện chưa thấy owner GET detail theo report ID trong controller; không đoán endpoint.
+- Giới hạn nhánh LiveKit trong Phase07 là lịch sử. Checkout hiện có [RoomScreen](../../src/features/sessions/screens/room-screen.tsx) đọc Session API/runtime và room/media theo platform; không còn consumer PathsPreviewProvider. Lượt cleanup không sửa token/SDK/join policy hoặc tự xác nhận native/deployed acceptance.
+- [Mobile reports](../../src/features/reports/screens.tsx) hiện dùng [Reports API](../../src/features/reports/api/reports-api.ts) cho Session/Material, mine/detail và evidence; không còn preview report runtime. Nguồn hiện trạng và giới hạn tích hợp ở [reports UI](../work/reports-ui/status.md). Mô tả preview/thiếu detail của Phase07 trước đó không đại diện source hiện tại.
 - Source report dùng 48 giờ và có thể chặn settlement/đổi Path sang DISPUTED; SRS §18.20/18.38 vẫn để dispute window cần chốt. Không hard-code 48 giờ thành policy sản phẩm đã duyệt, không tự đổi Session sang DISPUTED ở client.
 
 SRS SES-002 và source renewal ONGOING/AWAITING_CONFIRMATION có khác biệt cần nhánh LiveKit giữ trong hồ sơ riêng. Cancel/no-show, completion timeout/auto-confirm, production dispute policy chưa được phase này quyết định.

@@ -1,10 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import {
-  appColors as colors,
-  appRadius,
-  fonts,
-  typography,
-} from "@/constants/theme";
+import { appColors as colors, fonts, typography } from "@/constants/theme";
 
 const tabs = [
   { value: "requests", label: "Theo yêu cầu học" },
@@ -44,7 +39,11 @@ export function InboxTabs({
 }
 
 const styles = StyleSheet.create({
-  tabs: { flexDirection: "row", gap: 6 },
+  tabs: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
   tab: {
     flex: 1,
     minHeight: 44,
@@ -52,10 +51,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 8,
     paddingVertical: 10,
-    borderRadius: appRadius.button,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
   },
   label: {
     ...typography.secondary,
@@ -64,8 +61,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   selected: {
-    borderColor: colors.primaryMuted,
-    backgroundColor: colors.primarySoft,
+    borderBottomColor: colors.primary,
   },
   active: { color: colors.primary, fontFamily: fonts.bold },
 });

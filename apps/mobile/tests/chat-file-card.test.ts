@@ -244,8 +244,7 @@ test("file messages stay in the message row and only open the authorized current
       render("me", "Tài liệu buổi học").some(
         (el) =>
           el.type === "Text" &&
-          Array.isArray(el.props.children) &&
-          el.props.children.includes("Tài liệu buổi học"),
+          [el.props.children].flat().includes("Tài liệu buổi học"),
       ),
     );
     const press = card(render()).props.onPress as () => void;

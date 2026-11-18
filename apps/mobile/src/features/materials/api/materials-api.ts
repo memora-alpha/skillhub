@@ -1,5 +1,9 @@
+import { createMaterialCatalogApi } from "./material-catalog-api";
+import { createMaterialOrdersApi } from "./material-orders-api";
+import { createMaterialReviewsApi } from "./material-reviews-api";
+import { createMaterialFavoritesApi } from "./material-favorites-api";
+import { createMaterialLibraryApi } from "./material-library-api";
 import { z } from "zod";
-import { readCursorPages } from "@/lib/http/cursor-pages";
 import type { RequestOptions } from "@/lib/http/client";
 import {
   parse,
@@ -7,111 +11,62 @@ import {
   pageQuery,
   resourcePath,
   uuid,
+  version,
 } from "@/lib/http/contracts";
 import { uploadedFileSchema } from "@/lib/http/file-upload";
 import { AppError } from "@/lib/http/errors";
 import {
-  materialSchema,
+  ownerMaterialSchema,
   materialInput,
-  orderSchema,
-  downloadSchema,
   type MaterialInput,
+  type ApiMaterial,
 } from "./material-contracts";
 export function createMaterialsApi(
   call: (path: string, options?: RequestOptions) => Promise<unknown>,
   userId: string,
 ) {
   const root = (id: string) => resourcePath("me/materials", id);
-  const post = (path: string, body?: unknown, idempotencyKey?: string) =>
+  const post = (path: string, body?: unknown) =>
     call(path, {
       method: "POST",
       body,
-      idempotencyKey,
       replayAfterRenewal: false,
     });
-  async function mine(signal?: AbortSignal) {
-    const rows = await readCursorPages(
-      call,
-      "/me/materials",
-      materialSchema,
-      signal,
+  async function ownerDetail(id: string, signal?: AbortSignal) {
+    const row = parse<ApiMaterial>(
+      ownerMaterialSchema,
+      await call(root(id), { signal }),
     );
-    if (rows.some((row) => row.ownerId !== userId))
-      throw new AppError("protocol");
-    return rows;
+    if (row.id !== id || row.ownerId !== userId) throw new AppError("protocol");
+    return row;
   }
   return {
-    mine,
-    async minePage(cursor?: string, signal?: AbortSignal) {
-      return parsePage(
-        materialSchema,
-        await call(`/me/materials?${pageQuery(cursor)}`, {
-          includeMeta: true,
-          signal,
-        }),
-      );
-    },
-    async ordersPage(cursor?: string, signal?: AbortSignal) {
-      return parsePage(
-        orderSchema,
-        await call(`/me/material-orders?${pageQuery(cursor)}`, {
-          includeMeta: true,
-          signal,
-        }),
-      );
-    },
-    async search(
-      q = "",
-      accessType?: "FREE" | "PAID",
-      page = 1,
+    ownerDetail,
+    async minePage(
+      cursor?: string,
       signal?: AbortSignal,
+      status?: ApiMaterial["status"],
     ) {
-      const query = new URLSearchParams({
-        page: String(page),
-        limit: "20",
-        ...(q ? { q } : {}),
-        ...(accessType ? { accessType } : {}),
-      });
-      const result = parse(
-        z.object({
-          data: z.array(materialSchema),
-          meta: z.object({
-            pagination: z.object({
-              page: z.number().int().min(1),
-              limit: z.number().int().min(1).max(50),
-              total: z.number().int().nonnegative(),
-            }),
-          }),
+      const statusQuery = status ? `&status=${status}` : "";
+      const page = parsePage<ApiMaterial>(
+        ownerMaterialSchema,
+        await call(`/me/materials?${pageQuery(cursor)}${statusQuery}`, {
+          includeMeta: true,
+          signal,
         }),
-        await call("/materials?" + query, { includeMeta: true, signal }),
       );
-      if (result.data.some((row) => row.status !== "PUBLISHED"))
+      if (
+        page.items.some(
+          (row) => row.ownerId !== userId || (status && row.status !== status),
+        )
+      )
         throw new AppError("protocol");
-      return {
-        items: result.data,
-        nextPage:
-          result.meta.pagination.page * result.meta.pagination.limit <
-          result.meta.pagination.total
-            ? page + 1
-            : undefined,
-      };
-    },
-    async detail(id: string, signal?: AbortSignal) {
-      let value: unknown;
-      try {
-        value = await call(resourcePath("materials", id), { signal });
-      } catch (cause) {
-        if (!(cause instanceof AppError) || cause.status !== 404) throw cause;
-        value = (await mine(signal)).find((row) => row.id === id);
-        if (!value) throw cause;
-      }
-      const row = parse(materialSchema, value);
-      if (row.id !== id) throw new AppError("protocol");
-      return row;
+      return page;
     },
     async create(body: MaterialInput) {
-      const row = parse(
-        materialSchema,
+      if (body.coverFileId === null) throw new AppError("protocol");
+      const row = parse<ApiMaterial>(
+        ownerMaterialSchema,
         await post("/me/materials", parse(materialInput, body)),
       );
       if (row.ownerId !== userId) throw new AppError("protocol");
@@ -122,8 +77,8 @@ export function createMaterialsApi(
       expectedListingVersion: number,
       body: MaterialInput,
     ) {
-      const row = parse(
-        materialSchema,
+      const row = parse<ApiMaterial>(
+        ownerMaterialSchema,
         await call(root(id), {
           method: "PATCH",
           body: { ...parse(materialInput, body), expectedListingVersion },
@@ -134,11 +89,64 @@ export function createMaterialsApi(
         throw new AppError("protocol");
       return row;
     },
-    async submit(id: string) {
-      return parse(materialSchema, await post(root(id) + "/submit"));
+    async submit(id: string, expectedListingVersion: number) {
+      parse(version, expectedListingVersion);
+      const row = parse<ApiMaterial>(
+        ownerMaterialSchema,
+        await post(root(id) + "/submit", { expectedListingVersion }),
+      );
+      if (
+        row.id !== id ||
+        row.ownerId !== userId ||
+        row.status !== "PENDING_REVIEW" ||
+        row.listingVersion <= expectedListingVersion
+      )
+        throw new AppError("protocol");
+      return row;
     },
-    async archive(id: string) {
-      return parse(materialSchema, await post(root(id) + "/archive"));
+    async archive(id: string, expectedListingVersion: number) {
+      parse(version, expectedListingVersion);
+      const row = parse<ApiMaterial>(
+        ownerMaterialSchema,
+        await post(root(id) + "/archive", { expectedListingVersion }),
+      );
+      if (
+        row.id !== id ||
+        row.ownerId !== userId ||
+        row.status !== "ARCHIVED" ||
+        row.listingVersion <= expectedListingVersion
+      )
+        throw new AppError("protocol");
+      return row;
+    },
+    async withdraw(id: string, expectedListingVersion: number) {
+      parse(version, expectedListingVersion);
+      const row = parse<ApiMaterial>(
+        ownerMaterialSchema,
+        await post(root(id) + "/withdraw", { expectedListingVersion }),
+      );
+      if (row.id !== id || row.ownerId !== userId || row.status !== "DRAFT")
+        throw new AppError("protocol");
+      return row;
+    },
+    async remove(id: string, expectedListingVersion: number) {
+      parse(version, expectedListingVersion);
+      const receipt = parse(
+        z.object({
+          id: uuid,
+          deleted: z.literal(true),
+          replayed: z.boolean(),
+        }),
+        await call(
+          `${root(id)}?expectedListingVersion=${expectedListingVersion}`,
+          {
+            method: "DELETE",
+            replayAfterRenewal: false,
+          },
+        ),
+      );
+      if (receipt.id !== id) throw new AppError("protocol");
+      return receipt;
     },
     async upload(body: FormData) {
       return parse(
@@ -151,10 +159,21 @@ export function createMaterialsApi(
         }),
       );
     },
-    async fileStatus(id: string) {
+    async uploadCover(body: FormData) {
+      return parse(
+        uploadedFileSchema,
+        await call("/me/materials/cover-files", {
+          method: "POST",
+          body,
+          multipart: true,
+          replayAfterRenewal: false,
+        }),
+      );
+    },
+    async fileStatus(id: string, signal?: AbortSignal) {
       const row = parse(
         uploadedFileSchema,
-        await call(resourcePath("me/materials/files", id)),
+        await call(resourcePath("me/materials/files", id), { signal }),
       );
       if (row.fileId !== id) throw new AppError("protocol");
       return row;
@@ -167,51 +186,10 @@ export function createMaterialsApi(
         await call("/skills?" + query, { includeMeta: true, signal }),
       );
     },
-    async orders(signal?: AbortSignal) {
-      return readCursorPages(call, "/me/material-orders", orderSchema, signal);
-    },
-    async ownedOrder(materialId: string, signal?: AbortSignal) {
-      parse(uuid, materialId);
-      const matches = (row: z.infer<typeof orderSchema>) =>
-        row.materialId === materialId && row.status === "SUCCESS";
-      const rows = await readCursorPages(
-        call,
-        "/me/material-orders",
-        orderSchema,
-        signal,
-        (items) => items.some(matches),
-      );
-      return rows.find(matches) ?? null;
-    },
-    async purchase(id: string, expectedListingVersion: number, key: string) {
-      const row = parse(
-        orderSchema,
-        await post(
-          resourcePath("materials", id) + "/purchase",
-          { expectedListingVersion },
-          key,
-        ),
-      );
-      if (row.materialId !== id) throw new AppError("protocol");
-      return row;
-    },
-    async refund(id: string) {
-      const row = parse(
-        orderSchema,
-        await post(resourcePath("me/material-orders", id) + "/refund"),
-      );
-      if (row.id !== id || row.status !== "REFUNDED")
-        throw new AppError("protocol");
-      return row;
-    },
-    async download(id: string) {
-      const result = parse(
-        downloadSchema,
-        await call(resourcePath("materials", id) + "/download"),
-      );
-      if (Date.parse(result.expiresAt) <= Date.now())
-        throw new AppError("protocol");
-      return result;
-    },
+    ...createMaterialOrdersApi(call),
+    ...createMaterialReviewsApi(call),
+    ...createMaterialFavoritesApi(call),
+    ...createMaterialLibraryApi(call),
+    ...createMaterialCatalogApi(call, ownerDetail),
   };
 }

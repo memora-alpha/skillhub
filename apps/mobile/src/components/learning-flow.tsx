@@ -15,7 +15,7 @@ import {
 } from "@/constants/theme";
 
 export function FlowPage(props: ComponentProps<typeof FeaturePage>) {
-  return <FeaturePage {...props} section="Tin nhắn" demo={false} />;
+  return <FeaturePage {...props} section="Tin nhắn" />;
 }
 // Legacy aliases return to an existing destination instead of cloning it.
 export function FlowRedirect({ href }: Readonly<{ href: Href }>) {

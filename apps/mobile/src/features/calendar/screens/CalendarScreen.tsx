@@ -43,6 +43,10 @@ export function CalendarScreen() {
   const visible = sessions.filter(
     (s) => day === null || sessionDay(s.startAt, timezone) === day,
   );
+  const period = day === null ? "Trong tháng" : `Ngày ${day}/${month + 1}`;
+  const summary = query.data
+    ? `${period} · ${visible.length} buổi học`
+    : "Buổi học";
   return (
     <AppScreenLayout
       title="Lịch học"
@@ -70,9 +74,7 @@ export function CalendarScreen() {
               setDay(null);
             }}
           />
-          <Text accessibilityRole="header" style={styles.heading}>
-            Buổi học
-          </Text>
+          <Text style={styles.summary}>{summary}</Text>
           <SessionFeedback
             {...query}
             quietTransient
@@ -112,14 +114,19 @@ const styles = StyleSheet.create({
     ...typography.heading,
     color: colors.ink,
   },
+  summary: {
+    fontFamily: fonts.semibold,
+    ...typography.secondary,
+    color: colors.ink,
+  },
   background: { backgroundColor: colors.background },
   page: {
     width: "100%",
     maxWidth: 640,
     alignSelf: "center",
-    padding: 16,
+    padding: 12,
     paddingTop: 8,
     paddingBottom: 28,
-    gap: 16,
+    gap: 12,
   },
 });

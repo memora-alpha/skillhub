@@ -1,203 +1,185 @@
-import { useState } from "react";
-import { z } from "zod";
+import { useMemo, useState } from "react";
+import { Text, View } from "react-native";
 import { Button } from "@/components/Button";
-import { Copy, Panel, RouteButton } from "@/components/feature-page";
+import { FormNotice } from "@/components/FormNotice";
 import {
   ConnectionFeedback,
   useConnections,
   useConnectionQuery,
   useConnectionCommand,
 } from "@/features/connections";
-import { parse } from "@/lib/http/contracts";
-const recovery = z.object({
-  eligible: z.boolean(),
-  remainingBudget: z.number().nonnegative(),
-  missions: z.array(
-    z.object({
-      code: z.string(),
-      reward: z.number(),
-      claimed: z.boolean(),
-      progress: z.object({
-        current: z.number(),
-        target: z.number(),
-        complete: z.boolean(),
-      }),
-    }),
-  ),
-  quiz: z
-    .object({
-      version: z.string(),
-      questions: z.array(z.string()),
-      policy: z.unknown(),
-    })
-    .nullable(),
-});
+import { createRecoveryApi, type RecoveryResult } from "../api/recovery-api";
+import { RecoveryQuiz } from "./recovery-quiz";
+import { reputationStyles as styles } from "./reputation.styles";
+
 const labels: Record<string, string> = {
   POLICY_AWARENESS: "Hiểu nguyên tắc cộng đồng",
   GOOD_BEHAVIOR_STREAK: "Duy trì hoạt động tích cực",
   COMMITMENT_RECOVERY: "Hoàn thành cam kết học tập",
 };
+function missionProgress(
+  item: { code: string; progress: { current: number; target: number } },
+  questionCount: number,
+) {
+  if (item.code === "POLICY_AWARENESS")
+    return `${questionCount} câu hỏi về nguyên tắc cộng đồng`;
+  const unit = item.code === "GOOD_BEHAVIOR_STREAK" ? "ngày" : "buổi học";
+  return `${item.progress.current}/${item.progress.target} ${unit}`;
+}
+
+function recoveryNotice(notice: RecoveryResult) {
+  if (!notice.passed) return "Chưa đạt. Hãy xem lại nguyên tắc và thử lần nữa.";
+  return notice.awarded > 0
+    ? `Đã ghi nhận ${notice.awarded} điểm phục hồi.`
+    : "Nhiệm vụ đã được ghi nhận, không có điểm mới được cộng.";
+}
+
 export function RecoveryPanel() {
   const runtime = useConnections();
-  const query = useConnectionQuery(["reputation", "recovery"], async (signal) =>
-    parse(recovery, await runtime.call("/reputation/recovery", { signal })),
-  );
-  const command = useConnectionCommand([["reputation"]]);
-  const [answers, setAnswers] = useState<Record<number, boolean>>({});
-  const [notice, setNotice] = useState("");
+  return <RecoveryContent key={runtime.key.join(":")} />;
+}
+function RecoveryContent() {
+  const runtime = useConnections();
+  const api = useMemo(() => createRecoveryApi(runtime.call), [runtime]);
+  const query = useConnectionQuery(["reputation", "recovery"], api.read, true, {
+    refreshOnFocus: "stale",
+  });
+  const command = useConnectionCommand<RecoveryResult>([["reputation"]]);
+  const [draft, setDraft] = useState<{
+    version?: string;
+    answers: Record<number, boolean>;
+  }>({ answers: {} });
+  const answers =
+    draft.version === query.data?.quiz?.version ? draft.answers : {};
+  const [notice, setNotice] = useState<RecoveryResult>();
   const [quizOpen, setQuizOpen] = useState(false);
-  async function submit(path: string, body?: unknown) {
-    const result = await command.run(JSON.stringify([path, body]), async () =>
-      parse(
-        z.object({ passed: z.boolean(), awarded: z.number() }),
-        await runtime.call(path, {
-          method: "POST",
-          body,
-          replayAfterRenewal: false,
-        }),
-      ),
-    );
-    if (result) {
-      setNotice(
-        result.passed
-          ? `Đã ghi nhận ${result.awarded} điểm.`
-          : "Chưa đạt. Bạn có thể xem lại và thử lần nữa.",
-      );
-      void query.refetch();
-    }
+  const locked =
+    command.pending || command.uncertain || query.isFetching || !!query.error;
+  function observed(result: RecoveryResult | undefined) {
+    if (!result || !runtime.isCurrent()) return;
+    setNotice(result);
+    if (result.passed) setQuizOpen(false);
+    void query.refetch({ cancelRefetch: false });
   }
-  return (
-    <Panel title="Phục hồi uy tín">
+  async function submit(code: string) {
+    const quiz = query.data?.quiz;
+    const result = await command.run(
+      JSON.stringify([code, quiz?.version, answers]),
+      () =>
+        code === "POLICY_AWARENESS" && quiz
+          ? api.quiz(
+              quiz.version,
+              quiz.questions.map((_, index) => answers[index]!),
+            )
+          : api.claim(code),
+    );
+    observed(result);
+  }
+  if (!query.data?.eligible)
+    return (
       <ConnectionFeedback
-        loading={query.isLoading}
+        error={query.error}
+        retry={query.refetch}
+        loadingPresentation="silent"
+      />
+    );
+  const data = query.data;
+  return (
+    <View style={styles.card}>
+      <View style={styles.row}>
+        <Text accessibilityRole="header" style={styles.heading}>
+          Phục hồi uy tín
+        </Text>
+        <Text style={styles.reward}>Còn {data.remainingBudget} điểm</Text>
+      </View>
+      <ConnectionFeedback
         error={query.error ?? command.error}
         retry={query.refetch}
       />
-      <RouteButton secondary href="/policies">
-        Đọc nguyên tắc sử dụng
-      </RouteButton>
-      <Button
-        variant="paper"
-        disabled={command.pending || command.uncertain}
-        onPress={() =>
-          void command.run("acknowledge-policy", async () => {
-            const result = await runtime.call(
-              "/reputation/restrictions/policy-acknowledgement",
-              {
-                method: "POST",
-                replayAfterRenewal: false,
-              },
-            );
-            if (runtime.isCurrent())
-              setNotice(
-                "Đã xác nhận chính sách. Quyền được cập nhật theo điều kiện tài khoản.",
-              );
-            return result;
-          })
-        }
-      >
-        Tôi đã đọc và xác nhận chính sách
-      </Button>
-      {query.data && !query.data.eligible && (
-        <Copy muted>Hiện bạn không có nhiệm vụ phục hồi.</Copy>
-      )}
-      {query.data?.eligible && (
-        <>
-          <Copy muted>
-            Còn tối đa {query.data.remainingBudget} điểm có thể nhận trong kỳ.
-          </Copy>
-          {query.data.missions.map((item) => (
-            <Panel
-              key={item.code}
-              title={labels[item.code] ?? "Nhiệm vụ phục hồi"}
-            >
-              <Copy>
-                {item.claimed
-                  ? "Đã nhận điểm"
-                  : `${item.progress.current}/${item.progress.target} · +${item.reward} điểm`}
-              </Copy>
-              {!item.claimed &&
-                (item.code === "POLICY_AWARENESS" ? (
-                  <Button
-                    variant="paper"
-                    onPress={() => setQuizOpen(!quizOpen)}
-                  >
-                    {quizOpen ? "Thu gọn câu hỏi" : "Làm bài kiểm tra"}
-                  </Button>
-                ) : (
-                  <Button
-                    disabled={
-                      !item.progress.complete ||
-                      command.pending ||
-                      command.uncertain
-                    }
-                    onPress={() =>
-                      void submit("/reputation/recovery/claim", {
-                        code: item.code,
-                      })
-                    }
-                  >
-                    Nhận điểm
-                  </Button>
-                ))}
-            </Panel>
-          ))}
-          {quizOpen && query.data.quiz && (
-            <>
-              {query.data.quiz.questions.map((question, index) => (
-                <Panel key={question} title={question}>
-                  {[true, false].map((answer) => (
-                    <Button
-                      key={String(answer)}
-                      variant={answers[index] === answer ? "craft" : "paper"}
-                      onPress={() =>
-                        setAnswers((current) => ({
-                          ...current,
-                          [index]: answer,
-                        }))
-                      }
-                    >
-                      {answer ? "Đúng" : "Sai"}
-                    </Button>
-                  ))}
-                </Panel>
-              ))}
-              <Button
-                disabled={
-                  command.pending ||
-                  command.uncertain ||
-                  query.data.quiz.questions.some(
-                    (_, index) => answers[index] === undefined,
-                  )
-                }
-                onPress={() =>
-                  void submit("/reputation/recovery/quiz", {
-                    version: query.data!.quiz!.version,
-                    answers: query.data!.quiz!.questions.map(
-                      (_, index) => answers[index],
-                    ),
-                  })
-                }
-              >
-                Gửi bài kiểm tra
-              </Button>
-            </>
+      {data.missions.map((item, index) => (
+        <View
+          key={item.code}
+          style={[styles.section, index > 0 && styles.separator]}
+        >
+          <View style={styles.row}>
+            <Text style={styles.label}>{labels[item.code]}</Text>
+            <Text style={styles.reward}>
+              {item.claimed
+                ? "Đã nhận điểm"
+                : `+${Math.min(item.reward, data.remainingBudget)} điểm`}
+            </Text>
+          </View>
+          {!item.claimed && (
+            <Text style={styles.meta}>
+              {missionProgress(item, data.quiz?.questions.length ?? 0)}
+            </Text>
           )}
-        </>
+          {!item.claimed &&
+            (item.code === "POLICY_AWARENESS" ? (
+              <Button
+                variant="paper"
+                disabled={locked || !data.quiz || data.remainingBudget === 0}
+                onPress={() => {
+                  setQuizOpen(!quizOpen);
+                  setNotice(undefined);
+                }}
+              >
+                {quizOpen ? "Thu gọn câu hỏi" : "Làm bài kiểm tra"}
+              </Button>
+            ) : (
+              <Button
+                variant="craft"
+                disabled={
+                  locked ||
+                  !item.progress.complete ||
+                  data.remainingBudget === 0
+                }
+                onPress={() => void submit(item.code)}
+              >
+                Nhận điểm
+              </Button>
+            ))}
+        </View>
+      ))}
+      {data.remainingBudget === 0 && (
+        <Text style={styles.meta}>
+          Bạn đã nhận đủ điểm phục hồi trong 30 ngày gần nhất.
+        </Text>
       )}
-      {!!notice && <Copy>{notice}</Copy>}
+      {quizOpen && data.quiz && (
+        <RecoveryQuiz
+          key={data.quiz.version}
+          quiz={data.quiz}
+          answers={answers}
+          disabled={locked || data.remainingBudget === 0}
+          onAnswer={(index, answer) =>
+            setDraft({
+              version: data.quiz!.version,
+              answers: { ...answers, [index]: answer },
+            })
+          }
+          onSubmit={() => void submit("POLICY_AWARENESS")}
+        />
+      )}
+      {notice && (
+        <FormNotice compact tone={notice.passed ? "success" : "info"}>
+          {recoveryNotice(notice)}
+        </FormNotice>
+      )}
       {command.uncertain && (
         <>
-          <Copy muted>Chưa rõ kết quả. Bạn có thể gửi lại để kiểm tra.</Copy>
+          <FormNotice compact tone="warning">
+            Chưa rõ kết quả. Kiểm tra lại trước khi thực hiện nhiệm vụ khác.
+          </FormNotice>
           <Button
             variant="paper"
             disabled={command.pending}
-            onPress={() => void command.retry()}
+            onPress={() => void command.retry().then(observed)}
           >
             Kiểm tra kết quả
           </Button>
         </>
       )}
-    </Panel>
+    </View>
   );
 }

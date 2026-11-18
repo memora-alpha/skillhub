@@ -41,7 +41,7 @@ export function ApiChatScreen({ id }: Readonly<{ id: string }>) {
   const thread = useThread(id, !conversation.denied);
   if (!uuid.safeParse(id).success)
     return (
-      <FeaturePage title="Tin nhắn" demo={false} back="/messages">
+      <FeaturePage title="Tin nhắn" back="/messages">
         <EmptyState
           title="Không tìm thấy cuộc trao đổi"
           description="Đường dẫn cuộc trao đổi không hợp lệ."
@@ -50,7 +50,7 @@ export function ApiChatScreen({ id }: Readonly<{ id: string }>) {
     );
   if (!conversation.data)
     return (
-      <FeaturePage title="Tin nhắn" demo={false} back="/messages">
+      <FeaturePage title="Tin nhắn" back="/messages">
         <ConnectionFeedback
           loading={conversation.isLoading}
           error={conversation.error}

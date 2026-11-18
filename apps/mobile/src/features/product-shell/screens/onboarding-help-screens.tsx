@@ -6,10 +6,8 @@ import {
   Copy,
   RouteButton,
 } from "@/components/feature-page";
-import { useProductPreview } from "../context";
 export function OnboardingScreen() {
   const [step, setStep] = useState(0);
-  const { interests, setInterests } = useProductPreview();
   return (
     <FeaturePage title="Bắt đầu với SkillHub" back="/home">
       <Panel
@@ -36,25 +34,14 @@ export function OnboardingScreen() {
         )}
         {step === 1 && (
           <>
-            <Copy>Chọn mối quan tâm cho bản xem thử.</Copy>
-            {["React", "UI/UX", "Tiếng Anh", "Guitar", "Nhiếp ảnh"].map(
-              (skill) => (
-                <Button
-                  key={skill}
-                  variant={interests.includes(skill) ? "craft" : "paper"}
-                  leadingIcon={interests.includes(skill) ? "check" : undefined}
-                  onPress={() =>
-                    setInterests(
-                      interests.includes(skill)
-                        ? interests.filter((i) => i !== skill)
-                        : [...interests, skill],
-                    )
-                  }
-                >
-                  {skill}
-                </Button>
-              ),
-            )}
+            <Copy>
+              Khám phá yêu cầu học hoặc đăng điều bạn muốn học để tìm người chia
+              sẻ phù hợp.
+            </Copy>
+            <RouteButton href="/discover">Khám phá yêu cầu học</RouteButton>
+            <RouteButton secondary href="/requests/new">
+              Đăng yêu cầu học
+            </RouteButton>
           </>
         )}
         {step === 2 && (

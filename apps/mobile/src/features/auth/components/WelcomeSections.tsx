@@ -13,11 +13,8 @@ import {
   welcomeBenefits,
   welcomeCategories,
   welcomeFooter,
-  welcomeReviews,
   welcomeSteps,
-  welcomeWallet,
-} from "../mocks/welcome";
-import { WelcomeAvatar, WelcomeStars } from "./WelcomeSocial";
+} from "../constants/welcome";
 import { styles } from "./WelcomeSections.styles";
 
 type SectionsProps = {
@@ -157,58 +154,9 @@ export function WelcomeSections({
               onPress={onRegister}
               style={{ alignSelf: "flex-start" }}
             >
-              Nhận 50 Credit miễn phí
+              Tạo tài khoản
             </Button>
           </View>
-          <View style={[styles.wallet, tablet && styles.column]}>
-            <View style={styles.balance}>
-              <Text style={styles.walletLabel}>Số dư hiện tại</Text>
-              <Text style={styles.amount}>{welcomeWallet.balance}</Text>
-            </View>
-            <View style={{ gap: 8 }}>
-              {welcomeWallet.transactions.map((transaction) => (
-                <View key={transaction.label} style={styles.transaction}>
-                  <Text style={[styles.walletLabel, { flex: 1 }]}>
-                    {transaction.label}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.transactionAmount,
-                      { color: transaction.color },
-                    ]}
-                  >
-                    {transaction.amount}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        </View>
-      </View>
-      <View style={[styles.container, styles.section]}>
-        <Text
-          accessibilityRole="header"
-          style={[styles.heading, styles.center, { marginBottom: 40 }]}
-        >
-          Cộng đồng tin tưởng SkillHub
-        </Text>
-        <View style={[styles.reviews, tablet && styles.row]}>
-          {welcomeReviews.map((review) => (
-            <View
-              key={review.name}
-              style={[styles.review, tablet && styles.column]}
-            >
-              <WelcomeStars />
-              <Text style={styles.reviewText}>{review.text}</Text>
-              <View style={styles.reviewer}>
-                <WelcomeAvatar name={review.name} />
-                <View style={styles.column}>
-                  <Text style={styles.reviewName}>{review.name}</Text>
-                  <Text style={styles.reviewRole}>{review.role}</Text>
-                </View>
-              </View>
-            </View>
-          ))}
         </View>
       </View>
       <View style={styles.ctaSection}>
@@ -217,7 +165,7 @@ export function WelcomeSections({
             Bắt đầu hành trình của bạn ngay hôm nay
           </Text>
           <Text style={styles.ctaDescription}>
-            Miễn phí đăng ký. 50 Credit chào mừng. Không cần thẻ ngân hàng.
+            Tạo hồ sơ, chia sẻ kỹ năng và kết nối với người học phù hợp.
           </Text>
           <Button variant="white" size="xl" onPress={onRegister}>
             Tạo tài khoản miễn phí

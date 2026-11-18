@@ -1,70 +1,120 @@
-import { systemCodeLabel } from "@/constants/system-text";
 import { Text, View } from "react-native";
+import { appColors as colors } from "@/constants/theme";
+import { systemCodeLabel } from "@/constants/system-text";
 import type { Reputation } from "../api/community-api";
 import { restrictionDeadline } from "../utils/reputation-policy";
-import { policyStyles as styles } from "./reputation-policy.styles";
+import {
+  reputationReasons,
+  restrictionScopes,
+  matchingRestrictionReview,
+  reviewDecisionText,
+  reputationDate,
+} from "../utils/reputation-presentation";
 import { ReputationScoreCard } from "./reputation-score-card";
-const scopes: Record<string, string> = {
-  ALL: "Hạn chế hoạt động tài khoản",
-  "learning-request:create": "Hạn chế tạo yêu cầu học",
-  CREATE_NEW_ACTIVITY: "Hạn chế tạo hoạt động mới",
-  REQUIRE_STAFF_REVIEW: "Cần nhân viên xem xét",
-  REQUIRE_ADMIN_REVIEW: "Cần quản trị viên xem xét",
-};
-export const reputationReasons: Record<string, string> = {
-  PATH_COMPLETED: "Hoàn thành lộ trình",
-  REVIEW_RATING: "Đánh giá từ người trao đổi",
-  LOW_REPUTATION: "Điểm uy tín thấp",
-  ADJUDICATED_VIOLATION: "Quyết định xử lý vi phạm",
-  LATE_CANCELLATION: "Hủy lịch muộn",
-  NO_SHOW: "Vắng mặt",
-  LIGHT_VIOLATION: "Vi phạm nhẹ",
-  MEDIUM_HARASSMENT: "Quấy rối",
-  FRAUD: "Gian lận",
-  RECOVERY_MISSION_REWARD: "Hoàn thành nhiệm vụ phục hồi uy tín",
-};
-function reviewDecisionText(decision: string | null) {
-  if (decision === "APPROVED") return "Đã được xem xét và chấp thuận.";
-  if (decision === "FOLLOW_UP_REQUIRED")
-    return "Cần tiếp tục theo dõi theo quyết định xử lý.";
-  return "Chưa có kết quả xem xét.";
-}
-export function ReputationSummary({ data }: Readonly<{ data: Reputation }>) {
+import { reputationStyles as styles } from "./reputation.styles";
+export { reputationReasons } from "../utils/reputation-presentation";
+
+export function ReputationSummary({
+  data,
+  compact = false,
+}: Readonly<{ data: Reputation; compact?: boolean }>) {
+  const pastReviews =
+    data.restrictionReviews?.filter(
+      (review) =>
+        !data.activeRestrictions.some(
+          (restriction) =>
+            restriction.scope === review.scope &&
+            restriction.endsAt === review.endsAt,
+        ),
+    ) ?? [];
   return (
     <View style={styles.stack}>
-      <ReputationScoreCard data={data} />
-      <View style={styles.section}>
-        <Text style={styles.heading}>Hạn chế tài khoản</Text>
-        {!data.activeRestrictions.length && (
-          <Text style={styles.body}>Không có hạn chế đang hiệu lực.</Text>
-        )}
-        {data.activeRestrictions.map((item, index) => (
-          <View key={`${item.scope}:${index}`} style={styles.restriction}>
-            <Text style={styles.restrictionTitle}>
-              {scopes[item.scope] ?? systemCodeLabel(item.scope)}
-            </Text>
-            <Text style={styles.body}>
-              Lý do:{" "}
-              {reputationReasons[item.reasonCode] ??
-                systemCodeLabel(item.reasonCode)}
-            </Text>
-            <Text style={styles.note}>
-              {restrictionDeadline(item.endsAt, !!data.policyNotice?.length)}
-            </Text>
-          </View>
-        ))}
-      </View>
-      {!!data.restrictionReviews?.length && (
-        <View style={styles.section}>
-          <Text style={styles.heading}>Theo dõi xem xét hạn chế</Text>
-          {data.restrictionReviews.map((review) => (
-            <View key={review.id} style={styles.section}>
-              <Text style={styles.restrictionTitle}>
-                {scopes[review.scope]}
+      <ReputationScoreCard data={data} compact={compact} />
+      {!data.activeRestrictions.length ? (
+        <View style={styles.status}>
+          <View
+            style={[
+              styles.statusDot,
+              data.level === "WARNING" && { backgroundColor: colors.warning },
+            ]}
+          />
+          <Text
+            style={[
+              styles.statusText,
+              data.level === "WARNING" && { color: colors.warning },
+            ]}
+          >
+            {data.level === "WARNING"
+              ? "Điểm đang ở mức cảnh báo · Chưa có hạn chế áp dụng"
+              : "Không có hạn chế đang áp dụng"}
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.card}>
+          <Text accessibilityRole="header" style={styles.heading}>
+            Hạn chế đang áp dụng
+          </Text>
+          {data.activeRestrictions.map((item, index) => {
+            const review = matchingRestrictionReview(
+              data,
+              item.scope,
+              item.endsAt,
+            );
+            return (
+              <View
+                key={`${item.scope}:${item.endsAt}:${index}`}
+                style={[styles.item, index > 0 && styles.separator]}
+              >
+                <Text style={styles.label}>
+                  {restrictionScopes[item.scope] ?? systemCodeLabel(item.scope)}
+                </Text>
+                <Text style={styles.meta}>
+                  {reputationReasons[item.reasonCode] ??
+                    systemCodeLabel(item.reasonCode)}
+                </Text>
+                <Text style={styles.body}>
+                  {restrictionDeadline(
+                    item.endsAt,
+                    !!data.policyNotice?.length,
+                  )}
+                </Text>
+                {review && (
+                  <Text style={styles.meta}>
+                    {reviewDecisionText(review.decision)}
+                    {review.reviewedAt
+                      ? ` · ${reputationDate(review.reviewedAt)}`
+                      : ""}
+                  </Text>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      )}
+      {!compact && pastReviews.length > 0 && (
+        <View style={styles.card}>
+          <Text accessibilityRole="header" style={styles.heading}>
+            Xem xét hạn chế
+          </Text>
+          {pastReviews.map((review, index) => (
+            <View
+              key={review.id}
+              style={[styles.item, index > 0 && styles.separator]}
+            >
+              <Text style={styles.label}>
+                {restrictionScopes[review.scope]}
               </Text>
-              <Text style={styles.note}>
+              <Text style={styles.body}>
                 {reviewDecisionText(review.decision)}
               </Text>
+              <Text style={styles.meta}>
+                Thời hạn: {reputationDate(review.endsAt)}
+              </Text>
+              {review.reviewedAt && (
+                <Text style={styles.meta}>
+                  Đã xem xét: {reputationDate(review.reviewedAt)}
+                </Text>
+              )}
             </View>
           ))}
         </View>

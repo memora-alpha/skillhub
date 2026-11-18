@@ -72,7 +72,6 @@ function CancellationContent({
   return (
     <FlowPage
       title="Hủy lộ trình"
-      demo={false}
       back={
         uuid.safeParse(id).success ? `/paths/${id}` : "/my-learning?tab=paths"
       }

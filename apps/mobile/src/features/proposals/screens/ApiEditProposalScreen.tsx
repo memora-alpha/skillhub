@@ -68,7 +68,6 @@ export function ApiEditProposalScreen({ id }: Readonly<{ id: string }>) {
       title="Chỉnh sửa đề xuất"
       backBehavior="history"
       keyboardDismissMode="none"
-      demo={false}
       back={{ pathname: "/proposal/[id]", params: { id } }}
     >
       <ConnectionFeedback

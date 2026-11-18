@@ -1,4 +1,6 @@
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { FilterBar } from "@/components/filter-bar";
+import { IconAction } from "@/components/icon-action";
 import { useRouter } from "expo-router";
 import { Button } from "@/components/Button";
 import { Icon } from "@/components/Icon";
@@ -12,31 +14,13 @@ export function RequestCreateButton({
   compact?: boolean;
 }>) {
   const router = useRouter();
-  const content = (
-    <>
-      <Icon
-        name="plus"
-        size={compact ? 14 : 16}
-        color={signedInChrome.surface}
-      />
-      <Text style={styles.publishText}>Tạo yêu cầu</Text>
-    </>
-  );
   if (compact) {
     return (
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Tạo yêu cầu học"
-        hitSlop={4}
+      <IconAction
+        icon="plus"
+        label="Tạo yêu cầu học"
         onPress={() => router.navigate("/requests/new")}
-        style={({ pressed }) => [
-          styles.publish,
-          styles.publishCompact,
-          pressed && { opacity: 0.75 },
-        ]}
-      >
-        {content}
-      </Pressable>
+      />
     );
   }
   return (
@@ -47,7 +31,8 @@ export function RequestCreateButton({
       onPress={() => router.navigate("/requests/new")}
       accessibilityLabel="Tạo yêu cầu học"
     >
-      {content}
+      <Icon name="plus" size={16} color={signedInChrome.surface} />
+      <Text style={styles.publishText}>Tạo yêu cầu</Text>
     </Button>
   );
 }
@@ -64,27 +49,16 @@ export function RequestTabs({
   label: string;
 }>) {
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.tabs}
-      accessibilityLabel={label}
-    >
-      {options.map((option) => (
-        <Pressable
-          key={option}
-          accessibilityRole="tab"
-          accessibilityState={{ selected: value === option }}
-          aria-selected={value === option}
-          onPress={() => onChange(option)}
-          style={[styles.tab, value === option && styles.activeTab]}
-        >
-          <Text style={[styles.tabText, value === option && styles.activeText]}>
-            {uiLabel(option)}
-          </Text>
-        </Pressable>
-      ))}
-    </ScrollView>
+    <FilterBar
+      options={options.map((option) => ({
+        value: option,
+        label: uiLabel(option),
+      }))}
+      value={value}
+      onChange={onChange}
+      label={label}
+      role="tab"
+    />
   );
 }
 

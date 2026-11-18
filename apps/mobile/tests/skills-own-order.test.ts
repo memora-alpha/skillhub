@@ -10,6 +10,29 @@ import {
 } from "../src/features/skills/utils/own-skill-order";
 import { ownSkill, batch, ids } from "./skills-fixtures";
 
+test("server createdAt ordering outranks old session creates and remains deterministic across timestamp ties", () => {
+  const old = ownSkillSchema.parse({
+    ...ownSkill,
+    createdAt: "2026-11-01T00:00:00Z",
+  });
+  const newer = { ...old, id: ids.other, createdAt: "2026-11-15T00:00:00Z" };
+  const tied = { ...newer, id: ids.file };
+  const created = new Map([[old.id, old]]);
+  const expected = [newer, tied]
+    .sort((a, b) => (a.id < b.id ? 1 : -1))
+    .map((row) => row.id);
+  assert.deepEqual(
+    ownSkillItems([old, newer, tied], created, "ALL", new Set(), new Map()).map(
+      (row) => row.id,
+    ),
+    [...expected, old.id],
+  );
+  assert.equal(
+    ownSkillSchema.safeParse({ ...ownSkill, createdAt: "not-a-date" }).success,
+    false,
+  );
+});
+
 test("confirmed creates stay newest first after server UUID-order refresh or when absent from the loaded page", () => {
   const older = ownSkillSchema.parse({ ...ownSkill, id: ids.other });
   const first = ownSkillSchema.parse(ownSkill);
