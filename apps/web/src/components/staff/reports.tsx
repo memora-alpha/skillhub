@@ -1,4 +1,6 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 import { reportDescriptionText } from "@/lib/system-text";
 import Link from "next/link";
 import { useState } from "react";
@@ -53,14 +55,15 @@ export function ReportsScreen() {
         title="Báo cáo & tranh chấp"
         desc="Xem báo cáo buổi học, tài liệu và ghi nhận kết quả xử lý."
         actions={
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={queue.loading}
             onClick={queue.reload}
+            loading={!!queue.loading}
           >
             Làm mới
-          </button>
+          </LoadingButton>
         }
       />
       <div className="toolbar">
@@ -169,6 +172,32 @@ const actions: Record<
 };
 function ReportOverview({ item, owns, busy, onAction }: ReportActionProps) {
   const { portal } = useStaffSession();
+  function handlerIdentity() {
+    if (item.handlerId) {
+      if (portal === "admin") {
+        return <RecordId id={item.handlerId} label="người phụ trách" />;
+      }
+      return (
+        <span className="mono" title={item.handlerId}>
+          #{item.handlerId.slice(0, 8)}
+        </span>
+      );
+    }
+    return "Chưa có người nhận" as const;
+  }
+  function reporterIdentity() {
+    if (item.reporterId) {
+      if (portal === "admin") {
+        return <RecordId id={item.reporterId} label="người gửi" />;
+      }
+      return (
+        <span className="mono" title={item.reporterId}>
+          #{item.reporterId.slice(0, 8)}
+        </span>
+      );
+    }
+    return "Hệ thống tự ghi nhận" as const;
+  }
   return (
     <Card className="ops-case-overview">
       {item.status === "OPEN" && (
@@ -206,19 +235,7 @@ function ReportOverview({ item, owns, busy, onAction }: ReportActionProps) {
         </div>
         <div>
           <dt>Người gửi</dt>
-          <dd>
-            {item.reporterId ? (
-              portal === "admin" ? (
-                <RecordId id={item.reporterId} label="người gửi" />
-              ) : (
-                <span className="mono" title={item.reporterId}>
-                  #{item.reporterId.slice(0, 8)}
-                </span>
-              )
-            ) : (
-              "Hệ thống tự ghi nhận"
-            )}
-          </dd>
+          <dd>{reporterIdentity()}</dd>
         </div>
         <div>
           <dt>Thời điểm gửi</dt>
@@ -226,19 +243,7 @@ function ReportOverview({ item, owns, busy, onAction }: ReportActionProps) {
         </div>
         <div>
           <dt>Người phụ trách</dt>
-          <dd>
-            {item.handlerId ? (
-              portal === "admin" ? (
-                <RecordId id={item.handlerId} label="người phụ trách" />
-              ) : (
-                <span className="mono" title={item.handlerId}>
-                  #{item.handlerId.slice(0, 8)}
-                </span>
-              )
-            ) : (
-              "Chưa có người nhận"
-            )}
-          </dd>
+          <dd>{handlerIdentity()}</dd>
         </div>
       </dl>
       <section className="ops-case-description">
@@ -332,14 +337,15 @@ function ReportActions({ item, owns, busy, onAction }: ReportActionProps) {
     );
   if (item.status === "OPEN")
     return (
-      <button
+      <LoadingButton
         type="button"
         className="btn btn-primary"
         disabled={busy}
         onClick={() => onAction("claim")}
+        loading={!!busy}
       >
         Nhận xử lý
-      </button>
+      </LoadingButton>
     );
   if (!owns)
     return (
@@ -356,22 +362,24 @@ function ReportActions({ item, owns, busy, onAction }: ReportActionProps) {
   return (
     <>
       <p className="muted">Bạn đang phụ trách vụ việc này.</p>
-      <button
+      <LoadingButton
         type="button"
         className="btn btn-primary"
         disabled={busy}
         onClick={() => onAction("resolve")}
+        loading={!!busy}
       >
         Đưa ra quyết định
-      </button>
-      <button
+      </LoadingButton>
+      <LoadingButton
         type="button"
         className="btn admin-danger-outline"
         disabled={busy}
         onClick={() => onAction("reject")}
+        loading={!!busy}
       >
         Bác bỏ báo cáo
-      </button>
+      </LoadingButton>
     </>
   );
 }
@@ -402,7 +410,7 @@ function ReportDetailContent({
       </QueueState>
     );
   if (loading && !item)
-    return <output className="staff-state">Đang tải vụ việc…</output>;
+    return <LoadingSkeleton variant="section" label="Đang tải vụ việc" />;
   if (!item)
     return (
       <Card>
@@ -603,14 +611,15 @@ export function ReportDetailScreen({
             </Link>
           }
           actions={
-            <button
+            <LoadingButton
               type="button"
               className="btn"
               disabled={resource.loading}
               onClick={reload}
+              loading={!!resource.loading}
             >
               Làm mới
-            </button>
+            </LoadingButton>
           }
         />
       )}
@@ -618,14 +627,15 @@ export function ReportDetailScreen({
         <div className="ops-case-toolbar">
           <h2>Chi tiết báo cáo</h2>
           <div className="row">
-            <button
+            <LoadingButton
               type="button"
               className="btn btn-sm"
               disabled={resource.loading}
               onClick={reload}
+              loading={!!resource.loading}
             >
               Cập nhật
-            </button>
+            </LoadingButton>
             <Link className="link" href={`/${portal}/disputes/${id}`}>
               Mở trang chi tiết →
             </Link>

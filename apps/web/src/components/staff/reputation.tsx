@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { systemCodeLabel } from "@/lib/system-text";
 
 import { useState } from "react";
@@ -39,7 +40,7 @@ export function ReputationScreen() {
   const [cursors, setCursors] = useState<string[]>([]);
   const cursor = cursors.at(-1);
   const resource = useStaffResource<ReputationHistory>(
-    `reputation${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,
+    "reputation" + (cursor ? "?cursor=" + encodeURIComponent(cursor) : ""),
   );
   const data = resource.data;
   const next = data?.nextCursor;
@@ -49,7 +50,7 @@ export function ReputationScreen() {
         title="Uy tín của tôi"
         desc="Điểm uy tín, lịch sử thay đổi và các hạn chế của tài khoản đang đăng nhập."
         actions={
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={resource.loading}
@@ -57,9 +58,10 @@ export function ReputationScreen() {
               if (cursors.length) setCursors([]);
               else void resource.reload();
             }}
+            loading={!!resource.loading}
           >
             Làm mới
-          </button>
+          </LoadingButton>
         }
       />
       <QueueState
@@ -84,8 +86,10 @@ export function ReputationScreen() {
                   <p>Không có hạn chế nào đang áp dụng.</p>
                 ) : (
                   <ul className="stack">
-                    {data.activeRestrictions.map((restriction, index) => (
-                      <li key={`${restriction.scope}-${index}`}>
+                    {data.activeRestrictions.map((restriction) => (
+                      <li
+                        key={`${restriction.scope}:${restriction.reasonCode}:${restriction.endsAt}`}
+                      >
                         <strong>
                           {scopes[restriction.scope] ??
                             systemCodeLabel(restriction.scope)}

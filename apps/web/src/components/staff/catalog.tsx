@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useStaffListPages } from "./use-staff-list-pages";
 import { useRef, useState } from "react";
@@ -72,14 +73,15 @@ export function CatalogScreen() {
         desc="Thêm, chỉnh sửa, ẩn và khôi phục kỹ năng của cộng đồng."
         actions={
           <div className="row">
-            <button
+            <LoadingButton
               type="button"
               className="btn"
               disabled={queue.loading}
               onClick={reload}
+              loading={!!queue.loading}
             >
               Làm mới
-            </button>
+            </LoadingButton>
             <button
               type="button"
               className="btn btn-primary"

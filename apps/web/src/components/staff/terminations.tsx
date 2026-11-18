@@ -1,4 +1,6 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 import { systemCodeLabel } from "@/lib/system-text";
 import {
   useCallback,
@@ -155,14 +157,15 @@ function TerminationQueue({
         title="Dừng lộ trình"
         desc="Xem yêu cầu, Held và chính sách trước khi quyết định. Không tự chia Credit theo số buổi."
         actions={
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={loading}
             onClick={() => void pagination.reload()}
+            loading={!!loading}
           >
             Làm mới hàng đợi
-          </button>
+          </LoadingButton>
         }
       />
       {(initialRequestId || initialPathId) &&
@@ -451,10 +454,11 @@ function TerminationDetail({
         void reload();
       }}
     >
-      {busy && (
-        <p>
-          <output>Đang kiểm tra dữ liệu…</output>
-        </p>
+      {busy && !error && (
+        <LoadingSkeleton
+          variant={review ? "inline" : "section"}
+          label="Đang kiểm tra dữ liệu"
+        />
       )}
       {error && (
         <p role="alert" className="staff-error">
@@ -629,13 +633,14 @@ function TerminationDetail({
               </label>
             </fieldset>
             {canExecute && !intent && (
-              <button
+              <LoadingButton
                 type="submit"
                 className="btn btn-primary"
                 disabled={busy || unknown}
+                loading={!!busy}
               >
                 Kiểm tra phương án
-              </button>
+              </LoadingButton>
             )}
             {!canExecute && (
               <p>
@@ -645,7 +650,7 @@ function TerminationDetail({
             )}
           </form>
           {!intent && (
-            <button
+            <LoadingButton
               type="button"
               className="btn"
               disabled={
@@ -657,31 +662,34 @@ function TerminationDetail({
                 !["ACCEPTED", "STAFF_REVIEW"].includes(review.status)
               }
               onClick={() => setRejecting(true)}
+              loading={!!busy}
             >
               Từ chối yêu cầu
-            </button>
+            </LoadingButton>
           )}
           {rejecting && !intent && (
             <AdminNotice tone="warn">
               <strong>Xác nhận từ chối yêu cầu?</strong>
               <p>Lý do: {reason.trim()}</p>
               <div className="staff-dialog-actions">
-                <button
+                <LoadingButton
                   type="button"
                   className="btn"
                   disabled={busy}
                   onClick={() => setRejecting(false)}
+                  loading={!!busy}
                 >
                   Quay lại
-                </button>
-                <button
+                </LoadingButton>
+                <LoadingButton
                   type="button"
                   className="btn btn-danger"
                   disabled={busy || unknown}
                   onClick={() => void reject()}
+                  loading={!!busy}
                 >
                   Xác nhận từ chối
-                </button>
+                </LoadingButton>
               </div>
             </AdminNotice>
           )}
@@ -699,16 +707,17 @@ function TerminationDetail({
                 Quyết định sẽ cập nhật lộ trình và Credit. Máy chủ kiểm tra lại
                 quyền, chính sách, Held và tranh chấp.
               </p>
-              <button
+              <LoadingButton
                 type="button"
                 className="btn btn-danger"
                 disabled={busy}
                 onClick={() => void execute()}
+                loading={!!busy}
               >
                 {unknown
                   ? "Kiểm tra và gửi lại đúng quyết định"
                   : "Thực thi quyết định"}
-              </button>
+              </LoadingButton>
             </div>
           )}
           {unknown && (
@@ -743,12 +752,24 @@ function TerminationFrame({
   const { portal } = useStaffSession();
   const controls = (
     <>
-      <button type="button" className="btn" disabled={busy} onClick={reload}>
+      <LoadingButton
+        type="button"
+        className="btn"
+        disabled={busy}
+        onClick={reload}
+        loading={!!busy}
+      >
         Tải lại chi tiết
-      </button>
-      <button type="button" className="btn" disabled={busy} onClick={close}>
+      </LoadingButton>
+      <LoadingButton
+        type="button"
+        className="btn"
+        disabled={busy}
+        onClick={close}
+        loading={!!busy}
+      >
         Đóng
-      </button>
+      </LoadingButton>
     </>
   );
   if (portal === "admin")

@@ -30,11 +30,16 @@ export function ReportRulingFields({
     !!item.reporterId &&
     !!options &&
     !options.eligibleMakeupUserIds.includes(item.reporterId);
-  const makeupLabel = options?.obligationsEnded
-    ? "Chấp nhận lý do theo quyết định dừng lộ trình"
-    : options?.makeupAlreadyGranted
-      ? "Gia hạn đặt lịch của lượt học bù đã cấp"
-      : "Chấp nhận lý do và yêu cầu học bù";
+  function excuseLabel() {
+    if (options?.obligationsEnded) {
+      return "Chấp nhận lý do theo quyết định dừng lộ trình" as const;
+    }
+    if (options?.makeupAlreadyGranted) {
+      return "Gia hạn đặt lịch của lượt học bù đã cấp" as const;
+    }
+    return "Chấp nhận lý do và yêu cầu học bù" as const;
+  }
+  const makeupLabel = excuseLabel();
   const participantLabel = (id: string) =>
     id === item.session?.teacherId ? "Người dạy" : "Người học";
   const showMakeupUser =
@@ -57,9 +62,11 @@ export function ReportRulingFields({
         </p>
       )}
       {context.attendance && blocked && (
-        <div className="notice notice-warn" role="status">
+        <div className="notice notice-warn">
           <div>
-            <strong>Không thể cấp học bù cho phương án hiện tại.</strong>
+            <strong>
+              <output>Không thể cấp học bù cho phương án hiện tại.</output>
+            </strong>
             <p>{new StaffApiError(409, blocked).message}</p>
             <p>
               Chỉ ghi nhận hoàn thành khi có bằng chứng buổi học đã hoàn thành.

@@ -1,4 +1,6 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 import Link from "next/link";
 import { useState } from "react";
 import { Icon } from "@/components/console/icon";
@@ -145,9 +147,13 @@ function DashboardScreen() {
           </p>
         </div>
         <span className={styles.updated}>
-          <i className={loading ? styles.syncing : undefined} />
-          {loading ? "Đang làm mới…" : `Cập nhật ${updateLabel}`} ·{" "}
-          {range.timezone === "UTC" ? "UTC" : "GMT+7"}
+          {!loading && <i />}
+          {loading ? (
+            <LoadingSkeleton variant="inline" label="Đang làm mới số liệu" />
+          ) : (
+            `Cập nhật ${updateLabel}`
+          )}{" "}
+          · {range.timezone === "UTC" ? "UTC" : "GMT+7"}
         </span>
       </header>
       <form
@@ -237,14 +243,15 @@ function DashboardScreen() {
             <option value="UTC">UTC</option>
           </select>
         </label>
-        <button
+        <LoadingButton
           className={`btn btn-primary ${styles.refresh}`}
           type="submit"
           disabled={loading}
+          loading={!!loading}
         >
           <Icon name="refresh" size={16} />
           {loading ? "Đang tải…" : "Làm mới"}
-        </button>
+        </LoadingButton>
       </form>
       {error && (
         <p role="alert" className="staff-error">

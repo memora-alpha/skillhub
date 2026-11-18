@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useStaffListPages } from "./use-staff-list-pages";
 import Link from "next/link";
@@ -90,14 +91,15 @@ export function AdminLearningPaths({
               ))}
             </select>
           </label>
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={list.loading}
             onClick={list.reload}
+            loading={!!list.loading}
           >
             Làm mới
-          </button>
+          </LoadingButton>
         </div>
       </Card>
       <Card>
@@ -230,14 +232,15 @@ export function AdminLearningPathDetail({ id }: Readonly<{ id: string }>) {
         }
         desc="Thông tin phục vụ kiểm tra và hỗ trợ người dùng."
         actions={
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={query.loading}
             onClick={query.reload}
+            loading={!!query.loading}
           >
             Cập nhật
-          </button>
+          </LoadingButton>
         }
       />
       <QueueState

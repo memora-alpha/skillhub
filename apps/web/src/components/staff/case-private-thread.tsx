@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { useRef, useState } from "react";
 import { useStaffList, useStaffResource } from "./hooks";
 import { useStaffSession } from "./session";
@@ -104,13 +105,14 @@ export function PrivateThread({
               disabled={operation.busy}
             />
           </label>
-          <button
+          <LoadingButton
             type="submit"
             className="btn btn-primary"
             disabled={operation.busy || !text.trim()}
+            loading={!!operation.busy}
           >
             Gửi
-          </button>
+          </LoadingButton>
         </form>
       )}
       {operation.feedback}

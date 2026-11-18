@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useStaffListPages } from "./use-staff-list-pages";
 import { useState } from "react";
@@ -260,21 +261,23 @@ export function MaterialFeePolicies() {
                 />
               </label>
               <div className="row">
-                <button
+                <LoadingButton
                   type="submit"
                   className="btn btn-primary"
                   disabled={reason.trim().length < 3}
+                  loading={!!operation.busy}
                 >
                   {saveLabel()}
-                </button>
+                </LoadingButton>
                 {mode !== "create" && (
-                  <button
+                  <LoadingButton
                     className="btn"
                     type="button"
                     onClick={() => setMode("create")}
+                    loading={!!operation.busy}
                   >
                     Hủy chọn
-                  </button>
+                  </LoadingButton>
                 )}
               </div>
             </fieldset>

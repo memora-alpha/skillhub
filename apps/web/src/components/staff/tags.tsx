@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useStaffListPages } from "./use-staff-list-pages";
 import Link from "next/link";
@@ -65,14 +66,15 @@ export function TagsScreen() {
         desc="Quản lý tag dùng cho tìm kiếm và yêu cầu học."
         actions={
           <div className="row">
-            <button
+            <LoadingButton
               type="button"
               className="btn"
               disabled={queue.loading}
               onClick={reload}
+              loading={!!queue.loading}
             >
               Làm mới
-            </button>
+            </LoadingButton>
             <button
               type="button"
               className="btn btn-primary"
@@ -232,14 +234,15 @@ export function TagRequestsScreen({
         title="Đề xuất tag"
         desc="Duyệt đề xuất tag gửi riêng. Tag đi kèm yêu cầu học được duyệt ngay trong yêu cầu đó."
         actions={
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={queue.loading}
             onClick={queue.reload}
+            loading={!!queue.loading}
           >
             Làm mới
-          </button>
+          </LoadingButton>
         }
       />
       <TagNavigation page="requests" />

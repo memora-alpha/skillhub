@@ -38,30 +38,37 @@ export function CaseSupportPanel({
       ) : (
         <>
           {portal === "admin" ? (
-            <div
+            <fieldset
               className="admin-party-tabs"
-              role="group"
+
               aria-label="Chọn bên trao đổi riêng"
             >
-              {parties.map((id) => (
-                <button
-                  type="button"
-                  key={id}
-                  className="btn btn-sm"
-                  aria-pressed={party === id}
-                  onClick={() => setParty(id)}
-                >
-                  {id === item.session?.teacherId
-                    ? "Người dạy"
-                    : id === item.session?.learnerId
-                      ? "Người học"
-                      : id === item.reporterId
-                        ? "Người báo cáo"
-                        : "Bên liên quan"}{" "}
-                  · {id.slice(0, 8)}
-                </button>
-              ))}
-            </div>
+              {parties.map((id) => {
+                function partyLabel() {
+                  if (id === item.session?.teacherId) {
+                    return "Người dạy" as const;
+                  }
+                  if (id === item.session?.learnerId) {
+                    return "Người học" as const;
+                  }
+                  if (id === item.reporterId) {
+                    return "Người báo cáo" as const;
+                  }
+                  return "Bên liên quan" as const;
+                }
+                return (
+                  <button
+                    type="button"
+                    key={id}
+                    className="btn btn-sm"
+                    aria-pressed={party === id}
+                    onClick={() => setParty(id)}
+                  >
+                    {partyLabel()} · {id.slice(0, 8)}
+                  </button>
+                );
+              })}
+            </fieldset>
           ) : (
             <label>
               <span>Bên liên quan</span>

@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useStaffListPages } from "./use-staff-list-pages";
 
@@ -39,34 +40,42 @@ const actions: Record<Action, string> = {
   unhide: "Hiện lại tài liệu",
 };
 function MaterialStatus({ status }: Readonly<{ status: MaterialState }>) {
+  function materialTone() {
+    if (status === "PUBLISHED") {
+      return "ok" as const;
+    }
+    if (status === "PENDING_REVIEW") {
+      return "warn" as const;
+    }
+    if (status === "REJECTED") {
+      return "bad" as const;
+    }
+    return "neutral" as const;
+  }
   return (
-    <Badge
-      tone={
-        status === "PUBLISHED"
-          ? "ok"
-          : status === "PENDING_REVIEW"
-            ? "warn"
-            : status === "REJECTED"
-              ? "bad"
-              : "neutral"
-      }
-    >
-      {states[status] ?? "Đang cập nhật"}
-    </Badge>
+    <Badge tone={materialTone()}>{states[status] ?? "Đang cập nhật"}</Badge>
   );
 }
 function ScanStatus({ status }: Readonly<{ status: string }>) {
-  return (
-    <Badge
-      tone={status === "CLEAN" ? "ok" : status === "PENDING" ? "warn" : "bad"}
-    >
-      {status === "CLEAN"
-        ? "An toàn"
-        : status === "PENDING"
-          ? "Đang kiểm tra"
-          : "Chưa xác nhận an toàn"}
-    </Badge>
-  );
+  function scanLabel() {
+    if (status === "CLEAN") {
+      return "An toàn" as const;
+    }
+    if (status === "PENDING") {
+      return "Đang kiểm tra" as const;
+    }
+    return "Chưa xác nhận an toàn" as const;
+  }
+  function scanTone() {
+    if (status === "CLEAN") {
+      return "ok" as const;
+    }
+    if (status === "PENDING") {
+      return "warn" as const;
+    }
+    return "bad" as const;
+  }
+  return <Badge tone={scanTone()}>{scanLabel()}</Badge>;
 }
 function materialActions(item: ModeratedMaterial): Action[] {
   if (item.status === "PENDING_REVIEW") return ["reject", "approve"];
@@ -110,15 +119,16 @@ export function AdminMaterialsScreen() {
         title="Duyệt tài liệu"
         desc="Kiểm tra nội dung, tệp và quyền phân phối trước khi xử lý."
         actions={
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={queue.loading}
             onClick={reload}
+            loading={!!queue.loading}
           >
             <Icon name="refresh" size={16} />
             Làm mới
-          </button>
+          </LoadingButton>
         }
       />
       <div className="toolbar">
@@ -151,8 +161,8 @@ export function AdminMaterialsScreen() {
         liệu tiếp theo.
       </p>
       {success && (
-        <p className="staff-success" role="status">
-          {success}
+        <p className="staff-success">
+          <output>{success}</output>
         </p>
       )}
       <Card flush>
@@ -263,15 +273,16 @@ export function AdminMaterialsScreen() {
                     !selected.file ||
                     !selected.distributionRightsConfirmedAt);
                 return (
-                  <button
+                  <LoadingButton
                     key={action}
                     type="button"
                     className={`btn ${publishing ? "btn-primary" : "admin-danger-outline"}`}
                     disabled={blocked || queue.loading}
                     onClick={() => setDecision({ item: selected, action })}
+                    loading={!!queue.loading}
                   >
                     {actions[action]}
-                  </button>
+                  </LoadingButton>
                 );
               })}
             </>

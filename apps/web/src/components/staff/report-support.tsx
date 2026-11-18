@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useStaffListPages } from "./use-staff-list-pages";
 import { useState } from "react";
@@ -116,7 +117,7 @@ export function SupportQueueScreen({
         title="Báo cáo & tranh chấp"
         desc="Tiếp nhận, kiểm tra bằng chứng và xử lý từng vụ việc."
         actions={
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={list.loading}
@@ -124,9 +125,10 @@ export function SupportQueueScreen({
               setSelected([]);
               void list.reload();
             }}
+            loading={!!list.loading}
           >
             <Icon name="refresh" size={16} /> Làm mới
-          </button>
+          </LoadingButton>
         }
       />
       <div className="ops-tabbar">
@@ -193,7 +195,7 @@ export function SupportQueueScreen({
           </select>
         </label>
         {selected.length > 0 && (
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={
@@ -215,9 +217,10 @@ export function SupportQueueScreen({
               setGroupSeverity(severities[highest]?.code ?? "MEDIUM");
               setGroup(true);
             }}
+            loading={!!list.loading}
           >
             Gom {selected.length} báo cáo
-          </button>
+          </LoadingButton>
         )}
       </div>
       {selected.length > 0 && (

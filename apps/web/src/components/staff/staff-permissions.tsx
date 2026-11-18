@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import {
   splitPages,
@@ -162,16 +163,17 @@ function PermissionEditor({
                 <h3>Quyền đang áp dụng</h3>
                 <p className="muted">Theo vai trò và tùy chỉnh hiện tại.</p>
               </div>
-              <button
+              <LoadingButton
                 type="button"
                 className="btn btn-sm"
                 disabled={permissions.loading}
                 onClick={() => {
                   void permissions.reload();
                 }}
+                loading={!!permissions.loading}
               >
                 Làm mới danh sách quyền
-              </button>
+              </LoadingButton>
             </div>
             <ul
               className="ops-permission-table"
@@ -204,7 +206,7 @@ function PermissionEditor({
                       {allowed ? "Được phép" : "Không được phép"}
                     </Badge>
                     <span className="muted">{overrideLabel()}</span>
-                    <button
+                    <LoadingButton
                       type="button"
                       className="btn btn-sm"
                       disabled={
@@ -232,9 +234,10 @@ function PermissionEditor({
                         setSaved(false);
                         setPassword("");
                       }}
+                      loading={!!permissions.loading}
                     >
                       Thay đổi
-                    </button>
+                    </LoadingButton>
                   </li>
                 );
               })}

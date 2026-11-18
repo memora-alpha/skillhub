@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useStaffListPages } from "./use-staff-list-pages";
 import { useState } from "react";
@@ -124,38 +125,41 @@ function VerificationDetail({
                   {actor?.roles.includes("ADMIN") &&
                     file.approvalStatus === "APPROVED" &&
                     !file.revokedAt && (
-                      <button
+                      <LoadingButton
                         type="button"
                         className="btn btn-danger btn-sm"
                         disabled={!!decision || detail.loading}
                         onClick={() =>
                           setDecision({ action: "revoke", evidenceId: file.id })
                         }
+                        loading={!!detail.loading}
                       >
                         Thu hồi phê duyệt
-                      </button>
+                      </LoadingButton>
                     )}
                 </div>
               </section>
             ))}
             {item.status === "PENDING" && (
               <div className="staff-detail-actions">
-                <button
+                <LoadingButton
                   type="button"
                   className="btn btn-danger"
                   disabled={!!decision || detail.loading}
                   onClick={() => setDecision({ action: "reject" })}
+                  loading={!!detail.loading}
                 >
                   Từ chối
-                </button>
-                <button
+                </LoadingButton>
+                <LoadingButton
                   type="button"
                   className="btn btn-primary"
                   disabled={!!decision || detail.loading}
                   onClick={() => setDecision({ action: "approve" })}
+                  loading={!!detail.loading}
                 >
                   Phê duyệt
-                </button>
+                </LoadingButton>
               </div>
             )}
             {decision && (
@@ -225,14 +229,15 @@ export function EvidenceScreen({
         title="Bằng chứng kỹ năng"
         desc="Xem xét các tệp người dùng gửi và ghi nhận kết quả xác minh."
         actions={
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={queue.loading}
             onClick={queue.reload}
+            loading={!!queue.loading}
           >
             Làm mới
-          </button>
+          </LoadingButton>
         }
       />
       <div className="toolbar">

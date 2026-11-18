@@ -1,4 +1,6 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useStaffListPages } from "./use-staff-list-pages";
 import { systemCodeLabel } from "@/lib/system-text";
@@ -117,13 +119,93 @@ export function WalletScreen() {
   const ledger = useStaffListPages<CreditEntry>(
     `wallet/transactions?${params}`,
   );
+  function ledgerContent() {
+    if (ledger.error) {
+      return (
+        <QueueState
+          loading={false}
+          error={ledger.error}
+          empty
+          reload={ledger.reload}
+        >
+          {null}
+        </QueueState>
+      );
+    }
+    if (ledger.loading && !ledger.items.length) {
+      return <LoadingSkeleton variant="table" />;
+    }
+    if (!ledger.items.length) {
+      return (
+        <Empty
+          title="Chưa có giao dịch"
+          desc="Giao dịch Credit sẽ xuất hiện ở đây khi được ghi nhận."
+        />
+      );
+    }
+    return (
+      <div className="table-wrap">
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Thời gian</th>
+              <th>Giao dịch</th>
+              <th>Số Credit</th>
+              <th>Khả dụng sau giao dịch</th>
+              <th>Trạng thái</th>
+              <th>
+                <span className="sr-only">Chi tiết</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {ledger.items.map((entry) => (
+              <tr key={entry.id}>
+                <td>{fmtDateTime(entry.createdAt)}</td>
+                <td>
+                  {types[entry.type] ??
+                    systemCodeLabel(entry.type, "Giao dịch khác")}
+                </td>
+                <td className="staff-credit">{creditText(entry.amount)}</td>
+                <td className="staff-credit">
+                  {creditText(entry.availableAfter)}
+                </td>
+                <td>
+                  <StatusBadge status={entry.status} />
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    aria-label={`Xem giao dịch ${entry.id}`}
+                    aria-expanded={selected === entry.id}
+                    aria-controls={
+                      selected === entry.id
+                        ? "wallet-transaction-detail"
+                        : undefined
+                    }
+                    onClick={(event) => {
+                      detailTrigger.current = event.currentTarget;
+                      setSelected(entry.id);
+                    }}
+                  >
+                    Chi tiết
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
   return (
     <>
       <PageHeader
         title="Ví của tôi"
         desc="Số dư và lịch sử Credit của tài khoản đang đăng nhập."
         actions={
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={wallet.loading || ledger.loading}
@@ -131,9 +213,10 @@ export function WalletScreen() {
               void wallet.reload();
               void ledger.reload();
             }}
+            loading={!!(wallet.loading || ledger.loading)}
           >
             Làm mới
-          </button>
+          </LoadingButton>
         }
       />
       <Card title="Số dư hiện tại">
@@ -178,77 +261,7 @@ export function WalletScreen() {
         </label>
       </div>
       <Card title="Lịch sử Credit" flush>
-        {ledger.error ? (
-          <QueueState
-            loading={false}
-            error={ledger.error}
-            empty
-            reload={ledger.reload}
-          >
-            {null}
-          </QueueState>
-        ) : ledger.loading && !ledger.items.length ? (
-          <output className="staff-state">Đang tải giao dịch…</output>
-        ) : !ledger.items.length ? (
-          <Empty
-            title="Chưa có giao dịch"
-            desc="Giao dịch Credit sẽ xuất hiện ở đây khi được ghi nhận."
-          />
-        ) : (
-          <div className="table-wrap">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Thời gian</th>
-                  <th>Giao dịch</th>
-                  <th>Số Credit</th>
-                  <th>Khả dụng sau giao dịch</th>
-                  <th>Trạng thái</th>
-                  <th>
-                    <span className="sr-only">Chi tiết</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {ledger.items.map((entry) => (
-                  <tr key={entry.id}>
-                    <td>{fmtDateTime(entry.createdAt)}</td>
-                    <td>
-                      {types[entry.type] ??
-                        systemCodeLabel(entry.type, "Giao dịch khác")}
-                    </td>
-                    <td className="staff-credit">{creditText(entry.amount)}</td>
-                    <td className="staff-credit">
-                      {creditText(entry.availableAfter)}
-                    </td>
-                    <td>
-                      <StatusBadge status={entry.status} />
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        className="btn btn-sm"
-                        aria-label={`Xem giao dịch ${entry.id}`}
-                        aria-expanded={selected === entry.id}
-                        aria-controls={
-                          selected === entry.id
-                            ? "wallet-transaction-detail"
-                            : undefined
-                        }
-                        onClick={(event) => {
-                          detailTrigger.current = event.currentTarget;
-                          setSelected(entry.id);
-                        }}
-                      >
-                        Chi tiết
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {ledgerContent()}
         <ListPagination query={ledger} />
       </Card>
       {selected && (

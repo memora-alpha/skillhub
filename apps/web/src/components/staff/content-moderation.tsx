@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useStaffListPages } from "./use-staff-list-pages";
 import Link from "next/link";
@@ -258,14 +259,15 @@ function ReviewModeration({
     <Card
       title="Đánh giá từ các lộ trình"
       actions={
-        <button
+        <LoadingButton
           type="button"
           className="btn"
           disabled={reviews.loading}
           onClick={() => void reviews.reload()}
+          loading={!!reviews.loading}
         >
           Làm mới
-        </button>
+        </LoadingButton>
       }
     >
       <p className={styles.hint}>

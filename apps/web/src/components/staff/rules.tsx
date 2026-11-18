@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { useState } from "react";
 import {
   editableRules,
@@ -168,14 +169,15 @@ export function RulesScreen() {
         title="Quy tắc kiểm duyệt"
         desc="Cấu hình phát hiện nội dung cần xem xét trong yêu cầu học."
         actions={
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={resource.loading}
             onClick={resource.reload}
+            loading={!!resource.loading}
           >
             Làm mới
-          </button>
+          </LoadingButton>
         }
       />
       {success && (

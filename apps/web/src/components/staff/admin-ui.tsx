@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Icon } from "@/components/console/icon";
@@ -45,11 +46,7 @@ export function RecordId({
           </svg>
         )}
       </button>
-      {copied && (
-        <span className="sr-only" role="status">
-          Đã sao chép {label}.
-        </span>
-      )}
+      {copied && <output className="sr-only">Đã sao chép {label}.</output>}
       {failed && (
         <span className="admin-copy-error" role="alert">
           Chưa sao chép được. Bạn có thể chọn mã để sao chép thủ công.
@@ -142,15 +139,16 @@ export function AdminDrawer({
           </h2>
           {subtitle && <div className="admin-drawer-subtitle">{subtitle}</div>}
         </div>
-        <button
+        <LoadingButton
           type="button"
           className="icon-btn"
           aria-label="Đóng chi tiết"
           disabled={busy}
           onClick={close}
+          loading={!!busy}
         >
           <Icon name="x" />
-        </button>
+        </LoadingButton>
       </header>
       <div className="admin-drawer-body">{children}</div>
       {footer && <footer className="admin-drawer-footer">{footer}</footer>}

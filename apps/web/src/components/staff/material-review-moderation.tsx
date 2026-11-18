@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useStaffListPages } from "./use-staff-list-pages";
 import Link from "next/link";
@@ -39,6 +40,7 @@ export function MaterialReviewModeration() {
   const list = useStaffListPages<Review>(
     `material-reviews?status=${status}&limit=20`,
   );
+  const decision = reviewDecision(dismissReports, selected?.status);
   return (
     <div className={styles.dashboard}>
       <Segmented
@@ -56,14 +58,15 @@ export function MaterialReviewModeration() {
       <Card
         title="Kiểm duyệt đánh giá tài liệu"
         actions={
-          <button
+          <LoadingButton
             type="button"
             className="btn btn-sm"
             disabled={list.loading}
             onClick={list.reload}
+            loading={!!list.loading}
           >
             Làm mới
-          </button>
+          </LoadingButton>
         }
       >
         <QueueState
@@ -151,38 +154,39 @@ export function MaterialReviewModeration() {
       {selected && (
         <DecisionDialog
           key={`${selected.id}:${selected.version}`}
-          title={
-            dismissReports
-              ? "Bác báo cáo, giữ đánh giá"
-              : selected.status === "HIDDEN"
-                ? "Khôi phục đánh giá"
-                : "Ẩn đánh giá"
-          }
+          title={decision.title}
           description={`Tài liệu: ${selected.material.title}. Ghi lý do để lưu quyết định kiểm duyệt.`}
           min={1}
           max={2000}
-          confirmLabel={
-            dismissReports
-              ? "Xác nhận bác báo cáo"
-              : selected.status === "HIDDEN"
-                ? "Xác nhận khôi phục"
-                : "Xác nhận ẩn"
-          }
+          confirmLabel={decision.confirmLabel}
           danger={!dismissReports && selected.status !== "HIDDEN"}
           onClose={() => setSelected(undefined)}
           onReload={list.reload}
           onSubmit={async (reason) => {
-            await api(
-              `material-reviews/${selected.id}/${dismissReports ? "dismiss-reports" : selected.status === "HIDDEN" ? "restore" : "hide"}`,
-              {
-                method: "POST",
-                body: { expectedVersion: selected.version, reason },
-              },
-            );
+            await api(`material-reviews/${selected.id}/${decision.action}`, {
+              method: "POST",
+              body: { expectedVersion: selected.version, reason },
+            });
             void list.reload();
           }}
         />
       )}
     </div>
   );
+}
+
+function reviewDecision(dismissReports: boolean, status: string | undefined) {
+  if (dismissReports)
+    return {
+      title: "Bác báo cáo, giữ đánh giá",
+      confirmLabel: "Xác nhận bác báo cáo",
+      action: "dismiss-reports",
+    };
+  if (status === "HIDDEN")
+    return {
+      title: "Khôi phục đánh giá",
+      confirmLabel: "Xác nhận khôi phục",
+      action: "restore",
+    };
+  return { title: "Ẩn đánh giá", confirmLabel: "Xác nhận ẩn", action: "hide" };
 }

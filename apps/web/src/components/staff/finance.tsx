@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { useEffect, useId, useRef, useState } from "react";
 import {
   DataTable,
@@ -233,14 +234,15 @@ function LegacyLedgerScreen() {
       title="Lịch sử giao dịch Credit"
       actions={
         <div className={styles.actions}>
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={list.loading}
             onClick={() => void list.reload()}
+            loading={!!list.loading}
           >
             Làm mới
-          </button>
+          </LoadingButton>
         </div>
       }
     >
@@ -383,14 +385,15 @@ function PaymentsScreen({
       title="Thanh toán nạp Credit"
       actions={
         <div className={styles.actions}>
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={list.loading}
             onClick={() => void list.reload()}
+            loading={!!list.loading}
           >
             Làm mới
-          </button>
+          </LoadingButton>
         </div>
       }
     >

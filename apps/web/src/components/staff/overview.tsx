@@ -1,5 +1,8 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import Link from "next/link";
+import type { ReactNode } from "react";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 import { Badge, Card, PageHeader } from "@/components/console/ui";
 import { Icon } from "@/components/console/icon";
 import { reportReasonLabel } from "@/lib/staff/report-presentation";
@@ -23,15 +26,16 @@ type QueueSummary = Readonly<{
   page?: Pagination;
   reload: () => void;
 }>;
-function queueCount(source: QueueSummary): string {
-  if (source.loading) return "…";
+function queueCount(source: QueueSummary): ReactNode {
+  if (source.loading) return <LoadingSkeleton variant="inline" />;
   if (source.error) return "—";
   return `${source.items.length}${source.page?.hasMore ? "+" : ""}`;
 }
 function emptyQueueMessage(
   groups: readonly { source: QueueSummary }[],
-): string {
-  if (groups.some((group) => group.source.loading)) return "Đang tải hàng đợi…";
+): ReactNode {
+  if (groups.some((group) => group.source.loading))
+    return <LoadingSkeleton variant="table" label="Đang tải hàng đợi" />;
   if (groups.some((group) => group.source.error))
     return "Một số hàng đợi chưa tải được. Mở từng hàng đợi để kiểm tra.";
   return "Hiện không có mục nào cần xử lý.";
@@ -134,16 +138,17 @@ export function OverviewScreen({
         title={`Chào ${actor?.fullName ?? "bạn"}`}
         desc="Bắt đầu từ các mục cần xem xét trong hàng đợi của bạn."
         actions={
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={groups.some((g) => g.source.loading)}
             onClick={() => {
               for (const group of groups) group.source.reload();
             }}
+            loading={!!groups.some((g) => g.source.loading)}
           >
             <Icon name="refresh" size={16} /> Làm mới tất cả
-          </button>
+          </LoadingButton>
         }
       />
       <div className="ops-section-heading">
@@ -184,14 +189,15 @@ export function OverviewScreen({
                 </p>
               )}
               {group.source.error && (
-                <button
+                <LoadingButton
                   type="button"
                   className="btn btn-sm"
                   disabled={group.source.loading}
                   onClick={group.source.reload}
+                  loading={!!group.source.loading}
                 >
                   Thử tải lại
-                </button>
+                </LoadingButton>
               )}
             </Card>
           );
@@ -208,7 +214,7 @@ export function OverviewScreen({
         flush
       >
         {!rows.length ? (
-          <p className="staff-state">{emptyQueueMessage(groups)}</p>
+          <div className="staff-state">{emptyQueueMessage(groups)}</div>
         ) : (
           <div className="table-wrap">
             <table className="table">

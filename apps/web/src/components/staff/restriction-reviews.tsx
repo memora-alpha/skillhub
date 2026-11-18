@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { systemCodeLabel } from "@/lib/system-text";
 import { useState } from "react";
 import { Card, PageHeader } from "@/components/console/ui";
@@ -66,9 +67,14 @@ export function RestrictionReviewsScreen({
                     onChange={(e) => setReason(e.target.value)}
                   />
                 </label>
-                <button className="btn" type="submit" disabled={!reason.trim()}>
+                <LoadingButton
+                  className="btn"
+                  type="submit"
+                  disabled={!reason.trim()}
+                  loading={!!operation.busy}
+                >
                   Đảo sự kiện
-                </button>
+                </LoadingButton>
               </fieldset>
             </form>
             {operation.feedback}

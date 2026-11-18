@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useStaffListPages } from "./use-staff-list-pages";
 import { systemCodeLabel } from "@/lib/system-text";
@@ -143,7 +144,7 @@ export function ModerationScreen() {
         title="Kiểm duyệt yêu cầu học"
         desc="Yêu cầu có tag mới hoặc khớp bộ lọc sẽ chờ duyệt trước khi được công khai."
         actions={
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={queue.loading}
@@ -151,9 +152,10 @@ export function ModerationScreen() {
               setReceipt(null);
               void queue.reload();
             }}
+            loading={!!queue.loading}
           >
             Làm mới
-          </button>
+          </LoadingButton>
         }
       />
       <div className="toolbar">
@@ -321,22 +323,24 @@ export function ModerationScreen() {
 
                 {selected.status === "PENDING_MODERATION" && (
                   <div className="staff-detail-actions">
-                    <button
+                    <LoadingButton
                       type="button"
                       className="btn btn-danger"
                       disabled={!!decision || queue.loading}
                       onClick={() => setDecision("reject")}
+                      loading={!!queue.loading}
                     >
                       Từ chối
-                    </button>
-                    <button
+                    </LoadingButton>
+                    <LoadingButton
                       type="button"
                       className="btn btn-primary"
                       disabled={!!decision || queue.loading}
                       onClick={() => setDecision("approve")}
+                      loading={!!queue.loading}
                     >
                       Duyệt yêu cầu
-                    </button>
+                    </LoadingButton>
                   </div>
                 )}
                 {decision && (

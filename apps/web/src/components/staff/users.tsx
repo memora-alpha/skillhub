@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useStaffListPages } from "./use-staff-list-pages";
 import "./user-management.css";
@@ -81,14 +82,15 @@ export function UsersScreen({
                 Tạo tài khoản nhân viên
               </button>
             )}
-            <button
+            <LoadingButton
               type="button"
               className="btn"
               disabled={queue.loading}
               onClick={reload}
+              loading={!!queue.loading}
             >
               Làm mới
-            </button>
+            </LoadingButton>
           </div>
         }
       />
@@ -294,7 +296,7 @@ export function UsersScreen({
                               : "Cấp quyền nhân viên"}
                           </button>
                           {["ACTIVE", "LOCKED"].includes(u.accountStatus) && (
-                            <button
+                            <LoadingButton
                               type="button"
                               className="btn btn-sm btn-ghost"
                               disabled={
@@ -327,6 +329,7 @@ export function UsersScreen({
                                 setInitialAction(next);
                                 setSuccess(null);
                               }}
+                              loading={!!queue.loading}
                             >
                               <Icon
                                 name={
@@ -339,7 +342,7 @@ export function UsersScreen({
                               {u.accountStatus === "LOCKED"
                                 ? "Mở khóa"
                                 : "Khóa tài khoản"}
-                            </button>
+                            </LoadingButton>
                           )}
                         </div>
                       </td>

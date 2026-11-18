@@ -166,7 +166,11 @@ function IncidentDecision({
   // The server applies the Session ruling to the lowest case ID once, then closes the other cases.
   const caseId = incident.cases
     .map((item) => item.id)
-    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))[0]!;
+    .sort((a, b) => {
+      if (a < b) return -1;
+      if (a > b) return 1;
+      return 0;
+    })[0]!;
   const detail = useStaffResource<ReportCaseDetail>("reports/" + caseId);
   const [draft, setDraft] = useState<ResolutionDraft>({
     participants: [],

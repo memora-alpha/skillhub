@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -125,7 +126,7 @@ export function AdminLedgerScreen({
         }}
       >
         <label>
-          Mã người dùng
+          <span>Mã người dùng</span>
           <input
             className="input"
             value={draft.userId}
@@ -137,7 +138,7 @@ export function AdminLedgerScreen({
           <summary className="btn">Bộ lọc nâng cao</summary>
           <div className="row">
             <label>
-              Loại giao dịch
+              <span>Loại giao dịch</span>
               <select
                 className="select"
                 value={draft.type}
@@ -154,7 +155,7 @@ export function AdminLedgerScreen({
               </select>
             </label>
             <label>
-              Trạng thái
+              <span>Trạng thái</span>
               <select
                 className="select"
                 value={draft.status}
@@ -180,7 +181,7 @@ export function AdminLedgerScreen({
               </select>
             </label>
             <label>
-              Từ thời điểm (UTC)
+              <span>Từ thời điểm (UTC)</span>
               <input
                 className="input"
                 type="datetime-local"
@@ -189,7 +190,7 @@ export function AdminLedgerScreen({
               />
             </label>
             <label>
-              Trước thời điểm (UTC)
+              <span>Trước thời điểm (UTC)</span>
               <input
                 className="input"
                 type="datetime-local"
@@ -198,7 +199,7 @@ export function AdminLedgerScreen({
               />
             </label>
             <label>
-              Mã nghiệp vụ
+              <span>Mã nghiệp vụ</span>
               <input
                 className="input"
                 maxLength={36}
@@ -207,7 +208,7 @@ export function AdminLedgerScreen({
               />
             </label>
             <label>
-              Nguồn tham chiếu
+              <span>Nguồn tham chiếu</span>
               <select
                 className="select"
                 value={draft.referenceType}
@@ -224,7 +225,7 @@ export function AdminLedgerScreen({
               </select>
             </label>
             <label>
-              Mã tham chiếu
+              <span>Mã tham chiếu</span>
               <input
                 className="input"
                 maxLength={255}
@@ -233,7 +234,7 @@ export function AdminLedgerScreen({
               />
             </label>
             <label>
-              Mở giao dịch theo mã
+              <span>Mở giao dịch theo mã</span>
               <input
                 className="input"
                 maxLength={36}
@@ -253,7 +254,7 @@ export function AdminLedgerScreen({
             Bỏ lọc
           </button>
         )}
-        <button
+        <LoadingButton
           type="button"
           className="btn"
           disabled={list.loading}
@@ -261,10 +262,11 @@ export function AdminLedgerScreen({
             setSelected(undefined);
             void list.reload();
           }}
+          loading={!!list.loading}
         >
           <Icon name="refresh" size={16} />
           Làm mới
-        </button>
+        </LoadingButton>
       </form>
       <p className="admin-scope-note">
         Các số dư được ghi nhận tại thời điểm giao dịch. Tra cứu mã giao dịch mở

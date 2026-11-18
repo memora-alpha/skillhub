@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
@@ -58,6 +59,10 @@ export function UserManagementDialog({
     setPassword("");
     setError(undefined);
   }
+  const nonLockDescription =
+    action === "unlock"
+      ? "Người dùng có thể đăng nhập lại sau khi tài khoản được mở khóa."
+      : "Nhập mật khẩu Admin để xác nhận thay đổi quyền của tài khoản này.";
   return (
     <dialog
       ref={dialog}
@@ -71,15 +76,16 @@ export function UserManagementDialog({
       <div className="user-dialog-content">
         <div className="dialog-head">
           <h2 id={`${id}-title`}>{title}</h2>
-          <button
+          <LoadingButton
             type="button"
             className="icon-btn"
             aria-label="Đóng thông tin người dùng"
             disabled={busy}
             onClick={onClose}
+            loading={!!busy}
           >
             <Icon name="x" />
-          </button>
+          </LoadingButton>
         </div>
         <div className="user-dialog-identity">
           <Avatar name={user.fullName || "Người dùng"} />
@@ -128,26 +134,23 @@ export function UserManagementDialog({
                   Quyền chi tiết
                 </Link>
               )}
-              {allowed.map((next) => (
-                <button
-                  key={next}
-                  type="button"
-                  className="btn"
-                  onClick={() => choose(next)}
-                >
-                  <Icon
-                    name={
-                      next === "lock"
-                        ? "lock"
-                        : next === "unlock"
-                          ? "unlock"
-                          : "shield"
-                    }
-                    size={16}
-                  />
-                  {userActionLabels[next]}
-                </button>
-              ))}
+              {allowed.map((next) => {
+                const nonLockIcon = next === "unlock" ? "unlock" : "shield";
+                return (
+                  <button
+                    key={next}
+                    type="button"
+                    className="btn"
+                    onClick={() => choose(next)}
+                  >
+                    <Icon
+                      name={next === "lock" ? "lock" : nonLockIcon}
+                      size={16}
+                    />
+                    {userActionLabels[next]}
+                  </button>
+                );
+              })}
             </div>
             {!allowed.length && (
               <p className="muted">
@@ -205,9 +208,7 @@ export function UserManagementDialog({
             <p className="muted">
               {action === "lock"
                 ? "Tài khoản sẽ bị khóa và các phiên đăng nhập sẽ bị thu hồi."
-                : action === "unlock"
-                  ? "Người dùng có thể đăng nhập lại sau khi tài khoản được mở khóa."
-                  : "Nhập mật khẩu Admin để xác nhận thay đổi quyền của tài khoản này."}
+                : nonLockDescription}
             </p>
             <fieldset
               className="portal-fields user-action-fields"
@@ -249,14 +250,15 @@ export function UserManagementDialog({
               </p>
             )}
             <div className="staff-dialog-actions">
-              <button
+              <LoadingButton
                 type="button"
                 className="btn"
                 disabled={busy}
                 onClick={() => (mustReload ? onClose() : choose(undefined))}
+                loading={!!busy}
               >
                 Quay lại
-              </button>
+              </LoadingButton>
               {mustReload ? (
                 <button
                   type="button"
@@ -266,13 +268,14 @@ export function UserManagementDialog({
                   Tải lại dữ liệu
                 </button>
               ) : (
-                <button
+                <LoadingButton
                   type="submit"
                   className={`btn ${action === "lock" || action === "remove" ? "btn-danger" : "btn-primary"}`}
                   disabled={busy || !allowed.includes(action)}
+                  loading={!!busy}
                 >
                   {busy ? "Đang cập nhật…" : userActionLabels[action]}
-                </button>
+                </LoadingButton>
               )}
             </div>
           </form>

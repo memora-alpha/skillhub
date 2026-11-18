@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useStaffListPages } from "./use-staff-list-pages";
 
@@ -73,14 +74,15 @@ function LegacyMaterialsScreen() {
         title="Duyệt tài liệu"
         desc="Xem tài liệu được gửi lên và quyết định công bố hoặc ẩn nội dung."
         actions={
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={queue.loading}
             onClick={reload}
+            loading={!!queue.loading}
           >
             Làm mới
-          </button>
+          </LoadingButton>
         }
       />
       <div className="toolbar">
@@ -131,6 +133,26 @@ function LegacyMaterialsScreen() {
                   actions.push("approve", "reject");
                 if (item.status === "PUBLISHED") actions.push("hide");
                 if (item.status === "HIDDEN") actions.push("unhide");
+                function materialScanLabel() {
+                  if (item.scanStatus === "CLEAN") {
+                    return "Đã kiểm tra an toàn" as const;
+                  }
+                  if (item.scanStatus === "PENDING") {
+                    return "Đang kiểm tra" as const;
+                  }
+                  return item.scanStatus;
+                }
+                function materialFileLabel() {
+                  if (item.file) {
+                    return (
+                      (item.file.originalFilename ?? item.file.mimeType) +
+                      (item.file.sizeBytes
+                        ? " · " + fmtSize(Number(item.file.sizeBytes))
+                        : "")
+                    );
+                  }
+                  return "Chưa có tệp" as const;
+                }
                 return (
                   <li className="staff-material" key={item.id}>
                     <div className="stack">
@@ -169,19 +191,9 @@ function LegacyMaterialsScreen() {
                         <dt>Cập nhật</dt>
                         <dd>{fmtDateTime(item.updatedAt)}</dd>
                         <dt>Tệp</dt>
-                        <dd>
-                          {item.file
-                            ? `${item.file.originalFilename ?? item.file.mimeType}${item.file.sizeBytes ? ` · ${fmtSize(Number(item.file.sizeBytes))}` : ""}`
-                            : "Chưa có tệp"}
-                        </dd>
+                        <dd>{materialFileLabel()}</dd>
                         <dt>Kiểm tra an toàn</dt>
-                        <dd>
-                          {item.scanStatus === "CLEAN"
-                            ? "Đã kiểm tra an toàn"
-                            : item.scanStatus === "PENDING"
-                              ? "Đang kiểm tra"
-                              : item.scanStatus}
-                        </dd>
+                        <dd>{materialScanLabel()}</dd>
                       </dl>
                       {item.file && (
                         <DownloadButton

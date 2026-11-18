@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Icon, type IconName } from "@/components/console/icon";
 import { Empty, StatusBadge } from "@/components/console/ui";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 import { fmtDateTime, fmtNum } from "@/lib/console/format";
 import { financeNumber } from "@/lib/staff/finance-presentation";
 import {
@@ -107,6 +108,11 @@ export function PathStages({
   const rows = data?.pathStages ?? [];
   const total = rows.reduce((sum, row) => sum + row.count, 0);
   const max = Math.max(1, ...rows.map((row) => row.count));
+  const emptyPathDistribution = loading ? (
+    <LoadingSkeleton label="Đang tải số liệu lộ trình" />
+  ) : (
+    <Empty title="Chưa có số liệu lộ trình" />
+  );
   return (
     <DashboardPanel
       title="Tình hình lộ trình"
@@ -132,9 +138,7 @@ export function PathStages({
           ))}
         </div>
       ) : (
-        <Empty
-          title={loading ? "Đang tải số liệu…" : "Chưa có số liệu lộ trình"}
-        />
+        emptyPathDistribution
       )}
     </DashboardPanel>
   );
@@ -146,6 +150,11 @@ export function TopSkills({
   const rows = sectionData(summary?.topSkills)?.slice(0, 5);
   const max = Math.max(1, ...(rows ?? []).map((row) => row.completedSessions));
   const highest = rows?.[0]?.completedSessions;
+  const emptySkillRanking = loading ? (
+    <LoadingSkeleton label="Đang tải số liệu kỹ năng" />
+  ) : (
+    <Empty title="Chưa có số liệu kỹ năng" />
+  );
   return (
     <DashboardPanel
       title="Kỹ năng được học nhiều nhất"
@@ -169,9 +178,7 @@ export function TopSkills({
           ))}
         </ol>
       ) : (
-        <Empty
-          title={loading ? "Đang tải kỹ năng…" : "Chưa có số liệu kỹ năng"}
-        />
+        emptySkillRanking
       )}
     </DashboardPanel>
   );
