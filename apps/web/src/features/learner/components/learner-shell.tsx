@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useNavigationDrawer } from "@/components/use-navigation-drawer";
 import { useQueryClient, type Query } from "@tanstack/react-query";
 import { eventAffectsResource } from "../api/events";
+import { createLearnerEventConnection } from "../api/live-events";
 import { useUserSession } from "../auth/session";
 import { useUserResource } from "../hooks/use-user-resource";
 import { ProductIcon } from "./product-icon";
@@ -51,8 +52,6 @@ export function LearnerShell({
     availableCredit: string;
     heldCredit: string;
   }>("me/wallet");
-  const [streamAttempt, setStreamAttempt] = useState(0),
-    [live, setLive] = useState(true);
   const {
     open,
     show,
@@ -61,9 +60,7 @@ export function LearnerShell({
     panel: sidebarRef,
   } = useNavigationDrawer("(min-width: 761px)");
   useEffect(() => {
-    let source: EventSource | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    let generation = 0;
     const events = new Set<string>();
     const changed = (event: Event) => {
       events.add(event.type);
@@ -77,31 +74,12 @@ export function LearnerShell({
           });
         }, 250);
     };
-    const close = () => {
-      generation++;
-      source?.close();
-      source = undefined;
-    };
-    const open = async () => {
-      close();
-      if (document.visibilityState === "hidden") return;
-      const ticket = generation;
-      try {
-        // Refresh an expired access cookie before opening the non-replaying stream.
-        await request("session");
-      } catch {
-        if (ticket === generation) setLive(false);
-        return;
-      }
-      if (ticket !== generation) return;
-      source = new EventSource("/api/user/events");
-      source.onopen = () => {
-        setLive(true);
-        void cache.invalidateQueries({
-          queryKey: ["learner", actor.userId, "notifications/unread-count"],
-        });
-      };
-      for (const type of [
+    const connection = createLearnerEventConnection({
+      prepare: () => request("session"),
+      // Recover updates missed while the non-replaying connection was down.
+      ready: refresh,
+      changed,
+      eventTypes: [
         "chat.message.created",
         "chat.delivery.updated",
         "chat.read.updated",
@@ -115,27 +93,26 @@ export function LearnerShell({
         "payment.updated",
         "notification.created",
         "resync-required",
-      ])
-        source.addEventListener(type, changed);
-      source.onerror = () => {
-        close();
-        setLive(false);
-      };
-    };
+      ],
+    });
     const focus = () => {
-      if (document.visibilityState === "visible") {
+      if (document.visibilityState === "visible" && navigator.onLine) {
         refresh();
-        void open();
-      } else close();
+        connection.resume();
+      } else connection.pause();
     };
-    void open();
+    focus();
     document.addEventListener("visibilitychange", focus);
+    window.addEventListener("online", focus);
+    window.addEventListener("offline", focus);
     return () => {
-      close();
+      connection.dispose();
       if (timer) clearTimeout(timer);
       document.removeEventListener("visibilitychange", focus);
+      window.removeEventListener("online", focus);
+      window.removeEventListener("offline", focus);
     };
-  }, [request, refresh, streamAttempt, cache, actor.userId]);
+  }, [request, refresh, cache, actor.userId]);
 
   const Sidebar = open ? "dialog" : "aside";
   return (
@@ -279,21 +256,6 @@ export function LearnerShell({
               <Link className="btn" href="/staff">
                 Về khu vực nhân sự
               </Link>
-            </p>
-          )}
-          {!live && (
-            <p className="learner-notice">
-              Cập nhật trực tiếp tạm ngắt.{" "}
-              <button
-                type="button"
-                className="learner-text-button"
-                onClick={() => {
-                  refresh();
-                  setStreamAttempt((v) => v + 1);
-                }}
-              >
-                Kết nối lại
-              </button>
             </p>
           )}
           {children}
