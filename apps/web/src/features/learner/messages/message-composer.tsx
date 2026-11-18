@@ -92,7 +92,9 @@ export function MessageComposer({
       }
       return true;
     } catch (cause) {
-      if (cause instanceof UserApiError && cause.status === 404) return true;
+      if (cause instanceof UserApiError && cause.status === 404) {
+        return true;
+      }
       setNotice(
         cause instanceof Error
           ? cause.message
