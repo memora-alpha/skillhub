@@ -68,16 +68,6 @@ const routes: [string, RegExp, (path: string) => string][] = [
     ),
     (p) => p.replace(/content$/, "download"),
   ],
-  [
-    "GET",
-    new RegExp(`^reputation/users/${uuid}/restriction-reviews$`, "i"),
-    (p) => p,
-  ],
-  [
-    "POST",
-    new RegExp(`^reputation/restrictions/${uuid}/review$`, "i"),
-    (p) => p,
-  ],
   ["GET", /^learning-changes\/review-queue$/, (p) => p],
   [
     "GET",
@@ -165,6 +155,7 @@ const routes: [string, RegExp, (path: string) => string][] = [
   ["PATCH", new RegExp(`^notifications/${uuid}/read$`, "i"), (p) => p],
 ];
 const adminRoutes: [string, RegExp, (path: string) => string][] = [
+  ["GET", new RegExp(`^reputation/users/${uuid}/history$`, "i"), (p) => p],
   ["GET", /^dashboard\/trends$/, (p) => `admin/${p}`],
   ["GET", /^dashboard\/summary$/, (p) => `admin/${p}`],
   ["GET", /^dashboard\/work-items$/, (p) => `admin/${p}`],
