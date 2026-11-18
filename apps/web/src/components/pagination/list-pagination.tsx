@@ -5,6 +5,7 @@ export function ListPagination({
   query,
 }: Readonly<{
   query: {
+    items: readonly unknown[];
     pageNumber: number;
     totalPages?: number;
     hasNext: boolean;
@@ -12,6 +13,9 @@ export function ListPagination({
     goToPage: (page: number) => unknown;
   };
 }>) {
+  // Keep navigation when another page is reachable, including an emptied later page.
+  if (!query.items.length && query.pageNumber === 1 && !query.hasNext)
+    return null;
   return (
     <PageNavigation
       pageNumber={query.pageNumber}
