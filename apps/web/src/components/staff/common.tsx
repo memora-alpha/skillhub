@@ -3,6 +3,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Empty } from "@/components/console/ui";
 import { StaffApiError, isSessionFailure } from "@/lib/staff/client";
 import { useStaffSession } from "./session";
+import { DecisionErrorDialog } from "./decision-error-dialog";
 export function QueueState({
   loading,
   error,
@@ -100,6 +101,7 @@ export function DecisionDialog({
   const heading = useRef<HTMLHeadingElement>(null);
   const attempt = useRef<{ text: string; key: string } | null>(null);
   const flight = useRef(false);
+  const invalidField = useRef<HTMLElement | null>(null);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -124,6 +126,27 @@ export function DecisionDialog({
     >
       <form
         className="staff-dialog"
+        onInvalid={(event) => {
+          event.preventDefault();
+          const field = event.target;
+          if (!(
+            field instanceof HTMLInputElement ||
+            field instanceof HTMLSelectElement ||
+            field instanceof HTMLTextAreaElement
+          ))
+            return;
+          if (invalidField.current) return;
+          invalidField.current = field;
+          const details = field.closest("details");
+          if (details) details.open = true;
+          const label =
+            field.getAttribute("aria-label") ??
+            field.labels?.[0]?.textContent?.trim() ??
+            "thông tin bắt buộc";
+          setError(
+            `Vui lòng kiểm tra ${label.toLocaleLowerCase("vi")}. ${field.validity.valueMissing ? "Bạn chưa nhập hoặc chọn thông tin này." : "Giá trị chưa đúng định dạng hoặc ngoài giới hạn cho phép."}`,
+          );
+        }}
         onSubmit={async (e) => {
           e.preventDefault();
           if (flight.current || mustReload) return;
@@ -153,8 +176,19 @@ export function DecisionDialog({
             );
             if (
               err instanceof StaffApiError &&
-              (err.status === 409 ||
-                (!idempotent && (err.status === 0 || err.status >= 500)))
+              ((err.status === 409 &&
+                ![
+                  "USER_MAKEUP_LIMIT_REACHED",
+                  "SESSION_MAKEUP_LIMIT_REACHED",
+                  "MAKEUP_ATTRIBUTION_REVIEW_REQUIRED",
+                  "MAKEUP_USER_REQUIRED",
+                  "MAKEUP_USER_NOT_PARTICIPANT",
+                  "INSUFFICIENT_AVAILABLE_CREDIT",
+                ].includes(err.code)) ||
+                (!idempotent &&
+                  (err.status === 0 ||
+                    err.status === 408 ||
+                    err.status >= 500)))
             )
               setMustReload(true);
           } finally {
@@ -211,11 +245,6 @@ export function DecisionDialog({
             {max !== undefined ? `/${max}` : ""} ký tự
           </div>
         )}
-        {error && (
-          <p className="staff-error" role="alert">
-            {error}
-          </p>
-        )}
         <div className="staff-dialog-actions">
           <button
             type="button"
@@ -247,6 +276,22 @@ export function DecisionDialog({
           )}
         </div>
       </form>
+      {error && (
+        <DecisionErrorDialog
+          message={error}
+          requiresReload={mustReload}
+          onClose={() => {
+            setError(null);
+            const field = invalidField.current;
+            invalidField.current = null;
+            requestAnimationFrame(() => field?.focus({ preventScroll: true }));
+          }}
+          onReload={() => {
+            onReload();
+            onClose();
+          }}
+        />
+      )}
     </dialog>
   );
 }

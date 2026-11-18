@@ -18,6 +18,31 @@
 .staff-shell .nav-title {
   padding: 12px 12px 8px;
 }
+.staff-shell .nav-group-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.staff-shell .nav-group-toggle:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.staff-shell .nav-group-toggle:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
+}
+.staff-shell .nav-group-toggle > svg {
+  flex-shrink: 0;
+}
 .staff-shell .nav-link {
   min-height: 44px;
   padding: 9px 12px;
@@ -266,10 +291,6 @@
   min-width: 140px;
   margin: 0;
 }
-.ops-loaded-count {
-  font-size: 12px;
-  padding-bottom: 10px;
-}
 .ops-report-workspace {
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr);
@@ -385,6 +406,9 @@
   margin: 10px 0 14px;
   font-size: 18px;
   line-height: 1.4;
+}
+.ops-case-claim-action {
+  justify-content: flex-end;
 }
 .ops-case-title > .mono {
   font-size: 12px;
@@ -840,10 +864,6 @@
     min-width: 0;
     width: 100%;
   }
-  .ops-loaded-count {
-    flex-basis: 100%;
-    padding: 0;
-  }
   .ops-case-facts,
   .ops-attendance-grid {
     grid-template-columns: 1fr;
@@ -894,4 +914,33 @@
     width: 30px;
     height: 30px;
   }
+}
+
+/* Keep the attendance decision visible before optional report sanctions. */
+.staff-shell .report-additional-measures {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+}
+.staff-shell .report-additional-measures > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.staff-shell .report-additional-measures[open] > .stack {
+  margin-top: 16px;
+}
+.staff-shell .report-ruling-fields .notice {
+  align-items: flex-start;
+}
+.staff-shell .report-ruling-fields .notice p {
+  margin: 6px 0;
+}
+.staff-shell .report-makeup-quotas {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+}
+.staff-shell .report-makeup-quotas li + li {
+  margin-top: 8px;
 }

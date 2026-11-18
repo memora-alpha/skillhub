@@ -1,9 +1,10 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { useNavigationDrawer } from "@/components/use-navigation-drawer";
 import { Icon, type IconName } from "@/components/console/icon";
+import { isRedesignedAdminPath } from "@/lib/staff/admin-redesign";
 import { StaffSessionProvider, useStaffSession } from "./session";
 import { StaffLogin } from "./login";
 import {
@@ -90,6 +91,49 @@ const adminNav: NavigationItem[] = adminEntries.map(
     aliases,
   }),
 );
+function NavigationGroup({
+  title,
+  items,
+  currentHref,
+  onNavigate,
+}: Readonly<{
+  title: string;
+  items: NavigationItem[];
+  currentHref: string | undefined;
+  onNavigate: () => void;
+}>) {
+  const [expanded, setExpanded] = useState(true);
+  const contentId = useId();
+  return (
+    <div className="nav-group">
+      <button
+        type="button"
+        className="nav-title nav-group-toggle"
+        aria-expanded={expanded}
+        aria-controls={contentId}
+        aria-label={`${expanded ? "Thu gọn" : "Mở rộng"} nhóm ${title}`}
+        onClick={() => setExpanded((value) => !value)}
+      >
+        <span>{title}</span>
+        <Icon name={expanded ? "down" : "right"} size={14} />
+      </button>
+      <div id={contentId} hidden={!expanded}>
+        {items.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className="nav-link"
+            aria-current={currentHref === item.href ? "page" : undefined}
+            onClick={onNavigate}
+          >
+            <Icon name={item.icon} />
+            <span>{item.label}</span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
 function Frame({ children }: Readonly<{ children: ReactNode }>) {
   const { actor, loading, logout, busy, portal } = useStaffSession();
   const links = portal === "admin" ? adminNav : nav;
@@ -122,7 +166,15 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
   );
   const Sidebar = open ? "dialog" : "aside";
   return (
-    <div className="shell staff-shell" key={actor.userId}>
+    <div
+      className="shell staff-shell"
+      key={actor.userId}
+      data-admin-redesign={
+        portal === "admin" && isRedesignedAdminPath(pathname)
+          ? "true"
+          : undefined
+      }
+    >
       <a className="skip-link" href="#main" inert={open}>
         Bỏ qua điều hướng
       </a>
@@ -177,23 +229,13 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
               (item) => (item.group ?? "Công việc") === group,
             );
             return items.length ? (
-              <div className="nav-group" key={group}>
-                <div className="nav-title">{group}</div>
-                {items.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="nav-link"
-                    aria-current={
-                      current?.href === item.href ? "page" : undefined
-                    }
-                    onClick={() => close(false)}
-                  >
-                    <Icon name={item.icon} />
-                    <span>{item.label}</span>
-                  </Link>
-                ))}
-              </div>
+              <NavigationGroup
+                key={group}
+                title={group}
+                items={items}
+                currentHref={current?.href}
+                onNavigate={() => close(false)}
+              />
             ) : null;
           })}
         </nav>

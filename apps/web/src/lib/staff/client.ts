@@ -20,6 +20,88 @@ export function isSessionFailure(error: unknown): boolean {
   );
 }
 const errorMessages: Readonly<Record<string, string>> = {
+  USER_MAKEUP_LIMIT_REACHED:
+    "Người tham gia đã hết lượt học bù trong thỏa thuận này. Chọn phương án xử lý khác theo bằng chứng; không thể cấp thêm lượt.",
+  SESSION_MAKEUP_LIMIT_REACHED:
+    "Buổi học đã sử dụng lượt học bù. Chỉ có thể gia hạn lượt đã cấp khi còn hợp lệ hoặc chọn phương án xử lý khác.",
+  MAKEUP_ATTRIBUTION_REVIEW_REQUIRED:
+    "Lịch sử học bù chưa xác định được người sử dụng lượt. Cần kiểm tra lịch sử trước khi cấp học bù.",
+  MAKEUP_USER_REQUIRED: "Chọn người tham gia sử dụng lượt học bù.",
+  MAKEUP_USER_NOT_PARTICIPANT:
+    "Người dùng lượt học bù phải là người tham gia buổi học.",
+  NO_SHOW_RULING_NOT_APPLICABLE:
+    "Phán quyết này không áp dụng cho trạng thái điểm danh hiện tại. Tải lại báo cáo và chọn phương án phù hợp.",
+  CANCELLATION_MAKEUP_RULING_NOT_APPLICABLE:
+    "Buổi học không có lượt học bù từ yêu cầu hủy còn hiệu lực để xử lý. Tải lại báo cáo và kiểm tra lịch sử buổi học.",
+  MAKEUP_USER_REQUIRES_EXCUSE_RULING:
+    "Chỉ chọn người sử dụng lượt học bù khi chấp nhận lý do và yêu cầu học bù.",
+  ONE_SESSION_RULING_REQUIRED:
+    "Chỉ chọn một phán quyết cho buổi học: xử lý điểm danh hoặc xử lý lượt học bù từ hủy buổi.",
+  NO_SHOW_REQUIRES_ATTENDANCE_RULING:
+    "Dùng phán quyết điểm danh để xử lý vắng học; không ghi thêm vi phạm vắng học cho cùng buổi.",
+  RESOLUTION_PERMISSION_REQUIRED:
+    "Bạn chưa có quyền áp dụng biện pháp Credit hoặc hạn chế này. Bỏ biện pháp bổ sung hoặc nhờ quản trị viên có quyền xử lý.",
+  REPORT_CASE_NOT_ASSIGNED_TO_CALLER:
+    "Báo cáo đang do người khác phụ trách. Tải lại để kiểm tra người xử lý trước khi ra quyết định.",
+  NO_SHOW_RULING_REQUIRED:
+    "Buổi học đang tranh chấp cần một phán quyết điểm danh trước khi kết thúc báo cáo.",
+  REPORT_CASE_NOT_CLAIMABLE:
+    "Báo cáo đã được nhận hoặc đã kết thúc. Làm mới hàng đợi để xem trạng thái hiện tại.",
+  REPORT_CASE_NOT_FOUND:
+    "Báo cáo không còn tồn tại hoặc bạn không thể truy cập. Hãy quay lại hàng đợi.",
+  REPORT_CASE_CLOSED:
+    "Báo cáo đã kết thúc. Bạn chỉ có thể xem lại nội dung và lịch sử.",
+  STALE_REPORT_CASE_VERSION:
+    "Mức độ hoặc trạng thái báo cáo đã thay đổi. Tải lại báo cáo trước khi lưu.",
+  STALE_INCIDENT_VERSION:
+    "Vụ việc chung đã thay đổi. Tải lại để xem quyết định mới nhất.",
+  CLASSIFY_INCIDENT_REQUIRED:
+    "Báo cáo đã thuộc vụ việc chung. Đổi mức độ trong phần xử lý vụ việc chung.",
+  INCIDENT_NOT_ASSIGNED:
+    "Bạn không phải người phụ trách vụ việc chung này. Làm mới để kiểm tra người xử lý.",
+  CASE_MESSAGE_CONTENT_UNAVAILABLE:
+    "Chưa tải được nội dung trao đổi. Tin nhắn của bạn vẫn được giữ; hãy thử tải lại.",
+  CASE_PARTY_REQUIRED:
+    "Người được chọn không phải bên liên quan của vụ việc. Kiểm tra lại người trao đổi.",
+  CASE_THREAD_CLOSED:
+    "Vụ việc đã kết thúc nên không thể gửi tin nhắn mới. Bạn vẫn có thể xem lịch sử.",
+  MATERIAL_FILE_REQUIRED:
+    "Tài liệu chưa có tệp sẵn sàng, chưa được xác nhận an toàn hoặc chưa xác nhận quyền phân phối. Kiểm tra lại trước khi công bố.",
+  MATERIAL_REASON_REQUIRED: "Nhập lý do xử lý tài liệu trước khi xác nhận.",
+  FILE_NOT_READY:
+    "Tệp vẫn đang được kiểm tra hoặc chưa sẵn sàng. Vui lòng thử lại sau.",
+  FILE_NOT_FOUND:
+    "Tệp không còn khả dụng hoặc bạn không có quyền xem. Làm mới nội dung để kiểm tra.",
+  FILE_OBJECT_MISMATCH:
+    "Nội dung tệp chưa thể tải đầy đủ. Vui lòng thử lại sau hoặc liên hệ hỗ trợ.",
+  STALE_TERMINATION_EXECUTION:
+    "Kết quả học hoặc khoản Credit đang giữ đã thay đổi. Tải lại và kiểm tra phương án trước khi xác nhận.",
+  TERMINATION_ALREADY_APPROVED:
+    "Yêu cầu đã được chấp thuận dừng nên không thể từ chối. Tải lại để xem tiến độ phân bổ Credit.",
+  TERMINATION_DECISION_CONFLICT:
+    "Yêu cầu đã có một quyết định khác. Tải lại để đối chiếu kết quả trước khi tiếp tục.",
+  TERMINATION_FORMULA_MISMATCH:
+    "Phương án Credit không còn khớp với dữ liệu mới nhất. Tải lại phương án trước khi xác nhận.",
+  TERMINATION_POLICY_NOT_APPROVED:
+    "Chính sách dừng lộ trình chưa được duyệt hoặc vừa thay đổi. Kiểm tra lại chi tiết yêu cầu.",
+  TERMINATION_ALLOCATION_MISMATCH:
+    "Khoản Credit đang giữ chưa đủ điều kiện phân bổ. Tải lại chi tiết và kiểm tra các khoản giữ.",
+  TERMINATION_SESSION_RULING_REQUIRED:
+    "Một số buổi học còn chờ kết luận. Cần xử lý các buổi đó trước khi phân bổ Credit.",
+  TERMINATION_USE_FINAL_SETTLEMENT:
+    "Các buổi học đã hoàn tất. Hãy dùng luồng quyết toán lộ trình để xử lý Credit.",
+  TERMINATION_REVIEW_PERMISSION_REQUIRED:
+    "Bạn chưa có quyền xem xét hoặc thực thi dừng lộ trình. Liên hệ quản trị viên để kiểm tra quyền.",
+  INDEPENDENT_REVIEWER_REQUIRED:
+    "Bạn là người tham gia lộ trình này. Cần một quản trị viên độc lập xử lý yêu cầu.",
+  CREDIT_TRANSACTION_NOT_FOUND:
+    "Không tìm thấy giao dịch hoặc giao dịch không còn trong phạm vi truy cập của bạn.",
+  CREDIT_OPERATION_NOT_FOUND:
+    "Không tìm thấy nghiệp vụ liên quan. Hãy làm mới danh sách giao dịch để kiểm tra.",
+  ADMIN_FINANCE_PERMISSION_REQUIRED:
+    "Bạn chưa có quyền tra cứu giao dịch Credit. Liên hệ quản trị viên để kiểm tra quyền.",
+  INVALID_ADMIN_FINANCE_CURSOR:
+    "Danh sách giao dịch đã thay đổi hoặc bộ lọc không còn khớp. Làm mới để tải lại từ đầu.",
   INCIDENT_DECISION_REQUIRED:
     "Báo cáo đã được gom. Mở vụ việc chung để ra quyết định.",
   REPORT_SELF_MODERATION_FORBIDDEN:
@@ -73,10 +155,6 @@ const errorMessages: Readonly<Record<string, string>> = {
     "Tag đang tạm ngưng hoặc đã được lưu trữ. Kiểm tra lại danh mục tag.",
   REVERSAL_OPERATION_NOT_IN_PATH:
     "Giao dịch cần đảo không thuộc lộ trình của vụ việc này.",
-  RESOLUTION_PERMISSION_REQUIRED:
-    "Bạn chưa có quyền áp dụng một hoặc nhiều biện pháp xử lý đã chọn.",
-  REPORT_CASE_NOT_ASSIGNED_TO_CALLER:
-    "Vụ việc chưa được giao cho bạn. Tải lại để kiểm tra người phụ trách.",
   TITLE_NOT_UNLOCKED:
     "Danh hiệu này chưa được mở khóa hoặc không còn khả dụng. Hãy làm mới thành tích.",
   FILE_TYPE_NOT_SUPPORTED: "Định dạng tệp này chưa được hỗ trợ.",
@@ -100,7 +178,9 @@ function messageFor(status: number, code: string) {
   if (translated) return translated;
   if (code === "FILE_UNAVAILABLE" || code === "INVALID_DOWNLOAD_LINK")
     return "Không thể mở tệp hoặc liên kết đã hết hạn. Nhấn Thử lại để lấy liên kết mới.";
-  if (code === "API_UNAVAILABLE" || code === "API_RESPONSE_INVALID")
+  if (code === "API_RESPONSE_INVALID")
+    return "Chưa đọc được đầy đủ dữ liệu trả về. Vui lòng tải lại trước khi thực hiện thao tác.";
+  if (code === "API_UNAVAILABLE")
     return "Chưa kết nối được với máy chủ. Vui lòng thử lại sau ít giây.";
   if (status === 401) return "Phiên đã hết hạn. Vui lòng đăng nhập lại.";
   if (status === 403) return "Bạn không có quyền thực hiện thao tác này.";
@@ -110,6 +190,8 @@ function messageFor(status: number, code: string) {
     return "Không tìm thấy mục này hoặc mục không còn trong hàng đợi.";
   if (status === 429)
     return "Bạn thao tác quá nhanh. Vui lòng đợi rồi thử lại.";
+  if (status === 408)
+    return "Đã quá thời gian chờ nên chưa xác nhận được kết quả. Tải lại dữ liệu để kiểm tra trước khi gửi lại.";
   if (status >= 500 || status === 0)
     return "Chưa nhận được kết quả từ máy chủ. Tải lại dữ liệu để kiểm tra trước khi tiếp tục.";
   return "Thông tin chưa hợp lệ. Kiểm tra nội dung và thử lại.";
