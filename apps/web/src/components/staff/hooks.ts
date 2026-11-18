@@ -4,6 +4,7 @@ import { StaffApiError, isSessionFailure } from "@/lib/staff/client";
 import { appendCursor, mergePage } from "@/lib/staff/pagination";
 import type { ApiEnvelope, Pagination } from "@/lib/staff/types";
 import { useStaffSession } from "./session";
+import { splitPages } from "@/components/pagination/use-list-pages";
 
 function isTemporaryFailure(error: unknown) {
   return (
@@ -90,19 +91,24 @@ export function useStaffResource<T>(
 export function useStaffList<T extends { id?: string; userId?: string }>(
   path: string,
 ) {
-  const { expire, api } = useStaffSession();
+  const { expire, api, actor, portal } = useStaffSession();
+  const scope = `${portal}:${actor?.userId ?? ""}:${path}`;
+  const enabled = !!actor;
   const [state, setState] = useState<{
     path: string;
     items: T[];
+    chunks: T[][];
     page?: Pagination;
     loading: boolean;
     error?: string;
-  }>({ path, items: [], loading: true });
+  }>({ path: scope, items: [], chunks: [], loading: true });
   const pending = useRef(false);
   const current = useRef<AbortController | null>(null);
   const cursors = useRef(new Set<string>());
+  const activeScope = useRef<string | null>(null);
   const load = useCallback(
     (cursor?: string) => {
+      if (!enabled || activeScope.current !== scope) return;
       if (cursor && pending.current) return;
       current.current?.abort();
       const controller = new AbortController();
@@ -120,8 +126,13 @@ export function useStaffList<T extends { id?: string; userId?: string }>(
           if (cursor) cursors.current.add(cursor);
           else cursors.current.clear();
           setState((s) => ({
-            path,
+            path: scope,
             items: cursor ? mergePage(s.items, result.data) : result.data,
+            chunks: cursor
+              ? [...s.chunks, result.data]
+              : result.meta?.pagination
+                ? [result.data]
+                : splitPages(result.data),
             page: result.meta?.pagination,
             loading: false,
           }));
@@ -130,10 +141,11 @@ export function useStaffList<T extends { id?: string; userId?: string }>(
           if (controller.signal.aborted) return;
           if (isSessionFailure(e)) expire();
           setState((s) => {
-            const keepItems = s.path === path && isTemporaryFailure(e);
+            const keepItems = s.path === scope && isTemporaryFailure(e);
             return {
-              path,
+              path: scope,
               items: keepItems ? s.items : [],
+              chunks: keepItems ? s.chunks : [],
               page: keepItems ? s.page : undefined,
               loading: false,
               error: e instanceof Error ? e.message : "Không thể tải hàng đợi.",
@@ -144,28 +156,37 @@ export function useStaffList<T extends { id?: string; userId?: string }>(
           if (current.current === controller) pending.current = false;
         });
     },
-    [path, expire, api],
+    [path, expire, api, scope, enabled],
   );
   useEffect(() => {
+    activeScope.current = scope;
     void load();
-    return () => current.current?.abort();
-  }, [load]);
-  const fresh = state.path === path;
+    return () => {
+      if (activeScope.current === scope) activeScope.current = null;
+      current.current?.abort();
+    };
+  }, [load, scope]);
+  const fresh = enabled && state.path === scope;
   return {
+    scope,
+    chunks: fresh ? state.chunks : [],
     items: fresh ? state.items : [],
     page: fresh ? state.page : undefined,
     loading: !fresh || state.loading,
     error: fresh ? state.error : undefined,
     reload: () => {
+      if (activeScope.current !== scope) return;
       setState((s) => ({
-        path,
-        items: s.path === path ? s.items : [],
-        page: s.path === path ? s.page : undefined,
+        path: scope,
+        items: s.path === scope ? s.items : [],
+        chunks: s.path === scope ? s.chunks : [],
+        page: s.path === scope ? s.page : undefined,
         loading: true,
       }));
       return load();
     },
     more: () => {
+      if (activeScope.current !== scope) return;
       if (pending.current || !fresh || !state.page?.nextCursor) return;
       setState((s) => ({ ...s, loading: true }));
       return load(state.page.nextCursor);

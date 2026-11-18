@@ -4,6 +4,7 @@ export type StaffIdentity = {
   roles: string[];
 };
 export type Pagination = {
+  total?: number;
   nextCursor: string | null;
   hasMore: boolean;
   limit: number;

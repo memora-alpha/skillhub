@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { useUserSession } from "../auth/session";
 import { UserApiError } from "../api/client";
+import { splitPages } from "@/components/pagination/use-list-pages";
 
 function isTemporaryFailure(error: Error) {
   return (
@@ -109,6 +110,12 @@ export function useUserList<T extends { id: string }>(
   const staleNotice =
     showItems && items.length ? "Đang hiển thị dữ liệu đã tải trước đó. " : "";
   return {
+    scope: `${actor.userId}:${path}:${nestedItems}`,
+    chunks: showItems
+      ? (query.data?.pages.flatMap((page) =>
+          page.meta?.pagination ? [page.data] : splitPages(page.data),
+        ) ?? [])
+      : [],
     items: showItems ? items : [],
     ratingSummary: showItems
       ? query.data?.pages[0]?.meta?.ratingSummary
@@ -116,11 +123,12 @@ export function useUserList<T extends { id: string }>(
     loading: query.isPending || query.isFetching,
     initialLoading: query.isPending,
     error: query.error ? staleNotice + query.error.message : undefined,
-    cursor: query.hasNextPage
-      ? (query.data?.pages.at(-1)?.meta?.pagination?.nextCursor ?? null)
-      : null,
+    cursor:
+      showItems && query.hasNextPage
+        ? (query.data?.pages.at(-1)?.meta?.pagination?.nextCursor ?? null)
+        : null,
     more: () => {
-      if (query.hasNextPage && !query.isFetching)
+      if (showItems && query.hasNextPage && !query.isFetching)
         return query.fetchNextPage({ cancelRefetch: false });
     },
     reload: () => {
