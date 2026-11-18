@@ -1,6 +1,10 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useStaffListPages } from "./use-staff-list-pages";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   Badge,
   Card,
@@ -14,9 +18,10 @@ import {
   type MaterialState,
   type ModeratedMaterial,
 } from "@/lib/staff/account-types";
-import { DecisionDialog, DownloadButton, Pager, QueueState } from "./common";
-import { useStaffList } from "./hooks";
+import { DecisionDialog, DownloadButton, QueueState } from "./common";
+
 import { useStaffSession } from "./session";
+import { AdminMaterialsScreen } from "./admin-materials";
 
 const states: Record<MaterialState, string> = {
   PENDING_REVIEW: "Chờ duyệt",
@@ -34,6 +39,15 @@ const labels: Record<Action, string> = {
 };
 
 export function MaterialsScreen() {
+  const { portal } = useStaffSession();
+  return portal === "admin" ? (
+    <AdminMaterialsScreen />
+  ) : (
+    <LegacyMaterialsScreen />
+  );
+}
+
+function LegacyMaterialsScreen() {
   const { api, actor } = useStaffSession();
   const [status, setStatus] = useState<MaterialState>("PENDING_REVIEW");
   const [query, setQuery] = useState("");
@@ -42,7 +56,9 @@ export function MaterialsScreen() {
     action: Action;
   } | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const queue = useStaffList<ModeratedMaterial>(`materials?status=${status}`);
+  const queue = useStaffListPages<ModeratedMaterial>(
+    `materials?status=${status}`,
+  );
   const items = queue.items.filter((item) =>
     `${item.title} ${item.description}`
       .toLocaleLowerCase("vi")
@@ -58,19 +74,20 @@ export function MaterialsScreen() {
         title="Duyệt tài liệu"
         desc="Xem tài liệu được gửi lên và quyết định công bố hoặc ẩn nội dung."
         actions={
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={queue.loading}
             onClick={reload}
+            loading={!!queue.loading}
           >
             Làm mới
-          </button>
+          </LoadingButton>
         }
       />
       <div className="toolbar">
         <SearchBox
-          label="Tìm trong tài liệu đã tải"
+          label="Tìm trong tài liệu trên trang này"
           placeholder="Tên hoặc mô tả tài liệu…"
           value={query}
           onChange={setQuery}
@@ -116,6 +133,26 @@ export function MaterialsScreen() {
                   actions.push("approve", "reject");
                 if (item.status === "PUBLISHED") actions.push("hide");
                 if (item.status === "HIDDEN") actions.push("unhide");
+                function materialScanLabel() {
+                  if (item.scanStatus === "CLEAN") {
+                    return "Đã kiểm tra an toàn" as const;
+                  }
+                  if (item.scanStatus === "PENDING") {
+                    return "Đang kiểm tra" as const;
+                  }
+                  return item.scanStatus;
+                }
+                function materialFileLabel() {
+                  if (item.file) {
+                    return (
+                      (item.file.originalFilename ?? item.file.mimeType) +
+                      (item.file.sizeBytes
+                        ? " · " + fmtSize(Number(item.file.sizeBytes))
+                        : "")
+                    );
+                  }
+                  return "Chưa có tệp" as const;
+                }
                 return (
                   <li className="staff-material" key={item.id}>
                     <div className="stack">
@@ -134,22 +171,29 @@ export function MaterialsScreen() {
                       <dl className="kv staff-kv">
                         <dt>Người đăng</dt>
                         <dd className="mono">{item.ownerId}</dd>
+                        <dt>Hồ sơ người đăng</dt>
+                        <dd>
+                          <Link
+                            className="link"
+                            href={`/learn/people/${encodeURIComponent(item.ownerId)}`}
+                          >
+                            Xem hồ sơ công khai
+                          </Link>
+                        </dd>
+                        <dt>Phiên bản đang duyệt</dt>
+                        <dd>{item.listingVersion}</dd>
+                        <dt>Lần kiểm duyệt gần nhất</dt>
+                        <dd>
+                          {item.reviewedAt
+                            ? fmtDateTime(item.reviewedAt)
+                            : "Chưa được kiểm duyệt"}
+                        </dd>
                         <dt>Cập nhật</dt>
                         <dd>{fmtDateTime(item.updatedAt)}</dd>
                         <dt>Tệp</dt>
-                        <dd>
-                          {item.file
-                            ? `${item.file.originalFilename ?? item.file.mimeType}${item.file.sizeBytes ? ` · ${fmtSize(Number(item.file.sizeBytes))}` : ""}`
-                            : "Chưa có tệp"}
-                        </dd>
+                        <dd>{materialFileLabel()}</dd>
                         <dt>Kiểm tra an toàn</dt>
-                        <dd>
-                          {item.scanStatus === "CLEAN"
-                            ? "Đã kiểm tra an toàn"
-                            : item.scanStatus === "PENDING"
-                              ? "Đang kiểm tra"
-                              : item.scanStatus}
-                        </dd>
+                        <dd>{materialScanLabel()}</dd>
                       </dl>
                       {item.file && (
                         <DownloadButton
@@ -197,16 +241,7 @@ export function MaterialsScreen() {
             </ul>
           )}
         </QueueState>
-        {!queue.error && (
-          <p className="staff-state muted">
-            {queue.items.length} tài liệu đã tải
-          </p>
-        )}
-        <Pager
-          loading={queue.loading}
-          more={queue.more}
-          hasMore={queue.page?.hasMore}
-        />
+        <ListPagination query={queue} />
       </Card>
       {decision && (
         <DecisionDialog

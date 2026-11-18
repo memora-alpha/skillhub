@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { achievementCopy, achievementTitle } from "@/lib/i18n/system-copy";
 import { useUserResource } from "../hooks/use-user-resource";
 import { useUserCommand } from "../hooks/use-user-command";
@@ -44,9 +45,10 @@ export function AchievementsScreen() {
       <Back href="/learn/profile" />
       <PageHeading title="Thành tích & danh hiệu" />
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       <CommandFeedback command={command} />
       {data && (
@@ -57,15 +59,17 @@ export function AchievementsScreen() {
                 "Bạn chưa chọn danh hiệu."}
             </p>
             {data.selectedTitle && (
-              <button
+              <LoadingButton
+                type="button"
                 className="btn"
                 disabled={command.pending || command.uncertain}
                 onClick={() => {
                   void select(null);
                 }}
+                loading={!!command.pending}
               >
                 Bỏ chọn danh hiệu
-              </button>
+              </LoadingButton>
             )}
           </Panel>
           <div className="achievement-grid">
@@ -77,7 +81,8 @@ export function AchievementsScreen() {
                 <h2>{achievementCopy(item).title}</h2>
                 <p>{achievementCopy(item).description}</p>
                 <p className="muted">Mở khóa: {formatTime(item.unlockedAt)}</p>
-                <button
+                <LoadingButton
+                  type="button"
                   className="btn"
                   disabled={
                     data.selectedTitle === item.title ||
@@ -87,11 +92,12 @@ export function AchievementsScreen() {
                   onClick={() => {
                     void select(item.code);
                   }}
+                  loading={!!command.pending}
                 >
                   {data.selectedTitle === item.title
                     ? "Đang dùng trên hồ sơ"
                     : "Dùng danh hiệu này"}
-                </button>
+                </LoadingButton>
               </Panel>
             ))}
           </div>

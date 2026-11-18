@@ -1,0 +1,19 @@
+.loading {
+  color: transparent;
+  animation: breathe 1.8s ease-in-out infinite;
+}
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading {
+    animation: none;
+    opacity: 0.6;
+  }
+}

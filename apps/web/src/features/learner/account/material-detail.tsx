@@ -1,6 +1,8 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { MaterialReviews, MaterialRating } from "./material-reviews";
 import { MaterialThumbnail } from "./material-cover";
+import { MaterialFavorite } from "./material-library";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { useUserResource } from "../hooks/use-user-resource";
@@ -136,9 +138,10 @@ function MaterialDetailContent({ id }: Readonly<{ id: string }>) {
     <>
       <Back href="/learn/materials" />
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       {material && (
         <>
@@ -161,6 +164,7 @@ function MaterialDetailContent({ id }: Readonly<{ id: string }>) {
               </div>
               <h3>Về tài liệu này</h3>
               <MaterialRating summary={material.ratingSummary} />
+              {!owned && <MaterialFavorite materialId={id} />}
               <p className="learner-prose">{material.description}</p>
               <p>Phiên bản niêm yết: {material.listingVersion}</p>
               <Link
@@ -177,9 +181,17 @@ function MaterialDetailContent({ id }: Readonly<{ id: string }>) {
                   : material.priceCredit + " CR"}
               </strong>
               <Feedback
-                loading={material.accessType === "PAID" && orders.loading}
+                loading={
+                  material.accessType === "PAID" && orders.initialLoading
+                }
                 error={orders.error}
                 reload={orders.reload}
+                refreshing={
+                  !!(
+                    orders.loading &&
+                    !(material.accessType === "PAID" && orders.initialLoading)
+                  )
+                }
               />
               {owned || purchased || material.accessType === "FREE" ? (
                 <>
@@ -190,7 +202,7 @@ function MaterialDetailContent({ id }: Readonly<{ id: string }>) {
                       quyền hoàn đơn tự động.
                     </p>
                   )}
-                  <button
+                  <LoadingButton
                     type="button"
                     className="btn btn-primary"
                     disabled={downloading || confirmDownload}
@@ -198,9 +210,10 @@ function MaterialDetailContent({ id }: Readonly<{ id: string }>) {
                       if (purchased) setConfirmDownload(true);
                       else void getDownload();
                     }}
+                    loading={!!downloading}
                   >
                     {downloading ? "Đang chuẩn bị tải…" : "Tải tài liệu"}
-                  </button>
+                  </LoadingButton>
                   {confirmDownload && (
                     <section
                       className="learner-notice"
@@ -212,24 +225,26 @@ function MaterialDetailContent({ id }: Readonly<{ id: string }>) {
                         động, kể cả khi việc tải bị gián đoạn.
                       </p>
                       <div className="learner-actions">
-                        <button
+                        <LoadingButton
                           type="button"
                           className="btn btn-primary"
                           disabled={downloading}
                           onClick={() => void getDownload()}
+                          loading={!!downloading}
                         >
                           {downloading
                             ? "Đang chuẩn bị tải…"
                             : "Xác nhận và tải"}
-                        </button>
-                        <button
+                        </LoadingButton>
+                        <LoadingButton
                           type="button"
                           className="btn"
                           disabled={downloading}
                           onClick={() => setConfirmDownload(false)}
+                          loading={!!downloading}
                         >
                           Để sau
-                        </button>
+                        </LoadingButton>
                       </div>
                     </section>
                   )}
@@ -249,7 +264,7 @@ function MaterialDetailContent({ id }: Readonly<{ id: string }>) {
                     />{" "}
                     Tôi đồng ý mua tài liệu với giá {material.priceCredit} CR.
                   </label>
-                  <button
+                  <LoadingButton
                     type="button"
                     className="btn btn-primary"
                     style={{ marginTop: 18 }}
@@ -281,15 +296,18 @@ function MaterialDetailContent({ id }: Readonly<{ id: string }>) {
                           }
                         });
                     }}
+                    loading={!!command.pending}
                   >
                     {purchaseLabel}
-                  </button>
+                  </LoadingButton>
                   <CommandFeedback command={command} />
                 </>
               )}
             </Panel>
           </div>
-          <MaterialReviews materialId={id} />
+          <div id="material-reviews">
+            <MaterialReviews materialId={id} />
+          </div>
         </>
       )}
     </>

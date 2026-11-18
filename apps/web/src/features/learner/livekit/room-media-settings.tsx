@@ -1,4 +1,6 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 import { useId, useRef, useState } from "react";
 import type { LocalTrack, Track } from "livekit-client";
 import type { CameraBackground } from "./use-camera-background";
@@ -119,9 +121,9 @@ function AudioForm({
             ? "Krisp cần trình duyệt và môi trường LiveKit hỗ trợ. Lần đầu có thể mất thời gian tải bộ lọc."
             : "Vào phòng để kiểm tra và bật Krisp. Bạn có thể kiểm tra mic với lọc cơ bản tại đây."}
         </small>
-        <button type="submit">
+        <LoadingButton type="submit" loading={!!audio.busy}>
           {audio.busy ? "Đang áp dụng…" : "Áp dụng âm thanh"}
-        </button>
+        </LoadingButton>
       </fieldset>
     </form>
   );
@@ -198,15 +200,16 @@ export function RoomMediaSettings(props: Readonly<SettingsProps>) {
             </div>
             <p>Hình nền đã chọn: {backgroundLabel}</p>
             <div className={styles.actions}>
-              <button
+              <LoadingButton
                 type="button"
                 disabled={busy}
                 aria-pressed={background.settings.mode === "off"}
                 onClick={() => void props.changeBackground({ mode: "off" })}
+                loading={!!busy}
               >
                 Không hiệu ứng
-              </button>
-              <button
+              </LoadingButton>
+              <LoadingButton
                 type="button"
                 disabled={busy || background.unsupported}
                 aria-pressed={background.settings.mode === "blur"}
@@ -216,9 +219,10 @@ export function RoomMediaSettings(props: Readonly<SettingsProps>) {
                     blurRadius: radius,
                   })
                 }
+                loading={!!busy}
               >
                 Làm mờ nền
-              </button>
+              </LoadingButton>
             </div>
             <label>
               <span>Độ mờ: {radius}</span>
@@ -231,7 +235,7 @@ export function RoomMediaSettings(props: Readonly<SettingsProps>) {
                 onChange={(event) => setRadius(Number(event.target.value))}
               />
             </label>
-            <button
+            <LoadingButton
               type="button"
               disabled={busy || background.unsupported}
               onClick={() =>
@@ -240,12 +244,13 @@ export function RoomMediaSettings(props: Readonly<SettingsProps>) {
                   blurRadius: radius,
                 })
               }
+              loading={!!busy}
             >
               Áp dụng độ mờ
-            </button>
+            </LoadingButton>
             <div className={styles.presets}>
               {backgroundPresets.map((preset) => (
-                <button
+                <LoadingButton
                   type="button"
                   key={preset.imagePath}
                   disabled={busy || background.unsupported}
@@ -259,12 +264,13 @@ export function RoomMediaSettings(props: Readonly<SettingsProps>) {
                       imagePath: preset.imagePath,
                     })
                   }
+                  loading={!!busy}
                 >
                   <span
                     style={{ backgroundImage: `url("${preset.imagePath}")` }}
                   />
                   {preset.name}
-                </button>
+                </LoadingButton>
               ))}
             </div>
             <label>
@@ -319,13 +325,14 @@ export function RoomMediaSettings(props: Readonly<SettingsProps>) {
               </label>
             ))}
             <div className={styles.meter}>
-              <button
+              <LoadingButton
                 type="button"
                 disabled={busy}
                 onClick={props.toggleMicrophone}
+                loading={!!busy}
               >
                 {microphoneNotice}
-              </button>
+              </LoadingButton>
               {open && (
                 <RoomMicrophoneMeter
                   track={props.microphone ? props.microphoneTrack : undefined}
@@ -354,7 +361,7 @@ export function RoomMediaSettings(props: Readonly<SettingsProps>) {
         </div>
         {(background.busy || audio.busy) && (
           <p>
-            <output>Đang chuẩn bị hiệu ứng…</output>
+            <LoadingSkeleton variant="inline" label="Đang chuẩn bị hiệu ứng" />
           </p>
         )}
         {background.error && <p role="alert">{background.error}</p>}

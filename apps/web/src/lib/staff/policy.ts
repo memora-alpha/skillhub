@@ -3,7 +3,10 @@ const routes: [string, RegExp, (path: string) => string][] = [
   ["GET", /^material-reviews$/, (p) => `staff/${p}`],
   [
     "POST",
-    new RegExp(`^material-reviews/${uuid}/(hide|restore)$`, "i"),
+    new RegExp(
+      `^material-reviews/${uuid}/(hide|restore|dismiss-reports)$`,
+      "i",
+    ),
     (p) => `staff/${p}`,
   ],
   ["GET", new RegExp(`^profiles/${uuid}(/skills|/reviews)?$`, "i"), (p) => p],
@@ -162,6 +165,7 @@ const routes: [string, RegExp, (path: string) => string][] = [
   ["PATCH", new RegExp(`^notifications/${uuid}/read$`, "i"), (p) => p],
 ];
 const adminRoutes: [string, RegExp, (path: string) => string][] = [
+  ["GET", /^dashboard\/trends$/, (p) => `admin/${p}`],
   ["GET", /^dashboard\/summary$/, (p) => `admin/${p}`],
   ["GET", /^dashboard\/work-items$/, (p) => `admin/${p}`],
   [

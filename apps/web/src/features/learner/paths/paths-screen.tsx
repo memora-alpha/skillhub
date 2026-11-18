@@ -1,11 +1,12 @@
 "use client";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useUserPagedList } from "../hooks/use-user-paged-list";
 import Link from "next/link";
 import type { PathSummary } from "../types";
-import { useUserList } from "../hooks/use-user-resource";
+
 import {
   Empty,
   Feedback,
-  More,
   PageHeading,
   Panel,
   Status,
@@ -15,16 +16,17 @@ import { ProfileName } from "../components/profile-name";
 import { PathProgress, type PathOverview } from "./path-overview";
 import { learningStageLabel, pathActionLabel } from "./path-navigation";
 export function PathsScreen() {
-  const query = useUserList<PathSummary & Partial<PathOverview>>(
+  const query = useUserPagedList<PathSummary & Partial<PathOverview>>(
     "learning-paths/mine?limit=20",
   );
   return (
     <>
       <PageHeading title="Lộ trình học của tôi" />
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       <div className="learner-post-grid">
         {query.items.map((path) => (
@@ -68,13 +70,7 @@ export function PathsScreen() {
           Chưa có lộ trình. Mở một cuộc trao đổi để tạo thỏa thuận học.
         </Empty>
       )}
-      <More
-        cursor={query.cursor}
-        loading={query.loading}
-        onMore={() => {
-          void query.more();
-        }}
-      />
+      <ListPagination query={query} />
     </>
   );
 }

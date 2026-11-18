@@ -1,6 +1,7 @@
 "use client";
 import { useId, type ReactNode } from "react";
 import { Empty } from "@/components/console/ui";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 import { financeNumber } from "@/lib/staff/finance-presentation";
 import { DashboardPanel } from "./dashboard-widgets";
 import styles from "./dashboard.module.css";
@@ -47,8 +48,7 @@ export function DashboardChart({
   loading = false,
 }: Readonly<ChartProps>) {
   let emptyTitle = "Chưa có dữ liệu trong kỳ";
-  if (!available)
-    emptyTitle = loading ? "Đang tải số liệu…" : "Chưa tải được số liệu";
+  if (!available) emptyTitle = "Chưa tải được số liệu";
   return (
     <DashboardPanel
       title={title}
@@ -60,10 +60,14 @@ export function DashboardChart({
     >
       {!points.length ? (
         <div className={styles.emptyChart}>
-          <Empty
-            title={emptyTitle}
-            desc="Chọn khoảng thời gian hoặc làm mới để kiểm tra."
-          />
+          {loading ? (
+            <LoadingSkeleton label="Đang tải số liệu" />
+          ) : (
+            <Empty
+              title={emptyTitle}
+              desc="Chọn khoảng thời gian hoặc làm mới để kiểm tra."
+            />
+          )}
         </div>
       ) : (
         <>

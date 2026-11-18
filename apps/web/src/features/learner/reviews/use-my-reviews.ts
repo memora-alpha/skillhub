@@ -1,10 +1,10 @@
 "use client";
-import { useMemo } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useUserSession } from "../auth/session";
 import { UserApiError } from "../api/client";
 import { pageUrl } from "../api/page-url";
 import { readReviewPage } from "./review-contract";
+import { useListPages } from "@/components/pagination/use-list-pages";
 
 export function useMyReviews(direction: "received" | "sent") {
   const { actor, request } = useUserSession();
@@ -26,16 +26,6 @@ export function useMyReviews(direction: "received" | "sent") {
       return cursor && !cursors.includes(cursor) ? cursor : undefined;
     },
   });
-  const rows = useMemo(
-    () => [
-      ...new Map(
-        query.data?.pages
-          .flatMap((page) => page.data.items)
-          .map((row) => [row.id, row]) ?? [],
-      ).values(),
-    ],
-    [query.data],
-  );
   const temporary =
     query.error instanceof UserApiError &&
     (query.error.status === 0 ||
@@ -43,20 +33,33 @@ export function useMyReviews(direction: "received" | "sent") {
       query.error.status === 429 ||
       query.error.status >= 500);
   const readable = !query.error || temporary;
+  const pagination = useListPages({
+    scope: `${actor.userId}:${endpoint}`,
+    chunks: readable
+      ? (query.data?.pages.map((page) => page.data.items) ?? [])
+      : [],
+    loading: query.isFetching,
+    hasMore: readable && !!query.hasNextPage,
+    error: query.error?.message,
+    more: () => readable && query.fetchNextPage({ cancelRefetch: false }),
+    reload: () => query.refetch(),
+  });
   return {
-    rows: readable ? rows : [],
+    ...pagination,
+    rows: readable ? pagination.items : [],
     summary: readable ? query.data?.pages[0]?.data.summary : undefined,
     initialLoading: query.isPending,
     loading: query.isFetching,
     error: query.error?.message,
-    cursor: query.hasNextPage
-      ? (query.data?.pages.at(-1)?.meta?.pagination?.nextCursor ?? null)
-      : null,
+    cursor:
+      readable && query.hasNextPage
+        ? (query.data?.pages.at(-1)?.meta?.pagination?.nextCursor ?? null)
+        : null,
     reload: () => {
-      void query.refetch();
+      void pagination.reload();
     },
     more: () => {
-      if (query.hasNextPage && !query.isFetching)
+      if (readable && query.hasNextPage && !query.isFetching)
         void query.fetchNextPage({ cancelRefetch: false });
     },
   };

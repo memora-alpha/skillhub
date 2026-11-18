@@ -1,4 +1,6 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 import { achievementCopy, achievementTitle } from "@/lib/i18n/system-copy";
 import { Badge, Card, Empty, PageHeader } from "@/components/console/ui";
 import { fmtDateTime } from "@/lib/console/format";
@@ -13,14 +15,15 @@ export function AchievementsScreen() {
         title="Thành tích & danh hiệu"
         desc="Thành tích đã mở khóa và danh hiệu công khai của tài khoản đang đăng nhập."
         actions={
-          <button
+          <LoadingButton
             className="btn"
             type="button"
             disabled={loading || saving}
             onClick={() => void reload()}
+            loading={!!(loading || saving)}
           >
             {loading ? "Đang tải…" : "Làm mới"}
-          </button>
+          </LoadingButton>
         }
       />
       {error && (
@@ -33,22 +36,21 @@ export function AchievementsScreen() {
           Đã cập nhật danh hiệu trên hồ sơ.
         </output>
       )}
-      {loading && !data && (
-        <output className="staff-state">Đang tải thành tích…</output>
-      )}
+      {loading && !data && <LoadingSkeleton variant="page" />}
       {data && (
         <>
           <Card
             title="Danh hiệu đang chọn"
             actions={
-              <button
+              <LoadingButton
                 type="button"
                 className="btn"
                 disabled={saving || loading || !data.selectedTitle}
                 onClick={() => void select(null)}
+                loading={!!(saving || loading)}
               >
                 {saving ? "Đang lưu…" : "Ẩn danh hiệu"}
-              </button>
+              </LoadingButton>
             }
           >
             <p>
@@ -88,14 +90,15 @@ export function AchievementsScreen() {
                           {data.selectedTitle === item.title ? (
                             <Badge tone="ok">Đang chọn</Badge>
                           ) : (
-                            <button
+                            <LoadingButton
                               type="button"
                               className="btn btn-sm"
                               disabled={saving || loading}
                               onClick={() => void select(item.code)}
+                              loading={!!(saving || loading)}
                             >
                               Chọn danh hiệu
-                            </button>
+                            </LoadingButton>
                           )}
                         </td>
                       </tr>

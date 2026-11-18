@@ -1,14 +1,15 @@
 "use client";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useUserPagedList } from "../hooks/use-user-paged-list";
 import { systemCodeLabel } from "@/lib/system-text";
 
 import Link from "next/link";
 import { useState } from "react";
 import { useUserSession } from "../auth/session";
-import { useUserList } from "../hooks/use-user-resource";
+
 import {
   Empty,
   Feedback,
-  More,
   PageHeading,
   Panel,
   Status,
@@ -55,16 +56,17 @@ function SharerResults({
   verifiedOnly,
 }: Readonly<{ skillId: string; verifiedOnly: boolean }>) {
   const { actor } = useUserSession();
-  const query = useUserList<SkillSharer>(
+  const query = useUserPagedList<SkillSharer>(
     "skills/" + skillId + "/sharers?limit=20&verifiedOnly=" + verifiedOnly,
   );
   const people = query.items.filter((row) => row.user.userId !== actor.userId);
   return (
     <div aria-live="polite">
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       <div className="learner-post-grid">
         {people.map((row) => (
@@ -113,13 +115,7 @@ function SharerResults({
             : "Chưa có người phù hợp. Thử kỹ năng khác hoặc bỏ bộ lọc xác minh."}
         </Empty>
       )}
-      <More
-        cursor={query.cursor}
-        loading={query.loading}
-        onMore={() => {
-          void query.more();
-        }}
-      />
+      <ListPagination query={query} />
     </div>
   );
 }

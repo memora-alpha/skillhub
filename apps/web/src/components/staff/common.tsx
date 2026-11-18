@@ -1,8 +1,11 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Empty } from "@/components/console/ui";
 import { StaffApiError, isSessionFailure } from "@/lib/staff/client";
 import { useStaffSession } from "./session";
+import { DecisionErrorDialog } from "./decision-error-dialog";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 export function QueueState({
   loading,
   error,
@@ -28,21 +31,28 @@ export function QueueState({
             {!empty && "Đang hiển thị dữ liệu đã tải trước đó. "}
             {error}
           </p>
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             onClick={reload}
             disabled={loading}
+            loading={!!loading}
           >
             Thử lại
-          </button>
+          </LoadingButton>
         </div>
         {!empty && children}
       </>
     );
-  if (loading && empty)
-    return <output className="staff-state">Đang tải dữ liệu…</output>;
+  if (loading && empty) return <LoadingSkeleton variant="table" />;
   if (empty) return <Empty title={emptyTitle} desc={emptyDescription} />;
+  if (loading)
+    return (
+      <>
+        <LoadingSkeleton variant="inline" label="Đang cập nhật dữ liệu" />
+        {children}
+      </>
+    );
   return children;
 }
 export function Pager({
@@ -56,9 +66,15 @@ export function Pager({
 }>) {
   return hasMore ? (
     <div className="staff-pager">
-      <button type="button" className="btn" onClick={more} disabled={loading}>
+      <LoadingButton
+        type="button"
+        className="btn"
+        onClick={more}
+        disabled={loading}
+        loading={!!loading}
+      >
         {loading ? "Đang tải…" : "Tải thêm"}
-      </button>
+      </LoadingButton>
     </div>
   ) : null;
 }
@@ -100,6 +116,7 @@ export function DecisionDialog({
   const heading = useRef<HTMLHeadingElement>(null);
   const attempt = useRef<{ text: string; key: string } | null>(null);
   const flight = useRef(false);
+  const invalidField = useRef<HTMLElement | null>(null);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -124,6 +141,27 @@ export function DecisionDialog({
     >
       <form
         className="staff-dialog"
+        onInvalid={(event) => {
+          event.preventDefault();
+          const field = event.target;
+          if (!(
+            field instanceof HTMLInputElement ||
+            field instanceof HTMLSelectElement ||
+            field instanceof HTMLTextAreaElement
+          ))
+            return;
+          if (invalidField.current) return;
+          invalidField.current = field;
+          const details = field.closest("details");
+          if (details) details.open = true;
+          const label =
+            field.getAttribute("aria-label") ??
+            field.labels?.[0]?.textContent?.trim() ??
+            "thông tin bắt buộc";
+          setError(
+            `Vui lòng kiểm tra ${label.toLocaleLowerCase("vi")}. ${field.validity.valueMissing ? "Bạn chưa nhập hoặc chọn thông tin này." : "Giá trị chưa đúng định dạng hoặc ngoài giới hạn cho phép."}`,
+          );
+        }}
         onSubmit={async (e) => {
           e.preventDefault();
           if (flight.current || mustReload) return;
@@ -153,8 +191,19 @@ export function DecisionDialog({
             );
             if (
               err instanceof StaffApiError &&
-              (err.status === 409 ||
-                (!idempotent && (err.status === 0 || err.status >= 500)))
+              ((err.status === 409 &&
+                ![
+                  "USER_MAKEUP_LIMIT_REACHED",
+                  "SESSION_MAKEUP_LIMIT_REACHED",
+                  "MAKEUP_ATTRIBUTION_REVIEW_REQUIRED",
+                  "MAKEUP_USER_REQUIRED",
+                  "MAKEUP_USER_NOT_PARTICIPANT",
+                  "INSUFFICIENT_AVAILABLE_CREDIT",
+                ].includes(err.code)) ||
+                (!idempotent &&
+                  (err.status === 0 ||
+                    err.status === 408 ||
+                    err.status >= 500)))
             )
               setMustReload(true);
           } finally {
@@ -164,15 +213,16 @@ export function DecisionDialog({
         }}
       >
         {presentation === "drawer" && (
-          <button
+          <LoadingButton
             type="button"
             className="icon-btn ops-drawer-close"
             aria-label="Đóng hộp thoại"
             disabled={busy}
             onClick={onClose}
+            loading={!!busy}
           >
             ×
-          </button>
+          </LoadingButton>
         )}
         <span className={`badge badge-${danger ? "bad" : "brand"}`}>
           XÁC NHẬN THAO TÁC
@@ -211,20 +261,16 @@ export function DecisionDialog({
             {max !== undefined ? `/${max}` : ""} ký tự
           </div>
         )}
-        {error && (
-          <p className="staff-error" role="alert">
-            {error}
-          </p>
-        )}
         <div className="staff-dialog-actions">
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={busy}
             onClick={onClose}
+            loading={!!busy}
           >
             Hủy
-          </button>
+          </LoadingButton>
           {mustReload ? (
             <button
               type="button"
@@ -237,16 +283,33 @@ export function DecisionDialog({
               Tải lại dữ liệu
             </button>
           ) : (
-            <button
+            <LoadingButton
               type="submit"
               className={`btn ${danger ? "btn-danger" : "btn-primary"}`}
               disabled={busy}
+              loading={!!busy}
             >
               {busy ? "Đang gửi…" : confirmLabel}
-            </button>
+            </LoadingButton>
           )}
         </div>
       </form>
+      {error && (
+        <DecisionErrorDialog
+          message={error}
+          requiresReload={mustReload}
+          onClose={() => {
+            setError(null);
+            const field = invalidField.current;
+            invalidField.current = null;
+            requestAnimationFrame(() => field?.focus({ preventScroll: true }));
+          }}
+          onReload={() => {
+            onReload();
+            onClose();
+          }}
+        />
+      )}
     </dialog>
   );
 }

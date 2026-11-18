@@ -1,3 +1,4 @@
+import { LoadingButton } from "@/components/loading-button";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { LearningSession } from "../types";
@@ -75,15 +76,16 @@ export function SessionDetailHeader({
           <strong>{view.title}</strong>
           <p>{view.description}</p>
         </div>
-        <button
+        <LoadingButton
           type="button"
           className="btn"
           onClick={refresh}
           disabled={loading}
+          loading={!!loading}
         >
           <ProductIcon name="refresh" size={16} />
           {loading ? "Đang cập nhật…" : "Làm mới"}
-        </button>
+        </LoadingButton>
       </section>
       {view.step > 0 &&
         !["CANCELLED", "NO_SHOW", "MAKEUP_REQUIRED", "DISPUTED"].includes(

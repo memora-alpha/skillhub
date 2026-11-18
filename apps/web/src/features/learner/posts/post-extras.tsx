@@ -87,9 +87,10 @@ export function PostExtras({
         <legend>Kỹ năng bạn có thể dạy để trao đổi</legend>
         <p>Chọn kỹ năng đang công khai của bạn.</p>
         <Feedback
-          loading={skills.loading}
+          loading={skills.initialLoading}
           error={skills.error}
           reload={skills.reload}
+          refreshing={!!(skills.loading && !skills.initialLoading)}
         />
         {eligible.map((skill) => (
           <label key={skill.id}>

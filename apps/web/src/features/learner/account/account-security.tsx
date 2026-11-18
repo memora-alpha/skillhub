@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { useRef, useState } from "react";
 import { useUserSession } from "../auth/session";
 import { Feedback } from "../components/common";
@@ -25,7 +26,7 @@ export function AccountSecurity() {
         </button>
       ) : (
         <div className="learner-actions">
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={pending}
@@ -47,17 +48,19 @@ export function AccountSecurity() {
                 setPending(false);
               }
             }}
+            loading={!!pending}
           >
             {pending ? "Đang kết thúc các phiên…" : "Xác nhận đăng xuất tất cả"}
-          </button>
-          <button
+          </LoadingButton>
+          <LoadingButton
             type="button"
             className="btn"
             disabled={pending}
             onClick={() => setReviewing(false)}
+            loading={!!pending}
           >
             Quay lại
-          </button>
+          </LoadingButton>
         </div>
       )}
       <Feedback error={error} />

@@ -1,0 +1,57 @@
+.navigation {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 16px;
+  min-width: 0;
+}
+.number {
+  min-width: 36px;
+  min-height: 36px;
+  padding-inline: 8px;
+}
+.numbers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+}
+.navigation .numbers .number[aria-current="page"] {
+  background: var(--brand);
+  color: var(--on-brand, #fff);
+  border-color: var(--brand);
+  opacity: 1;
+}
+.status {
+  margin-inline-start: auto;
+  color: var(--muted);
+  font-size: 12px;
+}
+@media (max-width: 480px) {
+  .navigation {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    padding: 12px 8px;
+    gap: 4px;
+  }
+  .navigation > button {
+    padding-inline: 8px;
+  }
+  .numbers {
+    gap: 2px;
+  }
+  .number {
+    min-width: 30px;
+    min-height: 40px;
+    padding-inline: 4px;
+  }
+  .status {
+    grid-column: 1 / -1;
+    flex-basis: 100%;
+    margin-inline-start: 0;
+    padding-top: 4px;
+  }
+}

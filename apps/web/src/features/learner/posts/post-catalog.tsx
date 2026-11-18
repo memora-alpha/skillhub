@@ -4,6 +4,7 @@ import { useUserResource } from "../hooks/use-user-resource";
 import { useUserSession } from "../auth/session";
 import { findInPages } from "../api/find-page";
 import { Feedback } from "../components/common";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 import type { Skill } from "../types";
 import type { Tag } from "../tags/tag-policy";
 import styles from "./posts.module.css";
@@ -12,7 +13,11 @@ export function PostSkillName({ id }: Readonly<{ id: string }>) {
   return (
     <>
       {skill.data?.name ??
-        (skill.error ? "Kỹ năng không còn khả dụng" : "Đang tải tên kỹ năng…")}
+        (skill.error ? (
+          "Kỹ năng không còn khả dụng"
+        ) : (
+          <LoadingSkeleton variant="inline" label="Đang tải tên kỹ năng" />
+        ))}
     </>
   );
 }
@@ -55,14 +60,20 @@ export function PostSelectedTags({ ids }: Readonly<{ ids: string[] }>) {
   return (
     <>
       <div className={styles.tags} aria-label="Chủ đề">
-        {ids.map((id) => (
-          <span key={id} className={styles.tag}>
-            {tags.find((tag) => tag.id === id)?.label ??
-              (result.key === selection && !result.error
-                ? "Tag không còn hoạt động"
-                : "Đang tải…")}
-          </span>
-        ))}
+        {ids.map((id) => {
+          const missingTagLabel =
+            result.key === selection ? (
+              "Tag không còn hoạt động"
+            ) : (
+              <LoadingSkeleton variant="inline" label="Đang tải tên tag" />
+            );
+          return (
+            <span key={id} className={styles.tag}>
+              {tags.find((tag) => tag.id === id)?.label ??
+                (result.error ? "Chưa tải được tên tag" : missingTagLabel)}
+            </span>
+          );
+        })}
       </div>
       <Feedback
         error={result.error}

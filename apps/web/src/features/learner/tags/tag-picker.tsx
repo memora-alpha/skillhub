@@ -80,9 +80,10 @@ export function TagPicker({
         />
       </div>
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       <div className="learner-choice-list">
         {query.items.map((tag) => (

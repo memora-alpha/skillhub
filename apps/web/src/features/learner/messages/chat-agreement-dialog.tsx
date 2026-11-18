@@ -1,4 +1,5 @@
 "use client";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 import { useEffect, useId, useRef } from "react";
 import type { Conversation, Proposal } from "../types";
 import { AgreementCreator } from "../paths/agreement-creator";
@@ -46,7 +47,7 @@ export function ChatAgreementDialog({
       {proposal ? (
         <AgreementCreator conversation={conversation} proposal={proposal} />
       ) : (
-        <p>Đang tải thông tin đề nghị. Bạn có thể đóng và thử lại sau.</p>
+        <LoadingSkeleton label="Đang tải thông tin đề nghị" />
       )}
     </dialog>
   );

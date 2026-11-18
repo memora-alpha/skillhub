@@ -1,0 +1,43 @@
+.button {
+  position: relative;
+}
+.content {
+  display: contents;
+}
+.busy > * {
+  visibility: hidden;
+}
+.busy > .placeholder {
+  visibility: visible;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.placeholder > span {
+  display: block;
+  width: 65%;
+  max-width: 10rem;
+  min-width: 8px;
+  height: 0.8em;
+  border-radius: 5px;
+  background: var(--line, #e5e7eb);
+  opacity: 0.6;
+  animation: breathe 1.8s ease-in-out infinite;
+}
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .placeholder > span {
+    animation: none;
+  }
+}

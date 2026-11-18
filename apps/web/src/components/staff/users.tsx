@@ -1,4 +1,7 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useStaffListPages } from "./use-staff-list-pages";
 import "./user-management.css";
 import { useState } from "react";
 import {
@@ -17,9 +20,9 @@ import {
   userRoles,
   userStatuses,
 } from "@/lib/staff/user-list-filters";
-import { useStaffList } from "./hooks";
+
 import { useStaffSession } from "./session";
-import { Pager, QueueState } from "./common";
+import { QueueState } from "./common";
 import { Icon } from "@/components/console/icon";
 import { UserManagementDialog } from "./user-management-dialog";
 import { CreateStaffDialog } from "./create-staff-dialog";
@@ -45,8 +48,8 @@ export function UsersScreen({
   const params = new URLSearchParams({ limit: "20" });
   if (status) params.set("status", status);
   if (role) params.set("role", role);
-  const queue = useStaffList<AdminUser>(`users?${params}`);
-  const selected = queue.items.find((u) => u.userId === selectedId);
+  const queue = useStaffListPages<AdminUser>(`users?${params}`);
+  const selected = queue.allItems.find((u) => u.userId === selectedId);
   const dateError = userCreatedDateError(createdFrom, createdTo);
   const rows = filterLoadedUsers(queue.items, q, createdFrom, createdTo);
   const hasFilters = Boolean(q || role || status || createdFrom || createdTo);
@@ -79,21 +82,22 @@ export function UsersScreen({
                 Tạo tài khoản nhân viên
               </button>
             )}
-            <button
+            <LoadingButton
               type="button"
               className="btn"
               disabled={queue.loading}
               onClick={reload}
+              loading={!!queue.loading}
             >
               Làm mới
-            </button>
+            </LoadingButton>
           </div>
         }
       />
       <section className="user-list-filters" aria-label="Lọc người dùng">
         <div className="toolbar user-list-main-filters">
           <SearchBox
-            label="Tìm trong người dùng đã tải"
+            label="Tìm trong trang người dùng hiện tại"
             placeholder="Tên, email đã che hoặc mã…"
             value={q}
             onChange={setQ}
@@ -190,8 +194,8 @@ export function UsersScreen({
           )}
         </div>
         <p className="user-filter-scope" id="user-filter-scope">
-          Tìm kiếm và ngày tạo áp dụng cho các trang đã tải. Vai trò và trạng
-          thái lọc toàn bộ danh sách.
+          Tìm kiếm và ngày tạo áp dụng cho trang hiện tại. Vai trò và trạng thái
+          lọc toàn bộ danh sách.
         </p>
         {dateError && (
           <p className="staff-error" id="user-date-error" role="alert">
@@ -212,12 +216,12 @@ export function UsersScreen({
               title={
                 dateError
                   ? "Chọn lại khoảng ngày"
-                  : "Không có kết quả trong danh sách đã tải"
+                  : "Không có kết quả trong trang hiện tại"
               }
               desc={
                 dateError ||
                 (queue.page?.hasMore
-                  ? "Thử đổi bộ lọc hoặc tải thêm người dùng bên dưới."
+                  ? "Thử đổi bộ lọc hoặc chuyển sang trang khác."
                   : "Thử đổi bộ lọc để xem người dùng khác.")
               }
             />
@@ -292,7 +296,7 @@ export function UsersScreen({
                               : "Cấp quyền nhân viên"}
                           </button>
                           {["ACTIVE", "LOCKED"].includes(u.accountStatus) && (
-                            <button
+                            <LoadingButton
                               type="button"
                               className="btn btn-sm btn-ghost"
                               disabled={
@@ -325,6 +329,7 @@ export function UsersScreen({
                                 setInitialAction(next);
                                 setSuccess(null);
                               }}
+                              loading={!!queue.loading}
                             >
                               <Icon
                                 name={
@@ -337,7 +342,7 @@ export function UsersScreen({
                               {u.accountStatus === "LOCKED"
                                 ? "Mở khóa"
                                 : "Khóa tài khoản"}
-                            </button>
+                            </LoadingButton>
                           )}
                         </div>
                       </td>
@@ -348,28 +353,16 @@ export function UsersScreen({
             </div>
           )}
         </QueueState>
-        <div className="table-foot">
-          {dateError
-            ? "Khoảng ngày chưa hợp lệ"
-            : `${rows.length} kết quả trong ${queue.items.length} người dùng đã tải`}
-        </div>
-        <Pager
-          loading={queue.loading}
-          more={queue.more}
-          hasMore={queue.page?.hasMore}
-        />
+        {dateError && <div className="table-foot">Khoảng ngày chưa hợp lệ</div>}
+        <ListPagination query={queue} />
       </Card>
       {selectedId && !selected && !queue.loading && !queue.error && (
         <Card className="section">
           <p>
-            Tài khoản được chọn chưa có trong danh sách đã tải. Tải thêm hoặc
+            Tài khoản được chọn chưa có trong trang hiện tại. Chuyển trang hoặc
             đổi bộ lọc để tìm tài khoản.
           </p>
-          <Pager
-            loading={queue.loading}
-            more={queue.more}
-            hasMore={queue.page?.hasMore}
-          />
+          <ListPagination query={queue} />
         </Card>
       )}
       {creating && (

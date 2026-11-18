@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { MaterialThumbnail } from "./material-cover";
 import { MaterialRating } from "./material-reviews";
 import { SearchInput } from "@/components/search-input";
@@ -8,6 +9,7 @@ import type { Skill } from "../types";
 import { useUserResource, useUserList } from "../hooks/use-user-resource";
 import { Empty, Feedback, PageHeading } from "../components/common";
 import type { Material } from "./account-types";
+import { PageNavigation } from "@/components/pagination/page-navigation";
 export function MaterialsScreen() {
   const skills = useUserList<Skill>("skills?limit=50");
   const [skillId, setSkillId] = useState("");
@@ -30,6 +32,9 @@ export function MaterialsScreen() {
         title="Thư viện tài liệu"
         action={
           <div className="learner-actions">
+            <Link className="btn" href="/learn/materials/library">
+              Thư viện của tôi
+            </Link>
             <Link className="btn" href="/learn/materials/orders">
               Đơn tài liệu đã mua
             </Link>
@@ -87,21 +92,23 @@ export function MaterialsScreen() {
       </div>
       <Feedback error={skills.error} reload={skills.reload} />
       {skills.cursor && (
-        <button
+        <LoadingButton
           type="button"
           className="btn"
           disabled={skills.loading}
           onClick={() => {
             void skills.more();
           }}
+          loading={!!skills.loading}
         >
           Tải thêm kỹ năng cho bộ lọc
-        </button>
+        </LoadingButton>
       )}
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       <div className="product-materials">
         {query.data?.map((material) => (
@@ -144,33 +151,19 @@ export function MaterialsScreen() {
       {!query.loading && !query.error && !query.data?.length && (
         <Empty>Chưa có tài liệu phù hợp với bộ lọc này.</Empty>
       )}
-      <div className="learner-actions">
-        <button
-          type="button"
-          className="btn"
-          disabled={page === 1 || query.loading}
-          onClick={() => setPage((v) => Math.max(1, v - 1))}
-        >
-          ← Trang trước
-        </button>
-        <span>
-          Trang {page}
-          {typeof total === "number" ? " · " + total + " tài liệu" : ""}
-        </span>
-        <button
-          type="button"
-          className="btn"
-          disabled={
-            query.loading ||
-            !!query.error ||
-            !query.data ||
-            page * 12 >= (total ?? page * 12)
-          }
-          onClick={() => setPage((v) => v + 1)}
-        >
-          Trang sau →
-        </button>
-      </div>
+      <PageNavigation
+        pageNumber={page}
+        totalPages={
+          typeof total === "number"
+            ? Math.max(1, Math.ceil(total / 12))
+            : undefined
+        }
+        loading={query.loading}
+        hasNext={
+          !query.error && !!query.data && page * 12 < (total ?? page * 12)
+        }
+        onPageChange={setPage}
+      />
     </>
   );
 }

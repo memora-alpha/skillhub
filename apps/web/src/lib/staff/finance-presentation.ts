@@ -15,6 +15,8 @@ const labels: Record<string, string> = {
   DRAFT: "Bản nháp",
   APPROVED: "Đã duyệt",
   SETTLEMENT: "Tất toán lộ trình",
+  PATH_SETTLEMENT: "Quyết toán lộ trình",
+  PATH_HOLD: "Giữ Credit cho lộ trình",
   MATERIAL_REFUND: "Hoàn tiền tài liệu",
   REVERSAL: "Hoàn tác giao dịch",
 };

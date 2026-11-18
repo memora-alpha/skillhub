@@ -11,7 +11,7 @@ export function CaseSupportPanel({
   item,
   onUpdated,
 }: Readonly<{ item: ReportCaseDetail; onUpdated: () => unknown }>) {
-  const { actor, api } = useStaffSession();
+  const { actor, api, portal } = useStaffSession();
   const [party, setParty] = useState("");
   const [draft, setDraft] = useState("");
   const [incident, setIncident] = useState(false);
@@ -31,28 +31,62 @@ export function CaseSupportPanel({
   const owns = item.handlerId === actor?.userId;
   const open = ["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"].includes(item.status);
   return (
-    <Card>
+    <Card className="admin-case-support">
       <h2>Trao đổi riêng</h2>
       {!owns ? (
         <p>Nhận xử lý báo cáo để trao đổi với các bên.</p>
       ) : (
         <>
-          <label>
-            <span>Bên liên quan</span>
-            <select
-              className="select"
-              value={party}
-              onChange={(e) => setParty(e.target.value)}
+          {portal === "admin" ? (
+            <fieldset
+              className="admin-party-tabs"
+
+              aria-label="Chọn bên trao đổi riêng"
             >
-              <option value="">Chọn người trao đổi</option>
-              {parties.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                  {p === item.reporterId ? " · Người báo cáo" : ""}
-                </option>
-              ))}
-            </select>
-          </label>
+              {parties.map((id) => {
+                function partyLabel() {
+                  if (id === item.session?.teacherId) {
+                    return "Người dạy" as const;
+                  }
+                  if (id === item.session?.learnerId) {
+                    return "Người học" as const;
+                  }
+                  if (id === item.reporterId) {
+                    return "Người báo cáo" as const;
+                  }
+                  return "Bên liên quan" as const;
+                }
+                return (
+                  <button
+                    type="button"
+                    key={id}
+                    className="btn btn-sm"
+                    aria-pressed={party === id}
+                    onClick={() => setParty(id)}
+                  >
+                    {partyLabel()} · {id.slice(0, 8)}
+                  </button>
+                );
+              })}
+            </fieldset>
+          ) : (
+            <label>
+              <span>Bên liên quan</span>
+              <select
+                className="select"
+                value={party}
+                onChange={(e) => setParty(e.target.value)}
+              >
+                <option value="">Chọn người trao đổi</option>
+                {parties.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                    {p === item.reporterId ? " · Người báo cáo" : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {item.relatedOrderId && (
             <details>
               <summary>Trao đổi với bên mua hoặc bán khác</summary>

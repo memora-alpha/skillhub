@@ -1,4 +1,7 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useStaffListPages } from "./use-staff-list-pages";
 import { useState } from "react";
 import {
   Badge,
@@ -11,8 +14,8 @@ import {
 import { fmtDateTime, fmtSize } from "@/lib/console/format";
 import type { Verification } from "@/lib/staff/types";
 import { useStaffSession } from "./session";
-import { useStaffList, useStaffResource } from "./hooks";
-import { DecisionDialog, DownloadButton, Pager, QueueState } from "./common";
+import { useStaffResource } from "./hooks";
+import { DecisionDialog, DownloadButton, QueueState } from "./common";
 type Decision = {
   action: "approve" | "reject" | "revoke";
   evidenceId?: string;
@@ -122,38 +125,41 @@ function VerificationDetail({
                   {actor?.roles.includes("ADMIN") &&
                     file.approvalStatus === "APPROVED" &&
                     !file.revokedAt && (
-                      <button
+                      <LoadingButton
                         type="button"
                         className="btn btn-danger btn-sm"
                         disabled={!!decision || detail.loading}
                         onClick={() =>
                           setDecision({ action: "revoke", evidenceId: file.id })
                         }
+                        loading={!!detail.loading}
                       >
                         Thu hồi phê duyệt
-                      </button>
+                      </LoadingButton>
                     )}
                 </div>
               </section>
             ))}
             {item.status === "PENDING" && (
               <div className="staff-detail-actions">
-                <button
+                <LoadingButton
                   type="button"
                   className="btn btn-danger"
                   disabled={!!decision || detail.loading}
                   onClick={() => setDecision({ action: "reject" })}
+                  loading={!!detail.loading}
                 >
                   Từ chối
-                </button>
-                <button
+                </LoadingButton>
+                <LoadingButton
                   type="button"
                   className="btn btn-primary"
                   disabled={!!decision || detail.loading}
                   onClick={() => setDecision({ action: "approve" })}
+                  loading={!!detail.loading}
                 >
                   Phê duyệt
-                </button>
+                </LoadingButton>
               </div>
             )}
             {decision && (
@@ -214,7 +220,7 @@ export function EvidenceScreen({
       ? initialVerificationId
       : null,
   );
-  const queue = useStaffList<Verification>(
+  const queue = useStaffListPages<Verification>(
     `verifications?status=${status}&limit=20`,
   );
   return (
@@ -223,14 +229,15 @@ export function EvidenceScreen({
         title="Bằng chứng kỹ năng"
         desc="Xem xét các tệp người dùng gửi và ghi nhận kết quả xác minh."
         actions={
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={queue.loading}
             onClick={queue.reload}
+            loading={!!queue.loading}
           >
             Làm mới
-          </button>
+          </LoadingButton>
         }
       />
       <div className="toolbar">
@@ -247,10 +254,6 @@ export function EvidenceScreen({
             { id: "REJECTED", label: "Đã từ chối" },
           ]}
         />
-        <span className="muted">
-          {queue.items.length} mục đã tải
-          {queue.page?.hasMore ? " · còn trang tiếp theo" : ""}
-        </span>
       </div>
       <div className="split" data-selected={selected !== null}>
         <Card className="split-list" flush>
@@ -283,11 +286,7 @@ export function EvidenceScreen({
               ))}
             </ul>
           </QueueState>
-          <Pager
-            loading={queue.loading}
-            hasMore={queue.page?.hasMore}
-            more={queue.more}
-          />
+          <ListPagination query={queue} />
         </Card>
         <div className="split-detail">
           {selected ? (

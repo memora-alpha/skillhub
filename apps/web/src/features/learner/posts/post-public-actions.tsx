@@ -53,6 +53,7 @@ export function PostPublicActions({ post }: Readonly<{ post: Post }>) {
         reload={() => {
           void existing.refetch();
         }}
+        refreshing={!!(existing.isFetching && !existing.isPending)}
       />
       {existing.data ? (
         <>

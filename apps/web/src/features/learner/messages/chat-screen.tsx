@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -139,9 +140,10 @@ export function ChatScreen({ id }: Readonly<{ id: string }>) {
   return (
     <section className={styles.chat} aria-label="Cuộc trò chuyện">
       <Feedback
-        loading={conversation.loading}
+        loading={conversation.initialLoading}
         error={conversation.error}
         reload={conversation.reload}
+        refreshing={!!(conversation.loading && !conversation.initialLoading)}
       />
       {conversation.data && (
         <>
@@ -174,17 +176,18 @@ export function ChatScreen({ id }: Readonly<{ id: string }>) {
                 </small>
               </span>
             </Link>
-            <button
+            <LoadingButton
               type="button"
               className={styles.agreement}
               disabled={opening}
               onClick={() => {
                 void openAgreement();
               }}
+              loading={!!opening}
             >
               <ProductIcon name="check" size={17} />
               {opening ? "Đang mở…" : "Thỏa thuận"}
-            </button>
+            </LoadingButton>
           </header>
           <Feedback error={error} />
           <Feedback error={proposal.error} reload={proposal.reload} />
@@ -212,9 +215,10 @@ export function ChatScreen({ id }: Readonly<{ id: string }>) {
               }}
             />
             <Feedback
-              loading={messages.loading}
+              loading={messages.initialLoading}
               error={messages.error}
               reload={messages.reload}
+              refreshing={!!(messages.loading && !messages.initialLoading)}
             />
             {rows.map((message, index) => {
               const previousMessage = rows[index - 1],

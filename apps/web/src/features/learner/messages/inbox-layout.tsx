@@ -1,11 +1,13 @@
 "use client";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useUserPagedList } from "../hooks/use-user-paged-list";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { useUserSession } from "../auth/session";
 import { useUserList, useUserResource } from "../hooks/use-user-resource";
 import type { Conversation } from "../types";
-import { Feedback, More } from "../components/common";
+import { Feedback } from "../components/common";
 import { ProductIcon } from "../components/product-icon";
 import { MemberIdentity } from "../components/member-identity";
 import { formatVietnamTime } from "@/lib/vietnam-time";
@@ -15,12 +17,12 @@ import styles from "./inbox.module.css";
 
 export function InboxLayout({ children }: Readonly<{ children: ReactNode }>) {
   const [selectedId, setSelectedId] = useState<string>();
-  const groups = useUserList<InboxGroup>("conversations/inbox?limit=20");
+  const groups = useUserPagedList<InboxGroup>("conversations/inbox?limit=20");
   const conversations = useUserList<Conversation>("conversations?limit=20");
   const pathname = usePathname();
   const router = useRouter();
   const active = pathname !== "/learn/messages";
-  const selected = groups.items.find((group) => group.id === selectedId);
+  const selected = groups.allItems.find((group) => group.id === selectedId);
   return (
     <div className={styles.page} data-detail={active || !!selected}>
       <header className={styles.pageHeader}>
@@ -40,9 +42,10 @@ export function InboxLayout({ children }: Readonly<{ children: ReactNode }>) {
             <span>Trao đổi và kết nối</span>
           </div>
           <Feedback
-            loading={groups.loading}
+            loading={groups.initialLoading}
             error={groups.error}
             reload={groups.reload}
+            refreshing={!!(groups.loading && !groups.initialLoading)}
           />
           <div className={styles.groupList}>
             {groups.items.map((group) => {
@@ -104,13 +107,7 @@ export function InboxLayout({ children }: Readonly<{ children: ReactNode }>) {
               <Link href="/learn/connections">Xem đề nghị</Link>
             </div>
           )}
-          <More
-            cursor={groups.cursor}
-            loading={groups.loading}
-            onMore={() => {
-              void groups.more();
-            }}
-          />
+          <ListPagination query={groups} />
         </aside>
         <div className={styles.main}>
           {!active && selected ? (

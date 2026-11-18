@@ -1,13 +1,14 @@
 "use client";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useUserPagedList } from "../hooks/use-user-paged-list";
 import { systemCodeLabel } from "@/lib/system-text";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { financeNumber } from "@/lib/staff/finance-presentation";
-import { useUserList, useUserResource } from "../hooks/use-user-resource";
+import { useUserResource } from "../hooks/use-user-resource";
 import {
   Empty,
   Feedback,
-  More,
   PageHeading,
   Panel,
   Status,
@@ -38,7 +39,7 @@ export function WalletScreen() {
   if (type) params.set("type", type);
   if (referenceType) params.set("referenceType", referenceType);
   const wallet = useUserResource<Wallet>("me/wallet"),
-    ledger = useUserList<LedgerEntry>("me/wallet/transactions?" + params);
+    ledger = useUserPagedList<LedgerEntry>("me/wallet/transactions?" + params);
   return (
     <>
       <PageHeading
@@ -50,9 +51,10 @@ export function WalletScreen() {
         }
       />
       <Feedback
-        loading={wallet.loading}
+        loading={wallet.initialLoading}
         error={wallet.error}
         reload={wallet.reload}
+        refreshing={!!(wallet.loading && !wallet.initialLoading)}
       />
       <div className="wallet-overview">
         <article className="product-balance primary">
@@ -121,9 +123,10 @@ export function WalletScreen() {
           </label>
         </div>
         <Feedback
-          loading={ledger.loading}
+          loading={ledger.initialLoading}
           error={ledger.error}
           reload={ledger.reload}
+          refreshing={!!(ledger.loading && !ledger.initialLoading)}
         />
         {!!ledger.items.length && (
           <div className="product-table-scroll">
@@ -177,13 +180,7 @@ export function WalletScreen() {
         {!ledger.loading && !ledger.error && !ledger.items.length && (
           <Empty>Chưa có giao dịch Credit.</Empty>
         )}
-        <More
-          cursor={ledger.cursor}
-          loading={ledger.loading}
-          onMore={() => {
-            void ledger.more();
-          }}
-        />
+        <ListPagination query={ledger} />
       </Panel>
       {selected && (
         <WalletTransactionDetail
@@ -233,9 +230,10 @@ function WalletTransactionDetail({
           Đóng chi tiết
         </button>
         <Feedback
-          loading={query.loading}
+          loading={query.initialLoading}
           error={query.error}
           reload={query.reload}
+          refreshing={!!(query.loading && !query.initialLoading)}
         />
         {row && (
           <div className="learner-stack">

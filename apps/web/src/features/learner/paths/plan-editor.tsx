@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { formText } from "../components/form-data";
 
 import { useState } from "react";
@@ -50,9 +51,10 @@ export function PlanEditor({
       }}
     >
       <Feedback
-        loading={skills.loading}
+        loading={skills.initialLoading}
         error={skills.error}
         reload={skills.reload}
+        refreshing={!!(skills.loading && !skills.initialLoading)}
       />
       <label>
         <span>Kỹ năng bạn hướng dẫn</span>
@@ -119,13 +121,14 @@ export function PlanEditor({
         </label>
       ))}
       <CommandFeedback command={command} />
-      <button
+      <LoadingButton
         type="submit"
         className="btn btn-primary"
         disabled={command.pending || command.uncertain || !choices.length}
+        loading={!!command.pending}
       >
         Lưu kế hoạch của tôi
-      </button>
+      </LoadingButton>
     </form>
   );
 }

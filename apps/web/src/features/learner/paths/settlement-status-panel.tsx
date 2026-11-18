@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import styles from "../components/learning-layout.module.css";
 import { ProductIcon } from "../components/product-icon";
 import { useState } from "react";
@@ -139,9 +140,10 @@ export function SettlementStatusPanel({
         thể đồng ý giải ngân sớm; xác nhận hoàn thành buổi học là bước riêng.
       </p>
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={readError ?? query.error ?? contractError}
         reload={() => void reconcile()}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       {status && (
         <>
@@ -180,7 +182,7 @@ export function SettlementStatusPanel({
                     sau đó không tự hoàn Credit.
                   </p>
                   <div className="learner-actions">
-                    <button
+                    <LoadingButton
                       type="button"
                       className="btn btn-primary"
                       disabled={
@@ -190,17 +192,19 @@ export function SettlementStatusPanel({
                         !!query.error
                       }
                       onClick={() => void approve()}
+                      loading={!!(checking || consent.pending || query.loading)}
                     >
                       Tôi đồng ý giải ngân ngay
-                    </button>
-                    <button
+                    </LoadingButton>
+                    <LoadingButton
                       type="button"
                       className="btn"
                       disabled={consent.pending}
                       onClick={() => setReviewing(false)}
+                      loading={!!consent.pending}
                     >
                       Tiếp tục chờ theo hạn
-                    </button>
+                    </LoadingButton>
                   </div>
                 </div>
               )}
@@ -212,7 +216,7 @@ export function SettlementStatusPanel({
             </p>
           )}
           {status.retryable && status.status === "RETRYING" && (
-            <button
+            <LoadingButton
               type="button"
               className="btn"
               disabled={
@@ -231,9 +235,10 @@ export function SettlementStatusPanel({
                   )
                   .then(() => query.reload())
               }
+              loading={!!(retry.pending || checking || query.loading)}
             >
               Thử lại quyết toán
-            </button>
+            </LoadingButton>
           )}
         </>
       )}
@@ -251,16 +256,19 @@ export function SettlementStatusPanel({
         </p>
       )}
       <div className="learner-actions">
-        <button
+        <LoadingButton
           type="button"
           className="btn"
           disabled={
             checking || query.loading || consent.pending || retry.pending
           }
           onClick={() => void reconcile()}
+          loading={
+            !!(checking || query.loading || consent.pending || retry.pending)
+          }
         >
           {refreshLabel()}
-        </button>
+        </LoadingButton>
         <Link className="btn" href="/learn/wallet">
           Xem ví
         </Link>

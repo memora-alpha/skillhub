@@ -21,6 +21,7 @@ export function PathReviewScreen({ id }: Readonly<{ id: string }>) {
         loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       {path && (
         <div className={styles.composeGrid}>

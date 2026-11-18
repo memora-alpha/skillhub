@@ -1,4 +1,5 @@
 "use client";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 import { useId, useState } from "react";
 import { primaryRoomTile, type RoomTile } from "./room-media";
 import { RoomAvatar } from "./room-avatar";
@@ -177,7 +178,13 @@ function RoomTilePlaceholder({
           className={styles.avatar}
         />
       )}
-      <span>{screen ? "Đang tải màn hình chia sẻ…" : tile.name}</span>
+      <span>
+        {screen ? (
+          <LoadingSkeleton variant="inline" label="Đang tải màn hình chia sẻ" />
+        ) : (
+          tile.name
+        )}
+      </span>
       {main && (
         <small>
           {screen

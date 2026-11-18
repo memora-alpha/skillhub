@@ -1,4 +1,7 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useStaffListPages } from "./use-staff-list-pages";
 import Link from "next/link";
 import { useState } from "react";
 import {
@@ -10,8 +13,8 @@ import {
 import { fmtDateTime } from "@/lib/console/format";
 import { systemCodeLabel } from "@/lib/system-text";
 import { useStaffSession } from "./session";
-import { useStaffList } from "./hooks";
-import { DecisionDialog, Pager, QueueState } from "./common";
+
+import { DecisionDialog, QueueState } from "./common";
 import styles from "./dashboard.module.css";
 type Review = {
   id: string;
@@ -33,9 +36,11 @@ export function MaterialReviewModeration() {
   const { api, portal } = useStaffSession();
   const [status, setStatus] = useState("REPORTED");
   const [selected, setSelected] = useState<Review>();
-  const list = useStaffList<Review>(
+  const [dismissReports, setDismissReports] = useState(false);
+  const list = useStaffListPages<Review>(
     `material-reviews?status=${status}&limit=20`,
   );
+  const decision = reviewDecision(dismissReports, selected?.status);
   return (
     <div className={styles.dashboard}>
       <Segmented
@@ -53,14 +58,15 @@ export function MaterialReviewModeration() {
       <Card
         title="Kiểm duyệt đánh giá tài liệu"
         actions={
-          <button
+          <LoadingButton
             type="button"
             className="btn btn-sm"
             disabled={list.loading}
             onClick={list.reload}
+            loading={!!list.loading}
           >
             Làm mới
-          </button>
+          </LoadingButton>
         }
       >
         <QueueState
@@ -117,50 +123,70 @@ export function MaterialReviewModeration() {
                   <button
                     type="button"
                     className="btn"
-                    onClick={() => setSelected(review)}
+                    onClick={() => {
+                      setDismissReports(false);
+                      setSelected(review);
+                    }}
                   >
                     {review.status === "HIDDEN"
                       ? "Khôi phục đánh giá"
                       : "Ẩn đánh giá"}
                   </button>
+                  {review.status === "VISIBLE" && review.reports.length > 0 && (
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => {
+                        setDismissReports(true);
+                        setSelected(review);
+                      }}
+                    >
+                      Bác báo cáo, giữ đánh giá
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
           </DataTable>
-          <Pager
-            loading={list.loading}
-            hasMore={list.page?.hasMore}
-            more={list.more}
-          />
+          <ListPagination query={list} />
         </QueueState>
       </Card>
       {selected && (
         <DecisionDialog
           key={`${selected.id}:${selected.version}`}
-          title={
-            selected.status === "HIDDEN" ? "Khôi phục đánh giá" : "Ẩn đánh giá"
-          }
+          title={decision.title}
           description={`Tài liệu: ${selected.material.title}. Ghi lý do để lưu quyết định kiểm duyệt.`}
           min={1}
           max={2000}
-          confirmLabel={
-            selected.status === "HIDDEN" ? "Xác nhận khôi phục" : "Xác nhận ẩn"
-          }
-          danger={selected.status !== "HIDDEN"}
+          confirmLabel={decision.confirmLabel}
+          danger={!dismissReports && selected.status !== "HIDDEN"}
           onClose={() => setSelected(undefined)}
           onReload={list.reload}
           onSubmit={async (reason) => {
-            await api(
-              `material-reviews/${selected.id}/${selected.status === "HIDDEN" ? "restore" : "hide"}`,
-              {
-                method: "POST",
-                body: { expectedVersion: selected.version, reason },
-              },
-            );
+            await api(`material-reviews/${selected.id}/${decision.action}`, {
+              method: "POST",
+              body: { expectedVersion: selected.version, reason },
+            });
             void list.reload();
           }}
         />
       )}
     </div>
   );
+}
+
+function reviewDecision(dismissReports: boolean, status: string | undefined) {
+  if (dismissReports)
+    return {
+      title: "Bác báo cáo, giữ đánh giá",
+      confirmLabel: "Xác nhận bác báo cáo",
+      action: "dismiss-reports",
+    };
+  if (status === "HIDDEN")
+    return {
+      title: "Khôi phục đánh giá",
+      confirmLabel: "Xác nhận khôi phục",
+      action: "restore",
+    };
+  return { title: "Ẩn đánh giá", confirmLabel: "Xác nhận ẩn", action: "hide" };
 }

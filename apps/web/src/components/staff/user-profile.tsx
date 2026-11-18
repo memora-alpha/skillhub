@@ -1,4 +1,8 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { PageNavigation } from "@/components/pagination/page-navigation";
+import { useStaffListPages } from "./use-staff-list-pages";
 import { useState } from "react";
 import { Badge, Card, Empty } from "@/components/console/ui";
 import { ProfileAvatar } from "@/features/learner/components/profile-avatar";
@@ -10,8 +14,8 @@ import type { ReviewSummary } from "@/features/learner/account/profile-reviews";
 import { achievementCopy, achievementTitle } from "@/lib/i18n/system-copy";
 import { systemCodeLabel } from "@/lib/system-text";
 import { fmtDateTime } from "@/lib/console/format";
-import { useStaffList, useStaffResource } from "./hooks";
-import { Pager, QueueState } from "./common";
+import { useStaffResource } from "./hooks";
+import { QueueState } from "./common";
 import { OperationReference } from "./operation-reference";
 import styles from "./user-profile.module.css";
 
@@ -30,14 +34,15 @@ export function StaffUserProfile({ userId }: Readonly<{ userId: string }>) {
       <Card
         title="Hồ sơ người dùng"
         actions={
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={profile.loading}
             onClick={() => void profile.reload()}
+            loading={!!profile.loading}
           >
             Làm mới hồ sơ
-          </button>
+          </LoadingButton>
         }
       >
         <QueueState
@@ -109,7 +114,7 @@ export function StaffUserProfile({ userId }: Readonly<{ userId: string }>) {
 }
 
 function UserSkills({ userId }: Readonly<{ userId: string }>) {
-  const skills = useStaffList<PublicSharingSkill>(
+  const skills = useStaffListPages<PublicSharingSkill>(
     `profiles/${userId}/skills?limit=20`,
   );
   return (
@@ -141,11 +146,7 @@ function UserSkills({ userId }: Readonly<{ userId: string }>) {
           </article>
         ))}
       </QueueState>
-      <Pager
-        loading={skills.loading}
-        hasMore={skills.page?.hasMore}
-        more={skills.more}
-      />
+      <ListPagination query={skills} />
     </Card>
   );
 }
@@ -226,31 +227,19 @@ function UserReviews({
           </article>
         ))}
       </QueueState>
-      {(page > 0 || next) && (
-        <nav className={styles.pager} aria-label="Trang đánh giá công khai">
-          <button
-            type="button"
-            className="btn"
-            disabled={reviews.loading || page === 0}
-            onClick={() => setPage((value) => value - 1)}
-          >
-            Trang trước
-          </button>
-          <span className="muted">Trang {page + 1}</span>
-          <button
-            type="button"
-            className="btn"
-            disabled={reviews.loading || !!reviews.error || !next || repeated}
-            onClick={() => {
-              if (!next || repeated) return;
-              setCursors((values) => [...values.slice(0, page + 1), next]);
-              setPage((value) => value + 1);
-            }}
-          >
-            Trang tiếp
-          </button>
-        </nav>
-      )}
+      <PageNavigation
+        pageNumber={page + 1}
+        totalPages={!next ? page + 1 : undefined}
+        loading={reviews.loading}
+        hasNext={!reviews.error && !!next && !repeated}
+        onPageChange={(target) => {
+          if (target <= cursors.length) setPage(target - 1);
+          else if (target === page + 2 && next && !repeated) {
+            setCursors((values) => [...values.slice(0, page + 1), next]);
+            setPage(target - 1);
+          }
+        }}
+      />
       {repeated && (
         <p role="alert" className="staff-error">
           Chưa tải được trang tiếp theo. Làm mới hồ sơ rồi thử lại.

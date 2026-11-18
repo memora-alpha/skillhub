@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { useState } from "react";
 import { formText } from "../components/form-data";
 import { useUserSession } from "../auth/session";
@@ -57,13 +58,14 @@ export function SessionCompletionActions({
             />
             <span>Tôi xác nhận đã tham gia buổi học này.</span>
           </label>
-          <button
+          <LoadingButton
             type="submit"
             className="btn btn-primary"
             disabled={!confirm || disabled}
+            loading={!!command.pending}
           >
             {command.pending ? "Đang xác nhận…" : "Xác nhận đã học"}
-          </button>
+          </LoadingButton>
         </form>
       )}
       {session.excuse && (
@@ -101,15 +103,20 @@ export function SessionCompletionActions({
               rows={4}
             />
           </label>
-          <button type="submit" className="btn btn-primary" disabled={disabled}>
+          <LoadingButton
+            type="submit"
+            className="btn btn-primary"
+            disabled={disabled}
+            loading={!!command.pending}
+          >
             {command.pending ? "Đang gửi…" : "Gửi giải trình"}
-          </button>
+          </LoadingButton>
         </form>
       )}
       {allowed.includes("DECIDE_EXCUSE") && (
         <div className={styles.decisions}>
           {[true, false].map((accept) => (
-            <button
+            <LoadingButton
               type="button"
               className={accept ? "btn btn-primary" : "btn"}
               key={String(accept)}
@@ -122,9 +129,10 @@ export function SessionCompletionActions({
                   ),
                 );
               }}
+              loading={!!command.pending}
             >
               {accept ? "Chấp nhận và học bù" : "Không chấp nhận lý do"}
-            </button>
+            </LoadingButton>
           ))}
         </div>
       )}

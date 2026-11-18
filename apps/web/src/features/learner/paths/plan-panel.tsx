@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import Link from "next/link";
 import { useState } from "react";
 import type { LearningPath, Plan } from "../types";
@@ -62,7 +63,7 @@ export function PlanPanel({
             </ol>
             <p>{plan.totalSessions} buổi</p>
             {editable && !teacher && !plan.learnerConfirmedAt && (
-              <button
+              <LoadingButton
                 type="button"
                 className="btn btn-primary"
                 disabled={command.pending || command.uncertain}
@@ -74,9 +75,10 @@ export function PlanPanel({
                     }),
                   );
                 }}
+                loading={!!command.pending}
               >
                 Xác nhận kế hoạch
-              </button>
+              </LoadingButton>
             )}
             {editable && teacher && (
               <button
@@ -114,7 +116,7 @@ export function PlanPanel({
                     ))}
                   </ul>
                   {editable && plan.schedule.appliedVersion === null && (
-                    <button
+                    <LoadingButton
                       type="button"
                       className="btn btn-primary"
                       disabled={
@@ -142,11 +144,12 @@ export function PlanPanel({
                             ),
                         );
                       }}
+                      loading={!!command.pending}
                     >
                       {ownScheduleConfirmed
                         ? "Đã xác nhận lịch"
                         : "Xác nhận lịch"}
-                    </button>
+                    </LoadingButton>
                   )}
                 </>
               ) : (

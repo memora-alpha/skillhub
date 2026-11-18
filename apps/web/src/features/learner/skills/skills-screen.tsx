@@ -1,7 +1,13 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import {
+  splitPages,
+  useListPages,
+} from "@/components/pagination/use-list-pages";
 import { formText } from "../components/form-data";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useUserSession } from "../auth/session";
 import { useUserList, useUserResource } from "../hooks/use-user-resource";
 import { useUserCommand } from "../hooks/use-user-command";
@@ -11,7 +17,6 @@ import {
   CommandFeedback,
   Empty,
   Feedback,
-  More,
   PageHeading,
   Panel,
 } from "../components/common";
@@ -24,10 +29,28 @@ type Level = {
   sortOrder: number;
 };
 export function SkillsScreen() {
-  const [includeArchived, setIncludeArchived] = useState(false);
-  const query = useUserList<SharingSkill>(
-      "me/skills?limit=20&includeArchived=" + includeArchived,
-    ),
+  const [tab, setTab] = useState<"ALL" | "ARCHIVED">("ALL");
+  const list = useUserList<SharingSkill>(
+    "me/skills?limit=20&includeArchived=true",
+  );
+  const { cursor, loading, error, more } = list;
+  const archivedOnly = tab === "ARCHIVED";
+  const loadingArchived = archivedOnly && !!cursor && !error;
+  // The API exposes inclusion, not an archived-only filter. Read the remaining
+  // pages before reporting an empty archive or its final page count.
+  useEffect(() => {
+    if (archivedOnly && cursor && !loading && !error) void more();
+  }, [archivedOnly, cursor, loading, error, more]);
+  const pagination = useListPages({
+    ...list,
+    scope: `${list.scope}:${tab}`,
+    chunks: archivedOnly
+      ? splitPages(list.items.filter((skill) => skill.archivedAt !== null))
+      : list.chunks,
+    loading: list.loading || loadingArchived,
+    hasMore: !archivedOnly && !!list.cursor,
+  });
+  const query = { ...list, ...pagination },
     { request } = useUserSession(),
     command = useUserCommand(true);
   const [skillId, setSkillId] = useState(""),
@@ -38,20 +61,39 @@ export function SkillsScreen() {
   return (
     <>
       <PageHeading title="Kỹ năng tôi có thể chia sẻ" />
-      <label className="learner-actions">
-        <input
-          type="checkbox"
-          checked={includeArchived}
-          onChange={(event) => setIncludeArchived(event.target.checked)}
-        />{" "}
-        Hiển thị cả kỹ năng đã lưu trữ
-      </label>
+      <fieldset className="learner-tabs" aria-label="Lọc kỹ năng">
+        <button
+          type="button"
+          aria-pressed={tab === "ALL"}
+          onClick={() => setTab("ALL")}
+        >
+          Tất cả
+        </button>
+        <button
+          type="button"
+          aria-pressed={archivedOnly}
+          onClick={() => setTab("ARCHIVED")}
+        >
+          Đã lưu trữ
+        </button>
+      </fieldset>
       <div className="learner-two-columns">
         <div className="learner-stack">
           <Feedback
-            loading={query.loading}
+            loading={
+              query.initialLoading || (loadingArchived && !query.items.length)
+            }
             error={query.error}
             reload={query.reload}
+            refreshing={
+              !!(
+                query.loading &&
+                !(
+                  query.initialLoading ||
+                  (loadingArchived && !query.items.length)
+                )
+              )
+            }
           />
           {query.items.map((skill) => (
             <SkillManagementCard
@@ -62,15 +104,13 @@ export function SkillsScreen() {
             />
           ))}
           {!query.loading && !query.error && !query.items.length && (
-            <Empty>Bạn chưa khai báo kỹ năng chia sẻ.</Empty>
+            <Empty>
+              {archivedOnly
+                ? "Bạn chưa có kỹ năng nào được lưu trữ."
+                : "Bạn chưa khai báo kỹ năng chia sẻ."}
+            </Empty>
           )}
-          <More
-            cursor={query.cursor}
-            loading={query.loading}
-            onMore={() => {
-              void query.more();
-            }}
-          />
+          <ListPagination query={query} />
         </div>
         <Panel title="Thêm kỹ năng">
           <form
@@ -99,9 +139,11 @@ export function SkillsScreen() {
               disabled={command.pending || command.uncertain}
             />
             <Feedback
-              loading={levels.loading}
+              variant="inline"
+              loading={levels.initialLoading}
               error={levels.error}
               reload={levels.reload}
+              refreshing={!!(levels.loading && !levels.initialLoading)}
             />
             <label>
               <span>Trình độ</span>
@@ -139,7 +181,7 @@ export function SkillsScreen() {
             </label>
             <CommandFeedback command={command} />
             {message && <p className="learner-notice">{message}</p>}
-            <button
+            <LoadingButton
               type="submit"
               className="btn btn-primary"
               disabled={
@@ -148,9 +190,10 @@ export function SkillsScreen() {
                 command.pending ||
                 (command.uncertain && !command.canRetry)
               }
+              loading={!!command.pending}
             >
               Lưu kỹ năng
-            </button>
+            </LoadingButton>
           </form>
         </Panel>
       </div>

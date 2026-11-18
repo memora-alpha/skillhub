@@ -1,7 +1,9 @@
 "use client";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useUserPagedList } from "../hooks/use-user-paged-list";
 import { useState } from "react";
-import { useUserList, useUserResource } from "../hooks/use-user-resource";
-import { Feedback, More, Status, formatTime } from "../components/common";
+import { useUserResource } from "../hooks/use-user-resource";
+import { Feedback, Status, formatTime } from "../components/common";
 import { CaseDrawer } from "../components/case-drawer";
 import { PrivateCaseThread } from "../account/private-case-thread";
 import type { CaseCapabilities } from "../account/case-capabilities";
@@ -28,7 +30,7 @@ export function PathCases({
   selected?: string;
   onSelect: (id: string | undefined) => void;
 }>) {
-  const cases = useUserList<CaseSummary>(
+  const cases = useUserPagedList<CaseSummary>(
     `learning-paths/${pathId}/cases?limit=20`,
   );
   const summary = useUserResource<CaseSummary>(
@@ -45,9 +47,10 @@ export function PathCases({
           {cases.cursor ? "+" : ""})
         </Heading>
         <Feedback
-          loading={cases.loading}
+          loading={cases.initialLoading}
           error={cases.error}
           reload={cases.reload}
+          refreshing={!!(cases.loading && !cases.initialLoading)}
         />
         <div className={styles.caseList}>
           {cases.items.map((item) => (
@@ -73,13 +76,7 @@ export function PathCases({
         {!cases.loading && !cases.error && !cases.items.length && (
           <p className="muted">Không có vụ việc trong lộ trình.</p>
         )}
-        <More
-          cursor={cases.cursor}
-          loading={cases.loading}
-          onMore={() => {
-            void cases.more();
-          }}
-        />
+        <ListPagination query={cases} />
       </Container>
       {selected && (
         <CaseDrawer
@@ -91,9 +88,10 @@ export function PathCases({
           onClose={() => onSelect(undefined)}
         >
           <Feedback
-            loading={summary.loading}
+            loading={summary.initialLoading}
             error={summary.error}
             reload={summary.reload}
+            refreshing={!!(summary.loading && !summary.initialLoading)}
           />
           {current && !summary.error && (
             <>

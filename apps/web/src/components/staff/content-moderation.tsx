@@ -1,4 +1,7 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useStaffListPages } from "./use-staff-list-pages";
 import Link from "next/link";
 import { useState } from "react";
 import {
@@ -7,9 +10,9 @@ import {
   Segmented,
   StatusBadge,
 } from "@/components/console/ui";
-import { useStaffList, useStaffResource } from "./hooks";
+import { useStaffResource } from "./hooks";
 import { useStaffSession } from "./session";
-import { DecisionDialog, Pager, QueueState } from "./common";
+import { DecisionDialog, QueueState } from "./common";
 import { Identifier } from "./operation-tools";
 import { OperationReference } from "./operation-reference";
 import { StaffUserProfile } from "./user-profile";
@@ -250,26 +253,25 @@ function ReviewModeration({
   onProfile,
 }: Readonly<{ onProfile: (id: string) => void }>) {
   const { api, actor, portal } = useStaffSession();
-  const reviews = useStaffList<Review>("reviews?limit=20");
+  const reviews = useStaffListPages<Review>("reviews?limit=20");
   const [selected, setSelected] = useState<Review>();
   return (
     <Card
       title="Đánh giá từ các lộ trình"
       actions={
-        <button
+        <LoadingButton
           type="button"
           className="btn"
           disabled={reviews.loading}
           onClick={() => void reviews.reload()}
+          loading={!!reviews.loading}
         >
           Làm mới
-        </button>
+        </LoadingButton>
       }
     >
       <p className={styles.hint}>
-        {reviews.items.length}
-        {reviews.page?.hasMore ? "+" : ""} đánh giá đã tải · Ẩn hoặc khôi phục
-        nội dung kèm lý do cho mỗi quyết định.
+        Ẩn hoặc khôi phục nội dung kèm lý do cho mỗi quyết định.
       </p>
       <QueueState
         loading={reviews.loading}
@@ -352,11 +354,7 @@ function ReviewModeration({
           </table>
         </div>
       </QueueState>
-      <Pager
-        loading={reviews.loading}
-        hasMore={reviews.page?.hasMore}
-        more={reviews.more}
-      />
+      <ListPagination query={reviews} />
       {selected && (
         <DecisionDialog
           title={selected.hiddenAt ? "Khôi phục đánh giá" : "Ẩn đánh giá"}

@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 
 import { useEffect, useId, useRef, useState } from "react";
 import { PasswordInput } from "@/components/password-input";
@@ -101,15 +102,16 @@ export function CreateStaffDialog({
       >
         <div className="dialog-head">
           <h2 id={`${id}-title`}>Tạo tài khoản Staff</h2>
-          <button
+          <LoadingButton
             type="button"
             className="icon-btn"
             aria-label="Đóng tạo tài khoản Staff"
             disabled={busy}
             onClick={onClose}
+            loading={!!busy}
           >
             <Icon name="x" />
-          </button>
+          </LoadingButton>
         </div>
         <p className="muted">
           Tài khoản được kích hoạt ngay và có quyền Staff. Kiểm tra đúng email
@@ -188,22 +190,28 @@ export function CreateStaffDialog({
           </p>
         )}
         <div className="staff-dialog-actions">
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={busy}
             onClick={onClose}
+            loading={!!busy}
           >
             Đóng
-          </button>
+          </LoadingButton>
           {uncertain ? (
             <button type="button" className="btn btn-primary" onClick={onCheck}>
               Kiểm tra danh sách
             </button>
           ) : (
-            <button type="submit" className="btn btn-primary" disabled={busy}>
+            <LoadingButton
+              type="submit"
+              className="btn btn-primary"
+              disabled={busy}
+              loading={!!busy}
+            >
               {busy ? "Đang tạo…" : "Xác nhận tạo Staff"}
-            </button>
+            </LoadingButton>
           )}
         </div>
       </form>

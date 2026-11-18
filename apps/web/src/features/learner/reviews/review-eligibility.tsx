@@ -46,9 +46,10 @@ export function ReviewEligibility({ pathId }: Readonly<{ pathId: string }>) {
         Credit đã được quyết toán.
       </p>
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={invalid ?? query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       <ol className={styles.steps}>
         <li data-current={!finished}>

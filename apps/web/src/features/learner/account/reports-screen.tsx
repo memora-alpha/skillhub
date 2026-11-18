@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { reportDescriptionText } from "@/lib/system-text";
 import Link from "next/link";
 import { useCallback, useState } from "react";
@@ -8,6 +9,8 @@ import { UserApiError } from "../api/client";
 import { formText } from "../components/form-data";
 import { useUserSession } from "../auth/session";
 import { useUserResource } from "../hooks/use-user-resource";
+import { useUserPagedList } from "../hooks/use-user-paged-list";
+import { ListPagination } from "@/components/pagination/list-pagination";
 import { useUserCommand } from "../hooks/use-user-command";
 import {
   Back,
@@ -31,9 +34,9 @@ import styles from "../components/learning-layout.module.css";
 import { ProductIcon } from "../components/product-icon";
 export { reportReasons } from "./report-reasons";
 export function ReportsScreen() {
-  const query = useUserResource<ReportCase[]>("reports/mine");
+  const query = useUserPagedList<ReportCase>("reports/mine");
   const [filter, setFilter] = useState("ALL");
-  const items = query.data?.filter(
+  const items = query.items.filter(
     (item) => filter === "ALL" || item.status === filter,
   );
   return (
@@ -43,9 +46,10 @@ export function ReportsScreen() {
         description="Theo dõi phản hồi và bổ sung thông tin cho các báo cáo bạn đã gửi."
       />
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       <div className={styles.filters} aria-label="Trạng thái báo cáo">
         {[["ALL", "Tất cả"], ...reportStatuses].map(([code, label]) => (
@@ -53,7 +57,10 @@ export function ReportsScreen() {
             type="button"
             key={code}
             aria-pressed={filter === code}
-            onClick={() => setFilter(code!)}
+            onClick={() => {
+              setFilter(code!);
+              query.goToPage(1);
+            }}
           >
             {label}
           </button>
@@ -120,9 +127,10 @@ export function ReportsScreen() {
         <Empty>
           {filter === "ALL"
             ? "Bạn chưa gửi báo cáo."
-            : "Không có báo cáo ở trạng thái này."}
+            : "Không có báo cáo ở trạng thái này trên trang hiện tại."}
         </Empty>
       )}
+      <ListPagination query={query} />
     </div>
   );
 }
@@ -291,7 +299,7 @@ function ReportSubmission({
           Kiểm tra báo cáo đã gửi trước khi thao tác tiếp
         </Link>
       )}
-      <button
+      <LoadingButton
         type="submit"
         className="btn btn-primary"
         disabled={
@@ -301,9 +309,10 @@ function ReportSubmission({
           files.some((file) => file.state !== "READY") ||
           ("status" in target && target.status === "CANCELLED")
         }
+        loading={!!(uploading || command.pending)}
       >
         {command.pending ? "Đang gửi…" : "Gửi báo cáo"}
-      </button>
+      </LoadingButton>
     </form>
   );
 }
@@ -371,9 +380,10 @@ export function ReportForm({
       <div className="learner-two-columns">
         <Panel title={sessionId ? "Báo cáo buổi học" : "Báo cáo tài liệu"}>
           <Feedback
-            loading={target.loading}
+            loading={target.initialLoading}
             error={target.error}
             reload={target.reload}
+            refreshing={!!(target.loading && !target.initialLoading)}
           />
           {content}
         </Panel>

@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { useState, useSyncExternalStore } from "react";
 import { useUserSession } from "../auth/session";
 import {
@@ -29,7 +30,7 @@ export function WebPushSettings() {
           {error}
         </p>
       )}
-      <button
+      <LoadingButton
         type="button"
         className="btn"
         aria-label={
@@ -55,9 +56,10 @@ export function WebPushSettings() {
             setBusy(false);
           }
         }}
+        loading={!!busy}
       >
         {busy ? "Đang cập nhật…" : actionLabel}
-      </button>
+      </LoadingButton>
     </div>
   );
 }

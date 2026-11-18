@@ -1,6 +1,7 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 
-import Image from "next/image";
+import { LoadingImage as Image } from "@/components/loading-image";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { ProductIcon } from "./product-icon";
@@ -155,13 +156,14 @@ export function LearnerAccountMenu({
                 {error}
               </p>
             )}
-            <button
+            <LoadingButton
               type="button"
               className={styles.signOut}
               disabled={busy}
               onClick={() => {
                 void signOut();
               }}
+              loading={!!busy}
             >
               <svg
                 aria-hidden="true"
@@ -177,7 +179,7 @@ export function LearnerAccountMenu({
                 <path d="M9 4H4v16h5M14 8l4 4-4 4M8 12h12" />
               </svg>
               {busy ? "Đang đăng xuất…" : "Đăng xuất"}
-            </button>
+            </LoadingButton>
           </div>
         </div>
       )}

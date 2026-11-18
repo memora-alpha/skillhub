@@ -1,4 +1,7 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useStaffListPages } from "./use-staff-list-pages";
 import { systemCodeLabel } from "@/lib/system-text";
 import { useState } from "react";
 import {
@@ -12,8 +15,8 @@ import {
 import { fmtDateTime } from "@/lib/console/format";
 import type { LearningRequest } from "@/lib/staff/types";
 import { useStaffSession } from "./session";
-import { useStaffList } from "./hooks";
-import { DecisionDialog, Pager, QueueState } from "./common";
+
+import { DecisionDialog, QueueState } from "./common";
 const weekdays: Record<string, string> = {
   MON: "Thứ hai",
   TUE: "Thứ ba",
@@ -122,7 +125,9 @@ function decisionDescription(
 export function ModerationScreen() {
   const { api } = useStaffSession();
   const [q, setQ] = useState("");
-  const queue = useStaffList<LearningRequest>("learning-requests?limit=20");
+  const queue = useStaffListPages<LearningRequest>(
+    "learning-requests?limit=20",
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<LearningRequest | null>(null);
   const [decision, setDecision] = useState<"approve" | "reject" | null>(null);
@@ -139,7 +144,7 @@ export function ModerationScreen() {
         title="Kiểm duyệt yêu cầu học"
         desc="Yêu cầu có tag mới hoặc khớp bộ lọc sẽ chờ duyệt trước khi được công khai."
         actions={
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={queue.loading}
@@ -147,19 +152,19 @@ export function ModerationScreen() {
               setReceipt(null);
               void queue.reload();
             }}
+            loading={!!queue.loading}
           >
             Làm mới
-          </button>
+          </LoadingButton>
         }
       />
       <div className="toolbar">
         <SearchBox
           value={q}
           onChange={setQ}
-          label="Tìm trong các yêu cầu đã tải"
-          placeholder="Tìm trong các mục đã tải…"
+          label="Tìm trong các yêu cầu trên trang này"
+          placeholder="Tìm trong trang hiện tại…"
         />
-        <span className="muted">{queue.items.length} mục đã tải</span>
       </div>
       <div className="split" data-selected={selected !== null}>
         <Card className="split-list" flush>
@@ -203,11 +208,7 @@ export function ModerationScreen() {
               </ul>
             )}
           </QueueState>
-          <Pager
-            loading={queue.loading}
-            hasMore={queue.page?.hasMore}
-            more={queue.more}
-          />
+          <ListPagination query={queue} />
         </Card>
         <div className="split-detail">
           {!selected ? (
@@ -322,22 +323,24 @@ export function ModerationScreen() {
 
                 {selected.status === "PENDING_MODERATION" && (
                   <div className="staff-detail-actions">
-                    <button
+                    <LoadingButton
                       type="button"
                       className="btn btn-danger"
                       disabled={!!decision || queue.loading}
                       onClick={() => setDecision("reject")}
+                      loading={!!queue.loading}
                     >
                       Từ chối
-                    </button>
-                    <button
+                    </LoadingButton>
+                    <LoadingButton
                       type="button"
                       className="btn btn-primary"
                       disabled={!!decision || queue.loading}
                       onClick={() => setDecision("approve")}
+                      loading={!!queue.loading}
                     >
                       Duyệt yêu cầu
-                    </button>
+                    </LoadingButton>
                   </div>
                 )}
                 {decision && (

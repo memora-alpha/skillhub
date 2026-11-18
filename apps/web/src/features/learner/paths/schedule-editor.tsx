@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { formText } from "../components/form-data";
 
 import { useState } from "react";
@@ -146,13 +147,14 @@ export function ScheduleEditor({
         </p>
       )}
       <CommandFeedback command={command} />
-      <button
+      <LoadingButton
         type="submit"
         className="btn btn-primary"
         disabled={command.pending || command.uncertain}
+        loading={!!command.pending}
       >
         Gửi lịch để hai bên xác nhận
-      </button>
+      </LoadingButton>
     </form>
   );
 }

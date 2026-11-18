@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useUserResource } from "../hooks/use-user-resource";
@@ -88,9 +89,10 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
     <>
       <Back href="/learn/paths" />
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       {path && (
         <>
@@ -205,7 +207,7 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
                 <Panel title="Xác nhận thỏa thuận">
                   {editable && (
                     <div className="learner-actions">
-                      <button
+                      <LoadingButton
                         type="button"
                         className="btn btn-primary"
                         disabled={
@@ -221,9 +223,10 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
                               }),
                           );
                         }}
+                        loading={!!command.pending}
                       >
                         {ownConfirmed ? "Đã xác nhận" : "Xác nhận thỏa thuận"}
-                      </button>
+                      </LoadingButton>
                       <button
                         type="button"
                         className="btn"

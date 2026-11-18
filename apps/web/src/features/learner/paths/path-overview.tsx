@@ -104,9 +104,10 @@ export function PathOverviewPanel({
   return (
     <Panel title="Tiến độ và việc cần làm">
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       {query.data && (
         <>

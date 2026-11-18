@@ -1,19 +1,16 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useUserPagedList } from "../hooks/use-user-paged-list";
 import { achievementTitle } from "@/lib/i18n/system-copy";
 import { formText } from "../components/form-data";
 import Link from "next/link";
 import { useState } from "react";
 import type { SharingSkill } from "../types";
-import { useUserResource, useUserList } from "../hooks/use-user-resource";
+import { useUserResource } from "../hooks/use-user-resource";
 import { useUserCommand } from "../hooks/use-user-command";
 import { useUserSession } from "../auth/session";
-import {
-  CommandFeedback,
-  Feedback,
-  Panel,
-  Status,
-  More,
-} from "../components/common";
+import { CommandFeedback, Feedback, Panel, Status } from "../components/common";
 import type { OwnIdentity } from "./account-types";
 import { ProfileAvatar } from "../components/profile-avatar";
 import { AvatarEditor } from "./avatar-editor";
@@ -21,7 +18,7 @@ import { AccountSecurity } from "./account-security";
 import { RatingSummary } from "./profile-reviews";
 import styles from "../components/learning-layout.module.css";
 export function ProfileScreen() {
-  const skills = useUserList<SharingSkill>("me/skills?limit=3");
+  const skills = useUserPagedList<SharingSkill>("me/skills?limit=3");
   const query = useUserResource<OwnIdentity>("me"),
     command = useUserCommand(),
     { request, actor } = useUserSession(),
@@ -30,9 +27,11 @@ export function ProfileScreen() {
   return (
     <>
       <Feedback
-        loading={query.loading}
+        variant="profile"
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       {me && (
         <>
@@ -152,13 +151,14 @@ export function ProfileScreen() {
                       <output>Đã lưu hồ sơ.</output>
                     </p>
                   )}
-                  <button
+                  <LoadingButton
                     type="submit"
                     className="btn btn-primary"
                     disabled={command.pending || command.uncertain}
+                    loading={!!command.pending}
                   >
                     {command.pending ? "Đang lưu…" : "Lưu thay đổi"}
-                  </button>
+                  </LoadingButton>
                 </form>
               </Panel>
               <Panel>
@@ -204,9 +204,10 @@ export function ProfileScreen() {
                 <summary>Kỹ năng của bạn</summary>
                 <Panel title="Kỹ năng của bạn">
                   <Feedback
-                    loading={skills.loading}
+                    loading={skills.initialLoading}
                     error={skills.error}
                     reload={skills.reload}
+                    refreshing={!!(skills.loading && !skills.initialLoading)}
                   />
                   {skills.items.map((skill) => (
                     <div className="product-pending" key={skill.id}>
@@ -231,13 +232,7 @@ export function ProfileScreen() {
                   {!skills.loading && !skills.error && !skills.items.length && (
                     <p>Bạn chưa khai báo kỹ năng chia sẻ.</p>
                   )}
-                  <More
-                    cursor={skills.cursor}
-                    loading={skills.loading}
-                    onMore={() => {
-                      void skills.more();
-                    }}
-                  />
+                  <ListPagination query={skills} />
                   <p>
                     <Link className="btn" href="/learn/skills">
                       Quản lý kỹ năng

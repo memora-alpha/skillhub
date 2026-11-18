@@ -27,6 +27,7 @@ export function useUserSnapshot<T extends { id: string }>(
   return {
     items: query.error ? [] : (query.data ?? []),
     loading: enabled && (query.isPending || query.isFetching),
+    initialLoading: enabled && query.isPending,
     error: query.error?.message,
     complete: enabled && query.isSuccess && !query.isFetching,
     reload: () => query.refetch(),

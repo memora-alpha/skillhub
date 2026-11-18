@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { useEffect, useId, useRef, useState } from "react";
 import {
   DataTable,
@@ -7,8 +8,10 @@ import {
   Segmented,
   StatusBadge,
 } from "@/components/console/ui";
-import { useStaffList, useStaffResource } from "./hooks";
-import { Pager, QueueState } from "./common";
+import { useStaffResource } from "./hooks";
+import { QueueState } from "./common";
+import { useStaffPagedList } from "./use-staff-paged-list";
+import { PageNavigation, type PageNavigationProps } from "./page-navigation";
 import { Identifier } from "./operation-tools";
 import { MaterialFeePolicies } from "./material-fee-policies";
 import { fmtDateTime } from "@/lib/console/format";
@@ -20,6 +23,14 @@ import {
 import { systemCodeLabel } from "@/lib/system-text";
 import { OperationReference } from "./operation-reference";
 import styles from "./operations.module.css";
+import { useStaffSession } from "./session";
+import { AdminLedgerScreen } from "./admin-ledger";
+import type { LedgerFilters } from "@/lib/staff/ledger-query";
+import {
+  emptyPaymentFilters,
+  paymentQuery,
+  type PaymentFilters,
+} from "@/lib/staff/payment-query";
 type Ledger = {
   id: string;
   userId: string;
@@ -139,7 +150,18 @@ function FinanceDetails({ value }: Readonly<{ value: unknown }>) {
 export function FinanceScreen({
   initialTab = "ledger",
   initialPaymentId,
-}: Readonly<{ initialTab?: string; initialPaymentId?: string }>) {
+  initialLedgerFilters,
+  initialWalletId,
+  initialPaymentFilters,
+  initialPaymentStatus,
+}: Readonly<{
+  initialTab?: string;
+  initialPaymentId?: string;
+  initialLedgerFilters?: LedgerFilters;
+  initialWalletId?: string;
+  initialPaymentFilters?: PaymentFilters;
+  initialPaymentStatus?: string;
+}>) {
   const [tab, setTab] = useState(
     ["ledger", "payments", "wallet", "fees"].includes(initialTab)
       ? initialTab
@@ -147,13 +169,19 @@ export function FinanceScreen({
   );
   function financeTab() {
     if (tab === "ledger") {
-      return <LedgerScreen />;
+      return <LedgerScreen initialFilters={initialLedgerFilters} />;
     }
     if (tab === "payments") {
-      return <PaymentsScreen initialPaymentId={initialPaymentId} />;
+      return (
+        <PaymentsScreen
+          initialPaymentId={initialPaymentId}
+          initialFilters={initialPaymentFilters}
+          initialStatus={initialPaymentStatus}
+        />
+      );
     }
     if (tab === "wallet") {
-      return <WalletLookup />;
+      return <WalletLookup initialUserId={initialWalletId} />;
     }
     return <MaterialFeePolicies />;
   }
@@ -180,11 +208,21 @@ export function FinanceScreen({
     </>
   );
 }
-function LedgerScreen() {
+function LedgerScreen({
+  initialFilters,
+}: Readonly<{ initialFilters?: LedgerFilters }>) {
+  const { portal } = useStaffSession();
+  return portal === "admin" ? (
+    <AdminLedgerScreen initialFilters={initialFilters} />
+  ) : (
+    <LegacyLedgerScreen />
+  );
+}
+function LegacyLedgerScreen() {
   const [draft, setDraft] = useState("");
   const [filter, setFilter] = useState("");
   const [selected, setSelected] = useState<string>();
-  const list = useStaffList<Ledger>(
+  const list = useStaffPagedList<Ledger>(
     "credit/transactions?" +
       new URLSearchParams({
         limit: "20",
@@ -196,18 +234,15 @@ function LedgerScreen() {
       title="Lịch sử giao dịch Credit"
       actions={
         <div className={styles.actions}>
-          <span className="muted">
-            {list.items.length}
-            {list.page?.hasMore ? "+" : ""} giao dịch đã tải
-          </span>
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={list.loading}
             onClick={() => void list.reload()}
+            loading={!!list.loading}
           >
             Làm mới
-          </button>
+          </LoadingButton>
         </div>
       }
     >
@@ -294,8 +329,13 @@ function LedgerScreen() {
       </QueueState>
       <FinanceQueueFooter
         loading={list.loading}
-        more={list.more}
-        hasMore={list.page?.hasMore}
+        pageNumber={list.pageNumber}
+        totalPages={list.totalPages}
+        hasNext={list.page?.hasMore ?? false}
+        onPageChange={(page) => {
+          setSelected(undefined);
+          void list.goToPage(page);
+        }}
         selected={selected}
         onClose={() => setSelected(undefined)}
       />
@@ -304,35 +344,56 @@ function LedgerScreen() {
 }
 function PaymentsScreen({
   initialPaymentId,
-}: Readonly<{ initialPaymentId?: string }>) {
-  const [status, setStatus] = useState("");
+  initialFilters = emptyPaymentFilters,
+  initialStatus = "",
+}: Readonly<{
+  initialPaymentId?: string;
+  initialFilters?: PaymentFilters;
+  initialStatus?: string;
+}>) {
+  const [status, setStatus] = useState(
+    Object.hasOwn(paymentStatuses, initialStatus) ? initialStatus : "",
+  );
+  const [draftFilters, setDraftFilters] = useState(initialFilters);
+  const [filters, setFilters] = useState(() => {
+    try {
+      paymentQuery(initialFilters);
+      return initialFilters;
+    } catch {
+      return emptyPaymentFilters;
+    }
+  });
+  const [filterError, setFilterError] = useState(() => {
+    try {
+      paymentQuery(initialFilters);
+      return "";
+    } catch (cause) {
+      return cause instanceof Error ? cause.message : "Bộ lọc chưa hợp lệ.";
+    }
+  });
   const [selected, setSelected] = useState<string | undefined>(() =>
     initialPaymentId &&
     /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(initialPaymentId)
       ? `payments/${initialPaymentId}`
       : undefined,
   );
-  const list = useStaffList<Payment>(
-    "payments?" +
-      new URLSearchParams({ limit: "20", ...(status ? { status } : {}) }),
-  );
+  const params = paymentQuery(filters);
+  if (status) params.set("status", status);
+  const list = useStaffPagedList<Payment>("payments?" + params);
   return (
     <Card
       title="Thanh toán nạp Credit"
       actions={
         <div className={styles.actions}>
-          <span className="muted">
-            {list.items.length}
-            {list.page?.hasMore ? "+" : ""} thanh toán đã tải
-          </span>
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={list.loading}
             onClick={() => void list.reload()}
+            loading={!!list.loading}
           >
             Làm mới
-          </button>
+          </LoadingButton>
         </div>
       }
     >
@@ -348,6 +409,12 @@ function PaymentsScreen({
             onChange={(e) => {
               setStatus(e.target.value);
               setSelected(undefined);
+              const query = paymentQuery(filters);
+              query.delete("limit");
+              query.delete("includeTotal");
+              query.set("tab", "payments");
+              if (e.target.value) query.set("status", e.target.value);
+              window.history.replaceState(null, "", "/admin/credits?" + query);
             }}
           >
             <option value="">Tất cả</option>
@@ -368,6 +435,99 @@ function PaymentsScreen({
           </select>
         </label>
       </div>
+      <form
+        className={styles.filters}
+        onSubmit={(event) => {
+          event.preventDefault();
+          try {
+            const next = Object.fromEntries(
+              Object.entries(draftFilters).map(([key, value]) => [
+                key,
+                value.trim(),
+              ]),
+            ) as PaymentFilters;
+            const query = paymentQuery(next);
+            setFilters(next);
+            setFilterError("");
+            setSelected(undefined);
+            query.delete("limit");
+            query.delete("includeTotal");
+            query.set("tab", "payments");
+            if (status) query.set("status", status);
+            window.history.replaceState(null, "", "/admin/credits?" + query);
+          } catch (cause) {
+            setFilterError(
+              cause instanceof Error ? cause.message : "Bộ lọc chưa hợp lệ.",
+            );
+          }
+        }}
+      >
+        <details className="admin-advanced-filter">
+          <summary className="btn">Tra cứu thanh toán nâng cao</summary>
+          <div className="row">
+            {(
+              [
+                ["userId", "Mã người dùng", "text"],
+                ["orderCode", "Mã đơn payOS", "text"],
+                [
+                  "gatewayTransactionId",
+                  "Mã giao dịch cổng thanh toán",
+                  "text",
+                ],
+                ["from", "Tạo từ (UTC)", "datetime-local"],
+                ["before", "Tạo trước (UTC)", "datetime-local"],
+                ["paidFrom", "Thanh toán từ (UTC)", "datetime-local"],
+                ["paidBefore", "Thanh toán trước (UTC)", "datetime-local"],
+              ] as const
+            ).map(([key, label, type]) => (
+              <label key={key}>
+                {label}
+                <input
+                  className="input"
+                  type={type}
+                  value={draftFilters[key]}
+                  maxLength={key === "userId" ? 36 : 255}
+                  onChange={(event) =>
+                    setDraftFilters((previous) => ({
+                      ...previous,
+                      [key]: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+            ))}
+          </div>
+        </details>
+        <button type="submit" className="btn">
+          Áp dụng tra cứu
+        </button>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => {
+            setDraftFilters(emptyPaymentFilters);
+            setFilters(emptyPaymentFilters);
+            setFilterError("");
+            setStatus("");
+            setSelected(undefined);
+            window.history.replaceState(
+              null,
+              "",
+              "/admin/credits?tab=payments",
+            );
+          }}
+        >
+          Bỏ lọc
+        </button>
+      </form>
+      {filterError && (
+        <p className="staff-error" role="alert">
+          {filterError}
+        </p>
+      )}
+      {list.page?.total !== undefined && (
+        <p className={styles.hint}>{list.page.total} thanh toán phù hợp</p>
+      )}
       <QueueState
         loading={list.loading}
         error={list.error}
@@ -426,17 +586,29 @@ function PaymentsScreen({
       </QueueState>
       <FinanceQueueFooter
         loading={list.loading}
-        more={list.more}
-        hasMore={list.page?.hasMore}
+        pageNumber={list.pageNumber}
+        totalPages={list.totalPages}
+        hasNext={list.page?.hasMore ?? false}
+        onPageChange={(page) => {
+          setSelected(undefined);
+          void list.goToPage(page);
+        }}
         selected={selected}
         onClose={() => setSelected(undefined)}
       />
     </Card>
   );
 }
-function WalletLookup() {
-  const [draft, setDraft] = useState("");
-  const [id, setId] = useState("");
+function WalletLookup({
+  initialUserId = "",
+}: Readonly<{ initialUserId?: string }>) {
+  const initial = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(
+    initialUserId,
+  )
+    ? initialUserId
+    : "";
+  const [draft, setDraft] = useState(initial);
+  const [id, setId] = useState(initial);
   return (
     <Card title="Tra cứu ví người dùng">
       <p className={styles.hint}>
@@ -689,16 +861,15 @@ function FinanceQueueFooter({
   selected,
   onClose,
   ...pagination
-}: Readonly<{
-  selected?: string;
-  onClose: () => void;
-  loading: boolean;
-  more: () => void;
-  hasMore?: boolean;
-}>) {
+}: Readonly<
+  {
+    selected?: string;
+    onClose: () => void;
+  } & PageNavigationProps
+>) {
   return (
     <>
-      <Pager {...pagination} />
+      <PageNavigation {...pagination} />
       {selected && <Detail key={selected} path={selected} close={onClose} />}
     </>
   );

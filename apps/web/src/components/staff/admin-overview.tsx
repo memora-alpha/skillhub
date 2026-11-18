@@ -1,4 +1,6 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 import Link from "next/link";
 import { useState } from "react";
 import { Icon } from "@/components/console/icon";
@@ -11,6 +13,7 @@ import {
   sumDashboardCredit,
   type DashboardData,
   type DashboardSummary,
+  type DashboardTrends,
 } from "@/lib/staff/dashboard";
 import {
   DashboardRefreshProvider,
@@ -46,6 +49,7 @@ type DataProps = {
   summary?: DashboardSummary;
   data?: DashboardData;
   finance?: DashboardData;
+  trends?: DashboardTrends;
   loading: boolean;
 };
 
@@ -81,11 +85,16 @@ function DashboardScreen() {
   const finance = useDashboardResource<DashboardData>(
     `dashboard/finance?${query}`,
   );
-  const loading = summary.loading || charts.loading || finance.loading;
+  const trends = useDashboardResource<DashboardTrends>(
+    `dashboard/trends?${query}`,
+  );
+  const loading =
+    summary.loading || charts.loading || finance.loading || trends.loading;
   const dates = [
     summary.data?.asOf,
     charts.data?.asOf,
     finance.data?.asOf,
+    trends.data?.asOf,
   ].filter(
     (value): value is string => !!value && Number.isFinite(Date.parse(value)),
   );
@@ -103,6 +112,7 @@ function DashboardScreen() {
     { label: "Tổng hợp", ...summary },
     { label: "Biểu đồ", ...charts },
     { label: "Tài chính", ...finance },
+    { label: "Xu hướng theo ngày", ...trends },
   ];
   const selectPreset = (days: number) => {
     const today = localDate(new Date(), range.timezone);
@@ -123,6 +133,7 @@ function DashboardScreen() {
     summary: summary.data,
     data: charts.data,
     finance: finance.data,
+    trends: trends.data,
     loading,
   };
   return (
@@ -136,9 +147,13 @@ function DashboardScreen() {
           </p>
         </div>
         <span className={styles.updated}>
-          <i className={loading ? styles.syncing : undefined} />
-          {loading ? "Đang làm mới…" : `Cập nhật ${updateLabel}`} ·{" "}
-          {range.timezone === "UTC" ? "UTC" : "GMT+7"}
+          {!loading && <i />}
+          {loading ? (
+            <LoadingSkeleton variant="inline" label="Đang làm mới số liệu" />
+          ) : (
+            `Cập nhật ${updateLabel}`
+          )}{" "}
+          · {range.timezone === "UTC" ? "UTC" : "GMT+7"}
         </span>
       </header>
       <form
@@ -228,14 +243,15 @@ function DashboardScreen() {
             <option value="UTC">UTC</option>
           </select>
         </label>
-        <button
+        <LoadingButton
           className={`btn btn-primary ${styles.refresh}`}
           type="submit"
           disabled={loading}
+          loading={!!loading}
         >
           <Icon name="refresh" size={16} />
           {loading ? "Đang tải…" : "Làm mới"}
-        </button>
+        </LoadingButton>
       </form>
       {error && (
         <p role="alert" className="staff-error">
@@ -287,6 +303,7 @@ function OverviewDashboard({
   summary,
   data,
   finance,
+  trends,
   loading,
   onWorkFilter,
   onTab,
@@ -361,15 +378,15 @@ function OverviewDashboard({
           description="Tài khoản được tạo trong kỳ đã chọn."
           total={dashboardNumber(users?.newUsers)}
           totalLabel="người dùng mới"
-          available={!!data}
+          available={trends?.buckets.availability === "AVAILABLE"}
           loading={loading}
-          points={(data?.userGrowth ?? []).map((row) => ({
-            label: row.key,
+          points={(sectionData(trends?.buckets) ?? []).map((row) => ({
+            label: row.localDate,
             values: { newUsers: row.newUsers },
           }))}
           series={[{ key: "newUsers", label: "Người dùng mới", color: green }]}
         />
-        <LearningActivity data={data} summary={summary} loading={loading} />
+        <LearningActivity trends={trends} summary={summary} loading={loading} />
         <PathStages data={data} loading={loading} />
         <FeeChart data={finance} loading={loading} />
         <TopSkills summary={summary} loading={loading} />
@@ -379,12 +396,12 @@ function OverviewDashboard({
   );
 }
 function LearningActivity({
-  data,
+  trends,
   summary,
   loading,
   detail = false,
 }: Readonly<
-  Pick<DataProps, "data" | "summary" | "loading"> & { detail?: boolean }
+  Pick<DataProps, "trends" | "summary" | "loading"> & { detail?: boolean }
 >) {
   return (
     <DashboardChart
@@ -392,14 +409,14 @@ function LearningActivity({
       description="Theo lịch trong kỳ, đánh giá tại thời điểm cập nhật."
       total={dashboardNumber(sectionData(summary?.learning)?.scheduledSessions)}
       totalLabel="buổi có lịch"
-      available={!!data}
+      available={trends?.buckets.availability === "AVAILABLE"}
       loading={loading}
       bars
-      points={(data?.learningActivity ?? []).map((row) => ({
-        label: row.key,
+      points={(sectionData(trends?.buckets) ?? []).map((row) => ({
+        label: row.localDate,
         values: {
-          scheduled: row.sessionsScheduled,
-          completed: row.completedScheduledSessions,
+          scheduled: row.scheduledSessions,
+          completed: row.completedSessions,
         },
       }))}
       series={[
@@ -409,7 +426,7 @@ function LearningActivity({
     />
   );
 }
-function LearningDashboard({ summary, data, loading }: Readonly<DataProps>) {
+function LearningDashboard({ summary, trends, loading }: Readonly<DataProps>) {
   const learning = sectionData(summary?.learning);
   return (
     <>
@@ -441,7 +458,7 @@ function LearningDashboard({ summary, data, loading }: Readonly<DataProps>) {
       </div>
       <div className={`${styles.grid} ${styles.learningGrid}`}>
         <LearningActivity
-          data={data}
+          trends={trends}
           summary={summary}
           loading={loading}
           detail

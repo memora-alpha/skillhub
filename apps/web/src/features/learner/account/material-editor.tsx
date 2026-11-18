@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { useState } from "react";
 import { useUserSession } from "../auth/session";
 import { useUserCommand } from "../hooks/use-user-command";
@@ -6,18 +7,21 @@ import { useUserResource } from "../hooks/use-user-resource";
 import { CommandFeedback, Feedback, Status } from "../components/common";
 import { SkillPicker } from "../components/skill-picker";
 import { UploadControl } from "../components/upload-control";
-import type { Material } from "./account-types";
+import type { OwnedMaterial } from "./account-types";
+import {
+  canEditMaterial,
+  materialEditHint,
+} from "./material-management-policy";
+import { UserApiError } from "../api/client";
 import { formText } from "../components/form-data";
 import { MaterialCoverControl, useMaterialCover } from "./material-cover";
 
-export const editableMaterial = (status: string) =>
-  ["DRAFT", "REJECTED", "PENDING_REVIEW", "PUBLISHED"].includes(status);
 export function MaterialEditor({
   material,
   close,
   reload,
 }: Readonly<{
-  material: Material;
+  material: OwnedMaterial;
   close: () => void;
   reload: () => void;
 }>) {
@@ -31,7 +35,10 @@ export function MaterialEditor({
   const file = useUserResource<{ state: string }>(
     fileId ? "me/materials/files/" + fileId : null,
   );
-  const disabled = command.pending || command.uncertain;
+  const disabled =
+    command.pending || command.uncertain || !canEditMaterial(material);
+  if (!canEditMaterial(material))
+    return <p className="learner-notice">{materialEditHint(material)}</p>;
   return (
     <form
       className="learner-form"
@@ -55,9 +62,20 @@ export function MaterialEditor({
               }
             : {}),
         };
-        const result = await command.run(JSON.stringify(body), () =>
-          request("me/materials/" + material.id, { method: "PATCH", body }),
-        );
+        const result = await command.run(JSON.stringify(body), async () => {
+          const fresh = await request<OwnedMaterial>(
+            "me/materials/" + material.id,
+          );
+          if (
+            !canEditMaterial(fresh.data) ||
+            fresh.data.listingVersion !== material.listingVersion
+          )
+            throw new UserApiError(409, "MATERIAL_VERSION_CONFLICT");
+          return request("me/materials/" + material.id, {
+            method: "PATCH",
+            body,
+          });
+        });
         if (result) {
           reload();
           close();
@@ -66,8 +84,8 @@ export function MaterialEditor({
     >
       <h3>Sửa tài liệu · phiên bản {material.listingVersion}</h3>
       <p>
-        Sửa tài liệu đã xuất bản sẽ đưa nội dung về chờ duyệt. Người đã mua vẫn
-        giữ phiên bản tệp đã mua.
+        Bạn có thể sửa bản nháp hoặc tài liệu bị từ chối trước lần xuất bản đầu
+        tiên.
       </p>
       <fieldset
         disabled={disabled}
@@ -135,16 +153,27 @@ export function MaterialEditor({
         {fileId && (
           <>
             <Feedback
+              variant="inline"
               error={file.error}
-              loading={file.loading}
+              loading={file.initialLoading}
               reload={file.reload}
+              refreshing={!!(file.loading && !file.initialLoading)}
             />
             <p>
-              Trạng thái tệp: <Status value={file.data?.state ?? "PENDING"} />
+              Trạng thái tệp:{" "}
+              <Status
+                value={file.data?.state ?? "PENDING"}
+                label={file.data?.state === "READY" ? "Sẵn sàng" : undefined}
+              />
             </p>
-            <button type="button" className="btn" onClick={file.reload}>
+            <LoadingButton
+              type="button"
+              className="btn"
+              onClick={file.reload}
+              loading={!!command.pending}
+            >
               Kiểm tra tệp
-            </button>
+            </LoadingButton>
             <label className="product-consent">
               <input type="checkbox" name="rights" required />
               <span>Tôi có quyền phân phối tệp thay thế.</span>
@@ -161,7 +190,7 @@ export function MaterialEditor({
         </p>
       )}
       <div className="learner-actions">
-        <button
+        <LoadingButton
           type="submit"
           className="btn btn-primary"
           disabled={
@@ -171,10 +200,11 @@ export function MaterialEditor({
             !skillId ||
             (!!fileId && file.data?.state !== "READY")
           }
+          loading={!!(command.pending || uploading)}
         >
           Lưu thay đổi
-        </button>
-        <button
+        </LoadingButton>
+        <LoadingButton
           type="button"
           className="btn"
           disabled={command.pending}
@@ -182,9 +212,10 @@ export function MaterialEditor({
             reload();
             close();
           }}
+          loading={!!command.pending}
         >
           Đóng và làm mới
-        </button>
+        </LoadingButton>
       </div>
     </form>
   );

@@ -72,6 +72,48 @@ export type MaterialOrder = {
   grossCredit: string;
   status: string;
   createdAt: string;
+  purchasedMaterial?: {
+    title: string | null;
+    originalFilename: string | null;
+    mimeType: string | null;
+    sizeBytes: string | null;
+  };
+  review?: {
+    hasReview: boolean;
+    reviewId: string | null;
+    status: string | null;
+    version: number | null;
+    sourceOrderId: string | null;
+    canReview: boolean;
+    reasonCode: string | null;
+  };
+  refundEligibility?: {
+    canRefund: boolean;
+    deadline: string;
+    reasonCode: string | null;
+    evaluatedAt: string;
+  };
+};
+export type OwnedMaterial = Material & {
+  hasBeenPublished: boolean;
+  canEdit: boolean;
+  editBlockedReason: string | null;
+  rejectReason: string | null;
+  cover?: {
+    attached: boolean;
+    generation: number;
+    file: {
+      id: string;
+      originalFilename: string | null;
+      mimeType: string;
+      sizeBytes: string | null;
+      state: string;
+      scanVerdict: string;
+    } | null;
+    processingStatus: string;
+    failureCode: string | null;
+    preview: Material["thumbnail"];
+  };
 };
 export type OwnIdentity = {
   userId: string;

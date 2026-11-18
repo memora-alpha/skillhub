@@ -1,7 +1,12 @@
+import { LoadingButton } from "@/components/loading-button";
 import { systemCodeLabel } from "@/lib/system-text";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { BusinessFeedback } from "./business-feedback";
+import {
+  LoadingSkeleton,
+  type SkeletonVariant,
+} from "@/components/loading-skeleton";
 export { formatVietnamDateTime as formatTime } from "@/lib/vietnam-time";
 const labels: Record<string, string> = {
   FREE: "Miễn phí",
@@ -83,15 +88,22 @@ export function Panel({
 }
 export function Feedback({
   loading,
+  refreshing,
   error,
   reload,
-}: Readonly<{ loading?: boolean; error?: string; reload?: () => void }>) {
+  variant = "section",
+}: Readonly<{
+  loading?: boolean;
+  refreshing?: boolean;
+  error?: string;
+  reload?: () => void;
+  variant?: SkeletonVariant;
+}>) {
   return (
     <>
-      {loading && (
-        <p className="learner-notice">
-          <output>Đang tải…</output>
-        </p>
+      {loading && !error && <LoadingSkeleton variant={variant} />}
+      {!loading && refreshing && !error && (
+        <LoadingSkeleton variant="inline" label="Đang cập nhật dữ liệu" />
       )}
       {error && (
         <div className="learner-error" role="alert">
@@ -141,9 +153,15 @@ export function More({
   onMore,
 }: Readonly<{ cursor: string | null; loading: boolean; onMore: () => void }>) {
   return cursor ? (
-    <button type="button" className="btn" disabled={loading} onClick={onMore}>
+    <LoadingButton
+      type="button"
+      className="btn"
+      disabled={loading}
+      onClick={onMore}
+      loading={!!loading}
+    >
       Xem thêm
-    </button>
+    </LoadingButton>
   ) : null;
 }
 export function Back({
@@ -168,7 +186,11 @@ export function CommandFeedback({
 }>) {
   return (
     <>
-      <Feedback loading={command.pending} error={command.error} />
+      <Feedback
+        loading={command.pending}
+        error={command.error}
+        variant="inline"
+      />
       {command.failure && (
         <BusinessFeedback
           code={command.failure.code}

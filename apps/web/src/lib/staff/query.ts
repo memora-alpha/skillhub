@@ -7,6 +7,8 @@ export function staffQuery(path: string, query: URLSearchParams) {
 }
 function staffQueryNames(path: string): string[] {
   if (path === "dashboard/summary") return ["from", "to", "timezone"];
+  if (path === "dashboard/trends")
+    return ["from", "to", "timezone", "granularity"];
   const names = /^dashboard\/(overview|learning|finance)$/.test(path)
     ? ["from", "to", "timezone", "granularity", "sections"]
     : [

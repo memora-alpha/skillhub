@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import Link from "next/link";
 import { useState } from "react";
 import { useUserSession } from "../auth/session";
@@ -22,9 +23,10 @@ export function PostDetail({ id }: Readonly<{ id: string }>) {
     <>
       <Back href={owner ? "/learn/explore?mine=true" : "/learn/explore"} />
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       {post && actions && (
         <div className={styles.detailLayout}>
@@ -82,7 +84,7 @@ function PostOwnerActions({ post }: Readonly<{ post: Post }>) {
           </Link>
         )}
         {actions.publish && (
-          <button
+          <LoadingButton
             type="button"
             className="btn btn-primary"
             disabled={command.pending || command.uncertain}
@@ -94,9 +96,10 @@ function PostOwnerActions({ post }: Readonly<{ post: Post }>) {
                 }),
               );
             }}
+            loading={!!command.pending}
           >
             Đăng yêu cầu
-          </button>
+          </LoadingButton>
         )}
         {post.publishedAt && (
           <Link
@@ -109,21 +112,22 @@ function PostOwnerActions({ post }: Readonly<{ post: Post }>) {
           </Link>
         )}
         {actions.cancel && (
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={command.pending || command.uncertain}
             onClick={() => setCancelling(true)}
+            loading={!!command.pending}
           >
             Hủy bài đăng
-          </button>
+          </LoadingButton>
         )}
       </div>
       {cancelling && actions.cancel && (
         <div className="learner-notice">
           <p>Bài sẽ ngừng nhận đề xuất mới. Lịch sử đề xuất vẫn được giữ.</p>
           <div className="learner-actions">
-            <button
+            <LoadingButton
               type="button"
               className="btn"
               disabled={command.pending || command.uncertain}
@@ -139,17 +143,19 @@ function PostOwnerActions({ post }: Readonly<{ post: Post }>) {
                     if (result) setCancelling(false);
                   });
               }}
+              loading={!!command.pending}
             >
               Xác nhận hủy
-            </button>
-            <button
+            </LoadingButton>
+            <LoadingButton
               type="button"
               className="btn"
               disabled={command.pending}
               onClick={() => setCancelling(false)}
+              loading={!!command.pending}
             >
               Giữ bài
-            </button>
+            </LoadingButton>
           </div>
         </div>
       )}

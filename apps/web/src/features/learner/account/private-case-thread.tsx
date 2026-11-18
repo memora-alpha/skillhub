@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import styles from "../components/learning-layout.module.css";
 import { useCallback, useRef, useState } from "react";
 import { useUserSession } from "../auth/session";
@@ -100,9 +101,10 @@ function CaseThreadContent({
         Chỉ bạn và nhân sự được phân công xem nội dung này.
       </p>
       <Feedback
-        loading={messages.loading}
+        loading={messages.initialLoading}
         error={messages.error}
         reload={messages.reload}
+        refreshing={!!(messages.loading && !messages.initialLoading)}
       />
       <div aria-live="polite">
         {[...messages.items].reverse().map((row) => (
@@ -154,22 +156,24 @@ function CaseThreadContent({
               }}
             />
           </label>
-          <button
+          <LoadingButton
             type="submit"
             className="btn btn-primary"
             disabled={command.pending || command.uncertain || !text.trim()}
+            loading={!!command.pending}
           >
             Gửi phản hồi
-          </button>
+          </LoadingButton>
           {command.canRetry && (
-            <button
+            <LoadingButton
               type="button"
               className="btn"
               disabled={command.pending}
               onClick={() => void send()}
+              loading={!!command.pending}
             >
               Kiểm tra lại tin đã gửi
-            </button>
+            </LoadingButton>
           )}
         </form>
       )}
@@ -180,14 +184,15 @@ function CaseThreadContent({
           /5)
         </summary>
         <Feedback
-          loading={evidence.loading}
+          loading={evidence.initialLoading}
           error={evidence.error}
           reload={evidence.reload}
+          refreshing={!!(evidence.loading && !evidence.initialLoading)}
         />
         {evidence.data?.map((row) => (
           <p key={row.id}>
             {row.mimeType} · {formatTime(row.uploadedAt)}{" "}
-            <button
+            <LoadingButton
               type="button"
               className="btn"
               disabled={downloadCommand.pending}
@@ -202,9 +207,10 @@ function CaseThreadContent({
                   return result;
                 });
               }}
+              loading={!!downloadCommand.pending}
             >
               Lấy liên kết tải
-            </button>
+            </LoadingButton>
           </p>
         ))}
         {download && (
@@ -248,7 +254,7 @@ function CaseThreadContent({
                   disabled={fileCommand.pending || fileCommand.uncertain}
                   onRemove={() => setFile(undefined)}
                 />
-                <button
+                <LoadingButton
                   type="button"
                   className="btn"
                   disabled={
@@ -272,9 +278,10 @@ function CaseThreadContent({
                         }
                       });
                   }}
+                  loading={!!fileCommand.pending}
                 >
                   Gửi bằng chứng
-                </button>
+                </LoadingButton>
               </>
             )}
           </>
@@ -284,17 +291,18 @@ function CaseThreadContent({
       <CommandFeedback command={fileCommand} />
       <CommandFeedback command={downloadCommand} />
       {downloadCommand.uncertain && (
-        <button
+        <LoadingButton
           type="button"
           className="btn"
           disabled={downloadCommand.pending}
           onClick={() => downloadCommand.resetAfterRead()}
+          loading={!!downloadCommand.pending}
         >
           Thử mở lại bằng chứng
-        </button>
+        </LoadingButton>
       )}
       {fileCommand.uncertain && (
-        <button
+        <LoadingButton
           type="button"
           className="btn"
           disabled={fileCommand.pending}
@@ -307,9 +315,10 @@ function CaseThreadContent({
               evidence.reload();
             }
           }}
+          loading={!!fileCommand.pending}
         >
           Kiểm tra lại bằng chứng
-        </button>
+        </LoadingButton>
       )}
     </section>
   );

@@ -1,24 +1,22 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { formText } from "../components/form-data";
 import Link from "next/link";
 import { useState } from "react";
 import { useUserSession } from "../auth/session";
-import { useUserResource, useUserList } from "../hooks/use-user-resource";
+import { useUserResource } from "../hooks/use-user-resource";
 import { useUserCommand } from "../hooks/use-user-command";
 import {
   Back,
   CommandFeedback,
-  Empty,
   Feedback,
   PageHeading,
   Panel,
-  More,
   Status,
 } from "../components/common";
 import { SkillPicker } from "../components/skill-picker";
 import { UploadControl } from "../components/upload-control";
 import type { Material } from "./account-types";
-import { MaterialEditor, editableMaterial } from "./material-editor";
 import { MaterialCoverControl, useMaterialCover } from "./material-cover";
 export function MaterialShare() {
   const cover = useMaterialCover();
@@ -43,7 +41,7 @@ export function MaterialShare() {
               <p className="learner-notice">
                 <output>Đã lưu bản nháp: {created.title}.</output>
               </p>
-              <button
+              <LoadingButton
                 type="button"
                 className="btn btn-primary"
                 disabled={
@@ -56,18 +54,24 @@ export function MaterialShare() {
                     .run("submit:" + created.id, () =>
                       request<Material>(
                         "me/materials/" + created.id + "/submit",
-                        { method: "POST" },
+                        {
+                          method: "POST",
+                          body: {
+                            expectedListingVersion: created.listingVersion,
+                          },
+                        },
                       ),
                     )
                     .then((result) => {
                       if (result) setCreated(result.data);
                     });
                 }}
+                loading={!!submit.pending}
               >
                 {created.status === "PENDING_REVIEW"
                   ? "Đã gửi duyệt"
                   : "Gửi duyệt tài liệu"}
-              </button>
+              </LoadingButton>
               <CommandFeedback command={submit} />
               <p>
                 <Link
@@ -164,26 +168,34 @@ export function MaterialShare() {
               {fileId && (
                 <div>
                   <Feedback
-                    loading={file.loading}
+                    variant="inline"
+                    loading={file.initialLoading}
                     error={file.error}
                     reload={file.reload}
+                    refreshing={!!(file.loading && !file.initialLoading)}
                   />
                   <p>
                     Trạng thái tệp:{" "}
                     {file.data ? (
-                      <Status value={file.data.state} />
+                      <Status
+                        value={file.data.state}
+                        label={
+                          file.data.state === "READY" ? "Sẵn sàng" : undefined
+                        }
+                      />
                     ) : (
                       "Đang đọc trạng thái…"
                     )}
                   </p>
-                  <button
+                  <LoadingButton
                     type="button"
                     className="btn"
                     onClick={file.reload}
                     disabled={file.loading}
+                    loading={!!file.loading}
                   >
                     Kiểm tra tệp
-                  </button>
+                  </LoadingButton>
                 </div>
               )}
               <MaterialCoverControl
@@ -200,7 +212,7 @@ export function MaterialShare() {
                 Tôi có quyền phân phối tài liệu này.
               </label>
               <CommandFeedback command={command} />
-              <button
+              <LoadingButton
                 type="submit"
                 className="btn btn-primary"
                 disabled={
@@ -210,9 +222,10 @@ export function MaterialShare() {
                   command.pending ||
                   command.uncertain
                 }
+                loading={!!command.pending}
               >
                 Lưu bản nháp
-              </button>
+              </LoadingButton>
             </form>
           )}
         </Panel>
@@ -228,182 +241,4 @@ export function MaterialShare() {
     </>
   );
 }
-export function MyMaterials() {
-  const [editing, setEditing] = useState<string | null>(null),
-    [archiving, setArchiving] = useState<string | null>(null),
-    [inspectionError, setInspectionError] = useState<string>();
-  const query = useUserList<Material & { rejectReason: string | null }>(
-      "me/materials",
-    ),
-    { request } = useUserSession(),
-    command = useUserCommand();
-  return (
-    <>
-      <Back href="/learn/materials" />
-      <PageHeading
-        title="Tài liệu của tôi"
-        action={
-          <Link className="btn btn-primary" href="/learn/materials/new">
-            + Chia sẻ tài liệu
-          </Link>
-        }
-      />
-      <Feedback
-        loading={query.loading}
-        error={query.error}
-        reload={query.reload}
-      />
-      <CommandFeedback command={command} />
-      {command.uncertain && (
-        <button
-          type="button"
-          className="btn"
-          onClick={async () => {
-            try {
-              await request<Material[]>("me/materials");
-              command.resetAfterRead();
-              setArchiving(null);
-              setInspectionError(undefined);
-              query.reload();
-            } catch (cause) {
-              setInspectionError(
-                cause instanceof Error
-                  ? cause.message
-                  : "Chưa đối chiếu được trạng thái.",
-              );
-            }
-          }}
-        >
-          Đối chiếu trạng thái tài liệu
-        </button>
-      )}
-      {inspectionError && (
-        <p className="learner-error" role="alert">
-          {inspectionError}
-        </p>
-      )}
-      <div className="learner-stack">
-        {query.items.map((material) => (
-          <Panel key={material.id}>
-            <div className="learner-card-top">
-              <h2>{material.title}</h2>
-              <Status value={material.status} />
-            </div>
-            <p>{material.description}</p>
-            {material.rejectReason && (
-              <p className="learner-error">{material.rejectReason}</p>
-            )}
-            <p>
-              {material.accessType === "FREE"
-                ? "Miễn phí"
-                : material.priceCredit + " CR"}{" "}
-              · Phiên bản {material.listingVersion}
-            </p>
-            {editing === material.id && editableMaterial(material.status) ? (
-              <MaterialEditor
-                key={material.id + ":" + material.listingVersion}
-                material={material}
-                close={() => setEditing(null)}
-                reload={query.reload}
-              />
-            ) : (
-              editableMaterial(material.status) && (
-                <div className="learner-actions">
-                  <button
-                    type="button"
-                    className="btn"
-                    disabled={command.pending || command.uncertain}
-                    onClick={() => {
-                      setArchiving(null);
-                      setEditing(material.id);
-                    }}
-                  >
-                    Sửa tài liệu
-                  </button>
-                  <button
-                    type="button"
-                    className="btn"
-                    disabled={command.pending || command.uncertain}
-                    onClick={() => {
-                      setEditing(null);
-                      setArchiving(material.id);
-                    }}
-                  >
-                    Lưu trữ
-                  </button>
-                </div>
-              )
-            )}
-            {archiving === material.id && (
-              <div className="learner-notice">
-                <p>
-                  Lưu trữ “{material.title}”? Tài liệu sẽ ngừng phân phối. Hiện
-                  chưa có thao tác khôi phục; quyền của người đã mua do máy chủ
-                  quản lý.
-                </p>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={command.pending || command.uncertain}
-                  onClick={() =>
-                    void command
-                      .run("archive:" + material.id, () =>
-                        request("me/materials/" + material.id + "/archive", {
-                          method: "POST",
-                        }),
-                      )
-                      .then((result) => {
-                        if (result) {
-                          setArchiving(null);
-                          query.reload();
-                        }
-                      })
-                  }
-                >
-                  Xác nhận lưu trữ
-                </button>{" "}
-                <button
-                  type="button"
-                  className="btn"
-                  disabled={command.pending}
-                  onClick={() => {
-                    setArchiving(null);
-                    query.reload();
-                  }}
-                >
-                  Đóng và làm mới
-                </button>
-              </div>
-            )}
-            {material.status === "DRAFT" && (
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={command.pending || command.uncertain}
-                onClick={() => {
-                  void command.run("submit:" + material.id, () =>
-                    request("me/materials/" + material.id + "/submit", {
-                      method: "POST",
-                    }),
-                  );
-                }}
-              >
-                Gửi duyệt
-              </button>
-            )}
-          </Panel>
-        ))}
-      </div>
-      {!query.loading && !query.error && !query.items.length && (
-        <Empty>Bạn chưa chia sẻ tài liệu nào.</Empty>
-      )}
-      <More
-        cursor={query.cursor}
-        loading={query.loading}
-        onMore={() => {
-          void query.more();
-        }}
-      />
-    </>
-  );
-}
+export { MyMaterials } from "./my-materials";

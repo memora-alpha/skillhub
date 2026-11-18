@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { formText } from "../learner/components/form-data";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -190,11 +191,16 @@ export function AccountScreen({
                   <output>{notice}</output>
                 </p>
               )}
-              <button type="submit" className="auth-submit" disabled={pending}>
+              <LoadingButton
+                type="submit"
+                className="auth-submit"
+                disabled={pending}
+                loading={!!pending}
+              >
                 {pending ? "Đang xử lý…" : submitLabels[step]} →
-              </button>
+              </LoadingButton>
               {step === "otp" && (
-                <button
+                <LoadingButton
                   type="button"
                   className="auth-reset"
                   disabled={pending || resendSeconds > 0}
@@ -212,14 +218,15 @@ export function AccountScreen({
                       );
                     });
                   }}
+                  loading={!!pending}
                 >
                   {resendSeconds > 0
                     ? `Gửi lại mã sau ${resendSeconds}s`
                     : "Gửi lại mã xác nhận"}
-                </button>
+                </LoadingButton>
               )}
               {step !== "start" && (
-                <button
+                <LoadingButton
                   type="button"
                   className="auth-reset"
                   disabled={pending}
@@ -229,9 +236,10 @@ export function AccountScreen({
                     setError(undefined);
                     setNotice(undefined);
                   }}
+                  loading={!!pending}
                 >
                   Bắt đầu lại / đổi email
-                </button>
+                </LoadingButton>
               )}
             </form>
           )}

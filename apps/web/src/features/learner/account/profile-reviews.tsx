@@ -1,8 +1,10 @@
 "use client";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useUserPagedList } from "../hooks/use-user-paged-list";
 import Link from "next/link";
 import { useState } from "react";
-import { useUserList } from "../hooks/use-user-resource";
-import { Feedback, More, Panel, formatTime } from "../components/common";
+
+import { Feedback, Panel, formatTime } from "../components/common";
 export type ReviewSummary = {
   reviewCount: number;
   averageRating: number | null;
@@ -43,7 +45,7 @@ export function ProfileReviews({
   own = false,
 }: Readonly<{ userId: string; own?: boolean }>) {
   const [direction, setDirection] = useState("received");
-  const query = useUserList<Review>(
+  const query = useUserPagedList<Review>(
     own
       ? `me/reviews?direction=${direction}&limit=20`
       : `profiles/${userId}/reviews?limit=20`,
@@ -58,6 +60,7 @@ export function ProfileReviews({
             ["sent", "Đã gửi"],
           ].map(([value, label]) => (
             <button
+              type="button"
               className="btn"
               aria-pressed={direction === value}
               key={value}
@@ -69,9 +72,10 @@ export function ProfileReviews({
         </div>
       )}
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       {query.items.map((row) => {
         const person = direction === "sent" ? row.reviewee : row.reviewer;
@@ -95,13 +99,7 @@ export function ProfileReviews({
       {!query.loading && !query.error && !query.items.length && (
         <p>Chưa có đánh giá.</p>
       )}
-      <More
-        cursor={query.cursor}
-        loading={query.loading}
-        onMore={() => {
-          void query.more();
-        }}
-      />
+      <ListPagination query={query} />
     </Panel>
   );
 }

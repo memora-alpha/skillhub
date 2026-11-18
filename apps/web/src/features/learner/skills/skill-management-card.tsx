@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import Link from "next/link";
 import { useState } from "react";
 import { useUserSession } from "../auth/session";
@@ -80,22 +81,24 @@ export function SkillManagementCard({
       </Link>
       {!skill.archivedAt && (
         <div className="learner-actions">
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={disabled}
             onClick={openEditor}
+            loading={!!command.pending}
           >
             Chỉnh sửa
-          </button>
-          <button
+          </LoadingButton>
+          <LoadingButton
             type="button"
             className="btn"
             disabled={disabled}
             onClick={() => act("visibility")}
+            loading={!!command.pending}
           >
             {skill.isVisible ? "Ẩn kỹ năng" : "Hiện kỹ năng"}
-          </button>
+          </LoadingButton>
         </div>
       )}
       <details>
@@ -107,14 +110,15 @@ export function SkillManagementCard({
             ? "Khôi phục giữ lịch sử và xác minh đã có. Máy chủ kiểm tra danh mục và kỹ năng trùng trước khi khôi phục."
             : "Ẩn hoặc lưu trữ sẽ gỡ kỹ năng khỏi tìm kiếm công khai. Thỏa thuận và lịch sử cũ được giữ lại. Kỹ năng đang chờ xác minh có thể chưa được lưu trữ."}
         </p>
-        <button
+        <LoadingButton
           type="button"
           className="btn"
           disabled={disabled}
           onClick={() => act(skill.archivedAt ? "restore" : "archive")}
+          loading={!!command.pending}
         >
           {skill.archivedAt ? "Xác nhận khôi phục" : "Xác nhận lưu trữ"}
-        </button>
+        </LoadingButton>
       </details>
       {editing && (
         <form
@@ -140,9 +144,11 @@ export function SkillManagementCard({
         >
           <h3>Chỉnh sửa kỹ năng</h3>
           <Feedback
-            loading={levels.loading}
+            variant="inline"
+            loading={levels.initialLoading}
             error={levels.error}
             reload={levels.reload}
+            refreshing={!!(levels.loading && !levels.initialLoading)}
           />
           {stale && (
             <p className="learner-notice">
@@ -199,44 +205,48 @@ export function SkillManagementCard({
               />
               <span> Hiển thị công khai</span>
             </label>
-            <button
+            <LoadingButton
               className="btn btn-primary"
               type="submit"
               disabled={!levels.data || !!levels.error}
+              loading={!!command.pending}
             >
               Lưu chỉnh sửa
-            </button>
+            </LoadingButton>
           </fieldset>
           {stale && (
-            <button
+            <LoadingButton
               type="button"
               className="btn"
               disabled={disabled}
               onClick={openEditor}
+              loading={!!command.pending}
             >
               Thay bản nhập bằng bản mới trên máy chủ
-            </button>
+            </LoadingButton>
           )}
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={command.pending || command.uncertain}
             onClick={() => setEditing(undefined)}
+            loading={!!command.pending}
           >
             Đóng chỉnh sửa
-          </button>
+          </LoadingButton>
         </form>
       )}
       <CommandFeedback command={command} />
       {command.canRetry && intent && (
-        <button
+        <LoadingButton
           type="button"
           className="btn"
           disabled={blocked || command.pending}
           onClick={() => void send(intent)}
+          loading={!!command.pending}
         >
           Kiểm tra lại cùng yêu cầu đã gửi
-        </button>
+        </LoadingButton>
       )}
       {notice && (
         <p className="learner-notice">

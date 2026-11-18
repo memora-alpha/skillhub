@@ -1,3 +1,4 @@
+import { LoadingButton } from "@/components/loading-button";
 import type { LearningSession } from "../types";
 import { formatTime } from "../components/common";
 import { ProfileAvatar } from "../components/profile-avatar";
@@ -129,16 +130,17 @@ export function SessionAttendanceTable({
       </p>
       {!hideRefresh && (
         <div className={styles.content}>
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={loading}
             onClick={refresh}
+            loading={!!loading}
           >
             {loading
               ? "Đang tải điểm danh…"
               : "Tải lại điểm danh và quyền xác nhận"}
-          </button>
+          </LoadingButton>
         </div>
       )}
     </>

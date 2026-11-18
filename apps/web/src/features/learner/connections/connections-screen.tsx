@@ -1,9 +1,11 @@
 "use client";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useUserPagedList } from "../hooks/use-user-paged-list";
 import { useState } from "react";
 import Link from "next/link";
-import { useUserList } from "../hooks/use-user-resource";
+
 import type { Proposal } from "../types";
-import { Feedback, More, statusText } from "../components/common";
+import { Feedback, statusText } from "../components/common";
 import { ProductIcon } from "../components/product-icon";
 import { ProposalCard } from "./proposal-card";
 import styles from "./connections.module.css";
@@ -35,7 +37,7 @@ export function ConnectionsScreen({
   const params = new URLSearchParams({ limit: "20", direction });
   if (requestId) params.set("learningRequestId", requestId);
   if (status !== "all") params.set("status", status);
-  const query = useUserList<Proposal>("proposals?" + params);
+  const query = useUserPagedList<Proposal>("proposals?" + params);
   const term = keyword.trim().toLocaleLowerCase("vi");
   const items = query.items.filter((proposal) =>
     [
@@ -80,7 +82,7 @@ export function ConnectionsScreen({
           <label className={styles.search}>
             <ProductIcon name="search" size={18} />
             <input
-              aria-label="Tìm trong các đề nghị đã tải"
+              aria-label="Tìm trong các đề nghị trên trang này"
               placeholder="Tìm nội dung đề nghị…"
               maxLength={100}
               value={keyword}
@@ -145,9 +147,10 @@ export function ConnectionsScreen({
         </p>
       )}
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       <div className={styles.cards}>
         {items.map((proposal) => (
@@ -181,13 +184,7 @@ export function ConnectionsScreen({
           )}
         </section>
       )}
-      <More
-        cursor={query.cursor}
-        loading={query.loading}
-        onMore={() => {
-          void query.more();
-        }}
-      />
+      <ListPagination query={query} />
     </div>
   );
 }

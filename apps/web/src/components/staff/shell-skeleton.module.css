@@ -1,0 +1,19 @@
+.navigation {
+  display: grid;
+  gap: 24px;
+  padding: 30px 18px;
+}
+.item {
+  display: block;
+  width: 140px;
+  height: 14px;
+  border-radius: 6px;
+  background: var(--line, #e5e7eb);
+  opacity: 0.5;
+}
+
+@media (max-width: 1023px) {
+  .sidebar {
+    display: none;
+  }
+}

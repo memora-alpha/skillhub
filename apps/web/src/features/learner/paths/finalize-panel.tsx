@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { useUserSession } from "../auth/session";
@@ -123,7 +124,7 @@ export function FinalizePanel({
             />{" "}
             Tôi đồng ý với lịch học và Credit này.
           </label>
-          <button
+          <LoadingButton
             type="button"
             className="btn btn-primary"
             disabled={
@@ -167,12 +168,13 @@ export function FinalizePanel({
                   }
                 });
             }}
+            loading={!!(checking || command.pending)}
           >
             {submitLabel}
-          </button>
+          </LoadingButton>
         </>
       )}
-      <button
+      <LoadingButton
         type="button"
         className="btn"
         disabled={checking || command.pending}
@@ -205,9 +207,10 @@ export function FinalizePanel({
             setChecking(false);
           }
         }}
+        loading={!!(checking || command.pending)}
       >
         Kiểm tra lại trạng thái
-      </button>
+      </LoadingButton>
       {canReset && (
         <button
           type="button"

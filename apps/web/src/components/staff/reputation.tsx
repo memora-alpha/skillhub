@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { systemCodeLabel } from "@/lib/system-text";
 
 import { useState } from "react";
@@ -7,6 +8,7 @@ import { fmtDateTime } from "@/lib/console/format";
 import type { ReputationHistory } from "@/lib/staff/account-types";
 import { QueueState } from "./common";
 import { useStaffResource } from "./hooks";
+import { PageNavigation } from "@/components/pagination/page-navigation";
 
 const levels: Record<string, string> = {
   EXCELLENT: "Rất tốt",
@@ -38,7 +40,7 @@ export function ReputationScreen() {
   const [cursors, setCursors] = useState<string[]>([]);
   const cursor = cursors.at(-1);
   const resource = useStaffResource<ReputationHistory>(
-    `reputation${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,
+    "reputation" + (cursor ? "?cursor=" + encodeURIComponent(cursor) : ""),
   );
   const data = resource.data;
   const next = data?.nextCursor;
@@ -48,7 +50,7 @@ export function ReputationScreen() {
         title="Uy tín của tôi"
         desc="Điểm uy tín, lịch sử thay đổi và các hạn chế của tài khoản đang đăng nhập."
         actions={
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={resource.loading}
@@ -56,9 +58,10 @@ export function ReputationScreen() {
               if (cursors.length) setCursors([]);
               else void resource.reload();
             }}
+            loading={!!resource.loading}
           >
             Làm mới
-          </button>
+          </LoadingButton>
         }
       />
       <QueueState
@@ -83,8 +86,10 @@ export function ReputationScreen() {
                   <p>Không có hạn chế nào đang áp dụng.</p>
                 ) : (
                   <ul className="stack">
-                    {data.activeRestrictions.map((restriction, index) => (
-                      <li key={`${restriction.scope}-${index}`}>
+                    {data.activeRestrictions.map((restriction) => (
+                      <li
+                        key={`${restriction.scope}:${restriction.reasonCode}:${restriction.endsAt}`}
+                      >
                         <strong>
                           {scopes[restriction.scope] ??
                             systemCodeLabel(restriction.scope)}
@@ -139,29 +144,22 @@ export function ReputationScreen() {
                     </table>
                   </div>
                 )}
-                <div className="staff-pager row">
-                  <button
-                    type="button"
-                    className="btn"
-                    disabled={resource.loading || !cursors.length}
-                    onClick={() => setCursors(cursors.slice(0, -1))}
-                  >
-                    Trang trước
-                  </button>
-                  <span className="muted">Trang {cursors.length + 1}</span>
-                  <button
-                    type="button"
-                    className="btn"
-                    disabled={
-                      resource.loading || !next || cursors.includes(next)
-                    }
-                    onClick={() => {
-                      if (next) setCursors([...cursors, next]);
-                    }}
-                  >
-                    Xem cũ hơn
-                  </button>
-                </div>
+                <PageNavigation
+                  pageNumber={cursors.length + 1}
+                  totalPages={!next ? cursors.length + 1 : undefined}
+                  loading={resource.loading}
+                  hasNext={!!next && !cursors.includes(next)}
+                  onPageChange={(target) => {
+                    if (target <= cursors.length + 1)
+                      setCursors(cursors.slice(0, target - 1));
+                    else if (
+                      target === cursors.length + 2 &&
+                      next &&
+                      !cursors.includes(next)
+                    )
+                      setCursors([...cursors, next]);
+                  }}
+                />
               </Card>
             </section>
           </>

@@ -1,4 +1,7 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useStaffListPages } from "./use-staff-list-pages";
 import { useState } from "react";
 import {
   Badge,
@@ -10,9 +13,9 @@ import {
   StatusBadge,
 } from "@/components/console/ui";
 import { Icon } from "@/components/console/icon";
-import { useStaffList } from "./hooks";
+
 import { useStaffSession } from "./session";
-import { DecisionDialog, Pager, QueueState } from "./common";
+import { DecisionDialog, QueueState } from "./common";
 import {
   reportReasonLabel,
   reportDateLabel,
@@ -38,6 +41,7 @@ export function SupportQueueScreen({
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
   const [currentId, setCurrentId] = useState<string>();
+  const [mobileDetail, setMobileDetail] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [group, setGroup] = useState(false);
   const [incident, setIncident] = useState<string | undefined>(() =>
@@ -52,10 +56,13 @@ export function SupportQueueScreen({
   if (severity) params.set("severity", severity);
   if (status) params.set("status", status);
   if (scope === "mine" && actor) params.set("handlerId", actor.userId);
-  const list = useStaffList<SupportCase>(`reports/support/queue?${params}`);
+  const list = useStaffListPages<SupportCase>(
+    `reports/support/queue?${params}`,
+  );
   const reset = () => {
     setSelected([]);
     setCurrentId(undefined);
+    setMobileDetail(false);
   };
   const needle = search.trim().toLocaleLowerCase("vi");
   const visible = list.items.filter((row) =>
@@ -96,6 +103,7 @@ export function SupportQueueScreen({
   });
   function selectCase(id: string) {
     setCurrentId(id);
+    setMobileDetail(true);
     if (window.matchMedia("(max-width: 900px)").matches)
       requestAnimationFrame(() => {
         const panel = document.getElementById("ops-selected-case");
@@ -109,7 +117,7 @@ export function SupportQueueScreen({
         title="Báo cáo & tranh chấp"
         desc="Tiếp nhận, kiểm tra bằng chứng và xử lý từng vụ việc."
         actions={
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={list.loading}
@@ -117,9 +125,10 @@ export function SupportQueueScreen({
               setSelected([]);
               void list.reload();
             }}
+            loading={!!list.loading}
           >
             <Icon name="refresh" size={16} /> Làm mới
-          </button>
+          </LoadingButton>
         }
       />
       <div className="ops-tabbar">
@@ -140,12 +149,13 @@ export function SupportQueueScreen({
       </div>
       <div className="toolbar ops-queue-toolbar">
         <SearchBox
-          label="Tìm trong các báo cáo đã tải"
-          placeholder="Mã hoặc lý do trong các mục đã tải…"
+          label="Tìm trong các báo cáo trên trang hiện tại"
+          placeholder="Mã hoặc lý do trong trang hiện tại…"
           value={search}
           onChange={(value) => {
             setSearch(value);
             setCurrentId(undefined);
+            setMobileDetail(false);
           }}
         />
         <label className="ops-filter">
@@ -184,12 +194,8 @@ export function SupportQueueScreen({
             ))}
           </select>
         </label>
-        <span className="muted ops-loaded-count">
-          {list.items.length}
-          {list.page?.hasMore ? "+" : ""} mục đã tải
-        </span>
         {selected.length > 0 && (
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={
@@ -211,9 +217,10 @@ export function SupportQueueScreen({
               setGroupSeverity(severities[highest]?.code ?? "MEDIUM");
               setGroup(true);
             }}
+            loading={!!list.loading}
           >
             Gom {selected.length} báo cáo
-          </button>
+          </LoadingButton>
         )}
       </div>
       {selected.length > 0 && (
@@ -229,7 +236,11 @@ export function SupportQueueScreen({
           </button>
         </p>
       )}
-      <div className="ops-report-workspace">
+      <p className="admin-scope-note">
+        Tìm kiếm chỉ áp dụng cho mã và lý do trong các báo cáo trên trang hiện
+        tại.
+      </p>
+      <div className="ops-report-workspace" data-show-detail={mobileDetail}>
         <Card className="ops-report-list" flush>
           <QueueState
             loading={list.loading}
@@ -239,7 +250,7 @@ export function SupportQueueScreen({
           >
             {!visible.length ? (
               <Empty
-                title="Không có kết quả trong các mục đã tải"
+                title="Không có kết quả trong trang hiện tại"
                 desc="Thử từ khóa khác hoặc tải thêm báo cáo."
               />
             ) : (
@@ -326,11 +337,7 @@ export function SupportQueueScreen({
               </div>
             )}
           </QueueState>
-          <Pager
-            loading={list.loading}
-            more={list.more}
-            hasMore={list.page?.hasMore}
-          />
+          <ListPagination query={list} />
         </Card>
         <section
           id="ops-selected-case"
@@ -338,6 +345,22 @@ export function SupportQueueScreen({
           tabIndex={-1}
           aria-label="Chi tiết báo cáo đang chọn"
         >
+          <button
+            type="button"
+            className="btn admin-mobile-case-back"
+            onClick={() => {
+              setMobileDetail(false);
+              requestAnimationFrame(() =>
+                document
+                  .querySelector<HTMLElement>(
+                    ".ops-case-select[aria-pressed='true']",
+                  )
+                  ?.focus(),
+              );
+            }}
+          >
+            ← Quay lại danh sách
+          </button>
           {detailId ? (
             <ReportDetailScreen
               key={`${actor?.userId}:${detailId}`}

@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { useEffect, useId, useRef, useState } from "react";
 import { ProductIcon } from "../components/product-icon";
 import styles from "./chat.module.css";
@@ -92,7 +93,9 @@ export function MessageComposer({
       }
       return true;
     } catch (cause) {
-      if (cause instanceof UserApiError && cause.status === 404) return true;
+      if (cause instanceof UserApiError && cause.status === 404) {
+        return true;
+      }
       setNotice(
         cause instanceof Error
           ? cause.message
@@ -177,7 +180,7 @@ export function MessageComposer({
         inputId={fileInputId}
       />
       <div className={styles.composerRow}>
-        <button
+        <LoadingButton
           type="button"
           className={styles.attach}
           aria-label="Đính kèm tệp"
@@ -186,9 +189,10 @@ export function MessageComposer({
             !!saved || command.pending || uploading || files.length >= 5
           }
           onClick={() => document.getElementById(fileInputId)?.click()}
+          loading={!!(command.pending || uploading)}
         >
           <ProductIcon name="paperclip" size={22} />
-        </button>
+        </LoadingButton>
         <label className={styles.composerField}>
           <span className="sr-only">Tin nhắn</span>
           <textarea
@@ -212,7 +216,7 @@ export function MessageComposer({
             }}
           />
         </label>
-        <button
+        <LoadingButton
           type="submit"
           className={styles.send}
           aria-label={sendLabel}
@@ -224,16 +228,17 @@ export function MessageComposer({
             (!text.trim() && !files.length) ||
             (!saved && files.some((file) => file.state !== "CLEAN"))
           }
+          loading={!!(command.pending || checking || uploading)}
         >
           <ProductIcon name="send" size={20} />
-        </button>
+        </LoadingButton>
       </div>
       <small className={styles.composerHint}>
         Enter để gửi · Shift + Enter để xuống dòng · Tối đa 15 MB/tệp
       </small>
       <div className="learner-actions">
         {saved && (
-          <button
+          <LoadingButton
             className="btn"
             type="button"
             disabled={checking || command.pending}
@@ -264,9 +269,10 @@ export function MessageComposer({
                 )
                 .finally(() => setChecking(false));
             }}
+            loading={!!(checking || command.pending)}
           >
             Kiểm tra tin đã gửi
-          </button>
+          </LoadingButton>
         )}
       </div>
       {saved && command.failure && !command.uncertain && (

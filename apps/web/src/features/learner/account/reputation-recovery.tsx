@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { useRef, useState } from "react";
 import { useUserResource } from "../hooks/use-user-resource";
 import { useUserSession } from "../auth/session";
@@ -98,9 +99,10 @@ export function ReputationRecovery({
         )}
       </div>
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
       {data?.eligible ? (
         <>
@@ -152,7 +154,7 @@ export function ReputationRecovery({
                     </span>
                     {!mission.claimed &&
                       (isQuiz ? (
-                        <button
+                        <LoadingButton
                           type="button"
                           className="btn btn-primary"
                           disabled={
@@ -164,13 +166,14 @@ export function ReputationRecovery({
                           aria-expanded={quizOpen}
                           aria-controls="recovery-quiz"
                           onClick={() => setQuizOpen(!quizOpen)}
+                          loading={!!(command.pending || query.loading)}
                         >
                           {quizOpen
                             ? "Thu gọn bài kiểm tra"
                             : "Làm bài kiểm tra"}
-                        </button>
+                        </LoadingButton>
                       ) : (
-                        <button
+                        <LoadingButton
                           type="button"
                           className="btn"
                           disabled={
@@ -184,11 +187,12 @@ export function ReputationRecovery({
                               code: mission.code,
                             })
                           }
+                          loading={!!(command.pending || query.loading)}
                         >
                           {mission.progress.complete
                             ? "Nhận điểm"
                             : "Đang thực hiện"}
-                        </button>
+                        </LoadingButton>
                       ))}
                   </div>
                   {!isQuiz && !mission.claimed && (
@@ -230,16 +234,17 @@ export function ReputationRecovery({
       </div>
       <CommandFeedback command={command} />
       {command.canRetry && (
-        <button
+        <LoadingButton
           type="button"
           className="btn"
           disabled={command.pending}
           onClick={() => {
             if (last.current) void run(last.current.path, last.current.body);
           }}
+          loading={!!command.pending}
         >
           Kiểm tra lại kết quả
-        </button>
+        </LoadingButton>
       )}
       {data && (
         <details className={styles.policy}>
@@ -262,16 +267,17 @@ export function ReputationRecovery({
                 <li key={rule}>{rule}</li>
               ))}
             </ul>
-            <button
+            <LoadingButton
               type="button"
               className="btn"
               disabled={locked || query.loading || !!query.error}
               onClick={() =>
                 void run("reputation/restrictions/policy-acknowledgement", {})
               }
+              loading={!!(command.pending || query.loading)}
             >
               Tôi đã đọc và đồng ý
-            </button>
+            </LoadingButton>
           </div>
         </details>
       )}

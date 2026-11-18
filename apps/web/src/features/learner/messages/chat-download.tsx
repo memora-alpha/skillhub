@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { useState } from "react";
 import { useUserSession } from "../auth/session";
 import { safeDownloadUrl } from "../account/view-policy";
@@ -36,7 +37,7 @@ export function ChatDownload({
           Tải {filename} ↗
         </a>
       ) : (
-        <button
+        <LoadingButton
           type="button"
           className="learner-text-button"
           disabled={busy}
@@ -74,9 +75,10 @@ export function ChatDownload({
               setBusy(false);
             }
           }}
+          loading={!!busy}
         >
           {busy ? "Đang kiểm tra quyền tải…" : "Lấy liên kết tải " + filename}
-        </button>
+        </LoadingButton>
       )}
       <Feedback error={error} />
     </div>

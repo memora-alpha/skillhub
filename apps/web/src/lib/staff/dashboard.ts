@@ -59,6 +59,25 @@ export type DashboardSummary = {
     { skillId: string; name: string; completedSessions: number }[]
   >;
 };
+export type DashboardTrends = {
+  asOf: string;
+  from: string;
+  to: string;
+  timezone: string;
+  granularity: "day";
+  buckets: DashboardSection<
+    {
+      localDate: string;
+      fromUtc: string;
+      toUtc: string;
+      partial: boolean;
+      newUsers: number;
+      scheduledSessions: number;
+      completedSessions: number;
+      topUpCredit: string;
+    }[]
+  >;
+};
 export function sectionData<T>(section?: DashboardSection<T>) {
   return section?.availability === "AVAILABLE" ? section.data : undefined;
 }
@@ -130,7 +149,12 @@ export function workItemHref(
     case "REPORT_INCIDENT":
       return `/admin/disputes?incidentId=${id}`;
     case "PATH_TERMINATION":
-      return "/admin/learning-changes";
+      return (
+        `/admin/learning-changes?requestId=${id}` +
+        (item.related.pathId
+          ? "&pathId=" + encodeURIComponent(item.related.pathId)
+          : "")
+      );
     case "SKILL_VERIFICATION":
       return `/admin/evidence?verificationId=${id}`;
     case "TAG_REQUEST":

@@ -1,15 +1,17 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useUserPagedList } from "../hooks/use-user-paged-list";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { useUserSession } from "../auth/session";
-import { useUserList } from "../hooks/use-user-resource";
+
 import { useUserCommand } from "../hooks/use-user-command";
 import {
   Back,
   CommandFeedback,
   Empty,
   Feedback,
-  More,
   PageHeading,
   Panel,
   Status,
@@ -32,7 +34,7 @@ export function TagRequestsScreen() {
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
   const submitted = useRef("");
-  const query = useUserList<TagRequest>(
+  const query = useUserPagedList<TagRequest>(
     "me/tag-requests?limit=20" + (status ? "&status=" + status : ""),
   );
   return (
@@ -91,13 +93,14 @@ export function TagRequestsScreen() {
               <output>{notice}</output>
             </p>
           )}
-          <button
+          <LoadingButton
             className="btn btn-primary"
             disabled={command.pending}
             type="submit"
+            loading={!!command.pending}
           >
             {command.canRetry ? "Kiểm tra lại cùng đề xuất" : "Gửi Admin duyệt"}
-          </button>
+          </LoadingButton>
         </form>
       </Panel>
       <label>
@@ -110,18 +113,20 @@ export function TagRequestsScreen() {
         </select>
       </label>
       <Feedback
-        loading={query.loading}
+        loading={query.initialLoading}
         error={query.error}
         reload={query.reload}
+        refreshing={!!(query.loading && !query.initialLoading)}
       />
-      <button
+      <LoadingButton
         type="button"
         className="btn"
         onClick={query.reload}
         disabled={query.loading}
+        loading={!!query.loading}
       >
         Tải lại trạng thái duyệt
-      </button>
+      </LoadingButton>
       <div className="learner-stack">
         {query.items.map((row) => (
           <Panel key={row.id} title={row.label}>
@@ -143,13 +148,7 @@ export function TagRequestsScreen() {
       {!query.loading && !query.error && !query.items.length && (
         <Empty>Chưa có yêu cầu trong mục này.</Empty>
       )}
-      <More
-        cursor={query.cursor}
-        loading={query.loading}
-        onMore={() => {
-          void query.more();
-        }}
-      />
+      <ListPagination query={query} />
     </>
   );
 }

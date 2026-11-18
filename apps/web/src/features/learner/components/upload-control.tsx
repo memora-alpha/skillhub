@@ -87,7 +87,7 @@ export function UploadControl({
         Tối đa {maxBytes / 1000000} MB. Tệp được máy chủ kiểm tra trước khi sử
         dụng.
       </small>
-      <Feedback loading={uploading} error={error} />
+      <Feedback variant="inline" loading={uploading} error={error} />
     </div>
   );
 }

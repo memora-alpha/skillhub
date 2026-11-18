@@ -1,6 +1,15 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 import { systemCodeLabel } from "@/lib/system-text";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type Ref,
+} from "react";
 import { useStaffSession } from "./session";
 import { StaffApiError } from "@/lib/staff/client";
 import {
@@ -15,20 +24,55 @@ import {
   type TerminationReview,
 } from "@/lib/staff/termination";
 import { QueueState } from "./common";
-import { PageHeader } from "@/components/console/ui";
+import {
+  Badge,
+  Card,
+  DataTable,
+  PageHeader,
+  StatusBadge,
+} from "@/components/console/ui";
+import { AdminDrawer, AdminField, AdminNotice, RecordId } from "./admin-ui";
+import { financeNumber } from "@/lib/staff/finance-presentation";
+import { fmtDateTime } from "@/lib/console/format";
+import {
+  splitPages,
+  useListPages,
+} from "@/components/pagination/use-list-pages";
+import { ListPagination } from "@/components/pagination/list-pagination";
 const text = (cause: unknown) =>
   cause instanceof Error
     ? cause.message
     : "Không thể đọc kết quả. Vui lòng tải lại.";
-export function TerminationsScreen() {
+type TerminationTarget = Pick<TerminationChange, "id" | "pathId">;
+type InitialTermination = Readonly<{
+  initialRequestId?: string;
+  initialPathId?: string;
+}>;
+const uuid = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
+export function TerminationsScreen(props: InitialTermination) {
   const { actor } = useStaffSession();
-  return actor ? <TerminationQueue key={actor.userId} /> : null;
+  return actor ? (
+    <TerminationQueue
+      key={`${actor.userId}:${props.initialRequestId ?? ""}:${props.initialPathId ?? ""}`}
+      {...props}
+    />
+  ) : null;
 }
-function TerminationQueue() {
-  const { api } = useStaffSession();
+function TerminationQueue({
+  initialRequestId,
+  initialPathId,
+}: InitialTermination) {
+  const { api, portal } = useStaffSession();
   const [rows, setRows] = useState<TerminationChange[]>([]),
     [cursor, setCursor] = useState<string | null>(null),
-    [selected, setSelected] = useState<TerminationChange | null>(null),
+    [selected, setSelected] = useState<TerminationTarget | null>(() =>
+      initialRequestId &&
+      initialPathId &&
+      uuid.test(initialRequestId) &&
+      uuid.test(initialPathId)
+        ? { id: initialRequestId, pathId: initialPathId }
+        : null,
+    ),
     [loading, setLoading] = useState(true),
     [error, setError] = useState<string>();
   const flight = useRef(false),
@@ -91,6 +135,15 @@ function TerminationQueue() {
     setError(undefined);
     void load(after);
   }
+  const pagination = useListPages({
+    scope: `terminations:${portal}`,
+    chunks: splitPages(rows),
+    loading,
+    error,
+    hasMore: !!cursor,
+    more: () => startLoad(cursor ?? undefined),
+    reload: () => startLoad(),
+  });
   useEffect(() => {
     alive.current = true;
     void load();
@@ -104,61 +157,125 @@ function TerminationQueue() {
         title="Dừng lộ trình"
         desc="Xem yêu cầu, Held và chính sách trước khi quyết định. Không tự chia Credit theo số buổi."
         actions={
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={loading}
-            onClick={() => startLoad()}
+            onClick={() => void pagination.reload()}
+            loading={!!loading}
           >
             Làm mới hàng đợi
-          </button>
+          </LoadingButton>
         }
       />
+      {(initialRequestId || initialPathId) &&
+        (!initialRequestId ||
+          !initialPathId ||
+          !uuid.test(initialRequestId) ||
+          !uuid.test(initialPathId)) && (
+          <p role="alert" className="staff-error">
+            Liên kết cần mã yêu cầu và mã lộ trình hợp lệ. Chọn yêu cầu trong
+            hàng đợi để xem xét.
+          </p>
+        )}
+      {portal === "admin" && (
+        <AdminNotice tone="warn">
+          <strong>Phương án Credit là dữ liệu chỉ đọc.</strong>
+          <p>
+            Số tiền và cách phân bổ được tính từ các kết quả học đã ghi nhận.
+          </p>
+        </AdminNotice>
+      )}
       <QueueState
         loading={loading}
         error={error}
         empty={!rows.length}
-        reload={() => startLoad()}
+        reload={() => void pagination.reload()}
       >
-        <div className="staff-termination-grid">
-          {rows.map((row) => (
-            <section className="card" key={row.id}>
-              <h2>Yêu cầu {row.id.slice(0, 8)}</h2>
-              <p className="staff-wrap">Lộ trình: {row.pathId}</p>
-              <p>{row.reason}</p>
-              <p>
-                {systemCodeLabel(row.status)}
-                {row.blockedByDispute ? " · Có tranh chấp" : ""}
-                {row.awaitingPolicy ? " · Chờ chính sách" : ""}
-              </p>
-              <button
-                type="button"
-                className="btn"
-                onClick={() => setSelected(row)}
-              >
-                Xem phương án & xử lý
-              </button>
-            </section>
-          ))}
-        </div>
+        {portal === "admin" ? (
+          <Card title="Hàng đợi yêu cầu" flush>
+            <DataTable
+              columns={[
+                "Yêu cầu",
+                "Lộ trình / Người yêu cầu",
+                "Lý do",
+                "Trạng thái",
+                "Thao tác",
+              ]}
+              className="table admin-responsive-table admin-termination-table"
+            >
+              {pagination.items.map((row) => (
+                <tr key={row.id}>
+                  <td data-label="Yêu cầu">
+                    <RecordId id={row.id} label="yêu cầu" />
+                    <small>{fmtDateTime(row.createdAt)}</small>
+                  </td>
+                  <td data-label="Lộ trình / Người yêu cầu">
+                    <RecordId id={row.pathId} label="lộ trình" />
+                    <small>
+                      Người yêu cầu:{" "}
+                      <RecordId id={row.requesterId} label="người yêu cầu" />
+                    </small>
+                  </td>
+                  <td data-label="Lý do">
+                    <p className="admin-clamp">{row.reason}</p>
+                  </td>
+                  <td data-label="Trạng thái">
+                    <StatusBadge status={row.status} />
+                    <div className="admin-termination-flags">
+                      {row.blockedByDispute && (
+                        <Badge tone="bad">Có tranh chấp</Badge>
+                      )}
+                      {row.awaitingPolicy && (
+                        <Badge tone="warn">Chờ chính sách</Badge>
+                      )}
+                    </div>
+                  </td>
+                  <td data-label="Thao tác">
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      onClick={() => setSelected(row)}
+                    >
+                      Xem xét yêu cầu
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </DataTable>
+          </Card>
+        ) : (
+          <div className="staff-termination-grid">
+            {pagination.items.map((row) => (
+              <section className="card" key={row.id}>
+                <h2>Yêu cầu {row.id.slice(0, 8)}</h2>
+                <p className="staff-wrap">Lộ trình: {row.pathId}</p>
+                <p>{row.reason}</p>
+                <p>
+                  {systemCodeLabel(row.status)}
+                  {row.blockedByDispute ? " · Có tranh chấp" : ""}
+                  {row.awaitingPolicy ? " · Chờ chính sách" : ""}
+                </p>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => setSelected(row)}
+                >
+                  Xem phương án & xử lý
+                </button>
+              </section>
+            ))}
+          </div>
+        )}
       </QueueState>
-      {cursor && (
-        <button
-          type="button"
-          className="btn"
-          disabled={loading}
-          onClick={() => startLoad(cursor)}
-        >
-          Tải thêm yêu cầu
-        </button>
-      )}
+      <ListPagination query={pagination} />
       {selected && (
         <TerminationDetail
           key={selected.id}
           row={selected}
           close={() => {
             setSelected(null);
-            void load();
+            void pagination.reload();
           }}
         />
       )}
@@ -169,7 +286,7 @@ function TerminationDetail({
   row,
   close,
 }: Readonly<{
-  row: TerminationChange;
+  row: TerminationTarget;
   close: () => void;
 }>) {
   const { api, actor, portal } = useStaffSession();
@@ -181,6 +298,7 @@ function TerminationDetail({
     [busy, setBusy] = useState(true),
     [unknown, setUnknown] = useState(false),
     [success, setSuccess] = useState<string>();
+  const [rejecting, setRejecting] = useState(false);
   const flight = useRef(false),
     alive = useRef(true),
     section = useRef<HTMLElement>(null);
@@ -205,6 +323,7 @@ function TerminationDetail({
       .then((current) => {
         if (!alive.current) return;
         setReview(current);
+        setRejecting(false);
         setIntent(undefined);
         setUnknown(false);
         setAmounts(
@@ -253,9 +372,25 @@ function TerminationDetail({
         throw new Error(
           "Dữ liệu hoặc tranh chấp đã thay đổi. Tải lại chi tiết và lập phương án mới.",
         );
-      await api(base + "/execute", { method: "POST", body: intent });
+      const response = await api<unknown>(base + "/execute", {
+        method: "POST",
+        body: intent,
+      });
+      const result = readTerminationChange(response.data);
+      if (
+        result.id !== row.id ||
+        result.pathId !== row.pathId ||
+        !["ACCEPTED", "APPLIED"].includes(result.status)
+      )
+        throw new Error(
+          "Chưa xác nhận được kết quả dừng lộ trình. Hãy tải lại chi tiết để kiểm tra.",
+        );
       if (alive.current) {
-        setSuccess("Đã thực thi quyết định theo xác nhận máy chủ.");
+        setSuccess(
+          result.status === "APPLIED"
+            ? "Đã dừng lộ trình và ghi nhận phân bổ Credit."
+            : "Đã chấp thuận dừng lộ trình. Phân bổ Credit đang chờ các kết quả học còn lại.",
+        );
         setUnknown(false);
         setIntent(undefined);
       }
@@ -308,18 +443,22 @@ function TerminationDetail({
     review.execution.quote.status === "READY" &&
     ["ACCEPTED", "STAFF_REVIEW"].includes(review.status);
   return (
-    <section
-      className="card staff-termination-detail"
-      ref={section}
-      tabIndex={-1}
-      aria-label="Xem xét dừng lộ trình"
+    <TerminationFrame
+      row={row}
+      sectionRef={section}
+      busy={busy}
+      close={close}
+      reload={() => {
+        setBusy(true);
+        setError(undefined);
+        void reload();
+      }}
     >
-      <h2>Xem xét yêu cầu {row.id.slice(0, 8)}</h2>
-      <p className="staff-wrap">Lộ trình {row.pathId}</p>
-      {busy && (
-        <p>
-          <output>Đang kiểm tra máy chủ…</output>
-        </p>
+      {busy && !error && (
+        <LoadingSkeleton
+          variant={review ? "inline" : "section"}
+          label="Đang kiểm tra dữ liệu"
+        />
       )}
       {error && (
         <p role="alert" className="staff-error">
@@ -333,15 +472,51 @@ function TerminationDetail({
       )}
       {review && !success && (
         <>
-          <p>{review.reason}</p>
-          <p>
-            Tiến độ {review.execution.completed}/{review.execution.total} buổi ·
-            Trạng thái {systemCodeLabel(review.status)} · Phiên bản{" "}
-            {review.version}
-          </p>
-          <p className="staff-wrap">
-            Chính sách: {review.execution.policyReference ?? "Chưa được duyệt"}
-          </p>
+          <div className="admin-summary-strip">
+            <AdminField label="Trạng thái dừng">
+              <StatusBadge status={review.status} />
+            </AdminField>
+            <AdminField label="Phân bổ Credit">
+              <Badge
+                tone={review.execution.quote.status === "READY" ? "ok" : "warn"}
+              >
+                {review.execution.quote.status === "READY"
+                  ? "Sẵn sàng xem xét"
+                  : "Cần kiểm tra thêm"}
+              </Badge>
+            </AdminField>
+            <AdminField label="Buổi hoàn tất">
+              <strong>
+                {review.execution.completed}/{review.execution.total}
+              </strong>
+            </AdminField>
+          </div>
+          <section className="admin-section">
+            <h3>Thông tin yêu cầu</h3>
+            <div className="admin-field-grid">
+              <AdminField label="Lộ trình">
+                <RecordId id={review.pathId} label="lộ trình" />
+              </AdminField>
+              <AdminField label="Người yêu cầu">
+                <RecordId id={review.requesterId} label="người yêu cầu" />
+              </AdminField>
+              <AdminField label="Thời điểm gửi">
+                {fmtDateTime(review.createdAt)}
+              </AdminField>
+              <AdminField label="Chính sách">
+                {review.execution.policyReference
+                  ? "Đã có chính sách được duyệt"
+                  : "Chưa được duyệt"}
+              </AdminField>
+            </div>
+            <p className="admin-reason">{review.reason}</p>
+          </section>
+          {review.approvedAt && (
+            <AdminNotice tone="info">
+              Yêu cầu đã được chấp thuận dừng. Việc phân bổ Credit có thể vẫn
+              đang chờ các kết quả học còn lại.
+            </AdminNotice>
+          )}
           {review.blockedByDispute && (
             <p className="staff-error">Tranh chấp đang chặn thực thi.</p>
           )}
@@ -357,8 +532,8 @@ function TerminationDetail({
               }
             }}
           >
-            <fieldset disabled={busy || !!intent || unknown}>
-              <legend>Credit do máy chủ tính</legend>
+            <fieldset disabled={busy || !!intent || unknown || rejecting}>
+              <legend>Phương án phân bổ Credit</legend>
               {review.execution.quote.status === "BLOCKED" && (
                 <output>
                   Cần xử lý các buổi học hoặc vụ việc còn mở trước khi thực thi.
@@ -376,15 +551,75 @@ function TerminationDetail({
                   ))}
                 </ul>
               )}
-              {review.execution.allocations.map((held) => (
-                <HeldAllocationFields
-                  key={held.allocationId}
-                  held={held}
-                  value={amounts.find(
-                    (amount) => amount.allocationId === held.allocationId,
-                  )}
-                />
-              ))}
+              {portal === "admin" ? (
+                <div className="admin-held-table">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Khoản giữ / Chủ sở hữu</th>
+                        <th>Còn giữ</th>
+                        <th>Hoàn lại</th>
+                        <th>Trả đối tác</th>
+                        <th>Phí</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {review.execution.allocations.map((held) => {
+                        const amount =
+                          review.execution.quote.status === "READY"
+                            ? amounts.find(
+                                (entry) =>
+                                  entry.allocationId === held.allocationId,
+                              )
+                            : undefined;
+                        return (
+                          <tr key={held.allocationId}>
+                            <td>
+                              <RecordId
+                                id={held.allocationId}
+                                label="khoản giữ"
+                              />
+                              <small>
+                                Chủ sở hữu:{" "}
+                                <RecordId id={held.userId} label="chủ sở hữu" />
+                              </small>
+                            </td>
+                            <td className="admin-money">
+                              {financeNumber(held.remainingHeld)} CR
+                            </td>
+                            <td className="admin-money">
+                              {amount
+                                ? financeNumber(amount.refund) + " CR"
+                                : "Chưa xác nhận"}
+                            </td>
+                            <td className="admin-money">
+                              {amount
+                                ? financeNumber(amount.counterpartyPayment) +
+                                  " CR"
+                                : "Chưa xác nhận"}
+                            </td>
+                            <td className="admin-money">
+                              {amount
+                                ? financeNumber(amount.platformFee) + " CR"
+                                : "Chưa xác nhận"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                review.execution.allocations.map((held) => (
+                  <HeldAllocationFields
+                    key={held.allocationId}
+                    held={held}
+                    value={amounts.find(
+                      (amount) => amount.allocationId === held.allocationId,
+                    )}
+                  />
+                ))
+              )}
               <label>
                 <span>Lý do quyết định</span>
                 <textarea
@@ -398,13 +633,14 @@ function TerminationDetail({
               </label>
             </fieldset>
             {canExecute && !intent && (
-              <button
+              <LoadingButton
                 type="submit"
                 className="btn btn-primary"
                 disabled={busy || unknown}
+                loading={!!busy}
               >
                 Kiểm tra phương án
-              </button>
+              </LoadingButton>
             )}
             {!canExecute && (
               <p>
@@ -414,22 +650,48 @@ function TerminationDetail({
             )}
           </form>
           {!intent && (
-            <button
+            <LoadingButton
               type="button"
               className="btn"
               disabled={
                 busy ||
                 unknown ||
+                rejecting ||
+                !!review.approvedAt ||
                 reason.trim().length < 3 ||
                 !["ACCEPTED", "STAFF_REVIEW"].includes(review.status)
               }
-              onClick={() => {
-                if (window.confirm("Từ chối yêu cầu với lý do đã nhập?"))
-                  void reject();
-              }}
+              onClick={() => setRejecting(true)}
+              loading={!!busy}
             >
               Từ chối yêu cầu
-            </button>
+            </LoadingButton>
+          )}
+          {rejecting && !intent && (
+            <AdminNotice tone="warn">
+              <strong>Xác nhận từ chối yêu cầu?</strong>
+              <p>Lý do: {reason.trim()}</p>
+              <div className="staff-dialog-actions">
+                <LoadingButton
+                  type="button"
+                  className="btn"
+                  disabled={busy}
+                  onClick={() => setRejecting(false)}
+                  loading={!!busy}
+                >
+                  Quay lại
+                </LoadingButton>
+                <LoadingButton
+                  type="button"
+                  className="btn btn-danger"
+                  disabled={busy || unknown}
+                  onClick={() => void reject()}
+                  loading={!!busy}
+                >
+                  Xác nhận từ chối
+                </LoadingButton>
+              </div>
+            </AdminNotice>
           )}
           {intent && (
             <div className="staff-held">
@@ -445,45 +707,99 @@ function TerminationDetail({
                 Quyết định sẽ cập nhật lộ trình và Credit. Máy chủ kiểm tra lại
                 quyền, chính sách, Held và tranh chấp.
               </p>
-              <button
+              <LoadingButton
                 type="button"
                 className="btn btn-danger"
                 disabled={busy}
                 onClick={() => void execute()}
+                loading={!!busy}
               >
                 {unknown
                   ? "Kiểm tra và gửi lại đúng quyết định"
                   : "Thực thi quyết định"}
-              </button>
+              </LoadingButton>
             </div>
           )}
           {unknown && (
             <p>
               <output>
-                Chưa rõ kết quả. Kiểm tra trạng thái máy chủ; không tạo một
-                phương án khác khi chưa đối chiếu.
+                Chưa rõ kết quả. Tải lại để kiểm tra; không tạo một phương án
+                khác khi chưa đối chiếu.
               </output>
             </p>
           )}
         </>
       )}
-      <div className="staff-dialog-actions">
-        <button
-          type="button"
-          className="btn"
-          disabled={busy}
-          onClick={() => {
-            setBusy(true);
-            setError(undefined);
-            void reload();
-          }}
-        >
-          Tải lại chi tiết
-        </button>
-        <button type="button" className="btn" disabled={busy} onClick={close}>
-          Đóng
-        </button>
-      </div>
+    </TerminationFrame>
+  );
+}
+
+function TerminationFrame({
+  row,
+  busy,
+  close,
+  reload,
+  children,
+  sectionRef,
+}: Readonly<{
+  row: TerminationTarget;
+  busy: boolean;
+  close: () => void;
+  reload: () => void;
+  children: ReactNode;
+  sectionRef: Ref<HTMLElement>;
+}>) {
+  const { portal } = useStaffSession();
+  const controls = (
+    <>
+      <LoadingButton
+        type="button"
+        className="btn"
+        disabled={busy}
+        onClick={reload}
+        loading={!!busy}
+      >
+        Tải lại chi tiết
+      </LoadingButton>
+      <LoadingButton
+        type="button"
+        className="btn"
+        disabled={busy}
+        onClick={close}
+        loading={!!busy}
+      >
+        Đóng
+      </LoadingButton>
+    </>
+  );
+  if (portal === "admin")
+    return (
+      <AdminDrawer
+        wide
+        title="Xem xét yêu cầu dừng"
+        subtitle={
+          <>
+            Yêu cầu <RecordId id={row.id} label="yêu cầu" />
+          </>
+        }
+        busy={busy}
+        close={close}
+        footer={controls}
+      >
+        <div className="staff-termination-detail">{children}</div>
+      </AdminDrawer>
+    );
+  return (
+    <section
+      className="card staff-termination-detail"
+      ref={sectionRef}
+      tabIndex={-1}
+      aria-label="Xem xét dừng lộ trình"
+    >
+      <h2>Xem xét yêu cầu {row.id.slice(0, 8)}</h2>
+      <p className="staff-wrap">Lộ trình {row.pathId}</p>
+      {children}
+      <div className="staff-dialog-actions">{controls}</div>
     </section>
   );
 }

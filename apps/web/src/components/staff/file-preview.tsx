@@ -1,4 +1,6 @@
 "use client";
+import { LoadingNativeImage } from "@/components/loading-image";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 import { useEffect, useId, useRef, useState } from "react";
 import { isSessionFailure, staffFile } from "@/lib/staff/client";
 import {
@@ -6,6 +8,7 @@ import {
   evidencePreviewKind,
 } from "@/lib/staff/evidence-file";
 import { useStaffSession } from "./session";
+import styles from "./file-preview.module.css";
 type PreviewFile = Readonly<{ url: string; mime: string }>;
 function LoadedPreview({
   file,
@@ -19,32 +22,47 @@ function LoadedPreview({
   onImageError: () => void;
 }>) {
   const kind = evidencePreviewKind(file.mime);
+  const [readyDocument, setReadyDocument] = useState<string>();
   return (
     <>
       {kind === "image" && !failed && (
         <div className="file-viewer-image">
           {/* Original evidence bytes; Next image optimization would require a public file URL. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={file.url} alt={name} onError={onImageError} />
+          <LoadingNativeImage
+            src={file.url}
+            alt={name}
+            onError={onImageError}
+          />
         </div>
       )}
-      {kind === "pdf" && (
-        <object
-          className="file-viewer-pdf"
-          data={file.url}
-          type="application/pdf"
-          aria-label={`Xem PDF: ${name}`}
+      {kind === "pdf" && !failed && (
+        <div
+          className={styles.document}
+          aria-busy={readyDocument !== file.url || undefined}
         >
-          <p>
-            Trình duyệt này chưa hiển thị được PDF. Bạn có thể mở PDF trong tab
-            mới hoặc chọn tải xuống.
-          </p>
-        </object>
+          {readyDocument !== file.url && (
+            <div className={styles.placeholder}>
+              <LoadingSkeleton label="Đang mở tài liệu PDF" />
+            </div>
+          )}
+          <object
+            className="file-viewer-pdf"
+            data={file.url}
+            type="application/pdf"
+            aria-label={`Xem PDF: ${name}`}
+            onLoad={() => setReadyDocument(file.url)}
+          >
+            <p>
+              Trình duyệt này chưa hiển thị được PDF. Bạn có thể mở PDF trong
+              tab mới hoặc chọn tải xuống.
+            </p>
+          </object>
+        </div>
       )}
       {(kind === "unsupported" || failed) && (
         <p className="staff-state">
           {failed
-            ? "Không thể hiển thị ảnh này."
+            ? "Không thể hiển thị tệp này."
             : "Định dạng này chưa hỗ trợ xem trực tuyến trong trình duyệt."}{" "}
           Bạn có thể chọn tải xuống để xem trên máy.
         </p>
@@ -78,7 +96,7 @@ function PreviewBody({
         </button>
       </div>
     );
-  if (!file) return <output className="staff-state">Đang mở tệp…</output>;
+  if (!file) return <LoadingSkeleton label="Đang mở tệp" />;
   return (
     <LoadedPreview
       file={file}

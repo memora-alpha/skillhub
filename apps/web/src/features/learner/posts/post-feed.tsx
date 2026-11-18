@@ -1,23 +1,25 @@
 "use client";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useUserPagedList } from "../hooks/use-user-paged-list";
 import Link from "next/link";
 import { useState } from "react";
 import { SearchInput } from "@/components/search-input";
-import { useUserList } from "../hooks/use-user-resource";
+
 import { useUserSession } from "../auth/session";
 import type { Post, Skill } from "../types";
-import { Empty, Feedback, More, PageHeading } from "../components/common";
+import { Empty, Feedback, PageHeading } from "../components/common";
 import { PostCard } from "./post-card";
 export function PostFeed({
   initialKeyword = "",
   initialMine = false,
 }: Readonly<{ initialKeyword?: string; initialMine?: boolean }>) {
   const { actor } = useUserSession();
-  const skills = useUserList<Skill>("skills?limit=50");
+  const skills = useUserPagedList<Skill>("skills?limit=50");
   const [skillId, setSkillId] = useState("");
   const [mine, setMine] = useState(initialMine),
     [search, setSearch] = useState(initialKeyword),
     [keyword, setKeyword] = useState(initialKeyword);
-  const query = useUserList<Post>(
+  const query = useUserPagedList<Post>(
     "learning-requests" +
       (mine ? "/mine" : "") +
       "?limit=20&keyword=" +
@@ -73,17 +75,12 @@ export function PostFeed({
             </button>
           ))}
           <Feedback
-            loading={skills.loading}
+            loading={skills.initialLoading}
             error={skills.error}
             reload={skills.reload}
+            refreshing={!!(skills.loading && !skills.initialLoading)}
           />
-          <More
-            cursor={skills.cursor}
-            loading={skills.loading}
-            onMore={() => {
-              void skills.more();
-            }}
-          />
+          <ListPagination query={skills} />
         </aside>
         <div>
           <div className="learner-search">
@@ -97,9 +94,10 @@ export function PostFeed({
             />
           </div>
           <Feedback
-            loading={query.loading}
+            loading={query.initialLoading}
             error={query.error}
             reload={query.reload}
+            refreshing={!!(query.loading && !query.initialLoading)}
           />
           <div className="learner-post-grid product-requests">
             {query.items.map((post) => (
@@ -129,13 +127,7 @@ export function PostFeed({
                 : "Chưa có bài phù hợp. Thử từ khóa khác hoặc đăng bài của bạn."}
             </Empty>
           )}
-          <More
-            cursor={query.cursor}
-            loading={query.loading}
-            onMore={() => {
-              void query.more();
-            }}
-          />
+          <ListPagination query={query} />
         </div>
       </div>
     </>

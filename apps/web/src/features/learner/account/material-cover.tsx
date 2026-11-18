@@ -1,12 +1,61 @@
 "use client";
-import Image from "next/image";
+import { LoadingButton } from "@/components/loading-button";
+import { LoadingImage as Image } from "@/components/loading-image";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 import { useState } from "react";
 import { useUserResource } from "../hooks/use-user-resource";
 import { UploadControl } from "../components/upload-control";
 import { Feedback, Status } from "../components/common";
 import { ProductIcon } from "../components/product-icon";
 import { safeDownloadUrl } from "./view-policy";
-import type { Material } from "./account-types";
+import type { Material, OwnedMaterial } from "./account-types";
+
+export function MaterialCoverStatus({
+  cover,
+}: Readonly<{ cover?: OwnedMaterial["cover"] }>) {
+  if (!cover?.attached) return null;
+  const labels: Record<string, string> = {
+    NONE: "Chưa có ảnh bìa",
+    PENDING: "Đang chờ tạo ảnh xem trước",
+    PROCESSING: "Đang xử lý ảnh bìa",
+    READY: "Ảnh bìa đã sẵn sàng",
+    FAILED: "Chưa tạo được ảnh xem trước",
+    REJECTED: "Ảnh bìa không được chấp nhận",
+  };
+  return (
+    <details>
+      <summary>
+        {["PENDING", "PROCESSING"].includes(cover.processingStatus) ? (
+          <LoadingSkeleton
+            variant="inline"
+            label={labels[cover.processingStatus]}
+          />
+        ) : (
+          (labels[cover.processingStatus] ?? "Chưa có kết quả kiểm tra ảnh bìa")
+        )}
+      </summary>
+      <div style={{ width: "min(100%, 320px)", aspectRatio: "16 / 9" }}>
+        <MaterialThumbnail thumbnail={cover.preview} />
+      </div>
+      <p>{cover.file?.originalFilename ?? "Ảnh bìa đã đính kèm"}</p>
+      {cover.file && (
+        <p>
+          Trạng thái tệp:{" "}
+          <Status
+            value={cover.file.state}
+            label={cover.file.state === "READY" ? "Sẵn sàng" : undefined}
+          />
+        </p>
+      )}
+      {cover.failureCode && (
+        <p className="learner-error">
+          Ảnh bìa chưa xử lý thành công. Hãy cập nhật trạng thái; nếu vẫn lỗi,
+          liên hệ hỗ trợ. Chỉ thay ảnh khi tài liệu còn cho phép chỉnh sửa.
+        </p>
+      )}
+    </details>
+  );
+}
 
 export function MaterialThumbnail({
   thumbnail,
@@ -88,25 +137,35 @@ export function MaterialCoverControl({
       {cover.coverFileId && (
         <>
           <Feedback
-            loading={cover.status.loading}
+            variant="inline"
+            loading={cover.status.initialLoading}
             error={cover.status.error}
             reload={cover.status.reload}
+            refreshing={
+              !!(cover.status.loading && !cover.status.initialLoading)
+            }
           />
           <p>
             Ảnh bìa đã chọn ·{" "}
-            <Status value={cover.status.data?.state ?? "PENDING"} />
+            <Status
+              value={cover.status.data?.state ?? "PENDING"}
+              label={
+                cover.status.data?.state === "READY" ? "Sẵn sàng" : undefined
+              }
+            />
           </p>
         </>
       )}
       {(cover.coverFileId || (existing && cover.coverFileId !== null)) && (
-        <button
+        <LoadingButton
           type="button"
           className="btn"
           disabled={disabled || cover.uploading}
           onClick={() => cover.setCoverFileId(null)}
+          loading={!!cover.uploading}
         >
           Dùng ảnh bìa mặc định
-        </button>
+        </LoadingButton>
       )}
       {cover.coverFileId === null && (
         <small className="muted">Sẽ dùng hình minh họa mặc định.</small>

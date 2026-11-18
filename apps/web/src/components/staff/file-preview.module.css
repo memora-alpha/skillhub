@@ -1,0 +1,13 @@
+.document {
+  display: grid;
+  min-width: 0;
+}
+.document > * {
+  grid-area: 1 / 1;
+}
+.placeholder {
+  z-index: 1;
+  padding: 20px;
+  background: var(--surface, #fff);
+  pointer-events: none;
+}

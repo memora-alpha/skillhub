@@ -1,4 +1,6 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 import { reportDescriptionText } from "@/lib/system-text";
 import Link from "next/link";
 import { useState } from "react";
@@ -18,9 +20,16 @@ import {
   type ResolutionDraft,
 } from "@/lib/staff/report-resolution";
 import { ReportResolutionFields } from "./report-resolution";
+import {
+  assertReportRuling,
+  assertReportRulingCurrent,
+} from "@/lib/staff/report-ruling";
 import { AttendanceEvidence } from "./attendance-evidence";
+import { RecordId } from "./admin-ui";
 import { CaseSupportPanel } from "./case-support";
-import { useStaffList, useStaffResource } from "./hooks";
+import { useStaffResource } from "./hooks";
+import { useStaffListPages } from "./use-staff-list-pages";
+import { ListPagination } from "@/components/pagination/list-pagination";
 import { useStaffSession } from "./session";
 import { DecisionDialog, DownloadButton, QueueState } from "./common";
 import {
@@ -30,7 +39,7 @@ import {
 } from "@/lib/staff/report-presentation";
 export function ReportsScreen() {
   const { portal } = useStaffSession();
-  const queue = useStaffList<ReportCase>("reports");
+  const queue = useStaffListPages<ReportCase>("reports");
   const [status, setStatus] = useState("ALL");
   const [q, setQ] = useState("");
   const items = queue.items.filter(
@@ -46,14 +55,15 @@ export function ReportsScreen() {
         title="Báo cáo & tranh chấp"
         desc="Xem báo cáo buổi học, tài liệu và ghi nhận kết quả xử lý."
         actions={
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={queue.loading}
             onClick={queue.reload}
+            loading={!!queue.loading}
           >
             Làm mới
-          </button>
+          </LoadingButton>
         }
       />
       <div className="toolbar">
@@ -69,7 +79,7 @@ export function ReportsScreen() {
           ]}
         />
         <SearchBox
-          label="Tìm trong báo cáo đã tải"
+          label="Tìm báo cáo trên trang này"
           placeholder="Mã hoặc nội dung báo cáo…"
           value={q}
           onChange={setQ}
@@ -133,9 +143,7 @@ export function ReportsScreen() {
             </div>
           )}
         </QueueState>
-        <div className="staff-pager muted">
-          {queue.items.length} báo cáo đang mở đã tải · hiển thị tối đa 100 mục
-        </div>
+        <ListPagination query={queue} />
       </Card>
     </>
   );
@@ -162,13 +170,54 @@ const actions: Record<
     description: "Nêu rõ lý do bác bỏ để kết quả xử lý có thể truy vết.",
   },
 };
-function ReportOverview({ item }: Readonly<{ item: ReportCase }>) {
+function ReportOverview({ item, owns, busy, onAction }: ReportActionProps) {
+  const { portal } = useStaffSession();
+  function handlerIdentity() {
+    if (item.handlerId) {
+      if (portal === "admin") {
+        return <RecordId id={item.handlerId} label="người phụ trách" />;
+      }
+      return (
+        <span className="mono" title={item.handlerId}>
+          #{item.handlerId.slice(0, 8)}
+        </span>
+      );
+    }
+    return "Chưa có người nhận" as const;
+  }
+  function reporterIdentity() {
+    if (item.reporterId) {
+      if (portal === "admin") {
+        return <RecordId id={item.reporterId} label="người gửi" />;
+      }
+      return (
+        <span className="mono" title={item.reporterId}>
+          #{item.reporterId.slice(0, 8)}
+        </span>
+      );
+    }
+    return "Hệ thống tự ghi nhận" as const;
+  }
   return (
     <Card className="ops-case-overview">
+      {item.status === "OPEN" && (
+        <div className="row ops-case-claim-action">
+          <ReportActions
+            item={item}
+            owns={owns}
+            busy={busy}
+            onAction={onAction}
+          />
+        </div>
+      )}
       <div className="ops-case-title">
-        <span className="mono" title={item.id}>
-          #{item.id.slice(0, 8)}
-        </span>
+        {portal === "admin" ? (
+          <RecordId id={item.id} label="báo cáo" />
+        ) : (
+          <span className="mono" title={item.id}>
+            #{item.id.slice(0, 8)}
+          </span>
+        )}
         <h2>{reportReasonLabel(item.reasonCode)}</h2>
         <div className="row">
           <StatusBadge status={item.status} />
@@ -186,15 +235,7 @@ function ReportOverview({ item }: Readonly<{ item: ReportCase }>) {
         </div>
         <div>
           <dt>Người gửi</dt>
-          <dd>
-            {item.reporterId ? (
-              <span className="mono" title={item.reporterId}>
-                #{item.reporterId.slice(0, 8)}
-              </span>
-            ) : (
-              "Hệ thống tự ghi nhận"
-            )}
-          </dd>
+          <dd>{reporterIdentity()}</dd>
         </div>
         <div>
           <dt>Thời điểm gửi</dt>
@@ -202,15 +243,7 @@ function ReportOverview({ item }: Readonly<{ item: ReportCase }>) {
         </div>
         <div>
           <dt>Người phụ trách</dt>
-          <dd>
-            {item.handlerId ? (
-              <span className="mono" title={item.handlerId}>
-                #{item.handlerId.slice(0, 8)}
-              </span>
-            ) : (
-              "Chưa có người nhận"
-            )}
-          </dd>
+          <dd>{handlerIdentity()}</dd>
         </div>
       </dl>
       <section className="ops-case-description">
@@ -279,24 +312,40 @@ function ReportFiles({
   );
 }
 type ReportActionProps = Readonly<{
-  item: ReportCase;
+  item: ReportCaseDetail;
   owns: boolean;
   busy: boolean;
   onAction: (action: ReportAction) => void;
 }>;
 function ReportActions({ item, owns, busy, onAction }: ReportActionProps) {
-  if (item.status === "RESOLVED" || item.status === "REJECTED")
+  const { actor } = useStaffSession();
+  const self = [
+    item.reporterId,
+    item.targetType === "USER" ? item.targetId : null,
+    item.path?.participantAId,
+    item.path?.participantBId,
+    item.session?.teacherId,
+    item.session?.learnerId,
+  ].some((id) => !!id && id === actor?.userId);
+  if (!["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"].includes(item.status))
     return <StatusBadge status={item.status} />;
+  if (self)
+    return (
+      <p className="staff-flag">
+        Vụ việc có liên quan đến bạn. Cần một nhân viên khác xem xét và xử lý.
+      </p>
+    );
   if (item.status === "OPEN")
     return (
-      <button
+      <LoadingButton
         type="button"
         className="btn btn-primary"
         disabled={busy}
         onClick={() => onAction("claim")}
+        loading={!!busy}
       >
         Nhận xử lý
-      </button>
+      </LoadingButton>
     );
   if (!owns)
     return (
@@ -313,22 +362,24 @@ function ReportActions({ item, owns, busy, onAction }: ReportActionProps) {
   return (
     <>
       <p className="muted">Bạn đang phụ trách vụ việc này.</p>
-      <button
+      <LoadingButton
         type="button"
         className="btn btn-primary"
         disabled={busy}
         onClick={() => onAction("resolve")}
+        loading={!!busy}
       >
         Đưa ra quyết định
-      </button>
-      <button
+      </LoadingButton>
+      <LoadingButton
         type="button"
-        className="btn btn-danger"
+        className="btn admin-danger-outline"
         disabled={busy}
         onClick={() => onAction("reject")}
+        loading={!!busy}
       >
         Bác bỏ báo cáo
-      </button>
+      </LoadingButton>
     </>
   );
 }
@@ -359,7 +410,7 @@ function ReportDetailContent({
       </QueueState>
     );
   if (loading && !item)
-    return <output className="staff-state">Đang tải vụ việc…</output>;
+    return <LoadingSkeleton variant="section" label="Đang tải vụ việc" />;
   if (!item)
     return (
       <Card>
@@ -373,10 +424,21 @@ function ReportDetailContent({
       </Card>
     );
   return (
-    <div className="grid grid-2 staff-report-grid">
-      <div className="stack">
-        <ReportOverview item={item} />
+    <div
+      className="grid grid-2 staff-report-grid"
+      data-unclaimed={item.status === "OPEN" || undefined}
+    >
+      <div className="stack admin-report-sections">
+        <ReportOverview
+          item={item}
+          owns={owns}
+          busy={busy}
+          onAction={onAction}
+        />
         <AttendanceEvidence outcome={item.attendanceOutcome} />
+        <Card title="Bằng chứng">
+          <ReportFiles files={item.reportEvidenceCaseIdRecords} />
+        </Card>
         {(item.session || item.path) && (
           <details className="ops-case-context">
             <summary>Thông tin buổi học và thỏa thuận</summary>
@@ -424,32 +486,31 @@ function ReportDetailContent({
             )}
           </details>
         )}
-        <Card title="Bằng chứng">
-          <ReportFiles files={item.reportEvidenceCaseIdRecords} />
-        </Card>
         <CaseSupportPanel item={item} onUpdated={reload} />
       </div>
-      <Card title="Xử lý vụ việc" className="ops-case-decision">
-        <div className="stack">
-          {confirmed && (
-            <output className="staff-success">
-              Máy chủ đã ghi nhận thao tác.
-            </output>
-          )}
-          {item.resolutionNote && (
-            <section>
-              <h3 className="sub-title">Ghi chú xử lý</h3>
-              <p className="prose">{item.resolutionNote}</p>
-            </section>
-          )}
-          <ReportActions
-            item={item}
-            owns={owns}
-            busy={busy}
-            onAction={onAction}
-          />
-        </div>
-      </Card>
+      {item.status !== "OPEN" && (
+        <Card title="Xử lý vụ việc" className="ops-case-decision">
+          <div className="stack admin-report-actions">
+            {confirmed && (
+              <output className="staff-success">
+                Máy chủ đã ghi nhận thao tác.
+              </output>
+            )}
+            {item.resolutionNote && (
+              <section>
+                <h3 className="sub-title">Ghi chú xử lý</h3>
+                <p className="prose">{item.resolutionNote}</p>
+              </section>
+            )}
+            <ReportActions
+              item={item}
+              owns={owns}
+              busy={busy}
+              onAction={onAction}
+            />
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
@@ -495,19 +556,12 @@ function ReportDecision({
       onClose={onClose}
       onReload={reload}
       onSubmit={async (note) => {
-        if (
-          action === "resolve" &&
-          item.session?.status === "DISPUTED" &&
-          !draft.noShowRuling &&
-          !draft.cancellationMakeupRuling
-        )
-          throw new Error(
-            "Chọn phán quyết điểm danh trước khi giải quyết vụ việc.",
-          );
-        if (action === "reject" && item.session?.status === "DISPUTED")
-          throw new Error(
-            "Vụ việc này cần phán quyết điểm danh. Hãy chọn Giải quyết vụ việc.",
-          );
+        if (action === "resolve" || action === "reject") {
+          assertReportRuling(item, draft, action);
+          const fresh = await api<ReportCaseDetail>("reports/" + item.id);
+          assertReportRulingCurrent(item, fresh.data);
+          assertReportRuling(fresh.data, draft, action);
+        }
         await api<ReportCase>("reports/" + item.id + "/" + action, {
           method: "POST",
           body: {
@@ -522,32 +576,9 @@ function ReportDecision({
     >
       {action === "resolve" && item.path && (
         <ReportResolutionFields
+          item={item}
           value={draft}
           admin={admin}
-          sessionCase={!!item.session}
-          attendanceManaged={
-            !!item.attendanceOutcome &&
-            !!item.session &&
-            ["NO_SHOW", "DISPUTED", "MAKEUP_REQUIRED"].includes(
-              item.session.status,
-            )
-          }
-          rulingRequired={item.session?.status === "DISPUTED"}
-          cancelledMakeup={
-            !item.attendanceOutcome &&
-            !!item.session &&
-            ["DISPUTED", "MAKEUP_REQUIRED"].includes(item.session.status)
-          }
-          unverifiable={
-            item.attendanceOutcome?.attendanceCase === "UNVERIFIABLE"
-          }
-          systemCase={!item.reporterId}
-          allowUphold={
-            item.session?.status === "NO_SHOW" &&
-            ["TEACHER_ABSENT", "LEARNER_ABSENT", "BOTH_ABSENT"].includes(
-              item.attendanceOutcome?.attendanceCase ?? "",
-            )
-          }
           onChange={setDraft}
         />
       )}
@@ -580,14 +611,15 @@ export function ReportDetailScreen({
             </Link>
           }
           actions={
-            <button
+            <LoadingButton
               type="button"
               className="btn"
               disabled={resource.loading}
               onClick={reload}
+              loading={!!resource.loading}
             >
               Làm mới
-            </button>
+            </LoadingButton>
           }
         />
       )}
@@ -595,14 +627,15 @@ export function ReportDetailScreen({
         <div className="ops-case-toolbar">
           <h2>Chi tiết báo cáo</h2>
           <div className="row">
-            <button
+            <LoadingButton
               type="button"
               className="btn btn-sm"
               disabled={resource.loading}
               onClick={reload}
+              loading={!!resource.loading}
             >
               Cập nhật
-            </button>
+            </LoadingButton>
             <Link className="link" href={`/${portal}/disputes/${id}`}>
               Mở trang chi tiết →
             </Link>
