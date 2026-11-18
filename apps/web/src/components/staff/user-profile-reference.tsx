@@ -108,7 +108,6 @@ function UserProfileModal({
           <h2 ref={heading} id={titleId} tabIndex={-1}>
             Hồ sơ người dùng
           </h2>
-          <p>Xem thông tin mà không rời trang hiện tại.</p>
         </div>
         <button
           type="button"
