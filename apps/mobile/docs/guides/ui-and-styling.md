@@ -36,6 +36,8 @@
 
 ## Chú thích và thẻ tệp trong Chat
 
+- Tin `SYSTEM` trong lịch sử Chat dùng ghi chú nhỏ căn giữa, màu chữ phụ, cỡ caption 11/15 và khoảng đệm dọc 2px, không khung hay biểu tượng cảnh báo. Thông báo lỗi gửi/tải và trạng thái cần xử lý tiếp tục dùng feedback theo nghiệp vụ.
+- Ghi chú xác nhận lịch rút gọn câu trạng thái lặp, giữ tên/người dạy-người học và bước đang chờ; chốt lịch hiển thị “Đã chốt lịch · N buổi học.” Chỉ rút gọn mẫu hệ thống đã biết theo `objectType`, giữ nguyên nội dung gốc và các mẫu chưa nhận diện.
 - `Copy size="hint"` dùng `typography.secondary` (13/18), nhỏ hơn nội dung chính 15px. `FormNotice compact` giảm padding và dùng cùng cỡ chú thích; mặc định của hai component không đổi cho các màn khác. Các màn thỏa thuận/lộ trình/lịch dùng biến thể này cho hướng dẫn phụ; thông tin mục tiêu, nội dung buổi học và hành động chính vẫn nổi bật.
 - Chú thích cần ngắn, giữ các điều kiện xác nhận lại phiên bản và thời điểm tạm giữ Credit. Không thu nhỏ nhãn xuống 9px; metadata tối thiểu theo token caption 11/15.
 - `ChatAttachmentTile` là ô tệp đã chọn nằm trong `ChatComposer`, trên hàng nhập tin, có nút × với vùng chạm 44px. Tệp sẵn sàng chỉ hiện tên/loại/dung lượng, không thêm hướng dẫn/nút gửi riêng. Trạng thái upload/kiểm tra hoặc recovery vẫn hiện khi cần; khóa bỏ tệp theo controller để giữ intent đang gửi. `ChatFileCard` dành cho tin tệp đã gửi, có biểu tượng tài liệu/ảnh và tải tệp; giữ phía gửi/nhận cùng avatar/giờ, tên tối đa hai dòng. Nút mở tệp có accessibility label đầy đủ; khi tải chỉ đổi trạng thái trên thẻ, chặn nhấn lặp, vẫn lấy URL riêng qua API có quyền.

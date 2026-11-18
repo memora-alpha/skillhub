@@ -41,9 +41,9 @@ function dateLabels(
       mode === "time"
         ? timeLabel(selected)
         : selected.toLocaleDateString("vi-VN");
-    hintLabel = "Giờ thiết bị";
+    hintLabel = "Múi giờ thiết bị";
     if (mode === "datetime")
-      hintLabel = `${timeLabel(selected)} · Giờ thiết bị`;
+      hintLabel = `${timeLabel(selected)} · Múi giờ thiết bị`;
   }
   let draftLabel = draft.toLocaleString("vi-VN", {
     day: "2-digit",
@@ -96,12 +96,11 @@ export function DateTimeField({
   }, [disabled]);
   function begin() {
     if (disabled) return;
-    const suggested = selected ?? parseLocalDateTime(seed ?? "");
-    setDraft(
-      suggested && (mode !== "datetime" || suggested.getTime() > Date.now())
-        ? suggested
-        : new Date(Date.now() + 60 * 60 * 1000),
+    const now = Date.now();
+    const suggested = [selected, parseLocalDateTime(seed ?? "")].find(
+      (date) => date && (mode !== "datetime" || date.getTime() > now),
     );
+    setDraft(suggested ?? new Date(now + 60 * 60 * 1000));
     setPart(mode === "time" ? "time" : "date");
     setOpen(true);
   }
@@ -182,7 +181,7 @@ export function DateTimeField({
             }
           />
           <Text style={styles.hint}>
-            {draftLabel} {mode !== "time" && "· Giờ thiết bị"}
+            {draftLabel} {mode !== "time" && "· Múi giờ thiết bị"}
           </Text>
           {!valid && (
             <FormNotice tone="error">

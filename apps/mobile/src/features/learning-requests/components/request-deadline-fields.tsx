@@ -7,6 +7,7 @@ import { RequestSection } from "./request-section";
 import { RequestDateField } from "./request-date-field";
 import type { RequestDraft } from "../schemas/request-form";
 import { parseLocalDateTime } from "@/utils/local-date-time";
+import { pickerValue } from "@/utils/date-choice";
 
 export function RequestDeadlineFields({
   form,
@@ -25,7 +26,7 @@ export function RequestDeadlineFields({
         minute: "2-digit",
         hour12: false,
       })
-    : "Dùng thời hạn mặc định";
+    : "30 ngày kể từ khi xuất bản";
   return (
     <RequestSection
       title="Hạn đăng bài"
@@ -43,8 +44,11 @@ export function RequestDeadlineFields({
           <View style={{ gap: 8 }}>
             <RequestDateField
               key={field.value}
-              label="Thời hạn hiển thị bài"
+              label="Thời điểm hết hạn tùy chọn"
               value={field.value}
+              seed={pickerValue(
+                new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+              )}
               disabled={disabled}
               onChange={(value) => {
                 field.onChange(value);
@@ -52,7 +56,10 @@ export function RequestDeadlineFields({
               }}
             />
             {!field.value && (
-              <Copy muted>Dùng thời hạn mặc định nếu không chọn.</Copy>
+              <Copy muted size="hint">
+                Bài tự hết hạn sau 30 ngày kể từ khi đăng. Bạn có thể chọn ngày
+                khác ở trên.
+              </Copy>
             )}
             {!!field.value && (
               <Button
