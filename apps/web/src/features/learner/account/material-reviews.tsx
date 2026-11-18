@@ -1,14 +1,16 @@
 "use client";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { useUserPagedList } from "../hooks/use-user-paged-list";
 import Link from "next/link";
 import { useState } from "react";
 import { formText } from "../components/form-data";
 import { useUserSession } from "../auth/session";
-import { useUserList, useUserResource } from "../hooks/use-user-resource";
+import { useUserResource } from "../hooks/use-user-resource";
 import { useUserCommand } from "../hooks/use-user-command";
+import { UserApiError } from "../api/client";
 import {
   CommandFeedback,
   Feedback,
-  More,
   Panel,
   formatTime,
 } from "../components/common";
@@ -30,6 +32,8 @@ type Review = OwnReview & {
 };
 type Eligibility = {
   canReview: boolean;
+  canEdit: boolean;
+  editReasonCode: string | null;
   reasonCode: string | null;
   currentReview: OwnReview | null;
 };
@@ -60,7 +64,9 @@ export function MaterialReviews({
   materialId,
 }: Readonly<{ materialId: string }>) {
   const { actor } = useUserSession();
-  const list = useUserList<Review>(`materials/${materialId}/reviews?limit=10`);
+  const list = useUserPagedList<Review>(
+    `materials/${materialId}/reviews?limit=10`,
+  );
   const eligibility = useUserResource<Eligibility>(
     `materials/${materialId}/review-eligibility`,
   );
@@ -94,7 +100,8 @@ export function MaterialReviews({
           ))}
         </details>
       )}
-      {eligibility.data?.canReview || (editing && own?.status === "VISIBLE") ? (
+      {eligibility.data?.canReview ||
+      (editing && eligibility.data?.canEdit === true) ? (
         <ReviewEditor
           key={own ? `${own.id}:${own.version}` : "new"}
           materialId={materialId}
@@ -115,7 +122,7 @@ export function MaterialReviews({
             <>
               <strong>Đánh giá của bạn: {own.rating}/5</strong>
               <p>{own.comment || "Không có nhận xét bằng chữ."}</p>
-              {own.status === "VISIBLE" && (
+              {eligibility.data?.canEdit === true && (
                 <button
                   type="button"
                   className="btn"
@@ -125,6 +132,12 @@ export function MaterialReviews({
                 </button>
               )}
               <RemoveReview review={own} onRemoved={reload} />
+              {eligibility.data?.canEdit === false && (
+                <p className="muted">
+                  {eligibilityLabels[eligibility.data.editReasonCode ?? ""] ??
+                    "Đánh giá hiện không thể chỉnh sửa do quyền truy cập hoặc trạng thái tài liệu đã thay đổi."}
+                </p>
+              )}
             </>
           )}
         </div>
@@ -165,13 +178,7 @@ export function MaterialReviews({
           dụng tài liệu.
         </p>
       )}
-      <More
-        cursor={list.cursor}
-        loading={list.loading}
-        onMore={() => {
-          void list.more();
-        }}
-      />
+      <ListPagination query={list} />
       {reporting && (
         <ReviewReport
           key={reporting.id}
@@ -210,14 +217,26 @@ function ReviewEditor({
           comment: comment.trim(),
           ...(own ? { expectedVersion: own.version } : {}),
         };
-        const result = await command.run(JSON.stringify(body), (key) =>
-          request(
+        const result = await command.run(JSON.stringify(body), async (key) => {
+          const fresh = await request<Eligibility>(
+            `materials/${materialId}/review-eligibility`,
+          );
+          if (
+            own &&
+            (!fresh.data.canEdit ||
+              fresh.data.currentReview?.id !== own.id ||
+              fresh.data.currentReview.version !== own.version)
+          )
+            throw new UserApiError(409, "MATERIAL_REVIEW_EDIT_BLOCKED");
+          if (!own && !fresh.data.canReview)
+            throw new UserApiError(409, "MATERIAL_REVIEW_EDIT_BLOCKED");
+          return request(
             own
               ? `material-reviews/${own.id}`
               : `materials/${materialId}/reviews`,
             { method: own ? "PATCH" : "POST", body, ...(!own ? { key } : {}) },
-          ),
-        );
+          );
+        });
         if (result) onSaved();
       }}
     >

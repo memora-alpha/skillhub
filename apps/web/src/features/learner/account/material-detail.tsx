@@ -1,6 +1,7 @@
 "use client";
 import { MaterialReviews, MaterialRating } from "./material-reviews";
 import { MaterialThumbnail } from "./material-cover";
+import { MaterialFavorite } from "./material-library";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { useUserResource } from "../hooks/use-user-resource";
@@ -161,6 +162,7 @@ function MaterialDetailContent({ id }: Readonly<{ id: string }>) {
               </div>
               <h3>Về tài liệu này</h3>
               <MaterialRating summary={material.ratingSummary} />
+              {!owned && <MaterialFavorite materialId={id} />}
               <p className="learner-prose">{material.description}</p>
               <p>Phiên bản niêm yết: {material.listingVersion}</p>
               <Link
@@ -289,7 +291,9 @@ function MaterialDetailContent({ id }: Readonly<{ id: string }>) {
               )}
             </Panel>
           </div>
-          <MaterialReviews materialId={id} />
+          <div id="material-reviews">
+            <MaterialReviews materialId={id} />
+          </div>
         </>
       )}
     </>
