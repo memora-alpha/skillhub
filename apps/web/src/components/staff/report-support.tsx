@@ -43,6 +43,13 @@ const statuses = [
   ["RESOLVED", "Đã xử lý"],
   ["REJECTED", "Đã từ chối"],
 ] as const;
+
+function reportSourceLabel(source: SupportCase["source"]) {
+  if (source === "SYSTEM") return "Hệ thống tự ghi nhận";
+  if (source === "USER") return "Người dùng gửi";
+  return "Chưa xác định nguồn";
+}
+
 export function SupportQueueScreen({
   initialIncidentId,
 }: Readonly<{ initialIncidentId?: string }>) {
@@ -128,6 +135,10 @@ export function SupportQueueScreen({
         panel?.focus({ preventScroll: true });
       });
   }
+  const emptyHistoryTitle =
+    source === "SYSTEM"
+      ? "Không có báo cáo hệ thống theo bộ lọc hiện tại"
+      : "Hàng đợi trống";
   return (
     <section className="ops-reports">
       <PageHeader
@@ -322,9 +333,7 @@ export function SupportQueueScreen({
                 ? "Chưa có kết quả phù hợp trên trang này"
                 : scope === "actionable"
                   ? "Không có báo cáo cần giải quyết"
-                  : source === "SYSTEM"
-                    ? "Không có báo cáo hệ thống theo bộ lọc hiện tại"
-                    : "Hàng đợi trống"
+                  : emptyHistoryTitle
             }
             emptyDescription={
               list.hasNext
@@ -401,11 +410,7 @@ export function SupportQueueScreen({
                         <Badge
                           tone={row.source === "SYSTEM" ? "info" : "neutral"}
                         >
-                          {row.source === "SYSTEM"
-                            ? "Hệ thống tự ghi nhận"
-                            : row.source === "USER"
-                              ? "Người dùng gửi"
-                              : "Chưa xác định nguồn"}
+                          {reportSourceLabel(row.source)}
                         </Badge>
                         <span className="muted">
                           {reportDateLabel(row.createdAt)}
