@@ -1,5 +1,5 @@
 "use client";
-import Image from "next/image";
+import { LoadingImage as Image } from "@/components/loading-image";
 import { useState } from "react";
 import { roomInitials, safeRoomAvatar } from "./room-profiles";
 

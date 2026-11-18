@@ -1,0 +1,12 @@
+.track {
+  position: relative;
+}
+.placeholder {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: var(--surface, #f3f4f6);
+}

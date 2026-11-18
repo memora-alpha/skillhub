@@ -1,4 +1,5 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import {
   useEffect,
   useLayoutEffect,
@@ -237,12 +238,13 @@ export function RoomChat({
           />
           <div className={styles.composerActions}>
             <span>Enter để gửi · Shift + Enter xuống dòng</span>
-            <button
+            <LoadingButton
               type="submit"
               disabled={!chat.ready || chat.pending || !draft.trim()}
+              loading={!!chat.pending}
             >
               {chat.pending ? "Đang gửi…" : "Gửi"}
-            </button>
+            </LoadingButton>
           </div>
         </form>
       </div>

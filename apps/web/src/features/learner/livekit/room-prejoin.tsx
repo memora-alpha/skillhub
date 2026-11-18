@@ -1,4 +1,6 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 import type { useRoomPreview } from "./use-room-preview";
 import { RoomIcon } from "./room-icon";
 import { RoomTrack } from "./room-track";
@@ -37,6 +39,17 @@ export function RoomPrejoin({
 }>) {
   const camera = !!preview.tracks.camera;
   const microphone = !!preview.tracks.microphone;
+  const cameraPlaceholder = preview.busy ? (
+    <div className={styles.previewPlaceholder}>
+      <LoadingSkeleton label="Đang mở camera" />
+    </div>
+  ) : (
+    <div className={styles.previewPlaceholder}>
+      <RoomAvatar name={name} avatarUrl={avatarUrl} className={styles.avatar} />
+      <strong>Camera đang tắt</strong>
+      <span>Bật camera để xem trước hình ảnh của bạn</span>
+    </div>
+  );
   return (
     <div className={styles.prejoin}>
       <div className={styles.previewColumn}>
@@ -49,19 +62,11 @@ export function RoomPrejoin({
               className={styles.previewMedia}
             />
           ) : (
-            <div className={styles.previewPlaceholder}>
-              <RoomAvatar
-                name={name}
-                avatarUrl={avatarUrl}
-                className={styles.avatar}
-              />
-              <strong>Camera đang tắt</strong>
-              <span>Bật camera để xem trước hình ảnh của bạn</span>
-            </div>
+            cameraPlaceholder
           )}
           <span className={styles.previewName}>{name} (Bạn)</span>
           <div className={styles.previewControls}>
-            <button
+            <LoadingButton
               type="button"
               className={styles.iconButton}
               data-tone={microphone ? undefined : "off"}
@@ -72,10 +77,13 @@ export function RoomPrejoin({
                 preview.busy || background.busy || audio.busy || connecting
               }
               onClick={() => preview.toggle("microphone")}
+              loading={
+                !!(preview.busy || background.busy || audio.busy || connecting)
+              }
             >
               <RoomIcon name={microphone ? "microphone" : "microphoneOff"} />
-            </button>
-            <button
+            </LoadingButton>
+            <LoadingButton
               type="button"
               className={styles.iconButton}
               data-tone={camera ? undefined : "off"}
@@ -86,9 +94,12 @@ export function RoomPrejoin({
                 preview.busy || background.busy || audio.busy || connecting
               }
               onClick={() => preview.toggle("camera")}
+              loading={
+                !!(preview.busy || background.busy || audio.busy || connecting)
+              }
             >
               <RoomIcon name={camera ? "camera" : "cameraOff"} />
-            </button>
+            </LoadingButton>
           </div>
         </div>
         <div className={styles.deviceSelects}>
@@ -140,10 +151,11 @@ export function RoomPrejoin({
         </div>
         {preview.busy && (
           <p className={styles.previewHint}>
-            <output>
-              Đang mở thiết bị… Nếu được hỏi, hãy chọn cho phép trong trình
-              duyệt.
-            </output>
+            <LoadingSkeleton variant="inline" label="Đang mở thiết bị" />
+            <span>
+              Nếu trình duyệt hỏi quyền sử dụng thiết bị, hãy chọn cho phép để
+              tiếp tục.
+            </span>
           </p>
         )}
         {preview.error && (
@@ -151,14 +163,15 @@ export function RoomPrejoin({
             {preview.error}
           </p>
         )}
-        <button
+        <LoadingButton
           type="button"
           className={styles.cancelJoin}
           disabled={preview.busy || connecting}
           onClick={onRetryDevices}
+          loading={!!(preview.busy || connecting)}
         >
           Kiểm tra lại thiết bị / trạng thái phòng
-        </button>
+        </LoadingButton>
       </div>
       <div className={styles.prejoinInfo}>
         <SessionJoinWindow session={session} />
@@ -167,7 +180,7 @@ export function RoomPrejoin({
         <p>
           Kiểm tra camera, micro và chọn thiết bị bạn muốn dùng cho buổi học.
         </p>
-        <button
+        <LoadingButton
           type="button"
           className={styles.startButton}
           disabled={
@@ -178,10 +191,13 @@ export function RoomPrejoin({
             connecting
           }
           onClick={onJoin}
+          loading={
+            !!(preview.busy || background.busy || audio.busy || connecting)
+          }
         >
           <RoomIcon name="join" />
           {connecting ? "Đang vào phòng…" : "Bắt đầu học"}
-        </button>
+        </LoadingButton>
         {connecting && (
           <button
             type="button"

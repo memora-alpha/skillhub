@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 import { useEffect, useRef, useState, type ButtonHTMLAttributes } from "react";
 import { useClock } from "../hooks/use-clock";
 import { useUserResource } from "../hooks/use-user-resource";
@@ -213,7 +214,7 @@ function RoomNotices({
   displayError,
   joinReason,
 }: Readonly<{
-  query: { loading: boolean; error?: string; reload: () => void };
+  query: { initialLoading: boolean; error?: string; reload: () => void };
   room: Pick<ReturnType<typeof useLearningRoom>, "error" | "notice">;
   background: Pick<ReturnType<typeof useCameraBackground>, "error" | "busy">;
   audio: Pick<ReturnType<typeof useRoomAudio>, "error">;
@@ -222,15 +223,11 @@ function RoomNotices({
   joinReason?: string;
 }>) {
   const messages = [
-    query.loading ? "Đang tải buổi học…" : undefined,
     query.error,
     room.error,
     room.notice,
     background.error,
     audio.error,
-    background.busy
-      ? "Đang chuẩn bị hiệu ứng nền… Lần đầu có thể cần tải thêm dữ liệu."
-      : undefined,
     peerProfile.error
       ? "Chưa tải được tên và ảnh của người cùng học."
       : undefined,
@@ -238,10 +235,17 @@ function RoomNotices({
     joinReason,
   ].filter(Boolean);
 
-  if (!messages.length) return null;
+  if (!messages.length && !query.initialLoading && !background.busy)
+    return null;
   const hasError = !!(query.error || room.error || displayError);
   return (
     <div className={styles.messages} role={hasError ? "alert" : undefined}>
+      {query.initialLoading && !query.error && (
+        <LoadingSkeleton variant="inline" label="Đang tải buổi học" />
+      )}
+      {background.busy && (
+        <LoadingSkeleton variant="inline" label="Đang chuẩn bị hiệu ứng nền" />
+      )}
       {[...new Set(messages)].map((message) => (
         <p key={message}>{hasError ? message : <output>{message}</output>}</p>
       ))}
@@ -417,10 +421,16 @@ export function LearningRoomScreen({ id }: Readonly<{ id: string }>) {
               onClick={query.reload}
             />
           )}
-          <output className={styles.connection} data-connected={connected}>
-            <i />
-            {labels[room.status] ?? "Đang kiểm tra kết nối"}
-          </output>
+          <div className={styles.connection} data-connected={connected}>
+            {connecting ? (
+              <LoadingSkeleton variant="inline" label={labels[room.status]} />
+            ) : (
+              <output>
+                <i />
+                {labels[room.status] ?? "Chưa có thông tin kết nối"}
+              </output>
+            )}
+          </div>
           <IconButton
             icon={expanded ? "collapse" : "expand"}
             label={
