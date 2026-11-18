@@ -1,8 +1,25 @@
 # Tài liệu — hiện trạng
 
-Cập nhật tài liệu: 2026-11-18T13:55:15+07:00. Trạng thái FE: **Ready for review — source đã dọn, khóa nội dung và version lifecycle theo BE PR109, nhóm nút owner đã căn lại**. Nội dung, tệp, ảnh bìa và giá của ID từng đăng giữ nguyên qua archive/resubmit/withdraw/reject; thay đổi cần ID mới. PENDING_REVIEW cần rút về DRAFT trước khi sửa và chỉ ID chưa từng đăng được sửa. Source/test/web export và preview vị trí nút đã kiểm chứng; API có đăng nhập, migration thực, Android/iOS và UAT chưa nghiệm thu. Phạm vi theo [plan](plan.md); các mục có thời điểm bên dưới giữ bằng chứng lịch sử, quy tắc cho sửa ARCHIVED/PUBLISHED/PENDING_REVIEW ở các mốc trước đã được PR109 thay thế.
+Cập nhật tài liệu: 2026-11-18T14:44:24+07:00. Trạng thái FE: **Ready for review — có màn chi tiết owner riêng, trạng thái ngừng chia sẻ/không còn khả dụng và nút quản lý thống nhất trên thẻ**. Nội dung, tệp, ảnh bìa và giá của ID từng đăng giữ nguyên qua archive/resubmit/withdraw/reject; thay đổi cần ID mới. PENDING_REVIEW cần rút về DRAFT trước khi sửa và chỉ ID chưa từng đăng được sửa. Source/test/web export và preview đã kiểm chứng; API có đăng nhập, migration thực, Android/iOS và UAT chưa nghiệm thu. Phạm vi theo [plan](plan.md); các mục có thời điểm bên dưới giữ bằng chứng lịch sử. Quy tắc sửa cũ đã được PR109 thay thế; hộp thông tin và vị trí nút ở các mục lịch sử đã được màn chi tiết/thẻ hiện tại thay thế.
 
 Lượt dọn source trước đó được ghi tại [kiểm tra trước commit](../mobile-ui-density/status.md#dọn-code-và-kiểm-tra-trước-commit--2026-11-16t2107540700); các kết quả scoped dưới đây giữ đúng thời điểm thực hiện.
+
+## Màn chi tiết và bài không còn khả dụng — 2026-11-18T14:44:24+07:00
+
+- Chevron ở mọi thẻ owner mở `/materials/:id/owner`, đọc private owner detail, hiển thị toàn bộ mô tả, bìa/giá/tệp, người chia sẻ/kỹ năng, trạng thái/ngày/quyền phân phối và lý do kiểm duyệt. Xóa OwnerMaterialDetails, state chọn thông tin và style không dùng. Mọi nút quản lý nằm trên thẻ, giữ xác nhận/version/controller/recovery cũ; footer chi tiết chỉ tải khi tệp CLEAN và read không lỗi/pending/denied.
+- ARCHIVED có badge/thông báo ngay đầu trang, không còn trong Khám phá và người mua vẫn giữ quyền tải. HTTP404 của cả hai màn chi tiết có EmptyState không còn khả dụng, đường về Đã đăng/Thư viện và không còn nội dung cache/footer. Không khẳng định đã xóa vì API dùng chung404;403/network/5xx không bị diễn giải thành xóa. Không đổi library/snapshot/entitlement hoặc BE.
+- Full mobile **1.239/1.239 PASS**, TypeScript/ESLint, structure **1.056 source files**, import graph không có orphan ngoài declaration; web export PASS. Regression kiểm route owner, nút quản lý/xác nhận, nội dung đầy đủ, tải bị khóa,404 kể cả cache cũ và phân biệt lỗi mạng/403/500. Logs ignored `.expo/material-owner-page-{tests,types,export}.log`.
+- Đã xem preview component thật qua react-native-web: ARCHIVED ở320/390/430px không tràn ngang, thông tin/tệp/footer và màn404390px. Hạ tầng shell/session/transport/download là fixture; có cảnh báo prop RN-web trong harness và lỗi MutationObserver lúc thao tác iframe, không coi preview là nghiệm thu runtime native. Script/ảnh ignored `.expo/material-owner-page-preview.cjs`, `.expo/material-owner-page-preview/{archived-390,deleted-390}.jpg`. Chưa commit/push; cần nghiệm thu API có đăng nhập và Android/iOS.
+
+## Xóa trực tiếp từ thẻ — 2026-11-18T14:22:22+07:00
+
+- DRAFT/ARCHIVED có nút Xóa ngay trên thẻ, dùng danger và label kèm tên tài liệu; bỏ callback/nút Xóa trong hộp Xem thông tin. Bấm chỉ mở OwnerMaterialActionDialog đúng row, giữ expectedListingVersion, hủy không ghi và dùng controller/recovery cũ khi xác nhận. Nút đơn căn giữa, nhóm nhiều nút chia đều/wrap.
+- Focused publication UI/navigation/owner actions/lifecycle/draft-delete **15/15 PASS**; full TypeScript, scoped ESLint/Prettier/whitespace và structure1.052 source files PASS. Đã xem preview390px: Xóa cạnh Đăng lại, mở/hủy xác nhận, hộp thông tin không còn Xóa. Ảnh ignored `.expo/material-action-layout-preview/delete-on-card-390.jpg`; transport/hành động mô phỏng, chưa nghiệm thu API/native.
+
+## Nội dung thông tin tài liệu — 2026-11-18T14:13:54+07:00
+
+- ARCHIVED bỏ hai chú thích lặp, thay bằng giải thích tài liệu không còn trong Khám phá, quyền tải của người mua và đăng lại cần duyệt/giữ nguyên nội dung giá. Bỏ số phiên bản nội bộ trong hộp thông tin, đổi nhãn ngày Kiểm duyệt gần nhất. Câu xác nhận ngừng/đăng lại/xóa dùng tên mục và hậu quả cụ thể, không đổi lifecycle, quyền hoặc body API.
+- Focused owner actions/publication UI **6/6 PASS**, scoped ESLint, Prettier và whitespace PASS. Đã xem hộp ARCHIVED và mở/hủy xác nhận xóa trên preview390px bằng component thật, transport/hành động mô phỏng. Ảnh ignored `.expo/material-action-layout-preview/archived-copy-390.jpg`; chưa nghiệm thu native/API.
 
 ## Dọn source và kiểm tra toàn mobile — 2026-11-18T13:55:15+07:00
 

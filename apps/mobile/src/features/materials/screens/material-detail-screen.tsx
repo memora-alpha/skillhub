@@ -24,6 +24,8 @@ import { RelatedMaterials } from "../components/material-detail-sections";
 import { MaterialReviews } from "../components/material-reviews";
 import { MaterialDetailSkeleton } from "../components/material-detail-skeleton";
 import { MaterialFavoriteButton } from "../components/material-favorite-button";
+import { MaterialUnavailable } from "../components/material-unavailable";
+import { isMaterialUnavailable } from "../utils/material-availability";
 
 export function MaterialDetailScreen() {
   const params = useLocalSearchParams<{ id: string }>();
@@ -36,7 +38,8 @@ function DetailContent({ id }: Readonly<{ id: string }>) {
   const query = useMaterial(id);
   const runtime = useConnections();
   const router = useRouter();
-  const material = query.data;
+  const unavailable = isMaterialUnavailable(query.error);
+  const material = unavailable || query.denied ? undefined : query.data;
   const [refreshing, setRefreshing] = useState(false);
   const own = material?.ownerId === runtime.userId;
   const ownership = useMaterialOwnership(id, !!material && !own);
@@ -161,7 +164,11 @@ function DetailContent({ id }: Readonly<{ id: string }>) {
         ) : undefined
       }
     >
-      <ConnectionFeedback error={query.error} retry={refresh} />
+      {unavailable ? (
+        <MaterialUnavailable />
+      ) : (
+        <ConnectionFeedback error={query.error} retry={refresh} />
+      )}
       {query.isLoading && !material && <MaterialDetailSkeleton />}
       {!uuid.safeParse(id).success && (
         <FormNotice tone="info" compact>
@@ -170,6 +177,12 @@ function DetailContent({ id }: Readonly<{ id: string }>) {
       )}
       {material && (
         <View style={styles.page}>
+          {material.status === "ARCHIVED" && (
+            <FormNotice tone="info" compact>
+              Tài liệu đã ngừng chia sẻ và không còn hiển thị trong Khám phá.
+              Người đã mua vẫn có thể tải tài liệu từ Thư viện.
+            </FormNotice>
+          )}
           <MaterialSummary
             material={material}
             cover

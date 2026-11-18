@@ -21,10 +21,7 @@ import {
   type MaterialFilter,
 } from "../utils/owner-material-presentation";
 import { OwnerMaterialCard } from "../components/owner-material-card";
-import {
-  OwnerMaterialDetails,
-  OwnerMaterialActionDialog,
-} from "../components/owner-material-dialogs";
+import { OwnerMaterialActionDialog } from "../components/owner-material-dialogs";
 import { ownerMaterialStyles as styles } from "../components/owner-material.styles";
 
 function Separator() {
@@ -43,12 +40,10 @@ export function PostedMaterialsContent({
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<MaterialFilter>("ALL");
   const query = useMyMaterialPages(filter === "ALL" ? undefined : filter);
-  const [selectedId, setSelectedId] = useState<string>();
   const [archiveId, setArchiveId] = useState<string>();
   const [action, setAction] = useState<OwnerMaterialAction>("archive");
   const [refreshing, setRefreshing] = useState(false);
   const filtered = filterOwnerMaterials(query.items, filter, search);
-  const selected = query.items.find((row) => row.id === selectedId);
   const archive = query.items.find((row) => row.id === archiveId);
   const mutationLocked = !!command.pending || !!command.uncertain;
   const disabled =
@@ -79,7 +74,6 @@ export function PostedMaterialsContent({
     }
   };
   const edit = (id: string) => {
-    setSelectedId(undefined);
     router.push(`/materials/${id}/edit`);
   };
   const reconcile = async () => {
@@ -133,7 +127,6 @@ export function PostedMaterialsContent({
               disabled={mutationLocked}
               onChange={(value) => {
                 if (mutationLocked) return;
-                setSelectedId(undefined);
                 setArchiveId(undefined);
                 command.resetFeedback();
                 setFilter(value);
@@ -179,10 +172,24 @@ export function PostedMaterialsContent({
               command.pending?.action === "submit" &&
               command.pending.id === item.id
             }
-            onOpen={() => setSelectedId(item.id)}
+            onOpen={() => {
+              if (!disabled) router.push(`/materials/${item.id}/owner`);
+            }}
             onEdit={() => edit(item.id)}
             onSubmit={() => {
               setAction("submit");
+              setArchiveId(item.id);
+            }}
+            onDelete={() => {
+              setAction("delete");
+              setArchiveId(item.id);
+            }}
+            onArchive={() => {
+              setAction("archive");
+              setArchiveId(item.id);
+            }}
+            onWithdraw={() => {
+              setAction("withdraw");
               setArchiveId(item.id);
             }}
           />
@@ -234,27 +241,6 @@ export function PostedMaterialsContent({
             </View>
           ) : null
         }
-      />
-      <OwnerMaterialDetails
-        material={selected}
-        disabled={disabled}
-        onClose={() => setSelectedId(undefined)}
-        onEdit={() => selected && edit(selected.id)}
-        onArchive={() => {
-          setAction("archive");
-          setArchiveId(selectedId);
-          setSelectedId(undefined);
-        }}
-        onDelete={() => {
-          setAction("delete");
-          setArchiveId(selectedId);
-          setSelectedId(undefined);
-        }}
-        onWithdraw={() => {
-          setAction("withdraw");
-          setArchiveId(selectedId);
-          setSelectedId(undefined);
-        }}
       />
       <OwnerMaterialActionDialog
         material={archive}

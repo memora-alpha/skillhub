@@ -19,9 +19,16 @@ Owner list đã nối cursor/submit/archive nhưng dùng Panel và nhiều nút 
 
 ## Task
 
+- [x] Đổi Xem chi tiết từ hộp thông tin sang màn owner riêng đọc private detail, hiển thị đủ nội dung/tệp/người chia sẻ/kỹ năng/trạng thái/kiểm duyệt. Đưa toàn bộ nút quản lý về thẻ và xóa modal/style/state thừa; chi tiết chỉ giữ tải an toàn.
+- [x] Xử lý ARCHIVED với trạng thái/cảnh báo ở đầu trang; HTTP404 của owner/public detail có màn không còn khả dụng và đường về Đã đăng/Thư viện. Không suy chắc chắn đã xóa từ404, không hiển thị nội dung cache hoặc footer mua/tải, giữ lỗi mạng/quyền riêng và quyền tải theo đơn mua.
+
+- [x] Đưa Xóa bản nháp/Xóa tài liệu ra thẻ DRAFT/ARCHIVED, bỏ nút lặp trong hộp thông tin; dùng lại xác nhận và controller/version/recovery hiện có. Nút đơn căn giữa, kiểm mở/hủy không DELETE và chỉ xác nhận mới gửi.
+
+- [x] Làm rõ lời giải thích khi xem tài liệu đã ngừng chia sẻ và xác nhận ngừng/đăng lại/xóa; gộp chú thích lặp, bỏ số phiên bản khỏi UI owner detail, giữ rule/API và kiểm preview/regression.
+
 - [x] Rà source/import graph và mock runtime; bỏ helper/style/tham số adapter không còn consumer, gom điều kiện quyền lặp. Chạy full mobile tests, TypeScript/lint/structure, web export, định dạng/whitespace và commit-scope checks.
 
-- [x] Căn lại nhóm nút owner: cặp Chỉnh sửa/Gửi duyệt cân đối, nút đơn căn phải; footer chi tiết tách Xóa, xác nhận Hủy/action đều chiều rộng và wrap màn nhỏ. Đưa Đăng tài liệu mới xuống cuối form bị khóa thay nút Lưu vô hiệu hóa; kiểm preview và regression quyền/lifecycle.
+- [x] Căn lại nhóm nút owner: nhóm thao tác chia đều/wrap, nút đơn căn giữa; mọi nút quản lý nằm trên thẻ, footer chi tiết chỉ giữ tải, xác nhận Hủy/action đều chiều rộng. Đưa Đăng tài liệu mới xuống cuối form bị khóa thay nút Lưu vô hiệu hóa; kiểm preview và regression quyền/lifecycle.
 
 - [x] Đồng bộ BE PR109 `origin/dev@8d89ee25`: parse bộ quyền hasBeenPublished/canEdit/editBlockedReason, khóa sửa sau lần đăng đầu và PENDING_REVIEW; giữ lifecycle độc lập với edit, gửi expectedListingVersion cho submit/archive, xử lý conflict mà không replay và giữ draft. Nội dung/giá mới dùng ID mới.
 

@@ -34,6 +34,7 @@ for (const owner of [true, false]) {
       },
     };
     const sends: unknown[] = [];
+    const routes: string[] = [];
     const runtime = { enabled: true, key: ["owner", 1], isCurrent: () => true };
     const query = {
       items: [] as ReturnType<typeof fixtureMaterial>[],
@@ -66,7 +67,7 @@ for (const owner of [true, false]) {
       "react/jsx-runtime": { jsx, jsxs: jsx },
       "react-native": { View: "View", Text: "Text" },
       "expo-router": {
-        useRouter: () => ({ push() {} }),
+        useRouter: () => ({ push: (path: string) => routes.push(path) }),
         useIsFocused: () => true,
         Redirect: "Redirect",
       },
@@ -99,7 +100,6 @@ for (const owner of [true, false]) {
       },
       "../components/owner-material-card": { OwnerMaterialCard: "Card" },
       "../components/owner-material-dialogs": {
-        OwnerMaterialDetails: "Details",
         OwnerMaterialActionDialog: "ActionDialog",
       },
       "../components/owner-material.styles": { ownerMaterialStyles: {} },
@@ -185,6 +185,12 @@ for (const owner of [true, false]) {
         const draft = fixtureMaterial();
         query.items = [draft];
         const card = render().renderItem({ item: draft });
+        (card.props.onOpen as () => void)();
+        assert.deepEqual(routes, [`/materials/${draft.id}/owner`]);
+        command.pending = true;
+        (render().renderItem({ item: draft }).props.onOpen as () => void)();
+        assert.equal(routes.length, 1, "pending mutation cannot leave the hub");
+        command.pending = false;
         (card.props.onSubmit as () => void)();
         assert.equal(
           sends.length,
@@ -203,6 +209,38 @@ for (const owner of [true, false]) {
         (card.props.onSubmit as () => void)();
         (render().dialog!.props.onConfirm as () => void)();
         assert.deepEqual(sends, [["submit", draft]]);
+        for (const status of ["DRAFT", "ARCHIVED"] as const) {
+          const row = fixtureMaterial({ status, listingVersion: 4 });
+          query.items = [row];
+          const deleteCard = render().renderItem({ item: row });
+          const count: number = sends.length;
+          (deleteCard.props.onDelete as () => void)();
+          assert.equal(sends.length, count, "opening deletion cannot send");
+          assert.equal(render().dialog?.props.action, "delete");
+          assert.equal(render().dialog?.props.material, row);
+          (render().dialog!.props.onClose as () => void)();
+          assert.equal(sends.length, count, "cancelling deletion cannot send");
+          (deleteCard.props.onDelete as () => void)();
+          (render().dialog!.props.onConfirm as () => void)();
+          assert.deepEqual(sends.at(-1), ["delete", row]);
+        }
+        for (const [status, callback, action] of [
+          ["PUBLISHED", "onArchive", "archive"],
+          ["PENDING_REVIEW", "onWithdraw", "withdraw"],
+        ] as const) {
+          const row = fixtureMaterial({ status, listingVersion: 6 });
+          query.items = [row];
+          const count: number = sends.length;
+          (render().renderItem({ item: row }).props[callback] as () => void)();
+          assert.equal(
+            sends.length,
+            count,
+            "card actions only open confirmation",
+          );
+          assert.equal(render().dialog?.props.action, action);
+          (render().dialog!.props.onConfirm as () => void)();
+          assert.deepEqual(sends.at(-1), [action, row]);
+        }
       }
     } finally {
       contexts.reverse().forEach((context) => context.restore());

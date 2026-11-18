@@ -49,7 +49,7 @@ export function materialArchivePresentation(row: ApiMaterial) {
       label: "Ngừng chia sẻ",
       title: "Ngừng chia sẻ tài liệu?",
       description:
-        "Tài liệu sẽ ngừng xuất hiện công khai và không nhận lượt mua hoặc truy cập mới. Người đã mua vẫn giữ quyền tải. Bạn có thể gửi duyệt lại nguyên nội dung trong mục Đã ngừng chia sẻ.",
+        "Tài liệu sẽ không còn hiển thị trong Khám phá và không nhận thêm lượt mua. Người đã mua vẫn có thể tải tài liệu. Bạn có thể gửi duyệt để đăng lại sau.",
       notice: "Đã ngừng chia sẻ tài liệu.",
     };
 }

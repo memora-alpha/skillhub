@@ -3,6 +3,15 @@ import { createRequire } from "node:module";
 import { mock, test } from "node:test";
 import { pathToFileURL } from "node:url";
 import { fixtureMaterial, materialOtherId } from "./fixtures/materials-data";
+import { AppError } from "../src/lib/http/errors";
+
+type Node = { type: unknown; props: Record<string, unknown> };
+function nodes(value: unknown): Node[] {
+  if (Array.isArray(value)) return value.flatMap(nodes);
+  if (!value || typeof value !== "object" || !("props" in value)) return [];
+  const node = value as Node;
+  return [node, ...nodes(node.props.children)];
+}
 
 test("detail waits for ownership even on free listings and confirms a purchased snapshot before download", () => {
   const local = createRequire(
@@ -12,6 +21,7 @@ test("detail waits for ownership even on free listings and confirms a purchased 
     ),
   );
   let material = fixtureMaterial({ status: "PUBLISHED" });
+  let error: unknown;
   let ownership: { data: unknown; isFetching: boolean; error?: unknown } = {
     data: undefined,
     isFetching: true,
@@ -59,8 +69,11 @@ test("detail waits for ownership even on free listings and confirms a purchased 
     "../components/material-favorite-button": {
       MaterialFavoriteButton: "MaterialFavoriteButton",
     },
+    "../components/material-unavailable": {
+      MaterialUnavailable: "Unavailable",
+    },
     "../hooks/use-materials": {
-      useMaterial: () => ({ data: material, isFetching: false }),
+      useMaterial: () => ({ data: material, isFetching: false, error }),
       useMaterialOwnership: () => ownership,
     },
     "../hooks/use-material-download": {
@@ -112,6 +125,42 @@ test("detail waits for ownership even on free listings and confirms a purchased 
     assert.equal(render().disabled, false);
     render().onPress();
     assert.deepEqual(starts, [true, false, false]);
+    const page = () => {
+      const root = MaterialDetailScreen();
+      return root.type(root.props) as Node;
+    };
+    material = { ...material, status: "ARCHIVED" };
+    assert.ok(nodes(page()).some((node) => node.type === "FormNotice"));
+    error = new AppError("http", 404, "MATERIAL_NOT_FOUND");
+    assert.equal(page().props.stickyFooter, undefined);
+    assert.ok(nodes(page()).some((node) => node.type === "Unavailable"));
+    assert.equal(
+      nodes(page()).some((node) =>
+        [
+          "MaterialSummary",
+          "RelatedMaterials",
+          "MaterialReviews",
+          "ConnectionFeedback",
+        ].includes(String(node.type)),
+      ),
+      false,
+    );
+    assert.deepEqual(starts, [true, false, false]);
+    for (const failure of [
+      new AppError("network"),
+      new AppError("http", 403),
+      new AppError("http", 500),
+    ]) {
+      error = failure;
+      assert.equal(
+        nodes(page()).some((node) => node.type === "Unavailable"),
+        false,
+      );
+      assert.ok(
+        nodes(page()).some((node) => node.type === "ConnectionFeedback"),
+      );
+      assert.equal(render().disabled, true);
+    }
   } finally {
     contexts.forEach((context) => context.restore());
     delete local.cache[file];
