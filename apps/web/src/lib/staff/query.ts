@@ -3,6 +3,11 @@ export function staffQuery(path: string, query: URLSearchParams) {
   const accepted = new URLSearchParams();
   for (const name of staffQueryNames(path))
     if (query.has(name)) accepted.set(name, query.get(name)!);
+  if (
+    path === "reports/support/queue" &&
+    ["ALL", "CLOSED"].includes(accepted.get("status") ?? "")
+  )
+    accepted.delete("status");
   return accepted.size ? `?${accepted}` : "";
 }
 function staffQueryNames(path: string): string[] {
@@ -46,8 +51,7 @@ function staffQueryNames(path: string): string[] {
       "orderCode",
       "gatewayTransactionId",
     );
-  if (path === "reports/support/queue")
-    names.push("severity", "handlerId", "source");
+  if (path === "reports/support/queue") names.push("severity", "handlerId");
   if (path === "dashboard/work-items")
     names.push(
       "kind",

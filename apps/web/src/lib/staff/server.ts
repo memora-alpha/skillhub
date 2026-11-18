@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { proxyEvents } from "./event-proxy";
 import { staffQuery } from "./query";
-import { reportQueueOrigins } from "./report-queue-origin";
+import { reportQueueGateway } from "./report-queue-gateway";
 import { sessionCookies } from "../auth/session";
 import { authGateway } from "../auth/server";
 import { tokenReply, failedTokenRotation } from "../auth/token-reply";
@@ -295,13 +295,30 @@ async function forwardRequest(
   const target = upstreamPath(request.method, path, portal);
   if (!target) throw new GatewayError(404, "ROUTE_NOT_AVAILABLE");
   const token = accessToken(request);
-  await identity(token, portal);
+  const actor = await identity(token, portal);
   const body = ["POST", "PATCH", "PUT", "DELETE"].includes(request.method)
     ? await jsonBody(request)
     : undefined;
   const key = request.headers.get("idempotency-key") ?? undefined;
   if (key && (key.length > 200 || /[\r\n]/.test(key)))
     throw new GatewayError(400, "INVALID_IDEMPOTENCY_KEY");
+  if (request.method === "GET" && path === "reports/support/queue") {
+    const result = await reportQueueGateway(
+      request.nextUrl.searchParams,
+      actor.userId,
+      (query) => backend(`${target}?${query}`, token),
+      async (id) => {
+        const detail = await backend(`reports/staff/${id}`, token);
+        if (detail.status !== 200 || !detail.value?.success)
+          throw new GatewayError(
+            detail.status >= 400 ? detail.status : 502,
+            "API_RESPONSE_INVALID",
+          );
+        return detail.value.data;
+      },
+    );
+    return reply(result.value, result.status);
+  }
   const result = await backend(
     target +
       (request.method === "GET"
@@ -312,27 +329,6 @@ async function forwardRequest(
     body,
     key,
   );
-  if (
-    request.method === "GET" &&
-    path === "reports/support/queue" &&
-    result.status === 200 &&
-    result.value?.success
-  ) {
-    const rows = await reportQueueOrigins(result.value.data, async (id) => {
-      const detail = await backend(`reports/staff/${id}`, token);
-      if (detail.status !== 200 || !detail.value?.success)
-        throw new GatewayError(
-          detail.status >= 400 ? detail.status : 502,
-          "API_RESPONSE_INVALID",
-        );
-      return detail.value.data;
-    });
-    const source = request.nextUrl.searchParams.get("source");
-    result.value.data =
-      source === "USER" || source === "SYSTEM"
-        ? rows.filter((row) => row.source === source)
-        : rows;
-  }
   if (
     path.endsWith("/content") &&
     result.status === 200 &&

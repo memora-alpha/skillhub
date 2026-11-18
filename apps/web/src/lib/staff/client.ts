@@ -20,6 +20,8 @@ export function isSessionFailure(error: unknown): boolean {
   );
 }
 const errorMessages: Readonly<Record<string, string>> = {
+  INVALID_REPORT_QUEUE_FILTER:
+    "Bộ lọc báo cáo không hợp lệ. Xóa bộ lọc rồi thử lại.",
   USER_MAKEUP_LIMIT_REACHED:
     "Người tham gia đã hết lượt học bù trong thỏa thuận này. Chọn phương án xử lý khác theo bằng chứng; không thể cấp thêm lượt.",
   SESSION_MAKEUP_LIMIT_REACHED:
@@ -102,6 +104,8 @@ const errorMessages: Readonly<Record<string, string>> = {
     "Bạn chưa có quyền tra cứu giao dịch Credit. Liên hệ quản trị viên để kiểm tra quyền.",
   INVALID_ADMIN_FINANCE_CURSOR:
     "Danh sách giao dịch đã thay đổi hoặc bộ lọc không còn khớp. Làm mới để tải lại từ đầu.",
+  INVALID_REPORT_QUEUE_CURSOR:
+    "Danh sách báo cáo hoặc bộ lọc đã thay đổi. Bấm Làm mới để tải lại từ trang đầu.",
   INCIDENT_DECISION_REQUIRED:
     "Báo cáo đã được gom. Mở vụ việc chung để ra quyết định.",
   REPORT_SELF_MODERATION_FORBIDDEN:

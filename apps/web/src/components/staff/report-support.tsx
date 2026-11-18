@@ -42,7 +42,6 @@ const statuses = [
   ["NEED_MORE_INFO", "Cần bổ sung"],
   ["RESOLVED", "Đã xử lý"],
   ["REJECTED", "Đã từ chối"],
-  ["CLOSED", "Đã đóng"],
 ] as const;
 export function SupportQueueScreen({
   initialIncidentId,
@@ -308,8 +307,8 @@ export function SupportQueueScreen({
         </p>
       )}
       <p className="admin-scope-note">
-        Báo cáo mới nhất hiển thị trước. Tìm kiếm chỉ áp dụng cho mã và lý do
-        trong các báo cáo trên trang hiện tại.
+        Tìm kiếm mã hoặc lý do trong trang hiện tại. Tab Tất cả bao gồm cả báo
+        cáo đã xử lý và đã từ chối.
       </p>
       <div className="ops-report-workspace" data-show-detail={mobileDetail}>
         <Card className="ops-report-list" flush>
@@ -319,16 +318,20 @@ export function SupportQueueScreen({
             empty={!list.items.length}
             reload={list.reload}
             emptyTitle={
-              scope === "actionable"
-                ? "Không có báo cáo cần giải quyết"
-                : source === "SYSTEM"
-                  ? "Không có báo cáo hệ thống theo bộ lọc hiện tại"
-                  : "Hàng đợi trống"
+              list.hasNext
+                ? "Chưa có kết quả phù hợp trên trang này"
+                : scope === "actionable"
+                  ? "Không có báo cáo cần giải quyết"
+                  : source === "SYSTEM"
+                    ? "Không có báo cáo hệ thống theo bộ lọc hiện tại"
+                    : "Hàng đợi trống"
             }
             emptyDescription={
-              scope === "actionable"
-                ? "Các ghi nhận của hệ thống nằm trong tab Tất cả."
-                : "Thử xóa bộ lọc hoặc làm mới danh sách."
+              list.hasNext
+                ? "Chọn Sau để xem tiếp danh sách."
+                : scope === "actionable"
+                  ? "Các ghi nhận của hệ thống nằm trong tab Tất cả."
+                  : "Thử xóa bộ lọc hoặc làm mới danh sách."
             }
           >
             {!visible.length ? (
