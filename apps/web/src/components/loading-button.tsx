@@ -23,7 +23,7 @@ export function LoadingButton({
   };
   const content = (
     <>
-      {children}
+      <span className={styles.content}>{children}</span>
       {loading && (
         <span className={styles.placeholder} aria-hidden="true">
           <span />

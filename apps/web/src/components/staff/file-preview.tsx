@@ -51,7 +51,6 @@ function LoadedPreview({
             type="application/pdf"
             aria-label={`Xem PDF: ${name}`}
             onLoad={() => setReadyDocument(file.url)}
-            onError={onImageError}
           >
             <p>
               Trình duyệt này chưa hiển thị được PDF. Bạn có thể mở PDF trong

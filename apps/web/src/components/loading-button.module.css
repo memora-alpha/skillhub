@@ -1,8 +1,8 @@
 .button {
   position: relative;
 }
-.busy {
-  color: transparent !important;
+.content {
+  display: contents;
 }
 .busy > * {
   visibility: hidden;

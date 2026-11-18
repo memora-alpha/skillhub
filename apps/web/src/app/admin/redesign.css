@@ -241,6 +241,10 @@
   box-shadow: none;
   padding: 10px 12px 10px 38px;
   outline: none;
+  color: var(--ink);
+  background: transparent;
+  font-size: 13px;
+  min-width: 0;
 }
 .staff-shell[data-admin-redesign] .search:focus-within {
   outline: 2px solid var(--focus);
@@ -257,12 +261,6 @@
   border-radius: 8px;
   flex: 1;
   min-width: 180px;
-}
-.staff-shell[data-admin-redesign] .search input {
-  color: var(--ink);
-  background: transparent;
-  font-size: 13px;
-  min-width: 0;
 }
 .staff-shell[data-admin-redesign]
   :is(
@@ -880,6 +878,10 @@
   margin: -4px 0 20px;
   font-size: 12px;
   color: var(--muted);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 .staff-shell[data-admin-redesign]
   .ops-notification-connection[data-state="connected"] {
@@ -1035,12 +1037,6 @@
   color: var(--muted);
   font-size: 12px;
   white-space: nowrap;
-}
-.staff-shell[data-admin-redesign] .ops-notification-connection {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
 }
 .staff-shell[data-admin-redesign] .ops-notification-connection::before {
   content: "";

@@ -65,7 +65,7 @@ function OrderCard({
     command = useUserCommand(true);
   const [review, setReview] = useState(false),
     [done, setDone] = useState(false);
-  const [inspectedOrder, setFreshOrder] = useState(order);
+  const [inspectedOrder, setInspectedOrder] = useState(order);
   const freshOrder =
     Date.parse(order.refundEligibility?.evaluatedAt ?? "") >
     Date.parse(inspectedOrder.refundEligibility?.evaluatedAt ?? "")
@@ -84,7 +84,7 @@ function OrderCard({
     );
     const fresh = rows.find((item) => item.id === order.id);
     if (!fresh) throw new UserApiError(404, "MATERIAL_ORDER_NOT_FOUND");
-    setFreshOrder(fresh);
+    setInspectedOrder(fresh);
     return fresh;
   }
   async function inspect() {

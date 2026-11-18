@@ -109,7 +109,7 @@ function assertCancellationRuling(
 ) {
   const choices = item.resolutionOptions?.cancellationMakeupRulings;
   const option = choices?.find((row) => row.value === ruling);
-  if (!context.cancellation || (choices && (!option || !option.allowed)))
+  if (!context.cancellation || (choices && !option?.allowed))
     throw new StaffApiError(
       409,
       option?.blockedReason ?? "CANCELLATION_MAKEUP_RULING_NOT_APPLICABLE",

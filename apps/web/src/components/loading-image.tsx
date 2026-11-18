@@ -1,6 +1,11 @@
 "use client";
 import Image, { type ImageProps } from "next/image";
-import { useCallback, useState, type ImgHTMLAttributes } from "react";
+import {
+  useCallback,
+  useState,
+  type CSSProperties,
+  type ImgHTMLAttributes,
+} from "react";
 import styles from "./loading-image.module.css";
 
 function useImageReady(
@@ -18,8 +23,18 @@ function useImageReady(
   return { ready, finish, ref };
 }
 
+function loadingImageStyle(style: CSSProperties | undefined, ready: boolean) {
+  if (ready) return style;
+  return {
+    ...style,
+    backgroundColor: "var(--line, #e5e7eb)",
+    objectPosition: "-10000px -10000px",
+  };
+}
+
 export function LoadingImage({
   className = "",
+  style,
   alt,
   onLoad,
   onError,
@@ -33,6 +48,7 @@ export function LoadingImage({
       alt={alt}
       ref={ref}
       className={className + loadingClass}
+      style={loadingImageStyle(style, ready)}
       aria-busy={!ready || undefined}
       onLoad={(event) => {
         finish();
@@ -48,6 +64,7 @@ export function LoadingImage({
 
 export function LoadingNativeImage({
   className = "",
+  style,
   alt = "",
   onLoad,
   onError,
@@ -63,6 +80,7 @@ export function LoadingNativeImage({
       alt={alt}
       ref={ref}
       className={className + loadingClass}
+      style={loadingImageStyle(style, ready)}
       aria-busy={!ready || undefined}
       onLoad={(event) => {
         finish();
