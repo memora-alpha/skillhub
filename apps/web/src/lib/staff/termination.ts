@@ -10,6 +10,7 @@ export type TerminationChange = {
   expiresAt: string;
   blockedByDispute: boolean;
   awaitingPolicy: boolean;
+  approvedAt?: string | null;
 };
 export type Allocation = {
   allocationId: string;
