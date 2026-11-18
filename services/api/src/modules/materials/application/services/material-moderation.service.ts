@@ -8,17 +8,25 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  NotFoundException,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { TransactionRunner } from "../../../../infrastructure/database/transaction-runner";
 import { AuditWriter } from "../../../audit/application/services/audit-writer";
+import { AuditReader } from "../../../audit/application/services/audit-reader";
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import {
   moderationTransition,
+  STAFF_MATERIAL_STATES,
   type MaterialState,
   type ModerationAction,
 } from "../../domain/material.policy";
 import { ownerMaterialView } from "../contracts/material-view";
+import {
+  materialFilterScope,
+  materialListWhere,
+  type MaterialListFilters,
+} from "./material-list-filters";
 import {
   assertReadyMaterialFile,
   auditContext,
@@ -32,24 +40,78 @@ export class MaterialModerationService {
   constructor(
     private readonly transactions: TransactionRunner,
     private readonly audit: AuditWriter,
+    private readonly auditReader: AuditReader,
   ) {}
+
+  /** Read-only Staff/Admin projection; no arbitrary audit snapshots leave this API. */
+  async history(
+    principal: Principal,
+    id: string,
+    query: { limit?: number; cursor?: string } = {},
+  ) {
+    requireModerator(principal);
+    const material = await this.transactions.run((tx) =>
+      tx.material.findUnique({ where: { id }, select: { id: true } }),
+    );
+    if (!material) throw new NotFoundException("MATERIAL_NOT_FOUND");
+    const result = await this.auditReader.readTarget({
+      ...query,
+      targetType: "MATERIAL",
+      targetId: id,
+      action: "MATERIAL_MODERATE",
+    });
+    return {
+      ...result,
+      data: result.data.map((row) => {
+        const before = moderationSnapshot(row.before);
+        const after = moderationSnapshot(row.after);
+        return {
+          id: row.id,
+          action: historyAction(
+            before.status,
+            after.status,
+            after.moderationAction,
+          ),
+          actor: {
+            kind: row.actorKind,
+            userId: row.actorId,
+            roles: row.actorRoles,
+            systemActor: row.systemActor ?? null,
+          },
+          occurredAt: row.createdAt,
+          reason: row.reason,
+          previousStatus: before.status,
+          status: after.status,
+          reviewedListingVersion: before.listingVersion,
+          listingVersion: after.listingVersion,
+        };
+      }),
+    };
+  }
 
   // Async so the moderator check surfaces as a promise rejection, never a sync throw.
   async queue(
     principal: Principal,
-    status: MaterialState = "PENDING_REVIEW",
-    query: { limit?: number; cursor?: string } = {},
+    status: MaterialState | "ALL" = "PENDING_REVIEW",
+    query: MaterialListFilters & { limit?: number; cursor?: string } = {},
   ) {
     requireModerator(principal);
+    const filters = materialListWhere(query);
     const scope = JSON.stringify([
       "materials-staff-v1",
       principal.userId,
       status,
+      ...materialFilterScope(query),
     ]);
     const { limit, cursor } = listInput(query, scope);
     return this.transactions.run(async (tx) => {
       const rows = await tx.material.findMany({
-        where: { status, ...listBoundary("updatedAt", cursor, true) },
+        where: {
+          status:
+            status === "ALL" ? { in: [...STAFF_MATERIAL_STATES] } : status,
+          ...filters,
+          ...listBoundary("updatedAt", cursor, true),
+        },
         orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
         take: limit + 1,
       });
@@ -132,4 +194,37 @@ export class MaterialModerationService {
       return ownerMaterialView(updated);
     });
   }
+}
+
+function moderationSnapshot(value: unknown) {
+  const record =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
+  return {
+    status: typeof record.status === "string" ? record.status : null,
+    listingVersion:
+      typeof record.listingVersion === "number" &&
+      Number.isSafeInteger(record.listingVersion)
+        ? record.listingVersion
+        : null,
+    moderationAction:
+      typeof record.moderationAction === "string"
+        ? record.moderationAction
+        : null,
+  };
+}
+
+function historyAction(
+  before: string | null,
+  after: string | null,
+  explicit: string | null,
+): string {
+  if (explicit && ["approve", "reject", "hide", "unhide"].includes(explicit))
+    return explicit;
+  if (after === "REJECTED") return "reject";
+  if (after === "HIDDEN") return "hide";
+  if (after === "PUBLISHED" && before === "HIDDEN") return "unhide";
+  if (after === "PUBLISHED" && before === "PENDING_REVIEW") return "approve";
+  return "unknown";
 }

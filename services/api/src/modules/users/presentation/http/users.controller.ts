@@ -67,7 +67,9 @@ export class UsersController {
     private readonly removeAvatar: RemoveAvatarUseCase,
   ) {}
   @Get("me")
-  @ApiOperation({ summary: "Read own account and profile allowlist" })
+  @ApiOperation({
+    summary: "Read own account, effective permissions and profile allowlist",
+  })
   @ApiSuccessResponse(200, OwnIdentityResponse)
   async own(@CurrentIdentity() actor: Principal) {
     return success(

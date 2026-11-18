@@ -9,7 +9,13 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  ApiErrorResponse,
+  ApiSuccessResponse,
+} from "../../../../shared/http/api-response.decorators";
+import { MaterialModerationHistoryResponse } from "./material-moderation.responses";
+import { ListPageQuery } from "../../../../shared/http/list-page";
 import {
   CurrentIdentity,
   IdentityGuard,
@@ -36,6 +42,27 @@ export class MaterialModerationController {
     @Query() query: StaffMaterialQueryDto,
   ) {
     const result = await this.moderation.queue(actor, query.status, query);
+    return paginated(result.data, result.pagination);
+  }
+
+  @Get(":materialId/moderation-history")
+  @ApiOperation({
+    summary:
+      "Read chronological material moderation decisions; requires material:moderate",
+  })
+  @ApiSuccessResponse(200, MaterialModerationHistoryResponse, {
+    paginated: true,
+  })
+  @ApiErrorResponse(400, "INVALID_CURSOR or INVALID_PAGE_LIMIT")
+  @ApiErrorResponse(401)
+  @ApiErrorResponse(403, "STAFF_ACCESS_REQUIRED")
+  @ApiErrorResponse(404, "MATERIAL_NOT_FOUND")
+  async history(
+    @CurrentIdentity() actor: Principal,
+    @Param("materialId", ParseUUIDPipe) id: string,
+    @Query() query: ListPageQuery,
+  ) {
+    const result = await this.moderation.history(actor, id, query);
     return paginated(result.data, result.pagination);
   }
 

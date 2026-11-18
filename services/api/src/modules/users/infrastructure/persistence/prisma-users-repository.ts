@@ -247,6 +247,7 @@ export class PrismaUsersRepository extends UsersRepository {
       skipDuplicates: true,
     });
     const systemAdminPermissions = [
+      "audit:read",
       "users.read",
       "users.lock",
       "users.unlock",

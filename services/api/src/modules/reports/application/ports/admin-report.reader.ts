@@ -1,10 +1,7 @@
+import type { AdminWorkSourcePage } from "../../../administration/application/contracts/admin-work-source-page";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
 
-export type AdminReportSourcePage = {
-  receivedAt?: Date;
-  order: "asc" | "desc";
-  take: number;
-};
+export type AdminReportSourcePage = AdminWorkSourcePage;
 
 export type AdminReportCaseWorkRow = {
   id: string;

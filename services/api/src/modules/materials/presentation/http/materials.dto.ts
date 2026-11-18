@@ -1,10 +1,16 @@
 import { ListPageQuery } from "../../../../shared/http/list-page";
-import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import {
+  ApiProperty,
+  ApiPropertyOptional,
+  IntersectionType,
+  OmitType,
+} from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
   IsBoolean,
   IsIn,
   IsInt,
+  IsISO8601,
   IsOptional,
   IsString,
   IsUUID,
@@ -17,18 +23,11 @@ import {
 import { REPORT_REASON_CODES } from "../../../reports/presentation/http/reports.dto";
 import {
   MATERIAL_STATES,
+  STAFF_MATERIAL_STATES,
   type MaterialState,
 } from "../../domain/material.policy";
 
 const ACCESS = ["FREE", "PAID"] as const;
-/** Staff review queue; DRAFTs stay private to their owner. */
-const STAFF_STATES = [
-  "PENDING_REVIEW",
-  "PUBLISHED",
-  "REJECTED",
-  "HIDDEN",
-  "ARCHIVED",
-] as const;
 
 export class CreateMaterialDto {
   @IsUUID("4") skillId!: string;
@@ -78,7 +77,51 @@ export class MaterialVersionDto {
 
 export class WithdrawMaterialDto extends MaterialVersionDto {}
 
-export class OwnerMaterialListQueryDto extends ListPageQuery {
+export class MaterialFilterQueryDto {
+  @ApiPropertyOptional({
+    maxLength: 100,
+    description: "Case-insensitive title/description substring",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  q?: string;
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID("4")
+  ownerId?: string;
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID("4")
+  skillId?: string;
+  @ApiPropertyOptional({ enum: ACCESS })
+  @IsOptional()
+  @IsIn(ACCESS)
+  accessType?: (typeof ACCESS)[number];
+  @ApiPropertyOptional({
+    format: "date-time",
+    description: "Inclusive material createdAt instant; timezone required",
+  })
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  from?: string;
+  @ApiPropertyOptional({
+    format: "date-time",
+    description: "Exclusive material createdAt instant; timezone required",
+  })
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  to?: string;
+}
+
+export class MaterialListQueryDto extends IntersectionType(
+  ListPageQuery,
+  MaterialFilterQueryDto,
+) {}
+
+export class OwnerMaterialListQueryDto extends OmitType(MaterialListQueryDto, [
+  "ownerId",
+] as const) {
   @ApiPropertyOptional({
     enum: MATERIAL_STATES,
     description:
@@ -89,16 +132,19 @@ export class OwnerMaterialListQueryDto extends ListPageQuery {
   status?: MaterialState;
 }
 
-export class MaterialQueryDto {
-  @IsOptional() @IsString() @MaxLength(100) q?: string;
-  @IsOptional() @IsUUID("4") skillId?: string;
-  @IsOptional() @IsIn(ACCESS) accessType?: (typeof ACCESS)[number];
+export class MaterialQueryDto extends MaterialFilterQueryDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(10_000) page = 1;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(50) limit = 20;
 }
 
-export class StaffMaterialQueryDto extends ListPageQuery {
-  @IsOptional() @IsIn(STAFF_STATES) status?: (typeof STAFF_STATES)[number];
+export class StaffMaterialQueryDto extends MaterialListQueryDto {
+  @ApiPropertyOptional({
+    enum: [...STAFF_MATERIAL_STATES, "ALL"],
+    default: "PENDING_REVIEW",
+  })
+  @IsOptional()
+  @IsIn([...STAFF_MATERIAL_STATES, "ALL"])
+  status?: (typeof STAFF_MATERIAL_STATES)[number] | "ALL";
 }
 
 export class PurchaseMaterialDto {

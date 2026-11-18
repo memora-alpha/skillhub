@@ -55,6 +55,13 @@ export class OwnIdentityResponse {
     description: "The account's one assigned role",
   })
   roles!: string[];
+  @ApiProperty({
+    type: [String],
+    description:
+      "Current effective permission codes after role defaults and applicable GRANT/DENY overrides. Resource ownership, account restrictions and workflow state are checked separately by each API.",
+    example: ["material:read", "report:moderate"],
+  })
+  permissions!: string[];
   @ApiProperty({ type: OwnProfileResponse }) profile!: OwnProfileResponse;
 }
 export class AvatarResponse {

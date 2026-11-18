@@ -1,38 +1,38 @@
+import { Prisma } from "../../../../generated/prisma/client";
+import {
+  adminWorkSourceQuery,
+  type AdminWorkSourcePage,
+} from "../../../administration/application/contracts/admin-work-source-page";
 import { Injectable } from "@nestjs/common";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
 import {
   AdminCreditReaderPort,
   type AdminCreditWindow,
+  type AdminSettlementWorkRow,
 } from "../ports/admin-credit.reader";
 
 @Injectable()
 export class AdminCreditSourceReader extends AdminCreditReaderPort {
-  settlementWork(
-    tx: TransactionContext,
-    page: { receivedAt?: Date; order: "asc" | "desc"; take: number },
-  ) {
-    return tx.pathSettlementAttempt.findMany({
-      where: {
-        errorCode: { not: null },
-        ...(page.receivedAt
-          ? {
-              checkedAt:
-                page.order === "desc"
-                  ? { lte: page.receivedAt }
-                  : { gte: page.receivedAt },
-            }
-          : {}),
-      },
-      orderBy: [{ checkedAt: page.order }, { pathId: "asc" }],
-      take: page.take,
-      select: {
-        pathId: true,
-        checkedAt: true,
-        attemptCount: true,
-        outcome: true,
-        errorCode: true,
-      },
-    });
+  settlementWork(tx: TransactionContext, page: AdminWorkSourcePage) {
+    return tx.$queryRaw<AdminSettlementWorkRow[]>(
+      adminWorkSourceQuery(
+        Prisma.sql`SELECT
+        path_id AS id,
+        path_id AS "pathId",
+        checked_at AS "checkedAt",
+        checked_at AS "receivedAt",
+        attempt_count AS "attemptCount",
+        outcome,
+        error_code AS "errorCode",
+        'Settlement ' || left(path_id::text, 8) AS title,
+        error_code AS reason,
+        'UNCLASSIFIED'::text AS severity,
+        NULL::uuid AS assignee
+      FROM path_settlement_attempts WHERE error_code IS NOT NULL`,
+        "SETTLEMENT_REVIEW",
+        page,
+      ),
+    );
   }
 
   settlementDetail(tx: TransactionContext, pathId: string) {

@@ -1,3 +1,4 @@
+import type { AdminWorkSourcePage } from "../../../administration/application/contracts/admin-work-source-page";
 import type {
   LearningPathStatus,
   Prisma,
@@ -134,7 +135,7 @@ export type AdminTerminationWorkRow = {
 export abstract class AdminLearningPathReaderPort {
   abstract terminationWork(
     tx: TransactionContext,
-    page: { receivedAt?: Date; order: "asc" | "desc"; take: number },
+    page: AdminWorkSourcePage,
   ): Promise<AdminTerminationWorkRow[]>;
 
   abstract terminationDetail(

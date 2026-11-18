@@ -14,6 +14,7 @@ import {
   encodeWorkCursor,
 } from "../../domain/admin-work-item-cursor";
 import type { WORK_ITEM_KINDS } from "../../presentation/http/admin-operations.dto";
+import type { AdminWorkSourcePage } from "../contracts/admin-work-source-page";
 import { AdminPaymentReaderPort } from "../../../payments/application/ports/admin-payment.reader";
 import { AdminCreditReaderPort } from "../../../credit/application/ports/admin-credit.reader";
 import { AdminReportReaderPort } from "../../../reports/application/ports/admin-report.reader";
@@ -87,27 +88,27 @@ export class AdminWorkItemsReader {
         throw new Error("DATABASE_TIME_UNAVAILABLE");
       return {
         now: clock.now,
-        sourceItems: await this.sources(tx, query.kind, cursor, newest),
+        sourceItems: await this.sources(tx, query.kind, {
+          cursor,
+          order: newest ? "desc" : "asc",
+          take: limit + 1,
+          filters: {
+            severity: query.severity,
+            waitingOn: query.waitingOn,
+            assignee: query.assignee,
+            q: query.q,
+            ...(query.minAgeHours === undefined
+              ? {}
+              : {
+                  waitingBefore: new Date(
+                    clock.now.getTime() - query.minAgeHours * 3_600_000,
+                  ),
+                }),
+          },
+        }),
       };
     });
-    const items = sourceItems.filter((item) => {
-      if (query.severity && item.severity !== query.severity) return false;
-      if (query.waitingOn && item.waitingOn !== query.waitingOn) return false;
-      if (query.assignee && item.assignee !== query.assignee) return false;
-      if (
-        query.minAgeHours !== undefined &&
-        now.getTime() - item.waitingSince.getTime() <
-          query.minAgeHours * 3_600_000
-      )
-        return false;
-      const q = query.q?.trim().toLowerCase();
-      return (
-        !q ||
-        `${item.displayCode} ${item.title} ${item.reason ?? ""}`
-          .toLowerCase()
-          .includes(q)
-      );
-    });
+    const items = sourceItems;
     items.sort((left, right) => compareWorkKey(left, right, newest));
     const after = cursor
       ? items.filter((item) => compareWorkKey(item, cursor, newest) > 0)
@@ -161,17 +162,10 @@ export class AdminWorkItemsReader {
   private async sources(
     tx: TransactionContext,
     kind: WorkKind | undefined,
-    cursor: ReturnType<typeof decodeWorkCursor>,
-    newest: boolean,
+    page: AdminWorkSourcePage,
   ): Promise<WorkItem[]> {
     const selected = <T>(source: WorkKind, read: () => Promise<T[]>) =>
       !kind || kind === source ? read() : Promise.resolve([]);
-    const order = newest ? ("desc" as const) : ("asc" as const);
-    const page = {
-      ...(cursor ? { receivedAt: cursor.receivedAt } : {}),
-      order,
-      take: 101,
-    };
     const [
       payments,
       settlements,

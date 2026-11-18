@@ -46,7 +46,12 @@ export function compareWorkKey(
 ) {
   const time = left.receivedAt.getTime() - right.receivedAt.getTime();
   if (time !== 0) return newest ? -time : time;
-  const kind = left.kind.localeCompare(right.kind);
+  const kind = compareCodeUnits(left.kind, right.kind);
   if (kind !== 0) return kind;
-  return left.id.localeCompare(right.id);
+  return compareCodeUnits(left.id, right.id);
+}
+
+function compareCodeUnits(left: string, right: string) {
+  if (left === right) return 0;
+  return left < right ? -1 : 1;
 }

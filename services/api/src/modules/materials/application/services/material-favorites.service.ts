@@ -10,6 +10,11 @@ import type { Principal } from "../../../auth/application/services/sessions.serv
 import { publicMaterialView } from "../contracts/material-view";
 import { requirePermission } from "./material-support";
 import { MaterialThumbnailsService } from "./material-thumbnails.service";
+import {
+  materialFilterScope,
+  materialListWhere,
+  type MaterialListFilters,
+} from "./material-list-filters";
 
 @Injectable()
 export class MaterialFavoritesService {
@@ -53,16 +58,25 @@ export class MaterialFavoritesService {
 
   async list(
     principal: Principal,
-    query: { limit?: number; cursor?: string } = {},
+    query: MaterialListFilters & { limit?: number; cursor?: string } = {},
   ) {
     requirePermission(principal, "material:access");
-    const scope = JSON.stringify(["material-favorites-v1", principal.userId]);
+    const filters = materialListWhere(query);
+    const scope = JSON.stringify([
+      "material-favorites-v1",
+      principal.userId,
+      ...materialFilterScope(query),
+    ]);
     const { limit, cursor } = listInput(query, scope);
     const page = await this.transactions.run(async (tx) => {
       const rows = await tx.materialFavorite.findMany({
         where: {
           userId: principal.userId,
-          materialIdRecord: { status: "PUBLISHED", scanStatus: "CLEAN" },
+          materialIdRecord: {
+            status: "PUBLISHED",
+            scanStatus: "CLEAN",
+            ...filters,
+          },
           ...listBoundary("createdAt", cursor),
         },
         include: {

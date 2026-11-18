@@ -1,3 +1,4 @@
+import type { AdminWorkSourcePage } from "../../../administration/application/contracts/admin-work-source-page";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
 
 export type AdminCreditWindow = {
@@ -16,7 +17,7 @@ export type AdminSettlementWorkRow = {
 export abstract class AdminCreditReaderPort {
   abstract settlementWork(
     tx: TransactionContext,
-    page: { receivedAt?: Date; order: "asc" | "desc"; take: number },
+    page: AdminWorkSourcePage,
   ): Promise<AdminSettlementWorkRow[]>;
 
   abstract settlementDetail(

@@ -30,6 +30,11 @@ import {
 import { ownerMaterialView } from "../contracts/material-view";
 import { MaterialThumbnailsService } from "./material-thumbnails.service";
 import {
+  materialFilterScope,
+  materialListWhere,
+  type MaterialListFilters,
+} from "./material-list-filters";
+import {
   assertReadyMaterialFile,
   lockMaterial,
   requirePermission,
@@ -116,16 +121,28 @@ export class MaterialsService {
 
   async listMine(
     principal: Principal,
-    query: { limit?: number; cursor?: string; status?: MaterialState } = {},
+    query: MaterialListFilters & {
+      limit?: number;
+      cursor?: string;
+      status?: MaterialState;
+    } = {},
   ) {
+    const ownerQuery = { ...query, ownerId: principal.userId };
+    const filters = materialListWhere(ownerQuery);
     const parts = ["materials-mine-v1", principal.userId];
     if (query.status) parts.push(query.status);
-    const scope = JSON.stringify(parts);
+    // The authenticated owner is already in the scope; caller-supplied ownerId
+    // never changes management authorization or the cursor scope.
+    const scope = JSON.stringify([
+      ...parts,
+      ...materialFilterScope({ ...query, ownerId: undefined }),
+    ]);
     const { limit, cursor } = listInput(query, scope);
     const result = await this.transactions.run(async (tx) => {
       const rows = await tx.material.findMany({
         where: {
           ownerId: principal.userId,
+          ...filters,
           ...ownerManageableWhere,
           status: query.status ?? { not: "ARCHIVED" },
           ...listBoundary("updatedAt", cursor),

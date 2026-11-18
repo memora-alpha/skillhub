@@ -1,3 +1,4 @@
+import type { AdminWorkSourcePage } from "../../../administration/application/contracts/admin-work-source-page";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
 
 export type AdminTagRequestWorkRow = {
@@ -13,7 +14,7 @@ export type AdminTagRequestWorkRow = {
 export abstract class AdminTagRequestReaderPort {
   abstract pendingWork(
     tx: TransactionContext,
-    page: { receivedAt?: Date; order: "asc" | "desc"; take: number },
+    page: AdminWorkSourcePage,
   ): Promise<AdminTagRequestWorkRow[]>;
 
   abstract detail(

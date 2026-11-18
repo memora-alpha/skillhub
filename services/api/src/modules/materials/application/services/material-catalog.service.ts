@@ -12,13 +12,16 @@ import { FileAttachmentService } from "../../../../infrastructure/storage/file-a
 import { FileStorageService } from "../../../../infrastructure/storage/file-storage.service";
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import { listInput, listResult } from "../../../../shared/http/list-page";
-import {
-  snapshotStorageKey,
-  type MaterialAccess,
-} from "../../domain/material.policy";
+import { snapshotStorageKey } from "../../domain/material.policy";
 import { publicMaterialView } from "../contracts/material-view";
 import { materialRatingSummaryView } from "./material-rating-summary.service";
 import { MaterialThumbnailsService } from "./material-thumbnails.service";
+import {
+  materialFilterScope,
+  materialListSql,
+  materialListWhere,
+  type MaterialListFilters,
+} from "./material-list-filters";
 import {
   isModerator,
   requirePermission,
@@ -38,27 +41,15 @@ export class MaterialCatalogService {
     private readonly thumbnails: MaterialThumbnailsService,
   ) {}
 
-  search(query: {
-    q?: string;
-    skillId?: string;
-    accessType?: MaterialAccess;
-    page: number;
-    limit: number;
-  }) {
-    const q = query.q?.trim();
+  search(
+    query: MaterialListFilters & {
+      page: number;
+      limit: number;
+    },
+  ) {
     const where: Prisma.MaterialWhereInput = {
       ...LISTED,
-      ...(query.skillId ? { skillId: query.skillId } : {}),
-      ...(query.accessType ? { accessType: query.accessType } : {}),
-      // ponytail: ILIKE scan; add a pg_trgm index when the catalog outgrows it.
-      ...(q
-        ? {
-            OR: [
-              { title: { contains: q, mode: "insensitive" } },
-              { description: { contains: q, mode: "insensitive" } },
-            ],
-          }
-        : {}),
+      ...materialListWhere(query),
     };
     return this.transactions.run(
       async (tx) => {
@@ -127,13 +118,15 @@ export class MaterialCatalogService {
   /** Successful FREE grants are durable access history and back the mobile library. */
   async listFreeAccesses(
     principal: Principal,
-    query: { limit?: number; cursor?: string } = {},
+    query: MaterialListFilters & { limit?: number; cursor?: string } = {},
   ) {
     requirePermission(principal, "material:access");
     const scope = JSON.stringify([
       "material-library-free-v1",
       principal.userId,
+      ...materialFilterScope(query),
     ]);
+    const filters = materialListSql(query);
     const { limit, cursor } = listInput(query, scope);
     const boundary = cursor
       ? Prisma.sql`HAVING (MAX(access_grant.issued_at), access_grant.material_id) < (${new Date(
@@ -156,6 +149,7 @@ export class MaterialCatalogService {
             AND material.access_type = 'FREE'
             AND material.status = 'PUBLISHED'
             AND material.scan_status = 'CLEAN'
+            ${filters}
           GROUP BY access_grant.material_id
           ${boundary}
           ORDER BY MAX(access_grant.issued_at) DESC, access_grant.material_id DESC
