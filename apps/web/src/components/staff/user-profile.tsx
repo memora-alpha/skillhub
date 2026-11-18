@@ -1,5 +1,4 @@
 "use client";
-import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { PageNavigation } from "@/components/pagination/page-navigation";
 import { useStaffListPages } from "./use-staff-list-pages";
@@ -19,7 +18,10 @@ import { QueueState } from "./common";
 import { OperationReference } from "./operation-reference";
 import styles from "./user-profile.module.css";
 
-export function StaffUserProfile({ userId }: Readonly<{ userId: string }>) {
+export function StaffUserProfile({
+  userId,
+  embedded = false,
+}: Readonly<{ userId: string; embedded?: boolean }>) {
   const profile = useStaffResource<PublicProfile>(`profiles/${userId}`);
   const selectedTitle = profile.data?.selectedTitle;
   const titleLabel = selectedTitle
@@ -31,20 +33,7 @@ export function StaffUserProfile({ userId }: Readonly<{ userId: string }>) {
     : null;
   return (
     <div className={styles.workspace}>
-      <Card
-        title="Hồ sơ người dùng"
-        actions={
-          <LoadingButton
-            type="button"
-            className="btn"
-            disabled={profile.loading}
-            onClick={() => void profile.reload()}
-            loading={!!profile.loading}
-          >
-            Làm mới hồ sơ
-          </LoadingButton>
-        }
-      >
+      <Card title={embedded ? undefined : "Hồ sơ người dùng"}>
         <QueueState
           loading={profile.loading}
           error={profile.error}
@@ -69,7 +58,9 @@ export function StaffUserProfile({ userId }: Readonly<{ userId: string }>) {
                       <Badge tone="brand">{titleLabel}</Badge>
                     </p>
                   )}
-                  <OperationReference id={userId} label="Mã người dùng" />
+                  {!embedded && (
+                    <OperationReference id={userId} label="Mã người dùng" />
+                  )}
                 </div>
               </div>
               <p className={styles.bio}>
@@ -96,7 +87,7 @@ export function StaffUserProfile({ userId }: Readonly<{ userId: string }>) {
             </>
           )}
         </QueueState>
-        {profile.error && (
+        {profile.error && !embedded && (
           <p className="muted">
             Nếu hồ sơ công khai chưa khả dụng, bạn vẫn có thể kiểm tra nội dung
             kiểm duyệt bên dưới khi có quyền.

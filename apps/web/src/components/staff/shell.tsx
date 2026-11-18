@@ -9,6 +9,8 @@ import { isRedesignedAdminPath } from "@/lib/staff/admin-redesign";
 import { StaffSessionProvider, useStaffSession } from "./session";
 import { StaffLogin } from "./login";
 import { StaffShellSkeleton } from "./shell-skeleton";
+import { adminSections, findAdminSection } from "@/lib/staff/admin-navigation";
+import { AdminSectionNavigation } from "./admin-section-navigation";
 import {
   NotificationsProvider,
   useNotificationInbox,
@@ -36,7 +38,6 @@ const nav: NavigationItem[] = [
     label: "Hồ sơ & đánh giá",
     icon: "users",
   },
-  { href: "/staff/restriction-reviews", label: "Xét lại uy tín", icon: "star" },
   { href: "/staff/content", label: "Duyệt tài liệu", icon: "file" },
   { href: "/staff/disputes", label: "Báo cáo & tranh chấp", icon: "alert" },
   { href: "/staff/learning-changes", label: "Dừng lộ trình", icon: "file" },
@@ -54,45 +55,28 @@ const nav: NavigationItem[] = [
     group: "Cá nhân",
   },
 ];
-type NavigationEntry = readonly [
-  href: string,
-  label: string,
-  icon: IconName,
-  group: NonNullable<NavigationItem["group"]>,
-  aliases?: string[],
-];
-const adminEntries: NavigationEntry[] = [
-  ["/admin", "Tổng quan", "grid", "Điều hành"],
-  ["/admin/users", "Người dùng", "users", "Điều hành"],
-  ["/admin/staff-permissions", "Quyền nhân viên", "shield", "Điều hành"],
-  ["/admin/profile-moderation", "Hồ sơ & đánh giá", "users", "Chất lượng"],
-  ["/admin/reputation", "Xét lại uy tín", "star", "Chất lượng"],
-  ["/admin/credits", "Tài chính", "card", "Hệ thống"],
-  ["/admin/skills", "Danh mục kỹ năng", "tag", "Chất lượng"],
-  [
-    "/admin/tags",
-    "Tag cộng đồng",
-    "tag",
-    "Chất lượng",
-    ["/admin/tag-requests"],
-  ],
-  ["/admin/evidence", "Bằng chứng kỹ năng", "shield", "Chất lượng"],
-  ["/admin/moderation", "Kiểm duyệt yêu cầu học", "flag", "Kiểm duyệt"],
-  ["/admin/content", "Duyệt tài liệu", "file", "Kiểm duyệt"],
-  ["/admin/disputes", "Báo cáo & tranh chấp", "alert", "Kiểm duyệt"],
-  ["/admin/learning-changes", "Dừng lộ trình", "file", "Kiểm duyệt"],
-  ["/admin/config", "Quy tắc kiểm duyệt", "sliders", "Kiểm duyệt"],
-  ["/admin/notifications", "Thông báo", "bell", "Hệ thống"],
-];
-const adminNav: NavigationItem[] = adminEntries.map(
-  ([href, label, icon, group, aliases]) => ({
-    href,
-    label,
-    icon,
-    group,
-    aliases,
-  }),
-);
+function NavigationLinks({
+  items,
+  currentHref,
+  onNavigate,
+}: Readonly<{
+  items: readonly NavigationItem[];
+  currentHref: string | undefined;
+  onNavigate: () => void;
+}>) {
+  return items.map((item) => (
+    <Link
+      key={item.href}
+      href={item.href}
+      className="nav-link"
+      aria-current={currentHref === item.href ? "page" : undefined}
+      onClick={onNavigate}
+    >
+      <Icon name={item.icon} />
+      <span>{item.label}</span>
+    </Link>
+  ));
+}
 function NavigationGroup({
   title,
   items,
@@ -120,25 +104,17 @@ function NavigationGroup({
         <Icon name={expanded ? "down" : "right"} size={14} />
       </button>
       <div id={contentId} hidden={!expanded}>
-        {items.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="nav-link"
-            aria-current={currentHref === item.href ? "page" : undefined}
-            onClick={onNavigate}
-          >
-            <Icon name={item.icon} />
-            <span>{item.label}</span>
-          </Link>
-        ))}
+        <NavigationLinks
+          items={items}
+          currentHref={currentHref}
+          onNavigate={onNavigate}
+        />
       </div>
     </div>
   );
 }
 function Frame({ children }: Readonly<{ children: ReactNode }>) {
   const { actor, loading, logout, busy, portal } = useStaffSession();
-  const links = portal === "admin" ? adminNav : nav;
   const portalName = portal === "admin" ? "Admin" : "Staff";
   const workspaceName =
     portal === "admin" ? "Quản trị viên" : "Nhân viên vận hành";
@@ -158,11 +134,17 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
   }, [pathname, actor?.userId, sidebarRef]);
   if (loading) return <StaffShellSkeleton />;
   if (!actor) return <StaffLogin />;
-  const current = links.find((item) =>
-    item.href === `/${portal}`
-      ? pathname === item.href
-      : pathname.startsWith(item.href) || item.aliases?.includes(pathname),
-  );
+  const adminSection =
+    portal === "admin" ? findAdminSection(pathname) : undefined;
+  const current =
+    portal === "admin"
+      ? adminSection
+      : nav.find((item) =>
+          item.href === `/${portal}`
+            ? pathname === item.href
+            : pathname.startsWith(item.href) ||
+              item.aliases?.includes(pathname),
+        );
   const Sidebar = open ? "dialog" : "aside";
   return (
     <div
@@ -220,23 +202,28 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
           </div>
         </div>
         <nav className="side-nav" aria-label={`Điều hướng ${portalName}`}>
-          {(portal === "admin"
-            ? ["Điều hành", "Chất lượng", "Kiểm duyệt", "Hệ thống"]
-            : ["Công việc", "Quản trị", "Cá nhân"]
-          ).map((group) => {
-            const items = links.filter(
-              (item) => (item.group ?? "Công việc") === group,
-            );
-            return items.length ? (
-              <NavigationGroup
-                key={group}
-                title={group}
-                items={items}
-                currentHref={current?.href}
-                onNavigate={() => close(false)}
-              />
-            ) : null;
-          })}
+          {portal === "admin" ? (
+            <NavigationLinks
+              items={adminSections}
+              currentHref={current?.href}
+              onNavigate={() => close(false)}
+            />
+          ) : (
+            ["Công việc", "Quản trị", "Cá nhân"].map((group) => {
+              const items = nav.filter(
+                (item) => (item.group ?? "Công việc") === group,
+              );
+              return items.length ? (
+                <NavigationGroup
+                  key={group}
+                  title={group}
+                  items={items}
+                  currentHref={current?.href}
+                  onNavigate={() => close(false)}
+                />
+              ) : null;
+            })
+          )}
         </nav>
         <div className="side-foot">
           <div className="who">
@@ -294,7 +281,12 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
           <span className="topbar-crumb">
             <span className="ops-crumb-root">SkillHub</span>{" "}
             <Icon name="right" size={14} />{" "}
-            <strong>{current?.label ?? portalName}</strong>
+            <strong>
+              {current?.label ??
+                (pathname === "/admin/notifications"
+                  ? "Thông báo"
+                  : portalName)}
+            </strong>
           </span>
           <div className="row">
             {actor.roles.includes("STAFF") && (
@@ -314,6 +306,9 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
           </div>
         </header>
         <main id="main" className="content" tabIndex={-1}>
+          {portal === "admin" && (
+            <AdminSectionNavigation section={adminSection} />
+          )}
           {error && (
             <p className="staff-error" role="alert">
               {error}

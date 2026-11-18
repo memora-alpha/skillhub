@@ -13,10 +13,12 @@ export function AgreementCreator({
   conversation,
   proposal,
   path,
+  onSaved,
 }: Readonly<{
   conversation: Conversation;
   proposal?: Proposal;
   path?: LearningPath;
+  onSaved?: () => void;
 }>) {
   const { actor, request } = useUserSession(),
     command = useUserCommand(),
@@ -77,7 +79,10 @@ export function AgreementCreator({
               { method: path ? "PATCH" : "POST", body },
             ),
           );
-          if (result) router.push("/learn/paths/" + result.data.id);
+          if (result) {
+            onSaved?.();
+            router.push("/learn/paths/" + result.data.id);
+          }
         }}
       >
         <label>

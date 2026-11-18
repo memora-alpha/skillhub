@@ -1,0 +1,79 @@
+.trigger {
+  border: 0;
+  background: transparent;
+  padding: 2px 0;
+  cursor: pointer;
+  color: var(--brand);
+  font-size: inherit;
+  line-height: inherit;
+  text-align: start;
+  text-underline-offset: 3px;
+}
+.trigger:focus-visible {
+  outline: 2px solid var(--focus, var(--brand));
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+.dialog {
+  width: min(960px, calc(100vw - 32px));
+  max-width: none;
+  max-height: calc(100dvh - 40px);
+  padding: 0;
+  margin: auto;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  color: var(--ink);
+  background: var(--surface);
+  font: inherit;
+  box-shadow: 0 24px 80px rgb(15 23 42 / 20%);
+}
+.dialog[open] {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+.dialog::backdrop {
+  background: rgb(15 23 42 / 45%);
+}
+.header,
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 24px;
+}
+.header {
+  border-bottom: 1px solid var(--line);
+}
+.header h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.header p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 24px;
+}
+.footer {
+  flex-wrap: wrap;
+  justify-content: space-between;
+  border-top: 1px solid var(--line);
+}
+@media (max-width: 640px) {
+  .dialog {
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+    border-radius: 12px;
+  }
+  .header,
+  .footer,
+  .body {
+    padding: 16px;
+  }
+}

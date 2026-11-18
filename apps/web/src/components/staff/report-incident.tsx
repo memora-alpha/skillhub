@@ -7,6 +7,7 @@ import { useStaffSession } from "./session";
 import { DecisionDialog, QueueState } from "./common";
 import { severities, type Incident } from "./report-support-types";
 import type { ReportCaseDetail } from "@/lib/staff/types";
+import { assertReportEditable } from "@/lib/staff/report-access";
 import {
   assertReportRuling,
   assertReportRulingCurrent,
@@ -20,7 +21,13 @@ export function IncidentPanel({
   id,
   close,
   onUpdated,
-}: Readonly<{ id: string; close: () => void; onUpdated: () => unknown }>) {
+  readOnly = false,
+}: Readonly<{
+  id: string;
+  close: () => void;
+  onUpdated: () => unknown;
+  readOnly?: boolean;
+}>) {
   const { api, actor, portal } = useStaffSession();
   const resource = useStaffResource<Incident>(
     `reports/support/incidents/${id}`,
@@ -56,7 +63,8 @@ export function IncidentPanel({
                 </li>
               ))}
             </ul>
-            {resource.data.status === "OPEN" &&
+            {!readOnly &&
+              resource.data.status === "OPEN" &&
               resource.data.handlerId === actor?.userId && (
                 <div className="row">
                   <button
@@ -85,7 +93,7 @@ export function IncidentPanel({
                   </button>
                 </div>
               )}
-            {classifying && (
+            {classifying && !readOnly && (
               <DecisionDialog
                 title="Đổi mức độ vụ việc"
                 description="Áp dụng cho các báo cáo đã gom."
@@ -95,6 +103,12 @@ export function IncidentPanel({
                 onClose={() => setClassifying(false)}
                 onReload={resource.reload}
                 onSubmit={async (reason) => {
+                  for (const member of resource.data!.cases) {
+                    const fresh = await api<ReportCaseDetail>(
+                      `reports/${member.id}`,
+                    );
+                    assertReportEditable(fresh.data);
+                  }
                   await api(`reports/support/incidents/${id}/severity`, {
                     method: "POST",
                     body: {
@@ -111,7 +125,7 @@ export function IncidentPanel({
                 <SeveritySelect value={severity} onChange={setSeverity} />
               </DecisionDialog>
             )}
-            {decision && !!resource.data.cases.length && (
+            {decision && !readOnly && !!resource.data.cases.length && (
               <IncidentDecision
                 key={decision}
                 incident={resource.data}
@@ -195,6 +209,10 @@ function IncidentDecision({
         void reload();
       }}
       onSubmit={async (note) => {
+        for (const member of incident.cases) {
+          const fresh = await api<ReportCaseDetail>(`reports/${member.id}`);
+          assertReportEditable(fresh.data);
+        }
         if (!detail.data || detail.loading || detail.error)
           throw new Error(
             "Chưa tải được điều kiện xử lý. Hãy tải lại dữ liệu trước khi quyết định.",

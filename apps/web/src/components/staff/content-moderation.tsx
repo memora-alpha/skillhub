@@ -16,6 +16,7 @@ import { DecisionDialog, QueueState } from "./common";
 import { Identifier } from "./operation-tools";
 import { OperationReference } from "./operation-reference";
 import { StaffUserProfile } from "./user-profile";
+import { UserProfileReference } from "./user-profile-reference";
 import { fmtDateTime } from "@/lib/console/format";
 import styles from "./operations.module.css";
 import { MaterialReviewModeration } from "./material-review-moderation";
@@ -40,35 +41,52 @@ type Profile = {
 type ModerationRecord = { action: string; reason: string; at: string };
 export function ContentModerationScreen({
   initialUserId = "",
-}: Readonly<{ initialUserId?: string }>) {
+  initialView,
+}: Readonly<{ initialUserId?: string; initialView?: "profile" | "reviews" }>) {
   const [draft, setDraft] = useState(initialUserId);
   const [userId, setUserId] = useState(initialUserId);
   const [profileRevision, setProfileRevision] = useState(0);
-  const [tab, setTab] = useState(initialUserId ? "profile" : "reviews");
-  const { actor } = useStaffSession();
-  const openProfile = (id: string) => {
-    setDraft(id);
-    setUserId(id);
-    setTab("profile");
-  };
+  const [tab, setTab] = useState<string>(
+    initialView ?? (initialUserId ? "profile" : "reviews"),
+  );
+  const { actor, portal } = useStaffSession();
+  const adminTitle = tab === "profile" ? "Hồ sơ người dùng" : "Đánh giá";
   return (
     <>
       <PageHeader
-        title="Hồ sơ & đánh giá"
+        title={portal === "admin" ? adminTitle : "Hồ sơ & đánh giá"}
         desc="Xem nội dung và ghi rõ lý do kiểm duyệt."
       />
-      <div className={styles.tabs}>
-        <Segmented
-          label="Nội dung kiểm duyệt"
-          value={tab}
-          onChange={setTab}
-          options={[
-            { id: "reviews", label: "Đánh giá lộ trình" },
-            { id: "material-reviews", label: "Đánh giá tài liệu" },
-            { id: "profile", label: "Hồ sơ người dùng" },
-          ]}
-        />
-      </div>
+      {portal === "admin" ? (
+        tab !== "profile" && (
+          <div className={styles.filters}>
+            <label>
+              Loại đánh giá{" "}
+              <select
+                className="select"
+                value={tab}
+                onChange={(event) => setTab(event.target.value)}
+              >
+                <option value="reviews">Lộ trình</option>
+                <option value="material-reviews">Tài liệu</option>
+              </select>
+            </label>
+          </div>
+        )
+      ) : (
+        <div className={styles.tabs}>
+          <Segmented
+            label="Nội dung kiểm duyệt"
+            value={tab}
+            onChange={setTab}
+            options={[
+              { id: "reviews", label: "Đánh giá lộ trình" },
+              { id: "material-reviews", label: "Đánh giá tài liệu" },
+              { id: "profile", label: "Hồ sơ người dùng" },
+            ]}
+          />
+        </div>
+      )}
       {tab === "profile" && (
         <div className={styles.workspace}>
           <Card title="Tìm hồ sơ người dùng">
@@ -122,7 +140,7 @@ export function ContentModerationScreen({
         </div>
       )}
       {tab === "material-reviews" && <MaterialReviewModeration />}
-      {tab === "reviews" && <ReviewModeration onProfile={openProfile} />}
+      {tab === "reviews" && <ReviewModeration />}
     </>
   );
 }
@@ -165,7 +183,7 @@ function ProfileModeration({
     >
       {resource.data && (
         <>
-          <OperationReference id={userId} label="Người dùng" />
+          <UserProfileReference userId={userId} />
           <div className={styles.profileGrid}>
             {(["BIO", "AVATAR"] as const).map((field) => (
               <section className={styles.profileField} key={field}>
@@ -249,9 +267,7 @@ function ProfileDecision({ value }: Readonly<{ value?: ModerationRecord }>) {
     </div>
   ) : null;
 }
-function ReviewModeration({
-  onProfile,
-}: Readonly<{ onProfile: (id: string) => void }>) {
+function ReviewModeration() {
   const { api, actor, portal } = useStaffSession();
   const reviews = useStaffListPages<Review>("reviews?limit=20");
   const [selected, setSelected] = useState<Review>();
@@ -297,21 +313,17 @@ function ReviewModeration({
                   <td data-label="Người tham gia">
                     <div className={styles.person}>
                       <small>Người đánh giá</small>
-                      <button
-                        type="button"
-                        onClick={() => onProfile(r.reviewerId)}
-                      >
-                        Xem hồ sơ #{r.reviewerId.slice(0, 8)}
-                      </button>
+                      <UserProfileReference
+                        userId={r.reviewerId}
+                        label="người đánh giá"
+                      />
                     </div>
                     <div className={styles.person}>
                       <small>Người nhận</small>
-                      <button
-                        type="button"
-                        onClick={() => onProfile(r.revieweeId)}
-                      >
-                        Xem hồ sơ #{r.revieweeId.slice(0, 8)}
-                      </button>
+                      <UserProfileReference
+                        userId={r.revieweeId}
+                        label="người nhận đánh giá"
+                      />
                     </div>
                   </td>
                   <td data-label="Nội dung đánh giá">

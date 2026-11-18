@@ -128,8 +128,8 @@ export function ReputationScreen() {
                   ·{" "}
                   {reasons[restriction.reasonCode] ??
                     systemCodeLabel(restriction.reasonCode)}{" "}
-                  · thời hạn đến {formatTime(restriction.endsAt)}. Có thể cần
-                  xác nhận chính sách hoặc xét lại để mở quyền.
+                  · thời hạn đến {formatTime(restriction.endsAt)}. Bạn có thể
+                  cần xác nhận chính sách để mở lại quyền khi hết thời hạn.
                 </p>
               ))
             ) : (

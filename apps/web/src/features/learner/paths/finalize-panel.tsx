@@ -54,7 +54,9 @@ export function FinalizePanel({
   });
   const intent = useRef(saved);
   const command = useUserCommand(true);
-  const [reviewed, setReviewed] = useState(false);
+  const [reviewedSignature, setReviewedSignature] = useState<string | null>(
+    null,
+  );
   const [checking, setChecking] = useState(false);
   const [notice, setNotice] = useState<string>();
   const [checkError, setCheckError] = useState<string>();
@@ -70,7 +72,9 @@ export function FinalizePanel({
     }
   };
   const show = result ?? path;
-  let submitLabel = "Chốt lịch và giữ Credit";
+  const signature = commitmentSnapshot(show);
+  const reviewed = reviewedSignature === signature;
+  let submitLabel = "Hoàn thành thiết lập và giữ Credit";
   if (command.pending) submitLabel = "Đang kiểm tra và chốt…";
   else if (saved) submitLabel = "Kiểm tra và thử lại";
   return (
@@ -120,7 +124,9 @@ export function FinalizePanel({
               type="checkbox"
               checked={reviewed}
               disabled={command.pending || !!saved}
-              onChange={(e) => setReviewed(e.target.checked)}
+              onChange={(e) =>
+                setReviewedSignature(e.target.checked ? signature : null)
+              }
             />{" "}
             Tôi đồng ý với lịch học và Credit này.
           </label>
@@ -227,7 +233,7 @@ export function FinalizePanel({
                 /* Preserve the in-memory key. */
               }
             } else clear();
-            setReviewed(false);
+            setReviewedSignature(null);
             setCanReset(false);
             setNotice(
               "Thỏa thuận đã đổi. Kiểm tra nội dung mới trước khi chốt.",

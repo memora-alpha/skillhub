@@ -1,4 +1,5 @@
 "use client";
+import { UserProfileReference } from "./user-profile-reference";
 import { LoadingButton } from "@/components/loading-button";
 import { LoadingSkeleton } from "@/components/loading-skeleton";
 import { reportDescriptionText } from "@/lib/system-text";
@@ -14,6 +15,10 @@ import {
   StatusBadge,
 } from "@/components/console/ui";
 import { fmtDateTime, fmtSize } from "@/lib/console/format";
+import {
+  assertReportEditable,
+  isSystemReport,
+} from "@/lib/staff/report-access";
 import type { ReportCase, ReportCaseDetail } from "@/lib/staff/types";
 import {
   reportResolutionBody,
@@ -174,42 +179,30 @@ function ReportOverview({ item, owns, busy, onAction }: ReportActionProps) {
   const { portal } = useStaffSession();
   function handlerIdentity() {
     if (item.handlerId) {
-      if (portal === "admin") {
-        return <RecordId id={item.handlerId} label="người phụ trách" />;
-      }
       return (
-        <span className="mono" title={item.handlerId}>
-          #{item.handlerId.slice(0, 8)}
-        </span>
+        <UserProfileReference userId={item.handlerId} label="người phụ trách" />
       );
     }
     return "Chưa có người nhận" as const;
   }
   function reporterIdentity() {
     if (item.reporterId) {
-      if (portal === "admin") {
-        return <RecordId id={item.reporterId} label="người gửi" />;
-      }
       return (
-        <span className="mono" title={item.reporterId}>
-          #{item.reporterId.slice(0, 8)}
-        </span>
+        <UserProfileReference userId={item.reporterId} label="người gửi" />
       );
     }
     return "Hệ thống tự ghi nhận" as const;
   }
   return (
     <Card className="ops-case-overview">
-      {item.status === "OPEN" && (
-        <div className="row ops-case-claim-action">
-          <ReportActions
-            item={item}
-            owns={owns}
-            busy={busy}
-            onAction={onAction}
-          />
-        </div>
-      )}
+      <div className="row ops-case-claim-action" aria-label="Thao tác báo cáo">
+        <ReportActions
+          item={item}
+          owns={owns}
+          busy={busy}
+          onAction={onAction}
+        />
+      </div>
       <div className="ops-case-title">
         {portal === "admin" ? (
           <RecordId id={item.id} label="báo cáo" />
@@ -258,7 +251,16 @@ function ReportOverview({ item, owns, busy, onAction }: ReportActionProps) {
           <dt>Báo cáo</dt>
           <dd className="mono">{item.id}</dd>
           <dt>Đối tượng</dt>
-          <dd className="mono">{item.targetId}</dd>
+          <dd>
+            {item.targetType === "USER" ? (
+              <UserProfileReference
+                userId={item.targetId}
+                label="người bị báo cáo"
+              />
+            ) : (
+              <span className="mono">{item.targetId}</span>
+            )}
+          </dd>
           {item.relatedPathId && (
             <>
               <dt>Lộ trình</dt>
@@ -319,6 +321,7 @@ type ReportActionProps = Readonly<{
 }>;
 function ReportActions({ item, owns, busy, onAction }: ReportActionProps) {
   const { actor } = useStaffSession();
+  if (isSystemReport(item)) return <Badge tone="info">Chỉ xem</Badge>;
   const self = [
     item.reporterId,
     item.targetType === "USER" ? item.targetId : null,
@@ -328,7 +331,7 @@ function ReportActions({ item, owns, busy, onAction }: ReportActionProps) {
     item.session?.learnerId,
   ].some((id) => !!id && id === actor?.userId);
   if (!["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"].includes(item.status))
-    return <StatusBadge status={item.status} />;
+    return null;
   if (self)
     return (
       <p className="staff-flag">
@@ -429,6 +432,11 @@ function ReportDetailContent({
       data-unclaimed={item.status === "OPEN" || undefined}
     >
       <div className="stack admin-report-sections">
+        {confirmed && (
+          <output className="staff-success">
+            Máy chủ đã ghi nhận thao tác.
+          </output>
+        )}
         <ReportOverview
           item={item}
           owns={owns}
@@ -450,9 +458,19 @@ function ReportDetailContent({
                     <StatusBadge status={item.session.status} />
                   </dd>
                   <dt>Người dạy</dt>
-                  <dd className="mono">{item.session.teacherId}</dd>
+                  <dd>
+                    <UserProfileReference
+                      userId={item.session.teacherId}
+                      label="người dạy"
+                    />
+                  </dd>
                   <dt>Người học</dt>
-                  <dd className="mono">{item.session.learnerId}</dd>
+                  <dd>
+                    <UserProfileReference
+                      userId={item.session.learnerId}
+                      label="người học"
+                    />
+                  </dd>
                   <dt>Bắt đầu</dt>
                   <dd>{fmtDateTime(item.session.startAt)}</dd>
                   <dt>Kết thúc</dt>
@@ -488,27 +506,9 @@ function ReportDetailContent({
         )}
         <CaseSupportPanel item={item} onUpdated={reload} />
       </div>
-      {item.status !== "OPEN" && (
-        <Card title="Xử lý vụ việc" className="ops-case-decision">
-          <div className="stack admin-report-actions">
-            {confirmed && (
-              <output className="staff-success">
-                Máy chủ đã ghi nhận thao tác.
-              </output>
-            )}
-            {item.resolutionNote && (
-              <section>
-                <h3 className="sub-title">Ghi chú xử lý</h3>
-                <p className="prose">{item.resolutionNote}</p>
-              </section>
-            )}
-            <ReportActions
-              item={item}
-              owns={owns}
-              busy={busy}
-              onAction={onAction}
-            />
-          </div>
+      {item.resolutionNote && (
+        <Card title="Kết quả xử lý" className="ops-case-decision">
+          <p className="prose">{item.resolutionNote}</p>
         </Card>
       )}
     </div>
@@ -556,9 +556,11 @@ function ReportDecision({
       onClose={onClose}
       onReload={reload}
       onSubmit={async (note) => {
+        assertReportEditable(item);
+        const fresh = await api<ReportCaseDetail>("reports/" + item.id);
+        assertReportEditable(fresh.data);
         if (action === "resolve" || action === "reject") {
           assertReportRuling(item, draft, action);
-          const fresh = await api<ReportCaseDetail>("reports/" + item.id);
           assertReportRulingCurrent(item, fresh.data);
           assertReportRuling(fresh.data, draft, action);
         }
@@ -650,9 +652,11 @@ export function ReportDetailScreen({
         owns={item?.handlerId === actor?.userId}
         busy={action !== null}
         reload={reload}
-        onAction={setAction}
+        onAction={(value) => {
+          if (item && !isSystemReport(item)) setAction(value);
+        }}
       />
-      {item && action && (
+      {item && !isSystemReport(item) && action && (
         <ReportDecision
           key={id + ":" + action}
           item={item}

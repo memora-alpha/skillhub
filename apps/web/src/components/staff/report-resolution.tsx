@@ -1,4 +1,5 @@
 "use client";
+import { UserProfileReference } from "./user-profile-reference";
 import type { ReportCaseDetail } from "@/lib/staff/types";
 import {
   violationLabels,
@@ -44,7 +45,10 @@ export function ReportResolutionFields({
             return (
               <section className="stack" key={p.userId}>
                 <h3 className="sub-title">Người tham gia {index + 1}</h3>
-                <p className="mono">{p.userId}</p>
+                <UserProfileReference
+                  userId={p.userId}
+                  label={`người tham gia ${index + 1}`}
+                />
                 <label className="staff-field">
                   <span>Vi phạm uy tín</span>
                   <select

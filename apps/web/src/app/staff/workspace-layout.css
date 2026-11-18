@@ -944,3 +944,11 @@
 .staff-shell .report-makeup-quotas li + li {
   margin-top: 8px;
 }
+
+@media (max-width: 767px) {
+  .staff-shell .ops-reports .ops-queue-toolbar > .search,
+  .staff-shell .ops-reports .ops-source-filter {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+}

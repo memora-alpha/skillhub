@@ -24,6 +24,8 @@ import { FinalizePanel } from "./finalize-panel";
 import { PathOverviewPanel, type PathOverview } from "./path-overview";
 import styles from "../components/learning-layout.module.css";
 import { learningStageLabel } from "./path-navigation";
+import { PathSetupFlow } from "./path-setup-flow";
+import type { PathSetupStep } from "./path-setup-policy";
 function pathPermissions(path: LearningPath | undefined, userId: string) {
   if (!path)
     return {
@@ -56,7 +58,7 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
     }),
     { actor, request } = useUserSession(),
     command = useUserCommand(true);
-  const [tab, setTab] = useState("overview");
+  const [tab, setTab] = useState<PathSetupStep>("overview");
   const [editing, setEditing] = useState(false);
   const [focusPlan, setFocusPlan] = useState<string>();
   useEffect(() => {
@@ -129,131 +131,156 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
             <PathAgreementSummary path={path} />
           </details>
           <CommandFeedback command={command} />
-          <div className="path-tabs" aria-label="Các phần của lộ trình">
-            {[
-              [
-                "overview",
-                path.lockedVersion ? "Tổng quan & kết quả" : "Thỏa thuận",
-              ],
-              [
-                "plans",
-                path.agreement.exchangeType === "TWO_WAY"
-                  ? "Hai kế hoạch"
-                  : "Kế hoạch học",
-              ],
-              ["schedule", "Lịch học"],
-              ...(path.lockedVersion === null
-                ? [["finalize", "Chốt lịch"]]
-                : []),
-            ].map(([value, label]) => (
-              <button
-                type="button"
-                key={value}
-                className={activeTab === value ? "active" : ""}
-                aria-pressed={activeTab === value}
-                onClick={() => setTab(value!)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          {!!path.lockedVersion && (
-            <div hidden={activeTab !== "overview"}>
-              <div className={styles.completionHeading}>
-                <p className={styles.eyebrow}>SAU HỌC TẬP</p>
-                <h2>Kết quả & các bước tiếp theo</h2>
-                <p>
-                  Theo dõi quyết toán, đánh giá và yêu cầu thay đổi của lộ
-                  trình.
-                </p>
+          <PathSetupFlow
+            path={path}
+            step={activeTab}
+            enabled={editable}
+            onStep={setTab}
+          >
+            {!editable && (
+              <div className="path-tabs" aria-label="Các phần của lộ trình">
+                {[
+                  [
+                    "overview",
+                    path.lockedVersion ? "Tổng quan & kết quả" : "Thỏa thuận",
+                  ],
+                  [
+                    "plans",
+                    path.agreement.exchangeType === "TWO_WAY"
+                      ? "Hai kế hoạch"
+                      : "Kế hoạch học",
+                  ],
+                  ["schedule", "Lịch học"],
+                  ...(path.lockedVersion === null
+                    ? [["finalize", "Chốt lịch"]]
+                    : []),
+                ].map(([value, label]) => (
+                  <button
+                    type="button"
+                    key={value}
+                    className={activeTab === value ? "active" : ""}
+                    aria-pressed={activeTab === value}
+                    onClick={() => setTab(value as PathSetupStep)}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
-              <div className={styles.completionGrid}>
-                <div id="path-settlement" tabIndex={-1}>
-                  <SettlementStatusPanel key={path.id} pathId={path.id} />
-                </div>
-                <Panel title="Đánh giá sau lộ trình">
+            )}
+            {!!path.lockedVersion && (
+              <div hidden={activeTab !== "overview"}>
+                <div className={styles.completionHeading}>
+                  <p className={styles.eyebrow}>SAU HỌC TẬP</p>
+                  <h2>Kết quả & các bước tiếp theo</h2>
                   <p>
-                    {path.status === "COMPLETED" && path.settledAt
-                      ? "Chia sẻ trải nghiệm về toàn bộ thỏa thuận với đối tác."
-                      : "Đánh giá sẽ mở sau khi lộ trình hoàn tất và Credit đã được quyết toán."}
+                    Theo dõi quyết toán, đánh giá và yêu cầu thay đổi của lộ
+                    trình.
                   </p>
-                  <Link className="btn" href={`/learn/paths/${path.id}/review`}>
-                    {path.status === "COMPLETED" && path.settledAt
-                      ? "Viết / xem đánh giá →"
-                      : "Xem điều kiện đánh giá →"}
-                  </Link>
-                </Panel>
-                <div id="path-changes" tabIndex={-1}>
-                  <LearningChangePanel
-                    pathId={path.id}
-                    canRequest={
-                      !path.settledAt &&
-                      !!overview.data &&
-                      !["LEARNING_FINISHED", "COMPLETED", "STOPPED"].includes(
-                        overview.data.learningStage ?? "",
-                      ) &&
-                      ["SCHEDULED", "ACTIVE", "DISPUTED"].includes(path.status)
-                    }
-                    blocked={query.loading || !!query.error}
-                  />
+                </div>
+                <div className={styles.completionGrid}>
+                  <div id="path-settlement" tabIndex={-1}>
+                    <SettlementStatusPanel key={path.id} pathId={path.id} />
+                  </div>
+                  <Panel title="Đánh giá sau lộ trình">
+                    <p>
+                      {path.status === "COMPLETED" && path.settledAt
+                        ? "Chia sẻ trải nghiệm về toàn bộ thỏa thuận với đối tác."
+                        : "Đánh giá sẽ mở sau khi lộ trình hoàn tất và Credit đã được quyết toán."}
+                    </p>
+                    <Link
+                      className="btn"
+                      href={`/learn/paths/${path.id}/review`}
+                    >
+                      {path.status === "COMPLETED" && path.settledAt
+                        ? "Viết / xem đánh giá →"
+                        : "Xem điều kiện đánh giá →"}
+                    </Link>
+                  </Panel>
+                  <div id="path-changes" tabIndex={-1}>
+                    <LearningChangePanel
+                      pathId={path.id}
+                      canRequest={
+                        !path.settledAt &&
+                        !!overview.data &&
+                        !["LEARNING_FINISHED", "COMPLETED", "STOPPED"].includes(
+                          overview.data.learningStage ?? "",
+                        ) &&
+                        ["SCHEDULED", "ACTIVE", "DISPUTED"].includes(
+                          path.status,
+                        )
+                      }
+                      blocked={query.loading || !!query.error}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-          {activeTab === "overview" && editable && (
-            <div className="learner-stack">
-              <div className="learner-stack">
-                {" "}
-                <Panel title="Xác nhận thỏa thuận">
-                  {editable && (
-                    <div className="learner-actions">
-                      <LoadingButton
-                        type="button"
-                        className="btn btn-primary"
-                        disabled={
-                          !!ownConfirmed || command.pending || command.uncertain
-                        }
-                        onClick={() => {
-                          void command.run(
-                            "terms:" + id + ":" + path.currentVersion,
-                            () =>
-                              request("learning-paths/" + id + "/confirm", {
-                                method: "POST",
-                                body: { expectedVersion: path.currentVersion },
-                              }),
-                          );
-                        }}
-                        loading={!!command.pending}
-                      >
-                        {ownConfirmed ? "Đã xác nhận" : "Xác nhận thỏa thuận"}
-                      </LoadingButton>
-                      <button
-                        type="button"
-                        className="btn"
-                        onClick={() => setEditing(!editing)}
-                      >
-                        {editing ? "Đóng" : "Điều chỉnh thỏa thuận"}
-                      </button>
-                    </div>
+            )}
+            {editable && (
+              <div
+                className="learner-stack"
+                data-setup-pane="overview"
+                hidden={activeTab !== "overview"}
+              >
+                <div className="learner-stack">
+                  {" "}
+                  <Panel title="Xác nhận thỏa thuận">
+                    {editable && (
+                      <div className="learner-actions">
+                        <LoadingButton
+                          type="button"
+                          className="btn btn-primary"
+                          disabled={
+                            !!ownConfirmed ||
+                            command.pending ||
+                            command.uncertain
+                          }
+                          onClick={() => {
+                            void command.run(
+                              "terms:" + id + ":" + path.currentVersion,
+                              () =>
+                                request("learning-paths/" + id + "/confirm", {
+                                  method: "POST",
+                                  body: {
+                                    expectedVersion: path.currentVersion,
+                                  },
+                                }),
+                            );
+                          }}
+                          loading={!!command.pending}
+                        >
+                          {ownConfirmed ? "Đã xác nhận" : "Xác nhận thỏa thuận"}
+                        </LoadingButton>
+                        <button
+                          type="button"
+                          className="btn"
+                          onClick={() => setEditing(!editing)}
+                        >
+                          {editing ? "Đóng" : "Điều chỉnh thỏa thuận"}
+                        </button>
+                      </div>
+                    )}
+                    <p className="muted">
+                      {ready
+                        ? "Hai bên đã xác nhận điều khoản."
+                        : "Chờ hai bên xác nhận."}
+                    </p>
+                  </Panel>
+                  {editing && editable && conversation && (
+                    <AgreementCreator
+                      key={path.currentVersion}
+                      path={path}
+                      conversation={conversation}
+                      onSaved={() => setEditing(false)}
+                    />
                   )}
-                  <p className="muted">
-                    {ready
-                      ? "Hai bên đã xác nhận điều khoản."
-                      : "Chờ hai bên xác nhận."}
-                  </p>
-                </Panel>
-                {editing && editable && conversation && (
-                  <AgreementCreator
-                    key={path.currentVersion}
-                    path={path}
-                    conversation={conversation}
-                  />
-                )}
+                </div>
               </div>
-            </div>
-          )}
-          {activeTab === "plans" && (
-            <div className="plans-grid product-plans">
+            )}
+            <div
+              className="plans-grid product-plans"
+              data-setup-pane="plans"
+              hidden={activeTab !== "plans"}
+            >
               {" "}
               {path.plans.map((plan) => (
                 <PlanPanel
@@ -277,9 +304,11 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
                 </Panel>
               )}
             </div>
-          )}
-          {activeTab === "schedule" && (
-            <div className="learner-stack">
+            <div
+              className="learner-stack"
+              data-setup-pane="schedule"
+              hidden={activeTab !== "schedule"}
+            >
               {path.plans.map((plan) => (
                 <PlanPanel
                   key={plan.id + ":" + plan.version}
@@ -295,17 +324,19 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
                 </Panel>
               )}
             </div>
-          )}
-          {activeTab === "finalize" && (
-            <FinalizePanel
-              path={path}
-              blocked={query.loading || !!query.error}
-              onEditSchedule={(planId) => {
-                setFocusPlan(planId);
-                setTab("schedule");
-              }}
-            />
-          )}
+            {activeTab === "finalize" && (
+              <div data-setup-pane="finalize">
+                <FinalizePanel
+                  path={path}
+                  blocked={query.loading || !!query.error}
+                  onEditSchedule={(planId) => {
+                    setFocusPlan(planId);
+                    setTab("schedule");
+                  }}
+                />
+              </div>
+            )}
+          </PathSetupFlow>
         </>
       )}
     </>

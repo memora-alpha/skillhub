@@ -1,4 +1,5 @@
 "use client";
+import { UserProfileReference } from "./user-profile-reference";
 import { LoadingButton } from "@/components/loading-button";
 
 import Link from "next/link";
@@ -103,7 +104,9 @@ export function UserManagementDialog({
         </div>
         <dl className="kv staff-kv user-dialog-details">
           <dt>Mã tài khoản</dt>
-          <dd className="mono">{user.userId}</dd>
+          <dd>
+            <UserProfileReference userId={user.userId} />
+          </dd>
           <dt>Ngày tạo</dt>
           <dd>{fmtDateTime(user.createdAt)}</dd>
         </dl>
@@ -119,12 +122,6 @@ export function UserManagementDialog({
                 href={`/admin/profile-moderation?userId=${user.userId}`}
               >
                 Kiểm duyệt hồ sơ
-              </Link>
-              <Link
-                className="btn"
-                href={`/admin/reputation?userId=${user.userId}`}
-              >
-                Xét lại uy tín
               </Link>
               {user.roles.includes("STAFF") && (
                 <Link

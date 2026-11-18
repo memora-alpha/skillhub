@@ -13,6 +13,17 @@ import {
   StatusBadge,
 } from "@/components/console/ui";
 import { Icon } from "@/components/console/icon";
+import {
+  openReportStatuses,
+  reportMatchesView,
+  reportQueueParams,
+  type ReportQueueView,
+} from "@/lib/staff/report-queue-view";
+import type { ReportCaseDetail } from "@/lib/staff/types";
+import {
+  assertReportEditable,
+  isSystemReport,
+} from "@/lib/staff/report-access";
 
 import { useStaffSession } from "./session";
 import { DecisionDialog, QueueState } from "./common";
@@ -32,13 +43,22 @@ const statuses = [
   ["RESOLVED", "Đã xử lý"],
   ["REJECTED", "Đã từ chối"],
 ] as const;
+
+function reportSourceLabel(source: SupportCase["source"]) {
+  if (source === "SYSTEM") return "Hệ thống tự ghi nhận";
+  if (source === "USER") return "Người dùng gửi";
+  return "Chưa xác định nguồn";
+}
+
 export function SupportQueueScreen({
   initialIncidentId,
 }: Readonly<{ initialIncidentId?: string }>) {
   const { api, actor } = useStaffSession();
-  const [scope, setScope] = useState("open");
+  const [scope, setScope] = useState<ReportQueueView>("actionable");
+  const [assignedOnly, setAssignedOnly] = useState(false);
   const [severity, setSeverity] = useState("");
   const [status, setStatus] = useState("");
+  const [source, setSource] = useState("");
   const [search, setSearch] = useState("");
   const [currentId, setCurrentId] = useState<string>();
   const [mobileDetail, setMobileDetail] = useState(false);
@@ -52,10 +72,13 @@ export function SupportQueueScreen({
   );
   const [groupSeverity, setGroupSeverity] = useState("MEDIUM");
   const [classify, setClassify] = useState<SupportCase>();
-  const params = new URLSearchParams({ limit: "20" });
-  if (severity) params.set("severity", severity);
-  if (status) params.set("status", status);
-  if (scope === "mine" && actor) params.set("handlerId", actor.userId);
+  const params = reportQueueParams({
+    view: scope,
+    severity,
+    status,
+    source,
+    handlerId: assignedOnly ? actor?.userId : undefined,
+  });
   const list = useStaffListPages<SupportCase>(
     `reports/support/queue?${params}`,
   );
@@ -63,17 +86,24 @@ export function SupportQueueScreen({
     setSelected([]);
     setCurrentId(undefined);
     setMobileDetail(false);
+    setGroup(false);
+    setClassify(undefined);
+    setIncident(undefined);
   };
   const needle = search.trim().toLocaleLowerCase("vi");
-  const visible = list.items.filter((row) =>
-    `${row.id} ${row.reasonCode} ${reportReasonLabel(row.reasonCode)}`
-      .toLocaleLowerCase("vi")
-      .includes(needle),
+  const visible = list.items.filter(
+    (row) =>
+      reportMatchesView(row, scope) &&
+      `${row.id} ${row.reasonCode} ${reportReasonLabel(row.reasonCode)}`
+        .toLocaleLowerCase("vi")
+        .includes(needle),
   );
-  const detailId = currentId ?? visible[0]?.id;
+  const detailId =
+    visible.find((row) => row.id === currentId)?.id ?? visible[0]?.id;
   const selectedCases = list.items.filter((row) => selected.includes(row.id));
   const groupContext = selectedCases[0];
   function selectionIssue(row: SupportCase) {
+    if (isSystemReport(row)) return "Báo cáo hệ thống chỉ cho phép xem.";
     if (row.incidentId) return "Báo cáo đã thuộc một vụ việc chung.";
     if (["RESOLVED", "REJECTED"].includes(row.status))
       return "Báo cáo đã kết thúc.";
@@ -92,15 +122,9 @@ export function SupportQueueScreen({
       return "Mỗi vụ việc gom tối đa 100 báo cáo.";
     return undefined;
   }
-  const options = statuses.filter(([code]) => {
-    if (scope === "closed") {
-      return ["RESOLVED", "REJECTED"].includes(code);
-    }
-    if (scope === "open") {
-      return !["RESOLVED", "REJECTED"].includes(code);
-    }
-    return true;
-  });
+  const options = statuses.filter(
+    ([code]) => scope === "all" || openReportStatuses.includes(code),
+  );
   function selectCase(id: string) {
     setCurrentId(id);
     setMobileDetail(true);
@@ -111,6 +135,10 @@ export function SupportQueueScreen({
         panel?.focus({ preventScroll: true });
       });
   }
+  const emptyHistoryTitle =
+    source === "SYSTEM"
+      ? "Không có báo cáo hệ thống theo bộ lọc hiện tại"
+      : "Hàng đợi trống";
   return (
     <section className="ops-reports">
       <PageHeader
@@ -136,13 +164,13 @@ export function SupportQueueScreen({
           label="Phạm vi báo cáo"
           value={scope}
           options={[
-            { id: "open", label: "Đang mở" },
-            { id: "mine", label: "Tôi phụ trách" },
-            { id: "closed", label: "Đã kết thúc" },
+            { id: "actionable", label: "Cần giải quyết" },
+            { id: "all", label: "Tất cả" },
           ]}
           onChange={(value) => {
-            setScope(value);
-            setStatus(value === "closed" ? "RESOLVED" : "");
+            setScope(value as ReportQueueView);
+            setStatus(value === "all" ? "ALL" : "");
+            setSource("");
             reset();
           }}
         />
@@ -158,6 +186,24 @@ export function SupportQueueScreen({
             setMobileDetail(false);
           }}
         />
+        {scope === "all" && (
+          <label className="ops-filter ops-source-filter">
+            <span>Nguồn báo cáo</span>
+            <select
+              className="select"
+              aria-label="Nguồn báo cáo"
+              value={source}
+              onChange={(event) => {
+                setSource(event.target.value);
+                reset();
+              }}
+            >
+              <option value="">Tất cả nguồn</option>
+              <option value="SYSTEM">Hệ thống tự ghi nhận</option>
+              <option value="USER">Người dùng gửi</option>
+            </select>
+          </label>
+        )}
         <label className="ops-filter">
           <span>Mức độ</span>
           <select
@@ -186,13 +232,28 @@ export function SupportQueueScreen({
               reset();
             }}
           >
-            {scope !== "closed" && <option value="">Đang mở</option>}
+            <option value={scope === "all" ? "ALL" : ""}>
+              {scope === "all" ? "Tất cả trạng thái" : "Đang mở"}
+            </option>
             {options.map(([code, label]) => (
               <option key={code} value={code}>
                 {label}
               </option>
             ))}
           </select>
+        </label>
+        <label className="ops-filter">
+          <span>
+            <input
+              type="checkbox"
+              checked={assignedOnly}
+              onChange={(event) => {
+                setAssignedOnly(event.target.checked);
+                reset();
+              }}
+            />{" "}
+            Chỉ tôi phụ trách
+          </span>
         </label>
         {selected.length > 0 && (
           <LoadingButton
@@ -223,6 +284,26 @@ export function SupportQueueScreen({
           </LoadingButton>
         )}
       </div>
+      {(source ||
+        severity ||
+        search ||
+        assignedOnly ||
+        (scope === "all" ? status !== "ALL" : !!status)) && (
+        <button
+          type="button"
+          className="btn btn-sm"
+          onClick={() => {
+            setAssignedOnly(false);
+            setSource("");
+            setSeverity("");
+            setStatus(scope === "all" ? "ALL" : "");
+            setSearch("");
+            reset();
+          }}
+        >
+          Xóa bộ lọc
+        </button>
+      )}
       {selected.length > 0 && (
         <p className="muted">
           Đã chọn {selected.length} báo cáo. Chọn thêm báo cáo cùng đối tượng và
@@ -237,8 +318,8 @@ export function SupportQueueScreen({
         </p>
       )}
       <p className="admin-scope-note">
-        Tìm kiếm chỉ áp dụng cho mã và lý do trong các báo cáo trên trang hiện
-        tại.
+        Tìm kiếm mã hoặc lý do trong trang hiện tại. Tab Tất cả bao gồm cả báo
+        cáo đã xử lý và đã từ chối.
       </p>
       <div className="ops-report-workspace" data-show-detail={mobileDetail}>
         <Card className="ops-report-list" flush>
@@ -247,16 +328,39 @@ export function SupportQueueScreen({
             error={list.error}
             empty={!list.items.length}
             reload={list.reload}
+            emptyTitle={
+              list.hasNext
+                ? "Chưa có kết quả phù hợp trên trang này"
+                : scope === "actionable"
+                  ? "Không có báo cáo cần giải quyết"
+                  : emptyHistoryTitle
+            }
+            emptyDescription={
+              list.hasNext
+                ? "Chọn Sau để xem tiếp danh sách."
+                : scope === "actionable"
+                  ? "Các ghi nhận của hệ thống nằm trong tab Tất cả."
+                  : "Thử xóa bộ lọc hoặc làm mới danh sách."
+            }
           >
             {!visible.length ? (
               <Empty
-                title="Không có kết quả trong trang hiện tại"
-                desc="Thử từ khóa khác hoặc tải thêm báo cáo."
+                title={
+                  scope === "actionable"
+                    ? "Không có báo cáo cần giải quyết trên trang này"
+                    : "Không có kết quả trong trang hiện tại"
+                }
+                desc={
+                  scope === "actionable"
+                    ? "Chỉ báo cáo còn mở do người dùng gửi được hiển thị ở đây."
+                    : "Thử từ khóa khác hoặc xem trang tiếp theo."
+                }
               />
             ) : (
               <div className="ops-case-list" aria-label="Danh sách báo cáo">
                 {visible.map((row) => {
                   function handlerLabel() {
+                    if (isSystemReport(row)) return "Chỉ xem";
                     if (!row.handlerId) {
                       return "Chưa có người nhận";
                     }
@@ -272,23 +376,25 @@ export function SupportQueueScreen({
                       data-selected={detailId === row.id}
                     >
                       <div className="ops-case-item-top">
-                        <label className="ops-case-checkbox">
-                          <input
-                            type="checkbox"
-                            aria-label={`Chọn báo cáo ${row.id.slice(0, 8)} để gom vụ việc`}
-                            disabled={!!selectionIssue(row)}
-                            title={selectionIssue(row)}
-                            checked={selected.includes(row.id)}
-                            onChange={(e) =>
-                              setSelected((value) =>
-                                e.target.checked
-                                  ? [...value, row.id]
-                                  : value.filter((id) => id !== row.id),
-                              )
-                            }
-                          />
+                        <div className="ops-case-checkbox">
+                          {!isSystemReport(row) && (
+                            <input
+                              type="checkbox"
+                              aria-label={`Chọn báo cáo ${row.id.slice(0, 8)} để gom vụ việc`}
+                              disabled={!!selectionIssue(row)}
+                              title={selectionIssue(row)}
+                              checked={selected.includes(row.id)}
+                              onChange={(e) =>
+                                setSelected((value) =>
+                                  e.target.checked
+                                    ? [...value, row.id]
+                                    : value.filter((id) => id !== row.id),
+                                )
+                              }
+                            />
+                          )}
                           <span className="mono">#{row.id.slice(0, 8)}</span>
-                        </label>
+                        </div>
                         <Badge tone={severityTone(row.severity)}>
                           {severities.find((s) => s.code === row.severity)
                             ?.label ?? "Chưa phân loại"}
@@ -301,6 +407,11 @@ export function SupportQueueScreen({
                         onClick={() => selectCase(row.id)}
                       >
                         <strong>{reportReasonLabel(row.reasonCode)}</strong>
+                        <Badge
+                          tone={row.source === "SYSTEM" ? "info" : "neutral"}
+                        >
+                          {reportSourceLabel(row.source)}
+                        </Badge>
                         <span className="muted">
                           {reportDateLabel(row.createdAt)}
                         </span>
@@ -308,19 +419,26 @@ export function SupportQueueScreen({
                       </button>
                       <div className="ops-case-item-foot">
                         <StatusBadge status={row.status} />
-                        <button
-                          type="button"
-                          className="link ops-text-button"
-                          onClick={() => {
-                            if (row.incidentId) setIncident(row.incidentId);
-                            else {
-                              setGroupSeverity(row.severity || "MEDIUM");
-                              setClassify(row);
-                            }
-                          }}
-                        >
-                          Đổi mức độ
-                        </button>
+                        {!isSystemReport(row) &&
+                          ["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"].includes(
+                            row.status,
+                          ) &&
+                          (!row.handlerId ||
+                            row.handlerId === actor?.userId) && (
+                            <button
+                              type="button"
+                              className="link ops-text-button"
+                              onClick={() => {
+                                if (row.incidentId) setIncident(row.incidentId);
+                                else {
+                                  setGroupSeverity(row.severity || "MEDIUM");
+                                  setClassify(row);
+                                }
+                              }}
+                            >
+                              Đổi mức độ
+                            </button>
+                          )}
                         {row.incidentId && (
                           <button
                             type="button"
@@ -390,6 +508,10 @@ export function SupportQueueScreen({
           onClose={() => setGroup(false)}
           onReload={list.reload}
           onSubmit={async (reason) => {
+            for (const id of selected) {
+              const fresh = await api<ReportCaseDetail>(`reports/${id}`);
+              assertReportEditable(fresh.data);
+            }
             const result = await api<{ id: string }>(
               "reports/support/incidents",
               {
@@ -416,6 +538,8 @@ export function SupportQueueScreen({
           onClose={() => setClassify(undefined)}
           onReload={list.reload}
           onSubmit={async (reason) => {
+            const fresh = await api<ReportCaseDetail>(`reports/${classify.id}`);
+            assertReportEditable(fresh.data);
             await api(`reports/support/cases/${classify.id}/severity`, {
               method: "POST",
               body: {
@@ -437,6 +561,9 @@ export function SupportQueueScreen({
           id={incident}
           close={() => setIncident(undefined)}
           onUpdated={list.reload}
+          readOnly={list.items.some(
+            (row) => row.incidentId === incident && isSystemReport(row),
+          )}
         />
       )}
     </section>

@@ -10,7 +10,13 @@ export function PrivateThread({
   caseId,
   partyId,
   readOnly = false,
-}: Readonly<{ caseId: string; partyId: string; readOnly?: boolean }>) {
+  readOnlyMessage = "Vụ việc đã kết thúc. Bạn có thể xem lịch sử trao đổi.",
+}: Readonly<{
+  caseId: string;
+  partyId: string;
+  readOnly?: boolean;
+  readOnlyMessage?: string;
+}>) {
   const { api, actor } = useStaffSession();
   const base = `reports/support/cases/${caseId}/parties/${partyId}`;
   const messages = useStaffList<{
@@ -72,11 +78,7 @@ export function PrivateThread({
         more={messages.more}
         hasMore={messages.page?.hasMore}
       />
-      {readOnly && (
-        <p className="muted">
-          Vụ việc đã kết thúc. Bạn có thể xem lịch sử trao đổi.
-        </p>
-      )}
+      {readOnly && <p className="muted">{readOnlyMessage}</p>}
       {!readOnly && (
         <form
           onSubmit={(e) => {

@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { UserProfileReference } from "./user-profile-reference";
 import type { ReactNode } from "react";
 import { Icon, type IconName } from "@/components/console/icon";
 import { Empty, StatusBadge } from "@/components/console/ui";
@@ -96,9 +97,9 @@ export function DashboardMetric({
 export function DashboardPerson({ id }: Readonly<{ id: string }>) {
   const profile = useDashboardResource<{ fullName: string }>(`profiles/${id}`);
   return (
-    <Link href={`/admin/users/${id}`}>
+    <UserProfileReference userId={id}>
       {profile.data?.fullName || `Thành viên #${id.slice(0, 8)}`}
-    </Link>
+    </UserProfileReference>
   );
 }
 export function PathStages({

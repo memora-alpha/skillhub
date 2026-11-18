@@ -6,6 +6,7 @@ export const severities = [
 ];
 export type SupportCase = {
   id: string;
+  source?: "SYSTEM" | "USER";
   reasonCode: string;
   status: string;
   handlerId: string | null;

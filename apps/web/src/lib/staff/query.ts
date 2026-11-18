@@ -3,9 +3,16 @@ export function staffQuery(path: string, query: URLSearchParams) {
   const accepted = new URLSearchParams();
   for (const name of staffQueryNames(path))
     if (query.has(name)) accepted.set(name, query.get(name)!);
+  if (
+    path === "reports/support/queue" &&
+    ["ALL", "CLOSED"].includes(accepted.get("status") ?? "")
+  )
+    accepted.delete("status");
   return accepted.size ? `?${accepted}` : "";
 }
 function staffQueryNames(path: string): string[] {
+  if (/^reputation\/users\/[^/]+\/history$/.test(path))
+    return ["cursor", "limit"];
   if (path === "dashboard/summary") return ["from", "to", "timezone"];
   if (path === "dashboard/trends")
     return ["from", "to", "timezone", "granularity"];

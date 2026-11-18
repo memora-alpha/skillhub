@@ -21,7 +21,7 @@ import {
   keyedFinanceItems,
 } from "@/lib/staff/finance-presentation";
 import { systemCodeLabel } from "@/lib/system-text";
-import { OperationReference } from "./operation-reference";
+import { UserProfileReference } from "./user-profile-reference";
 import styles from "./operations.module.css";
 import { useStaffSession } from "./session";
 import { AdminLedgerScreen } from "./admin-ledger";
@@ -292,7 +292,7 @@ function LegacyLedgerScreen() {
             <tr key={r.id}>
               <td data-label="Ngày / người dùng">
                 {fmtDateTime(r.createdAt)}
-                <OperationReference id={r.userId} label="Người dùng" />
+                <UserProfileReference userId={r.userId} />
               </td>
               <td data-label="Loại">
                 {financeLabel(r.type)}
@@ -557,7 +557,7 @@ function PaymentsScreen({
                 <small>{fmtDateTime(p.createdAt)}</small>
               </td>
               <td data-label="Người dùng">
-                <OperationReference id={p.userId} label="Người dùng" />
+                <UserProfileReference userId={p.userId} />
               </td>
               <td data-label="Số tiền">
                 <span className={styles.money}>
@@ -703,6 +703,7 @@ function FinanceValue({
   value,
   payment = false,
 }: Readonly<{ name: string; value: string; payment?: boolean }>) {
+  if (name === "userId") return <UserProfileReference userId={value} />;
   if (name === "status")
     return payment ? (
       <PaymentStatus status={value} />

@@ -255,7 +255,7 @@ export function ReputationRecovery({
           <div className={styles.policyBody}>
             <p>
               Điểm tăng không tự kết thúc hạn chế. Bạn có thể cần chờ hết thời
-              hạn, xác nhận chính sách hoặc được nhân sự xét lại.
+              hạn và xác nhận chính sách nếu hệ thống yêu cầu.
             </p>
             <ul>
               {(
