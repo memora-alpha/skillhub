@@ -1,126 +1,82 @@
 import { useState } from "react";
-import { z } from "zod";
+import { StyleSheet, Text, View } from "react-native";
+import { useRouter } from "expo-router";
 import { Button } from "@/components/Button";
-import { Copy, Panel } from "@/components/feature-page";
-import { parse, uuid, timestamp, pageQuery } from "@/lib/http/contracts";
+import { FormNotice } from "@/components/FormNotice";
 import {
-  ConnectionFeedback,
-  useConnections,
-  useConnectionList,
-} from "@/features/connections";
-const person = z.object({ userId: uuid, displayName: z.string() }).nullable();
-const page = z.object({
-  data: z.object({
-    items: z.array(
-      z.object({
-        id: uuid,
-        rating: z.number().int().min(1).max(5),
-        comment: z.string().nullable(),
-        createdAt: timestamp,
-        reviewer: person,
-        reviewee: person.optional(),
-      }),
-    ),
-    summary: z.object({
-      reviewCount: z.number(),
-      averageRating: z.number().nullable(),
-      ratingDistribution: z.record(z.string(), z.number()),
-    }),
-  }),
-  meta: z.object({
-    pagination: z.object({ nextCursor: z.string().nullable() }),
-  }),
-});
+  ReviewCard,
+  ReviewSummary,
+  useUserReviews,
+} from "@/features/community";
+import { ConnectionFeedback } from "@/features/connections";
+import { appColors as colors, fonts, typography } from "@/constants/theme";
+import { ProfileSection } from "./ProfilePrimitives";
+
 export function ProfileReviews({
   userId,
   own = false,
 }: Readonly<{ userId: string; own?: boolean }>) {
-  const runtime = useConnections();
-  const [direction, setDirection] = useState<"received" | "sent">("received");
-  const query = useConnectionList(
-    ["profile-reviews", userId, direction],
-    async (cursor, signal) => {
-      const query = pageQuery(cursor);
-      if (own) query.set("direction", direction);
-      const endpoint = own
-        ? "/me/reviews"
-        : `/profiles/${encodeURIComponent(userId)}/reviews`;
-      const result = parse(
-        page,
-        await runtime.call(`${endpoint}?${query}`, {
-          signal,
-          includeMeta: true,
-        }),
-      );
-      return {
-        items: result.data.items,
-        nextCursor: result.meta.pagination.nextCursor,
-        summary: result.data.summary,
-      };
-    },
-    uuid.safeParse(userId).success,
-  );
-  const summaryResult = z
-    .object({ summary: page.shape.data.shape.summary })
-    .safeParse(query.data?.pages[0]);
-  const summary = summaryResult.success
-    ? summaryResult.data.summary
-    : undefined;
+  const router = useRouter();
+  const query = useUserReviews(userId, own);
   const [expanded, setExpanded] = useState(false);
   return (
-    <Panel title="Đánh giá">
-      {summary && (
-        <>
-          <Copy>
-            {summary.averageRating === null
-              ? "Chưa có đánh giá"
-              : `${summary.averageRating}/5 · ${summary.reviewCount} đánh giá`}
-          </Copy>
-          <Button variant="paper" onPress={() => setExpanded(!expanded)}>
-            {expanded ? "Thu gọn" : "Xem đánh giá"}
+    <ProfileSection style={styles.section}>
+      <View style={styles.headingRow}>
+        <Text accessibilityRole="header" style={styles.heading}>
+          {own ? "Đánh giá về bạn" : "Đánh giá"}
+        </Text>
+        {query.summary && (
+          <Button
+            variant="ghost"
+            size="sm"
+            icon="arrow"
+            accessibilityLabel={
+              own
+                ? "Xem đánh giá về bạn"
+                : expanded
+                  ? "Thu gọn đánh giá"
+                  : "Xem đánh giá"
+            }
+            accessibilityState={own ? undefined : { expanded }}
+            onPress={() =>
+              own ? router.push("/reviews") : setExpanded(!expanded)
+            }
+          >
+            {own || !expanded ? "Xem tất cả" : "Thu gọn"}
           </Button>
-        </>
+        )}
+      </View>
+      {query.summary && (
+        <ReviewSummary {...query.summary} expanded={!own && expanded} />
       )}
       <ConnectionFeedback
         loading={query.isLoading}
+        loadingPresentation="placeholder"
         error={query.error}
         retry={query.refetch}
       />
-      {expanded && (
+      {query.denied && (
+        <FormNotice tone="info">
+          Đánh giá không còn khả dụng hoặc bạn không có quyền xem.
+        </FormNotice>
+      )}
+      {!own && expanded && (
         <>
-          {own && (
-            <Button
-              variant="paper"
-              onPress={() =>
-                setDirection(direction === "sent" ? "received" : "sent")
-              }
-            >
-              {direction === "received"
-                ? "Đang xem: Đã nhận · Chuyển sang đã gửi"
-                : "Đang xem: Đã gửi · Chuyển sang đã nhận"}
-            </Button>
-          )}
-          {summary && (
-            <Copy muted>
-              {[5, 4, 3, 2, 1]
-                .map(
-                  (star) =>
-                    `${star}★: ${summary.ratingDistribution[String(star)] ?? 0}`,
-                )
-                .join(" · ")}
-            </Copy>
-          )}
-          {!query.items.length && <Copy muted>Chưa có đánh giá.</Copy>}
+          {query.data &&
+            !query.error &&
+            !query.denied &&
+            !query.items.length && (
+              <Text style={styles.empty}>Chưa có đánh giá.</Text>
+            )}
           {query.items.map((row) => (
-            <Panel
+            <ReviewCard
               key={row.id}
-              title={`${row.rating}★ · ${(direction === "sent" ? row.reviewee : row.reviewer)?.displayName ?? "Thành viên"}`}
-            >
-              <Copy>{row.comment || "Không có nhận xét."}</Copy>
-              <Copy muted>
-                {new Date(row.createdAt).toLocaleDateString("vi-VN")}
-              </Copy>
-            </Panel>
+              name={row.reviewer?.displayName ?? "Thành viên"}
+              userId={row.reviewer?.userId}
+              rating={row.rating}
+              comment={row.comment}
+              createdAt={row.createdAt}
+            />
           ))}
           {query.hasNextPage && (
             <Button
@@ -128,11 +84,29 @@ export function ProfileReviews({
               disabled={query.isFetching}
               onPress={() => void query.fetchNextPage()}
             >
-              Xem thêm
+              {query.isFetching ? "Đang tải…" : "Xem thêm đánh giá"}
             </Button>
           )}
         </>
       )}
-    </Panel>
+    </ProfileSection>
   );
 }
+
+const styles = StyleSheet.create({
+  section: { gap: 12 },
+  headingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  heading: { fontFamily: fonts.bold, ...typography.heading, color: colors.ink },
+  empty: {
+    fontFamily: fonts.body,
+    ...typography.body,
+    color: colors.muted,
+    paddingVertical: 12,
+  },
+});

@@ -30,7 +30,6 @@ export const appRoutes: Record<string, Href | undefined> = {
   "Thành tích": "/achievements",
   "Tiến trình huy hiệu": "/achievements",
   "Đánh giá": "/reviews",
-  "Đánh giá về tôi": "/reviews",
   "Uy tín": "/reputation",
   "Báo cáo của tôi": "/reports",
   "Đăng yêu cầu học": "/requests/new",

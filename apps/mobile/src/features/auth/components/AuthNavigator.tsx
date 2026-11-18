@@ -85,6 +85,7 @@ export function AuthNavigator() {
         <Stack.Screen name="materials/[id]/access" />
         <Stack.Screen name="materials/[id]/purchase" />
         <Stack.Screen name="materials/[id]/edit" />
+        <Stack.Screen name="materials/[id]/review" />
         <Stack.Screen name="materials/new" />
         <Stack.Screen name="materials/mine" />
         <Stack.Screen name="materials/library" />

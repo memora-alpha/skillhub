@@ -276,7 +276,6 @@ export function ApiSendProposalScreen({
   return (
     <FeaturePage
       title={direct ? "Lời mời trao đổi" : "Gửi đề xuất"}
-      demo={false}
       scrollable={false}
       keyboardDismissMode="none"
       back={proposalBack(requestId, userId)}

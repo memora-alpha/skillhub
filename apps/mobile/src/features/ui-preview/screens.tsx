@@ -101,7 +101,7 @@ export const systemStates = {
   "schedule-conflict": [
     "Lịch đang bị trùng",
     "Kiểm tra các buổi của cả hai kế hoạch trước khi gửi lại lịch.",
-    "/paths/path-ready/schedules",
+    "/paths",
   ],
   "insufficient-credit": [
     "Chưa đủ Credit",

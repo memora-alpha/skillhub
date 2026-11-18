@@ -1,9 +1,7 @@
 import { RefreshableFlatList as FlatList } from "@/components/RefreshableFlatList";
 import { useRef, useState } from "react";
 import { View } from "react-native";
-import { LoadingIndicator as ActivityIndicator } from "@/components/LoadingIndicator";
 import { useRouter } from "expo-router";
-import { SkillAction } from "../components/SkillAction";
 import { useOwnSkills, uniqueItems } from "../hooks/use-skill-queries";
 import { SkillsLayout, skillStyles } from "../components/SkillsLayout";
 import { SkillCard } from "../components/SkillCard";
@@ -48,34 +46,12 @@ export function MySkillsScreen() {
   return (
     <SkillsLayout title="Kỹ năng của tôi" scroll={false} fallback="/profile">
       <View style={[skillStyles.content, { gap: 12, paddingBottom: 8 }]}>
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <SkillAction
-            label="Thêm kỹ năng"
-            icon="plus"
-            outlined
-            disabled={!!query.readDenied}
-            onPress={() => {
-              if (query.canRead()) router.push("/my-skills/new");
-            }}
-          />
-          <View style={{ width: 20, height: 20 }}>
-            {query.isFetching && (
-              <ActivityIndicator
-                presentation="silent"
-                size="small"
-                accessibilityLabel="Đang cập nhật kỹ năng"
-              />
-            )}
-          </View>
-        </View>
         <SkillFilters
           value={filter}
+          disabled={!!query.readDenied}
+          onAdd={() => {
+            if (query.canRead()) router.push("/my-skills/new");
+          }}
           onChange={(next) => {
             if (next === filter) return;
             setRefreshing(false);

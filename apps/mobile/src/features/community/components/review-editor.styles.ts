@@ -1,0 +1,103 @@
+import { StyleSheet } from "react-native";
+import {
+  appColors as colors,
+  appRadius,
+  fonts,
+  typography,
+} from "@/constants/theme";
+
+export const reviewEditorStyles = StyleSheet.create({
+  stack: { gap: 16 },
+  identity: { flex: 1, minWidth: 0, gap: 4 },
+  partner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 16,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: appRadius.card,
+  },
+  eyebrow: {
+    fontFamily: fonts.semibold,
+    ...typography.caption,
+    color: colors.muted,
+  },
+  name: { fontFamily: fonts.bold, ...typography.heading, color: colors.ink },
+  meta: {
+    fontFamily: fonts.body,
+    ...typography.secondary,
+    color: colors.muted,
+  },
+  rating: { alignItems: "center", gap: 8, paddingVertical: 12 },
+  heading: {
+    fontFamily: fonts.bold,
+    fontSize: 22,
+    lineHeight: 30,
+    color: colors.ink,
+    textAlign: "center",
+  },
+  ratingHint: {
+    fontFamily: fonts.semibold,
+    ...typography.secondary,
+    color: colors.primary,
+  },
+  commentHeading: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "baseline",
+    gap: 6,
+  },
+  commentLabel: {
+    fontFamily: fonts.bold,
+    ...typography.body,
+    color: colors.ink,
+  },
+  input: { minHeight: 144, textAlignVertical: "top" },
+  inputField: { backgroundColor: colors.surface, borderRadius: appRadius.card },
+  characterCount: {
+    fontFamily: fonts.body,
+    ...typography.caption,
+    color: colors.muted,
+    textAlign: "right",
+    fontVariant: ["tabular-nums"],
+  },
+  footer: {
+    width: "100%",
+    maxWidth: 860,
+    alignSelf: "center",
+    gap: 10,
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  footerNote: {
+    fontFamily: fonts.body,
+    ...typography.caption,
+    color: colors.muted,
+    textAlign: "center",
+  },
+  success: {
+    padding: 20,
+    gap: 16,
+    borderWidth: 1,
+    borderColor: colors.forestMuted,
+    backgroundColor: colors.surface,
+    borderRadius: appRadius.card,
+  },
+  successHeading: { flexDirection: "row", alignItems: "center", gap: 8 },
+  successTitle: {
+    flex: 1,
+    fontFamily: fonts.bold,
+    ...typography.heading,
+    color: colors.forest,
+  },
+  comment: { fontFamily: fonts.body, ...typography.body, color: colors.body },
+  sectionTitle: {
+    fontFamily: fonts.bold,
+    ...typography.heading,
+    color: colors.ink,
+  },
+});

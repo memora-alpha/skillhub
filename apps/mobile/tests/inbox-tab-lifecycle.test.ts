@@ -84,6 +84,7 @@ test("Inbox shows loading for a transient first read, preserves cached empty/con
     delete local.cache[filename];
     const { ApiMessagesScreen } = local(filename);
     const action = ApiMessagesScreen().props.rightAction;
+    assert.equal(action.props.accessibilityLabel, "Đề xuất");
     assert.equal(action.props.children.props.children, "Đề xuất");
     action.props.onPress();
     assert.deepEqual(routes, ["/proposals"]);

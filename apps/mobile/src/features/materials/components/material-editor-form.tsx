@@ -1,197 +1,260 @@
-import { useState } from "react";
+import { Host, Checkbox } from "@expo/ui";
+import { Controller } from "react-hook-form";
 import { useRouter } from "expo-router";
-import { z } from "zod";
-import { Input } from "@/components/Input";
+import { Pressable, Text, View } from "react-native";
 import { Button } from "@/components/Button";
+import { ControlledInput } from "@/components/ControlledInput";
 import { FormNotice } from "@/components/FormNotice";
-import { Panel, Copy } from "@/components/feature-page";
-import { DataForm, textRule, creditRule } from "@/components/data-form";
 import { ServerFilePicker } from "@/components/server-file-picker";
+import { appColors } from "@/constants/theme";
+import { materialFailure } from "../utils/material-failure";
 import {
-  useConnections,
-  useConnectionCommand,
-  useConnectionList,
-  useCatalogName,
-  ConnectionFeedback,
-  connectionError,
-} from "@/features/connections";
-import type { UploadedFile } from "@/lib/http/file-upload";
+  canEditMaterial,
+  materialEditHint,
+} from "../utils/owner-material-presentation";
 import type { ApiMaterial } from "../api/material-contracts";
-import { useMaterialsApi } from "../hooks/use-materials";
+import { useMaterialEditor } from "../hooks/use-material-editor";
+import {
+  materialFileTypes,
+  materialFileFormats,
+  prepareMaterialUpload,
+} from "../utils/material-upload";
+import { MaterialSkillPicker } from "./material-skill-picker";
+import { MaterialFieldError } from "./material-field-error";
+import { MaterialEditorConflict } from "./material-editor-conflict";
+import { MaterialCoverEditor } from "./material-cover-editor";
+import { MaterialStatusBadge } from "./owner-material-card";
+import { materialStyles as styles } from "./material.styles";
 
-const fileTypes = [
-  "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.ms-powerpoint",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "text/plain",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-];
 export function MaterialEditorForm({
-  material,
-}: Readonly<{ material?: ApiMaterial }>) {
-  const api = useMaterialsApi(),
-    runtime = useConnections(),
-    router = useRouter();
-  const command = useConnectionCommand<ApiMaterial>([["materials"]]);
-  const [skillId, setSkillId] = useState(material?.skillId ?? ""),
-    [search, setSearch] = useState(""),
-    [term, setTerm] = useState("");
-  const [files, setFiles] = useState<UploadedFile[]>([]);
-  const skills = useConnectionList(
-    ["material-skill-options", term],
-    (cursor, signal) => api.skills(term, cursor, signal),
-  );
-  const name = useCatalogName(skillId);
-  const disabled =
-    command.pending ||
-    command.uncertain ||
-    ["ARCHIVED", "PENDING_REVIEW", "HIDDEN"].includes(material?.status ?? "");
+  material: initialMaterial,
+  readBlocked = false,
+}: Readonly<{ material?: ApiMaterial; readBlocked?: boolean }>) {
+  const router = useRouter();
+  const editor = useMaterialEditor(initialMaterial, readBlocked);
+  const {
+    api,
+    material,
+    recovery,
+    resolveConflict,
+    runtime,
+    form,
+    command,
+    files,
+    setFiles,
+    setUploadBusy,
+    uploadBusy,
+    disabled,
+    blocked,
+    save,
+  } = editor;
+  const access = form.watch("accessType");
+  let readOnlyMaterial =
+    material && !canEditMaterial(material) ? material : undefined;
+  if (initialMaterial && !canEditMaterial(initialMaterial))
+    readOnlyMaterial = initialMaterial;
+  let saveLabel =
+    !material || ["DRAFT", "REJECTED"].includes(material.status)
+      ? "Lưu bản nháp"
+      : "Lưu thay đổi";
+  if (command.pending) saveLabel = "Đang lưu…";
   return (
-    <Panel title="Thông tin tài liệu">
-      <Copy>
-        Kỹ năng đã chọn:{" "}
-        {name.data ??
-          skills.items.find((skill) => skill.id === skillId)?.name ??
-          "Chưa chọn"}
-      </Copy>
-      <Input
-        label="Tìm kỹ năng"
-        value={search}
-        onChangeText={setSearch}
-        maxLength={100}
-      />
-      <Button
-        variant="paper"
-        disabled={disabled}
-        onPress={() => setTerm(search.trim())}
-      >
-        Tìm kỹ năng
-      </Button>
-      <ConnectionFeedback
-        loading={skills.isLoading}
-        error={skills.error}
-        retry={skills.refetch}
-      />
-      {skills.items.map((skill) => (
-        <Button
-          key={skill.id}
-          variant="paper"
+    <View style={styles.page}>
+      {material && (
+        <View style={styles.row}>
+          <MaterialStatusBadge material={material} />
+        </View>
+      )}
+      {readOnlyMaterial && (
+        <FormNotice tone="info" compact>
+          {materialEditHint(readOnlyMaterial)}
+        </FormNotice>
+      )}
+      <View style={styles.formSection}>
+        <Text style={styles.sectionTitle}>Thông tin tài liệu</Text>
+        <ControlledInput
+          control={form.control}
+          name="title"
+          label="Tên tài liệu"
+          required
+          placeholder="Ví dụ: Giao tiếp tiếng Anh cơ bản"
+          editable={!disabled}
+          reserveMessageSpace={false}
+        />
+        <ControlledInput
+          control={form.control}
+          name="description"
+          label="Mô tả"
+          required
+          placeholder="Người học sẽ tìm thấy gì trong tài liệu này?"
+          multiline
+          editable={!disabled}
+          reserveMessageSpace={false}
+        />
+        <MaterialSkillPicker
+          value={form.watch("skillId")}
+          onChange={(value) =>
+            form.setValue("skillId", value, { shouldValidate: true })
+          }
+          error={form.formState.errors.skillId?.message}
           disabled={disabled}
-          onPress={() => setSkillId(skill.id)}
-        >
-          {skill.name}
-          {skillId === skill.id ? " · Đã chọn" : ""}
-        </Button>
-      ))}
-      {skills.hasNextPage && (
-        <Button
-          disabled={skills.isFetchingNextPage}
-          onPress={() => {
-            void skills.fetchNextPage();
-          }}
-        >
-          Thêm kỹ năng
-        </Button>
-      )}
-      {material?.file && (
-        <Copy>Tệp hiện tại: {material.file.originalFilename}</Copy>
-      )}
-      <ServerFilePicker
-        files={files}
-        onChange={setFiles}
-        upload={api.upload}
-        status={api.fileStatus}
-        isCurrent={runtime.isCurrent}
-        maxCount={1}
-        maxBytes={20_000_000}
-        types={fileTypes}
-        disabled={disabled}
-      />
-      {!!command.error && (
-        <FormNotice tone="error">{connectionError(command.error)}</FormNotice>
-      )}
-      {command.uncertain && (
-        <Copy>
-          Chưa xác định kết quả lưu. Kiểm tra danh sách tài liệu trước khi tạo
-          hoặc sửa lại.
-        </Copy>
-      )}
-      <DataForm
-        defaults={{
-          title: material?.title ?? "",
-          description: material?.description ?? "",
-          access: material?.accessType ?? "FREE",
-          price: material?.priceCredit ?? "0",
-        }}
-        fields={[
-          { name: "title", label: "Tên tài liệu", rule: textRule(5, 150) },
-          {
-            name: "description",
-            label: "Mô tả",
-            rule: textRule(10, 3000),
-            multiline: true,
-          },
-          {
-            name: "access",
-            label: "Cách chia sẻ",
-            rule: z.enum(["FREE", "PAID"]),
-            choices: ["FREE", "PAID"],
-          },
-          {
-            name: "price",
-            label: "Giá Credit",
-            rule: creditRule(0, true),
-            numeric: true,
-            hint: "Miễn phí: 0. Trả phí: lớn hơn 0.",
-          },
-          {
-            name: "rights",
-            label: "Quyền phân phối",
-            rule: z.literal("Tôi có quyền phân phối nội dung này"),
-            choices: ["Tôi có quyền phân phối nội dung này"],
-          },
-        ]}
-        submitLabel="Lưu tài liệu"
-        disabled={
-          disabled || !skillId || files.some((file) => file.state !== "READY")
+        />
+      </View>
+      <View style={styles.formSection}>
+        <Text style={styles.sectionTitle}>Tệp nội dung</Text>
+        <Text style={styles.meta}>
+          Mỗi bài đăng 1 tệp · PDF, DOCX, XLSX hoặc PPTX · tối đa 20 MB
+        </Text>
+        {!!material?.file && !files.length && (
+          <Text style={styles.meta}>
+            Hiện tại: {material.file.originalFilename ?? "Tệp tài liệu"}
+          </Text>
+        )}
+        <ServerFilePicker
+          compact
+          autoCheck
+          showHint={false}
+          pickerLabel={material?.file ? "Thay tệp" : "Thêm tệp nội dung"}
+          files={files}
+          onChange={setFiles}
+          upload={api.upload}
+          status={api.fileStatus}
+          isCurrent={runtime.isCurrent}
+          onBusyChange={setUploadBusy}
+          maxCount={1}
+          maxBytes={20_000_000}
+          types={materialFileTypes}
+          formats={materialFileFormats}
+          prepareAsset={prepareMaterialUpload}
+          disabled={disabled}
+        />
+        {!!material?.file && !!files.length && (
+          <Text style={styles.caption}>
+            Tệp mới sẽ thay thế “
+            {material.file.originalFilename ?? "tệp hiện tại"}” khi lưu. Bỏ tệp
+            mới để giữ tệp hiện tại.
+          </Text>
+        )}
+      </View>
+      <View style={styles.formSection}>
+        <Text style={styles.sectionTitle}>Cách chia sẻ</Text>
+        <View style={styles.choices}>
+          {(["FREE", "PAID"] as const).map((value) => (
+            <Pressable
+              key={value}
+              accessibilityRole="radio"
+              accessibilityLabel={
+                value === "FREE" ? "Chia sẻ miễn phí" : "Chia sẻ có phí"
+              }
+              accessibilityState={{ checked: access === value, disabled }}
+              disabled={disabled}
+              onPress={() => {
+                if (access === value) return;
+                form.setValue("accessType", value, { shouldValidate: true });
+                form.setValue("priceCredit", value === "FREE" ? "0" : "", {
+                  shouldValidate: false,
+                });
+              }}
+              style={[styles.choice, access === value && styles.activeChoice]}
+            >
+              <Text style={styles.title}>
+                {value === "FREE" ? "Miễn phí" : "Trả phí"}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        {access === "PAID" && (
+          <ControlledInput
+            control={form.control}
+            name="priceCredit"
+            label="Giá Credit"
+            required
+            placeholder="Ví dụ: 25"
+            keyboardType="decimal-pad"
+            normalizeText={(value) => value.replace(",", ".")}
+            editable={!disabled}
+            reserveMessageSpace={false}
+            hint="Tối đa 2 chữ số thập phân."
+          />
+        )}
+        <Controller
+          control={form.control}
+          name="rights"
+          render={({ field, fieldState }) => (
+            <View style={styles.section}>
+              <Host
+                matchContents={{ vertical: true }}
+                seedColor={appColors.primary}
+                style={styles.nativeControl}
+              >
+                <Checkbox
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  disabled={disabled}
+                  label="Tôi có quyền phân phối nội dung này"
+                />
+              </Host>
+              <MaterialFieldError message={fieldState.error?.message} />
+            </View>
+          )}
+        />
+      </View>
+      <MaterialCoverEditor editor={editor} />
+      {form.formState.submitCount > 0 &&
+        Object.keys(form.formState.errors).length > 0 && (
+          <FormNotice tone="error" compact>
+            <Text style={styles.title}>Chưa thể lưu tài liệu</Text>
+            {"\n"}Kiểm tra các mục được đánh dấu phía trên rồi thử lại.
+          </FormNotice>
+        )}
+      <MaterialEditorConflict
+        recovery={recovery}
+        resolveConflict={resolveConflict}
+        busy={
+          uploadBusy || editor.coverBusy || command.pending || command.uncertain
         }
-        onSubmit={async (values) => {
-          if (!material?.file && files.length === 0)
-            return "Chọn và tải lên một tệp tài liệu.";
-          if ((values.access === "FREE") !== (Number(values.price) === 0))
-            return "Tài liệu miễn phí có giá 0; tài liệu trả phí phải có giá lớn hơn 0.";
-          const body = {
-            skillId,
-            title: values.title!,
-            description: values.description!,
-            accessType: values.access as "FREE" | "PAID",
-            priceCredit: values.price!,
-            distributionRightsConfirmed: true as const,
-            ...(files[0] ? { fileId: files[0].fileId } : {}),
-          };
-          const saved = await command.run(
-            JSON.stringify({
-              id: material?.id,
-              version: material?.listingVersion,
-              body,
-            }),
-            () =>
-              material
-                ? api.update(material.id, material.listingVersion, body)
-                : api.create(body),
-          );
-          if (saved && runtime.isCurrent()) router.replace("/materials/mine");
-        }}
       />
-      <Copy muted>
-        Lưu trước, sau đó gửi duyệt từ danh sách tài liệu của bạn.
-      </Copy>
-    </Panel>
+      {!!command.error &&
+        !command.uncertain &&
+        !recovery.conflict &&
+        !recovery.handledError && (
+          <FormNotice tone="error" compact>
+            {materialFailure(command.error)}
+          </FormNotice>
+        )}
+      {command.uncertain && (
+        <>
+          <FormNotice tone="warning" compact>
+            Chưa xác nhận được kết quả lưu. Kiểm tra danh sách trước khi gửi
+            lại.
+          </FormNotice>
+          <Button
+            variant="paper"
+            onPress={() => router.push("/materials/mine?tab=posted")}
+          >
+            Kiểm tra tài liệu đã lưu
+          </Button>
+        </>
+      )}
+      {readOnlyMaterial?.hasBeenPublished ? (
+        <Button
+          variant="craft"
+          leadingIcon="plus"
+          disabled={command.pending || command.uncertain}
+          onPress={() => router.push("/materials/new")}
+        >
+          Đăng tài liệu mới
+        </Button>
+      ) : (
+        <Button
+          variant="craft"
+          leadingIcon="check"
+          disabled={blocked || form.formState.isSubmitting}
+          onPress={() => void save()}
+        >
+          {saveLabel}
+        </Button>
+      )}
+    </View>
   );
 }

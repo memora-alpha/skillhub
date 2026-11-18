@@ -24,6 +24,7 @@ export const skillLevelSchema = z.object({
 export const publicSkillSchema = z
   .object({
     id,
+    createdAt: date.optional(),
     skill: catalogSchema,
     level: z.string().min(1),
     levelId: id.nullable().optional(),

@@ -45,8 +45,7 @@ export function HomeContent({
     <View style={homeStyles.stack}>
       <View style={[homeStyles.row, { gap: 16 }]}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.greeting}>CHÀO BẠN</Text>
-          <Text style={homeStyles.title}>{name}!</Text>
+          <Text style={homeStyles.title}>Chào {name}!</Text>
         </View>
         <Pressable
           accessibilityRole="button"

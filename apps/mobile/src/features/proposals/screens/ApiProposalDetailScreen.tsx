@@ -107,7 +107,6 @@ export function ApiProposalDetailScreen({ id }: Readonly<{ id: string }>) {
               },
             }
       }
-      demo={false}
     >
       <ConnectionFeedback
         loading={query.isLoading}

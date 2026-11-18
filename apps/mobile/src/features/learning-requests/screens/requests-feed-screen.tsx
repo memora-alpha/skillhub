@@ -27,7 +27,9 @@ import {
   isTransientReadError,
   useQuietReadRecovery,
 } from "@/lib/query/use-quiet-read-recovery";
-export function RequestsFeedScreen() {
+export function RequestsFeedScreen({
+  embedded = false,
+}: Readonly<{ embedded?: boolean }> = {}) {
   const router = useRouter();
   const focused = useIsFocused();
   const proposals = useSentRequestProposals({
@@ -104,96 +106,99 @@ export function RequestsFeedScreen() {
         titleStyle={styles.heading}
       />
     );
-  return (
+  const content = (
+    <FlatList
+      data={query.items}
+      extraData={visibleIds}
+      keyExtractor={(item) => item.id}
+      contentInsetAdjustmentBehavior="automatic"
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      viewabilityConfig={viewabilityConfig}
+      onViewableItemsChanged={onViewableItemsChanged}
+      ItemSeparatorComponent={RequestListSeparator}
+      onEndReached={() => void query.autoLoadMore()}
+      onEndReachedThreshold={0.4}
+      refreshing={query.isRefetching && !query.isFetchingNextPage}
+      onRefresh={() => {
+        void query.refetch();
+        void proposals.refreshIfStale();
+      }}
+      ListHeaderComponent={
+        <View style={styles.header}>
+          <RequestFeedFilters
+            search={search}
+            onSearch={setSearch}
+            onSubmit={() => setKeyword(search.normalize("NFKC").trim())}
+            filters={filters}
+            onApply={setFilters}
+          />
+          {query.data && (
+            <RequestListSummary
+              count={query.items.length}
+              recommended={filters.scope === "recommended"}
+            />
+          )}
+          {!!proposals.error && !isTransientReadError(proposals.error) && (
+            <ConnectionFeedback
+              error={proposals.error}
+              retry={() => void proposals.refetch({ cancelRefetch: false })}
+            />
+          )}
+          {quietError &&
+            !!query.items.length &&
+            !query.isFetchNextPageError && (
+              <LoadingIndicator
+                presentation="silent"
+                accessibilityLabel="Đang cập nhật yêu cầu học"
+              />
+            )}
+          {query.error && !quietError && !query.isFetchNextPageError && (
+            <RequestFailure
+              error={query.error}
+              retry={() => void query.refetch()}
+            />
+          )}
+        </View>
+      }
+      renderItem={({ item }) => (
+        <RequestCard
+          request={item}
+          proposal={proposals.data?.[item.id]}
+          loadAvatar={focused && visibleIds.has(item.id)}
+          onPress={() =>
+            router.navigate(
+              isOwnRequest(item)
+                ? `/requests/${item.id}`
+                : `/request/${item.id}`,
+            )
+          }
+        />
+      )}
+      ListEmptyComponent={emptyContent}
+      ListFooterComponent={
+        <RequestListFooter
+          hasNextPage={query.hasNextPage}
+          fetching={query.isFetching}
+          fetchingNext={query.isFetchingNextPage}
+          nextError={query.isFetchNextPageError ? query.error : undefined}
+          quietTransient
+          loadMore={() => void query.loadMore()}
+          reload={() => void query.refetch()}
+        />
+      }
+    />
+  );
+  return embedded ? (
+    content
+  ) : (
     <AppScreenLayout
       title="Yêu cầu học"
       selected="Khám phá"
       rightAction={<RequestCreateButton />}
     >
-      {() => (
-        <FlatList
-          data={query.items}
-          extraData={visibleIds}
-          keyExtractor={(item) => item.id}
-          contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          viewabilityConfig={viewabilityConfig}
-          onViewableItemsChanged={onViewableItemsChanged}
-          ItemSeparatorComponent={RequestListSeparator}
-          onEndReached={() => void query.autoLoadMore()}
-          onEndReachedThreshold={0.4}
-          refreshing={query.isRefetching && !query.isFetchingNextPage}
-          onRefresh={() => {
-            void query.refetch();
-            void proposals.refreshIfStale();
-          }}
-          ListHeaderComponent={
-            <View style={styles.header}>
-              <RequestFeedFilters
-                search={search}
-                onSearch={setSearch}
-                onSubmit={() => setKeyword(search.normalize("NFKC").trim())}
-                filters={filters}
-                onApply={setFilters}
-              />
-              {query.data && (
-                <RequestListSummary
-                  count={query.items.length}
-                  recommended={filters.scope === "recommended"}
-                />
-              )}
-              {!!proposals.error && !isTransientReadError(proposals.error) && (
-                <ConnectionFeedback
-                  error={proposals.error}
-                  retry={() => void proposals.refetch({ cancelRefetch: false })}
-                />
-              )}
-              {quietError &&
-                !!query.items.length &&
-                !query.isFetchNextPageError && (
-                  <LoadingIndicator
-                    presentation="silent"
-                    accessibilityLabel="Đang cập nhật yêu cầu học"
-                  />
-                )}
-              {query.error && !quietError && !query.isFetchNextPageError && (
-                <RequestFailure
-                  error={query.error}
-                  retry={() => void query.refetch()}
-                />
-              )}
-            </View>
-          }
-          renderItem={({ item }) => (
-            <RequestCard
-              request={item}
-              proposal={proposals.data?.[item.id]}
-              loadAvatar={focused && visibleIds.has(item.id)}
-              onPress={() =>
-                router.navigate(
-                  isOwnRequest(item)
-                    ? `/requests/${item.id}`
-                    : `/request/${item.id}`,
-                )
-              }
-            />
-          )}
-          ListEmptyComponent={emptyContent}
-          ListFooterComponent={
-            <RequestListFooter
-              hasNextPage={query.hasNextPage}
-              fetching={query.isFetching}
-              fetchingNext={query.isFetchingNextPage}
-              nextError={query.isFetchNextPageError ? query.error : undefined}
-              quietTransient
-              loadMore={() => void query.loadMore()}
-              reload={() => void query.refetch()}
-            />
-          }
-        />
-      )}
+      {() => content}
     </AppScreenLayout>
   );
 }

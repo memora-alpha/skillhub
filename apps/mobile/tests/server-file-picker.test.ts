@@ -54,6 +54,7 @@ test("photo picker cancels cleanly, ignores old-owner selections and shares one 
     "./Icon": { Icon: "Icon" },
     "./feature-page": { Copy: "Copy" },
     "./FormNotice": { FormNotice: "Notice" },
+    "./automatic-file-status": { AutomaticFileStatus: "AutomaticFileStatus" },
   };
   const mocks = Object.entries(stubs).map(([id, namedExports]) =>
     mock.module(pathToFileURL(local.resolve(id)), { namedExports }),
@@ -119,6 +120,23 @@ test("photo picker cancels cleanly, ignores old-owner selections and shares one 
       },
     };
     const tree = elements(ServerFilePicker(removalProps));
+    assert.ok(
+      tree.some((element) => element.props.children === "Kiểm tra khi gửi"),
+    );
+    for (const [state, label] of [
+      ["QUARANTINED", "Đang chờ kiểm tra"],
+      ["SCANNING", "Đang quét an toàn"],
+    ]) {
+      const automatic = elements(
+        ServerFilePicker({
+          ...props,
+          compact: true,
+          autoCheck: true,
+          files: [{ ...first, state: state! }],
+        }),
+      );
+      assert.ok(automatic.some((element) => element.props.children === label));
+    }
     assert.equal(
       tree.some(
         (element) => element.props.children === "Kiểm tra trạng thái tệp",

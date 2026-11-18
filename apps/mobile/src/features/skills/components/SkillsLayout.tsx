@@ -16,14 +16,14 @@ import {
 export const skillStyles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.canvas },
   content: {
-    padding: 16,
-    gap: 16,
+    padding: 12,
+    gap: 12,
     width: "100%",
     maxWidth: 640,
     alignSelf: "center",
   },
   card: {
-    padding: 16,
+    padding: 14,
     gap: 12,
     backgroundColor: colors.surface,
     borderWidth: 1,

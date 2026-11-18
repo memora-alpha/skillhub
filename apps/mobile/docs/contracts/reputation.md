@@ -2,7 +2,7 @@
 
 ## Nguồn và phạm vi
 
-Đối chiếu backend `ReviewsService.reputation`,
+Đối chiếu backend `ReviewsService.history`,
 `RestrictionReviewsController.acknowledgePolicy`,
 `ReputationService.acknowledgePolicy` và `effectiveRestriction`; adapter mobile
 ở `features/community/api/community-api.ts`. Chưa nghiệm thu deployment hoặc
@@ -14,6 +14,9 @@ tài khoản thật. Không sửa backend.
 | --- | --- |
 | GET `/reputation/me?cursor=UUID` | reputationScore, level, activeRestrictions, policyNotice, restrictionReviews, items, nextCursor |
 | POST `/reputation/restrictions/policy-acknowledgement` | Không body; receipt `{ acknowledged: true }` |
+| GET `/reputation/recovery` | eligible, remainingBudget, missions(code/reward/claimed/progress), quiz(version/questions/policy) |
+| POST `/reputation/recovery/quiz` | `{version, answers:boolean[]}` → `{passed, awarded}` |
+| POST `/reputation/recovery/claim` | `{code:GOOD_BEHAVIOR_STREAK|COMMITMENT_RECOVERY}` → `{passed, awarded}` |
 
 API dùng identity/session runtime hiện có. History phải đúng owner và cursor
 theo dòng cuối. `policyNotice` là mảng quy tắc không rỗng hoặc null; backend
@@ -70,7 +73,7 @@ thoại khi không pending; khi có lỗi, feedback hiện Thử lại để ch�
 
 ## Màn lịch sử uy tín
 
-Đường vào: Hồ sơ → Uy tín → Lịch sử điểm & vi phạm. Shortcut Uy tín trên Hồ sơ
+Đường vào: Hồ sơ → Uy tín → Xem tất cả lịch sử. Shortcut Uy tín trên Hồ sơ
 dùng `appRoutes` tới `/reputation`; lịch sử ở `/reputation/history`.
 
 Hiển thị điểm hiện tại và các sự kiện đã tải theo ngày, dùng Nunito/token của
@@ -81,9 +84,24 @@ nút làm mới, Danh hiệu, Báo cáo hoặc xác nhận chính sách trên m�
 Màn Uy tín chính giữ link sang lịch sử và phần xử lý hạn chế. Auto focus/resume,
 kéo làm mới và retry GET khi lỗi tiếp tục hoạt động.
 
+Màn chính ưu tiên điểm/level, hạn chế, quy tắc còn thiếu và phục hồi (chỉ khi
+GET recovery eligible=true), rồi3 thay đổi gần nhất. Level lấy từ server;
+WARNING không đồng nghĩa đã có khóa. Kết quả xem xét ghép theo scope+endsAt,
+hiển thị reviewedAt và không coi APPROVED là đã gỡ restriction. Ngày giờ bỏ giây.
+History dịch thêm hoàn lại điểm, thu hồi thưởng và điều chỉnh quản trị, không
+thêm điều khiển Staff/Admin. Chi tiết [source/verification](../work/reputation-ui/status.md).
+
+Phục hồi dùng policy/quiz/progress server, không dùng ngưỡng điểm local để tự
+cho nhiệm vụ. UI ghi rõ tiến độ ngày/buổi, khóa nhận khi remainingBudget=0 và
+khóa câu trả lời khi pending/uncertain; draft theo owner/session và quiz version.
+Không còn nút acknowledge độc lập trong recovery. POST quiz/claim không replay
+sau renewal; Kiểm tra kết quả chỉ retry intent cũ theo hành động người dùng,
+dựa vào idempotency event của backend và không tự cộng awarded vào score client.
+
 ## Giới hạn
 
 Endpoint xác nhận áp dụng các hạn chế cần policy hiện tại, không có expected
 version/ID của đợt hạn chế. Preflight giảm tình huống nội dung stale, không thay
-bảo đảm transaction phía server. Recovery missions và thao tác xét duyệt
-Staff/Admin nằm ngoài bản sửa này; mobile chỉ hiển thị kết quả xem xét đã có.
+bảo đảm transaction phía server. Thao tác xét duyệt Staff/Admin nằm ngoài mobile
+User; mobile chỉ hiển thị kết quả xem xét đã có. Chưa nghiệm thu recovery trên
+database/API triển khai hoặc thiết bị thật.

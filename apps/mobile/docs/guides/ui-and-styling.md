@@ -40,6 +40,14 @@
 - Chú thích cần ngắn, giữ các điều kiện xác nhận lại phiên bản và thời điểm tạm giữ Credit. Không thu nhỏ nhãn xuống 9px; metadata tối thiểu theo token caption 11/15.
 - `ChatAttachmentTile` là ô tệp đã chọn nằm trong `ChatComposer`, trên hàng nhập tin, có nút × với vùng chạm 44px. Tệp sẵn sàng chỉ hiện tên/loại/dung lượng, không thêm hướng dẫn/nút gửi riêng. Trạng thái upload/kiểm tra hoặc recovery vẫn hiện khi cần; khóa bỏ tệp theo controller để giữ intent đang gửi. `ChatFileCard` dành cho tin tệp đã gửi, có biểu tượng tài liệu/ảnh và tải tệp; giữ phía gửi/nhận cùng avatar/giờ, tên tối đa hai dòng. Nút mở tệp có accessibility label đầy đủ; khi tải chỉ đổi trạng thái trên thẻ, chặn nhấn lặp, vẫn lấy URL riêng qua API có quyền.
 
+## Bố cục gọn và thanh lọc
+
+- Giữ một tiêu đề màn tại header; bỏ heading/eyebrow dẫn lại cùng nội dung ở đầu danh sách. Số lượng đã tải, trạng thái đang chọn và cảnh báo giới hạn phân trang vẫn hiển thị khi cần. Không bỏ giá, số dư, điều kiện quyền, xác nhận hoặc thông tin khôi phục để giảm chiều cao.
+- Layout danh sách/form đã đăng nhập dùng khoảng cách ngoài 12px, nhóm nội dung 12–16px và panel 14–16px theo component sở hữu (`FeaturePage`, `SkillsLayout`, `SettingsPage`, wallet/session/report/profile). Không ép Chat, phòng học, QR hay phần đọc chính sách dài vào cùng mật độ.
+- `FilterBar` ở `src/components/filter-bar.tsx` dành cho lựa chọn phẳng: một hàng cuộn ngang, giữ option được chọn trong vùng nhìn thấy, nút từ 44px. Truyền `role="radio"` hoặc `"tab"` khi đúng semantics; component giữ trạng thái chọn và hỗ trợ Space/Enter/mũi tên trên web. Chủ màn vẫn sở hữu query, filter và khóa thao tác.
+- `IconAction` ở `src/components/icon-action.tsx` dùng Button ghost 44×44 cho thao tác phụ rõ nghĩa như thêm, khám phá, làm mới. Luôn truyền nhãn accessibility; thao tác xác nhận, thanh toán và destructive cần nội dung rõ tại điểm thực hiện. Nếu bộ lọc trạng thái đang áp dụng, giữ nhãn trạng thái nhìn thấy trên cùng hàng, như danh sách Đề xuất.
+- Tab chuyển vùng nội dung như Yêu cầu/Lộ trình, Inbox hoặc đánh giá dùng đường gạch dưới để phân biệt với bộ lọc trong danh sách. Giữ cuộn trang, keyboard/safe area và font scaling hiện hành; giảm khoảng trắng thay vì ép chữ nhỏ hoặc cắt nội dung.
+
 ## Icon dùng chung
 
 - Dùng `Icon` trong `src/components/Icon.tsx`; bộ hiện hành là [Lucide React Native](https://lucide.dev/guide/react-native/getting-started) (license ISC), render qua `react-native-svg` đã có.

@@ -27,6 +27,8 @@ GET `/me` có `profileModeration:null|{bio?,avatar?}`; mỗi record `{action:HID
 
 SRS PRO-001..004 có path count/title. Backend hiện trả `completedLearningPathCount` trong Own/PublicProfile; mobile parse, project và hiển thị số lộ trình riêng với `completedSessionCount`. Nếu server cũ chưa trả count, hiển thị `—`, không thay bằng số buổi hoặc số 0. `selectedTitle` tiếp tục từ API và màn Thành tích hiện có.
 
+UI Thành tích và own/public Profile dùng chung bản dịch các seed danh hiệu tiếng Anh; custom title giữ nguyên. API/cache và PATCH chọn vẫn dùng title/code gốc, không ghi bản dịch ngược lên BE. GET `/me/achievements` trả thành tích đã mở khóa; PATCH `/me/achievements/selected-title` gửi `{code}` để chọn hoặc `{}` để ẩn. Catalog/progress chưa có User API. Đối chiếu source và kiểm chứng tại [Thành tích và danh hiệu](../work/achievements-ui/status.md).
+
 Settings dùng PATCH profile cho timezone IANA và locale vi/en, khởi tạo từ account thật, chỉ gửi field đang sửa và giữ draft khi lỗi. Lưu locale không đồng nghĩa mobile đã có bản dịch English đầy đủ; giao diện hiện vẫn tiếng Việt. Lưu timezone không đổi thời điểm/lịch đã xác nhận, không tự thay múi giờ từng lịch hoặc formatter toàn app. Website/learned-taught counts chưa có contract mobile. Review summary có trong backend response nhưng chưa được đưa vào phần thống kê hồ sơ ở lượt này. Native Text không chứng minh backend đã sanitize bio. Privacy theo [security](../guides/security-and-privacy.md), không phát private evidence/download từ public UI kể cả self.
 
 ## Settings thông báo
@@ -42,13 +44,20 @@ Follow-up 2026-11-10: timezone chỉ chọn trong Picker (gỡ ô nhập); prese
 ## Điều hướng hồ sơ qua avatar
 
 Các entry xem hồ sơ trong yêu cầu học, chi tiết đề xuất, chi tiết buổi học,
-tìm người chia sẻ và khám phá mẫu dùng avatar làm vùng nhấn. Tên và hàng
+tìm người chia sẻ dùng avatar làm vùng nhấn. Tên và hàng
 metadata không mở hồ sơ; nút xem hồ sơ trùng được gỡ. Avatar trên trang Hồ sơ
 của mình mở self-preview; avatar trên self-preview/public profile giữ dạng
 hiển thị để tránh đẩy lặp cùng màn. Điều hướng Back, tab Hồ sơ và chỉnh sửa
 tài khoản giữ chức năng riêng. Khi đi từ yêu cầu học, giữ `requestId` cho Back
 fallback. Avatar lỗi ảnh vẫn giữ initials và hành động mở hồ sơ.
 
+Cài đặt chính có mục “Xem hồ sơ công khai” trong nhóm Tài khoản & bảo mật,
+mở self public-preview bằng userId của tài khoản hiện tại. Thẻ thông tin trên
+Own Profile không có liên kết riêng; avatar vẫn mở cùng public-preview.
+Thiết kế và kiểm chứng tại [reviews/profile UI](../work/reviews-ui/status.md).
+
 ## Evidence và việc còn mở
+
+Guest `/explore` và các link guest hồ sơ/yêu cầu giữ route tương thích nhưng không dùng hồ sơ/yêu cầu mẫu. API mobile hiện cần xác thực: guest hiện hướng dẫn đăng nhập, phiên đã đăng nhập chuyển sang Discover/hồ sơ/yêu cầu thật với ID được validate. Chưa có guest API contract để dựng danh sách cho khách; không dùng fixture hoặc own-profile fallback.
 
 [Checklist003](../../specs/003-profile-public-profile/checklist.md), [tasks003](../../specs/003-profile-public-profile/tasks.md), [validation003](../../specs/003-profile-public-profile/validation.md) là nguồn lịch sử: có Android14/Pixel7/LAN save/reopen/font130% cho revision cũ; pending Back trong request chậm, iOS/thiết bị thật, Public Profile Figma riêng vẫn mở. Web avatar202/QUARANTINED và ClamAV PING/INSTREAM không chứng minh full API CLEAN. Native gallery/upload và Settings recovery/email thật còn thiếu. Amendment other-user profile2026-10-13 có fixture/51 focused tests được ghi nhận ở lần trước; API/native acceptance cho amendment chưa được chạy. Không chạy lại các checks này trong migration.

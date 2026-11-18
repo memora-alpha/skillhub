@@ -31,6 +31,7 @@ export type CatalogSkill = {
 };
 export type PublicSkill = {
   id: string;
+  createdAt?: string;
   skill: CatalogSkill;
   level: string;
   levelId?: string | null;

@@ -26,7 +26,6 @@ export function ApiAttachmentScreen({ id }: Readonly<{ id: string }>) {
   return (
     <FeaturePage
       title="Gửi tệp trong chat"
-      demo={false}
       backBehavior="history"
       back={{
         pathname: "/chat/[proposalId]",

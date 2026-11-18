@@ -17,7 +17,6 @@ export function FeaturePage({
   children,
   back = "/profile",
   backBehavior = "destination",
-  demo = true,
   keyboardDismissMode,
   stickyFooter,
   section = "Hồ sơ",
@@ -25,13 +24,13 @@ export function FeaturePage({
   scrollable = true,
   refreshing = false,
   onRefresh,
+  rightAction,
 }: {
   title: string;
   subtitle?: string;
   children: ReactNode;
   back?: Href;
   backBehavior?: "destination" | "history";
-  demo?: boolean;
   keyboardDismissMode?: ScrollViewProps["keyboardDismissMode"];
   stickyFooter?: ReactNode;
   section?: string;
@@ -39,11 +38,11 @@ export function FeaturePage({
   scrollable?: boolean;
   refreshing?: boolean;
   onRefresh?: () => void;
+  rightAction?: ReactNode;
 }) {
   const scrollStyle = stickyFooter ? ui.scrollWithFooter : undefined;
   const content = (
     <>
-      {demo && <Text style={ui.demo}>BẢN XEM THỬ · DỮ LIỆU MẪU</Text>}
       {subtitle && <Text style={ui.subtitle}>{subtitle}</Text>}
       {children}
     </>
@@ -78,6 +77,7 @@ export function FeaturePage({
     <AppScreenLayout
       title={title}
       selected={section}
+      rightAction={rightAction}
       back={{ href: back, label: "Quay lại", behavior: backBehavior }}
     >
       {() => pageContent}
@@ -164,16 +164,9 @@ export const ui = StyleSheet.create({
     width: "100%",
     maxWidth: 860,
     alignSelf: "center",
-    padding: 16,
-    paddingBottom: 36,
-    gap: 16,
-  },
-  demo: {
-    fontFamily: fonts.bold,
-    fontSize: 11,
-    lineHeight: 18,
-    letterSpacing: 1,
-    color: colors.primary,
+    padding: 12,
+    paddingBottom: 24,
+    gap: 12,
   },
   subtitle: {
     fontFamily: fonts.body,
@@ -186,17 +179,16 @@ export const ui = StyleSheet.create({
     borderRadius: appRadius.card,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 18,
-    gap: 12,
+    padding: 14,
+    gap: 10,
   },
   accent: {
     backgroundColor: colors.forestSoft,
     borderColor: colors.forestMuted,
   },
   heading: {
-    fontFamily: fonts.display,
-    fontSize: 22,
-    lineHeight: 30,
+    fontFamily: fonts.bold,
+    ...typography.heading,
     color: colors.ink,
   },
   copy: {

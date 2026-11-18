@@ -1,9 +1,7 @@
-import { Fragment } from "react";
 import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { Button } from "@/components/Button";
 import { Icon } from "@/components/Icon";
 import { typography, colors, fonts, layout } from "@/constants/theme";
-import { welcomeStats } from "../mocks/welcome";
 import { WelcomeVisual } from "./WelcomeVisual";
 
 export function WelcomeHero({
@@ -44,17 +42,6 @@ export function WelcomeHero({
             <Icon name="compass" color={colors.inkSoft} />
             <Text style={styles.exploreText}>Khám phá SkillHub</Text>
           </Button>
-        </View>
-        <View style={[styles.stats, width < 360 && { gap: 12 }]}>
-          {welcomeStats.map((stat, index) => (
-            <Fragment key={stat.label}>
-              {index > 0 && <View style={styles.divider} />}
-              <View style={styles.stat}>
-                <Text style={styles.value}>{stat.value}</Text>
-                <Text style={styles.statLabel}>{stat.label}</Text>
-              </View>
-            </Fragment>
-          ))}
         </View>
       </View>
       <View style={wide && styles.column}>
@@ -123,26 +110,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
   },
-  stats: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 20,
-    paddingTop: 4,
-    flexWrap: "wrap",
-  },
-  stat: { alignItems: "center" },
-  value: {
-    includeFontPadding: false,
-    fontFamily: fonts.bold,
-    fontSize: 20,
-    lineHeight: 26,
-    color: colors.brand,
-  },
-  statLabel: {
-    includeFontPadding: false,
-    fontFamily: fonts.body,
-    ...typography.secondary,
-    color: colors.muted,
-  },
-  divider: { width: 1, height: 32, backgroundColor: colors.border },
 });

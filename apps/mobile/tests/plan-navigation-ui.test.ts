@@ -171,6 +171,7 @@ function harness(detail: boolean) {
       useParticipantName: () => ({ data: "Đối tác" }),
     },
     "@/features/learning-requests": { useSkillOptions: () => ({}) },
+    "@/features/community": { PathReviewAction: "PathReviewAction" },
     "@/features/messages": { useMessageSend: () => ({}) },
     "@/features/messages/state": {
       useConfirmedFormShare: () => ({ publish: async () => {} }),
@@ -459,13 +460,10 @@ test("a settled agreement shows a compact summary and review shortcut instead of
       false,
     );
     const button = elements(tree).find(
-      (element) =>
-        element.type === "Button" &&
-        element.props.children === "Xem / viết đánh giá",
+      (element) => element.type === "PathReviewAction",
     );
     assert.ok(button);
-    (button.props.onPress as () => void)();
-    assert.deepEqual(h.routes, [`/paths/${h.path.id}/review`]);
+    assert.equal(button.props.path, h.path);
   } finally {
     h.cleanup();
   }
@@ -642,11 +640,7 @@ test("completed Sessions in both directions reveal the completion summary before
     assert.equal(steps.props.current, "completion");
     assert.equal(steps.props.completed, false);
     assert.equal(
-      elements(tree).some(
-        (element) =>
-          element.type === "Button" &&
-          element.props.children === "Xem / viết đánh giá",
-      ),
+      elements(tree).some((element) => element.type === "PathReviewAction"),
       false,
     );
     h.path.plans[1]!.sessions[0]!.status = "AWAITING_CONFIRMATION";

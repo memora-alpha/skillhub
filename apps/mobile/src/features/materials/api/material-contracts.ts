@@ -1,6 +1,18 @@
 import { z } from "zod";
 import { timestamp, uuid, version } from "@/lib/http/contracts";
+import {
+  materialRatingSummary,
+  materialThumbnail,
+} from "./material-media-contracts";
 export const credit = z.string().regex(/^\d{1,10}(\.\d{1,2})?$/);
+export const materialText = (min: number, max: number) =>
+  z
+    .string()
+    .trim()
+    .refine(
+      (value) => [...value].length >= min && [...value].length <= max,
+      `Nhập từ ${min} đến ${max} ký tự.`,
+    );
 export const materialSchema = z.object({
   id: uuid,
   ownerId: uuid,
@@ -27,10 +39,44 @@ export const materialSchema = z.object({
     .nullable(),
   createdAt: timestamp,
   updatedAt: timestamp,
-  scanStatus: z.string().optional(),
+  ratingSummary: materialRatingSummary.optional(),
+  thumbnail: materialThumbnail.optional(),
+  scanStatus: z.string().nullable().optional(),
   moderationStatus: z.string().optional(),
   rejectReason: z.string().nullable().optional(),
+  reviewedAt: timestamp.nullable().optional(),
   distributionRightsConfirmedAt: timestamp.nullable().optional(),
+  hasBeenPublished: z.boolean().optional(),
+  canEdit: z.boolean().optional(),
+  editBlockedReason: z
+    .enum(["MATERIAL_CONTENT_LOCKED", "MATERIAL_NOT_EDITABLE"])
+    .nullable()
+    .optional(),
+  cover: z
+    .object({
+      attached: z.boolean(),
+      generation: z.number().int().nonnegative(),
+      file: z
+        .object({
+          id: uuid,
+          originalFilename: z.string(),
+          mimeType: z.string().nullable(),
+          sizeBytes: z.string().regex(/^\d+$/).nullable(),
+          state: z.string(),
+          scanVerdict: z.string().nullable(),
+        })
+        .nullable(),
+      processingStatus: z.string(),
+      failureCode: z.string().nullable(),
+      preview: materialThumbnail,
+    })
+    .refine((value) => value.attached === (value.file !== null))
+    .optional(),
+});
+export const ownerMaterialSchema = materialSchema.required({
+  hasBeenPublished: true,
+  canEdit: true,
+  editBlockedReason: true,
 });
 export const orderSchema = z.object({
   id: uuid,
@@ -42,16 +88,55 @@ export const orderSchema = z.object({
   sellerNetCredit: credit,
   status: z.enum(["SUCCESS", "REFUNDED"]),
   createdAt: timestamp,
+  purchasedMaterial: z
+    .object({
+      title: z.string().nullable(),
+      originalFilename: z.string().nullable(),
+      mimeType: z.string().nullable(),
+      sizeBytes: z.string().regex(/^\d+$/).nullable(),
+    })
+    .optional(),
+  review: z
+    .object({
+      hasReview: z.boolean(),
+      reviewId: uuid.nullable(),
+      status: z.enum(["VISIBLE", "HIDDEN"]).nullable(),
+      version: version.nullable(),
+      sourceOrderId: uuid.nullable(),
+      canReview: z.boolean(),
+      reasonCode: z.string().nullable(),
+    })
+    .refine((value) =>
+      value.hasReview
+        ? !!value.reviewId &&
+          !!value.status &&
+          value.version !== null &&
+          !value.canReview
+        : value.reviewId === null &&
+          value.status === null &&
+          value.version === null,
+    )
+    .optional(),
+  refundEligibility: z
+    .object({
+      canRefund: z.boolean(),
+      deadline: timestamp,
+      reasonCode: z.string().nullable(),
+      evaluatedAt: timestamp,
+    })
+    .refine((value) => value.canRefund === (value.reasonCode === null))
+    .optional(),
 });
 export const materialInput = z
   .object({
     skillId: uuid,
-    title: z.string().trim().min(5).max(150),
-    description: z.string().trim().min(10).max(3000),
+    title: materialText(5, 150),
+    description: materialText(10, 3000),
     accessType: z.enum(["FREE", "PAID"]),
     priceCredit: credit,
     distributionRightsConfirmed: z.literal(true),
     fileId: uuid.optional(),
+    coverFileId: uuid.nullable().optional(),
   })
   .refine((v) =>
     v.accessType === "FREE"

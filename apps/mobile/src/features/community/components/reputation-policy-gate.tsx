@@ -66,7 +66,9 @@ export function ReputationPolicyGate({
         {open &&
           policy.data &&
           policy.query.isFetchedAfterMount &&
-          !policy.query.error && <ReputationSummary data={policy.data} />}
+          !policy.query.error && (
+            <ReputationSummary data={policy.data} compact />
+          )}
         {open && <ReputationPolicyContent policy={policy} showAction={false} />}
       </InfoModal>
     </View>
