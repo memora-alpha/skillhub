@@ -2,7 +2,6 @@
 import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useStaffListPages } from "./use-staff-list-pages";
-import Link from "next/link";
 import { useState } from "react";
 import {
   DataTable,
@@ -15,30 +14,6 @@ import { fmtDateTime } from "@/lib/console/format";
 import type { AdminTag, TagRequest } from "@/lib/staff/admin-types";
 import { useStaffCommand, useStaffResource } from "./hooks";
 import { DecisionDialog, QueueState } from "./common";
-
-function TagNavigation({ page }: Readonly<{ page: "catalog" | "requests" }>) {
-  return (
-    <nav
-      className="ops-tabbar ops-link-tabs"
-      aria-label="Quản lý tag cộng đồng"
-    >
-      <Link
-        className="ops-tab"
-        href="/admin/tags"
-        aria-current={page === "catalog" ? "page" : undefined}
-      >
-        Danh mục tag
-      </Link>
-      <Link
-        className="ops-tab"
-        href="/admin/tag-requests"
-        aria-current={page === "requests" ? "page" : undefined}
-      >
-        Đề xuất tag
-      </Link>
-    </nav>
-  );
-}
 
 export function TagsScreen() {
   const command = useStaffCommand();
@@ -85,7 +60,6 @@ export function TagsScreen() {
           </div>
         }
       />
-      <TagNavigation page="catalog" />
       <div className="toolbar">
         <SearchBox
           label="Tìm tag"
@@ -245,7 +219,6 @@ export function TagRequestsScreen({
           </LoadingButton>
         }
       />
-      <TagNavigation page="requests" />
       <label className="toolbar">
         <span>Trạng thái</span>
         <select

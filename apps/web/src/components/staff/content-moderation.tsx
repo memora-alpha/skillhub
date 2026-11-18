@@ -3,6 +3,7 @@ import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useStaffListPages } from "./use-staff-list-pages";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   Card,
@@ -40,35 +41,64 @@ type Profile = {
 type ModerationRecord = { action: string; reason: string; at: string };
 export function ContentModerationScreen({
   initialUserId = "",
-}: Readonly<{ initialUserId?: string }>) {
+  initialView,
+}: Readonly<{ initialUserId?: string; initialView?: "profile" | "reviews" }>) {
+  const router = useRouter();
   const [draft, setDraft] = useState(initialUserId);
   const [userId, setUserId] = useState(initialUserId);
   const [profileRevision, setProfileRevision] = useState(0);
-  const [tab, setTab] = useState(initialUserId ? "profile" : "reviews");
-  const { actor } = useStaffSession();
+  const [tab, setTab] = useState<string>(
+    initialView ?? (initialUserId ? "profile" : "reviews"),
+  );
+  const { actor, portal } = useStaffSession();
   const openProfile = (id: string) => {
+    if (portal === "admin") {
+      router.push(
+        `/admin/profile-moderation?view=profile&userId=${encodeURIComponent(id)}`,
+      );
+      return;
+    }
     setDraft(id);
     setUserId(id);
     setTab("profile");
   };
+  const adminTitle = tab === "profile" ? "Hồ sơ người dùng" : "Đánh giá";
   return (
     <>
       <PageHeader
-        title="Hồ sơ & đánh giá"
+        title={portal === "admin" ? adminTitle : "Hồ sơ & đánh giá"}
         desc="Xem nội dung và ghi rõ lý do kiểm duyệt."
       />
-      <div className={styles.tabs}>
-        <Segmented
-          label="Nội dung kiểm duyệt"
-          value={tab}
-          onChange={setTab}
-          options={[
-            { id: "reviews", label: "Đánh giá lộ trình" },
-            { id: "material-reviews", label: "Đánh giá tài liệu" },
-            { id: "profile", label: "Hồ sơ người dùng" },
-          ]}
-        />
-      </div>
+      {portal === "admin" ? (
+        tab !== "profile" && (
+          <div className={styles.filters}>
+            <label>
+              Loại đánh giá{" "}
+              <select
+                className="select"
+                value={tab}
+                onChange={(event) => setTab(event.target.value)}
+              >
+                <option value="reviews">Lộ trình</option>
+                <option value="material-reviews">Tài liệu</option>
+              </select>
+            </label>
+          </div>
+        )
+      ) : (
+        <div className={styles.tabs}>
+          <Segmented
+            label="Nội dung kiểm duyệt"
+            value={tab}
+            onChange={setTab}
+            options={[
+              { id: "reviews", label: "Đánh giá lộ trình" },
+              { id: "material-reviews", label: "Đánh giá tài liệu" },
+              { id: "profile", label: "Hồ sơ người dùng" },
+            ]}
+          />
+        </div>
+      )}
       {tab === "profile" && (
         <div className={styles.workspace}>
           <Card title="Tìm hồ sơ người dùng">
