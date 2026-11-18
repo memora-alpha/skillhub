@@ -65,9 +65,16 @@ test("owner material HTTP validates the status filter and routes detail and soft
           throw new NotFoundException("MATERIAL_NOT_FOUND");
         return material;
       },
-      archive: (principal, materialId) => {
+      archive: (principal, materialId, version) => {
         assert.equal(principal, actor);
         assert.equal(materialId, id);
+        assert.equal(version, 2);
+        return material;
+      },
+      submit: (principal, materialId, version) => {
+        assert.equal(principal, actor);
+        assert.equal(materialId, id);
+        assert.equal(version, 2);
         return material;
       },
       remove: (principal, materialId, version) => {
@@ -105,9 +112,35 @@ test("owner material HTTP validates the status filter and routes detail and soft
     const detail = await fetch(`${root}/${id}`);
     assert.equal(detail.status, 200);
     assert.deepEqual((await detail.json()).data, material);
-    const archive = await fetch(`${root}/${id}/archive`, { method: "POST" });
+    for (const action of ["submit", "archive"]) {
+      for (const body of [
+        {},
+        { expectedListingVersion: "2" },
+        { expectedListingVersion: 0 },
+      ]) {
+        const invalidVersion = await fetch(`${root}/${id}/${action}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        assert.equal(invalidVersion.status, 400);
+        await invalidVersion.json();
+      }
+    }
+    const archive = await fetch(`${root}/${id}/archive`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ expectedListingVersion: 2 }),
+    });
     assert.equal(archive.status, 201);
     assert.deepEqual((await archive.json()).data, material);
+    const submitted = await fetch(`${root}/${id}/submit`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ expectedListingVersion: 2 }),
+    });
+    assert.equal(submitted.status, 201);
+    await submitted.json();
     const missing = await fetch(`${root}/${unknownId}`);
     assert.equal(missing.status, 404);
     assert.deepEqual(await missing.json(), {

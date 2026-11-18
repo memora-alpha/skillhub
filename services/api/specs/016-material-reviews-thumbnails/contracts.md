@@ -44,7 +44,9 @@ currentReview:null|MaterialReview}`. `canEdit` is re-evaluated from the same liv
 - `GET /me/materials/:materialId` reads the same projection as the owner list. Use it
   to reload status and version if an archive response is lost. Missing, foreign,
   deleted and unclassified legacy rows return `404 MATERIAL_NOT_FOUND`.
-- `POST /me/materials/:materialId/archive` takes no body and moves `PUBLISHED`
+- Owner list/detail and mutation responses include `hasBeenPublished`, `canEdit`
+  and nullable `editBlockedReason` (`MATERIAL_CONTENT_LOCKED` or `MATERIAL_NOT_EDITABLE`).
+- `POST /me/materials/:materialId/archive` requires `{expectedListingVersion}` and moves `PUBLISHED`
   to `ARCHIVED`, returning the new `listingVersion`. Other manageable states return
   `409 MATERIAL_TRANSITION_INVALID`.
 - `DELETE /me/materials/:materialId?expectedListingVersion=...` (Bearer) accepts an
@@ -62,13 +64,24 @@ currentReview:null|MaterialReview}`. `canEdit` is re-evaluated from the same liv
     retain access to the current file under their moderation permission.
 - `PATCH /me/materials/:materialId` rejects `fileId:null` with
   `MATERIAL_FILE_REMOVAL_UNSUPPORTED`; omission still preserves the current file.
-  Editing a manageable `ARCHIVED` material keeps that status and increments its
-  `listingVersion`.
+  Any PATCH of an ID that has ever been published returns `409 MATERIAL_CONTENT_LOCKED`,
+  including after archive, resubmission, withdrawal or rejection. File, title,
+  description, skill, cover, access type and price are all locked. Unpublished
+  `DRAFT`/`REJECTED` are editable; `PENDING_REVIEW` must be withdrawn first.
 - `POST /me/materials/:materialId/submit` accepts `DRAFT` or manageable `ARCHIVED`
-  with no body. It checks the bound file's current `READY` and `CLEAN` state and
+  with required `{expectedListingVersion}`. It checks the bound file's current `READY` and `CLEAN` state and
   the recorded rights confirmation, then returns `PENDING_REVIEW` and a new
   `listingVersion` on the same ID. A file or rights failure returns
   `409 MATERIAL_FILE_REQUIRED`.
+- Submit/archive compare the expected version under the same Material row lock as
+  their mutation. Stale versions return `409 MATERIAL_VERSION_CONFLICT` with
+  `details.currentStatus/currentListingVersion`; reload and confirm again.
+  Missing/non-integer/non-positive versions return HTTP 400.
+- Every approve/reject/hide/unhide increments `listingVersion`. Publication sets
+  the permanent `hasBeenPublished` flag. Lifecycle transitions never clear it.
+  Republish the same content on the same ID through review; changed content or
+  pricing requires a new Material ID and a separate purchase. Existing order,
+  file snapshot, entitlement and refund calculations retain their original values.
 - `POST /me/materials/:materialId/withdraw` accepts `{expectedListingVersion}`
   for an owned `PENDING_REVIEW` material. It returns HTTP 200 and the owner
   projection with `DRAFT` and an incremented `listingVersion`. A stale version
@@ -77,8 +90,8 @@ currentReview:null|MaterialReview}`. `canEdit` is re-evaluated from the same liv
   scope returns `404 MATERIAL_NOT_FOUND`.
 
 Thumbnail processing continues for manageable `ARCHIVED` materials. If a
-verified legacy row has a `SUPERSEDED` thumbnail, the owner sees a placeholder
-and can attach a new cover to request a new generation.
+verified legacy row has a `SUPERSEDED` thumbnail, the owner sees a placeholder.
+Published covers cannot be replaced to request a new generation.
 
 ## Reporting and moderation
 

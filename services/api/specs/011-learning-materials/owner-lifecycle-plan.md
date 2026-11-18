@@ -1,5 +1,33 @@
 # Material Owner Lifecycle Implementation Plan
 
+## Publication lock amendment — 2026-11-18
+
+Supersedes the edit-after-archive behavior below. `hasBeenPublished` persists across
+all owner/moderation transitions; PATCH checks it under the Material row lock.
+Only unpublished DRAFT/REJECTED rows are editable. Owner responses expose
+`canEdit` and `editBlockedReason` for frontend consumers. Client changes are outside
+this backend-only patch.
+
+Migration `20261118000000_material_publication_lock` backfills current publication,
+moderation audit/outbox history, orders (including refunds), entitlements and public
+download grants. It does not infer publication from `reviewedAt`; ambiguous legacy
+archives remain excluded by their existing marker. Stop old writers, apply migration,
+then restart API/workers and deploy clients with required submit/archive versions.
+
+Constitution check: PostgreSQL remains authoritative; edits, lifecycle operations,
+moderation and purchases share the row lock. Moderation version, publication flag,
+audit and outbox commit atomically. Purchase snapshots and financial rules are unchanged.
+Verification covers historical backfill without buyers, permanent edit locks, stale
+submit/archive/moderation requests, approve/PATCH concurrency, independent new-ID
+purchases and existing buyer download/refund regressions. Deployment/native acceptance
+is separate from local automated evidence.
+
+Results: 24 unit/HTTP and 78 PostgreSQL tests passed. See
+[validation and consumer rollout limits](publication-lock-validation.md), including
+outstanding Expo, web and legacy Flutter caller updates.
+
+---
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task by task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Tách ngừng chia sẻ, xóa mềm và rút duyệt; cho chủ tài liệu quản lý và đăng lại tài liệu đã ngừng mà vẫn giữ đúng quyền của người đã mua.

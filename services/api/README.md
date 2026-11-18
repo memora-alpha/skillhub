@@ -6,6 +6,14 @@ Learning fees remain 4%; hiding a review does not reverse reputation history.
 
 # SkillHub API
 
+Material publication lock (2026-11-18): apply migration
+`20261118000000_material_publication_lock` before starting the new API. Stop old
+writers during rollout. Published IDs keep immutable content and pricing through
+archive/resubmit/withdraw/rejection; changed content needs a new ID. Owner responses
+include `hasBeenPublished`, `canEdit`, `editBlockedReason`. Submit/archive now require
+`{expectedListingVersion}`; moderation increments versions. Deploy clients together
+with this breaking request-contract change. See the [owner contract](specs/016-material-reviews-thumbnails/contracts.md#buyer-library-and-owner-material-management).
+
 Session/report contract amendment (2026-11-11): caller-scoped current/legacy
 evidence metadata and counts, Session reporting deadline/preflight, independent
 message/evidence capabilities in participant case summaries, and canonical

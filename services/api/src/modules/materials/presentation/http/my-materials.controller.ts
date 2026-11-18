@@ -41,6 +41,7 @@ import {
   OwnerMaterialListQueryDto,
   UpdateMaterialDto,
   WithdrawMaterialDto,
+  MaterialVersionDto,
 } from "./materials.dto";
 
 @ApiTags("materials")
@@ -166,12 +167,16 @@ export class MyMaterialsController {
   @ApiOperation({
     summary: "Submit an owned DRAFT or ARCHIVED material for review",
   })
+  @ApiConflictResponse({
+    description: "MATERIAL_VERSION_CONFLICT or MATERIAL_TRANSITION_INVALID",
+  })
   async submit(
     @CurrentIdentity() actor: Principal,
     @Param("materialId", ParseUUIDPipe) id: string,
+    @Body() body: MaterialVersionDto,
   ) {
     return success(
-      await this.materials.submit(actor, id),
+      await this.materials.submit(actor, id, body.expectedListingVersion),
       "Material submitted for review.",
     );
   }
@@ -198,13 +203,16 @@ export class MyMaterialsController {
   @Post(":materialId/archive")
   @ApiOperation({ summary: "Stop sharing an owned PUBLISHED material" })
   @ApiNotFoundResponse({ description: "MATERIAL_NOT_FOUND" })
-  @ApiConflictResponse({ description: "MATERIAL_TRANSITION_INVALID" })
+  @ApiConflictResponse({
+    description: "MATERIAL_VERSION_CONFLICT or MATERIAL_TRANSITION_INVALID",
+  })
   async archive(
     @CurrentIdentity() actor: Principal,
     @Param("materialId", ParseUUIDPipe) id: string,
+    @Body() body: MaterialVersionDto,
   ) {
     return success(
-      await this.materials.archive(actor, id),
+      await this.materials.archive(actor, id, body.expectedListingVersion),
       "Material archived.",
     );
   }

@@ -203,7 +203,7 @@ export class MaterialsService {
       const current = await lockOwned(tx, id, principal.userId);
       if (current.listingVersion !== input.expectedListingVersion)
         throw new ConflictException("MATERIAL_VERSION_CONFLICT");
-      const status = statusAfterEdit(current.status);
+      const status = statusAfterEdit(current.status, current.hasBeenPublished);
       const text = listingText({
         title: input.title ?? current.title,
         description: input.description ?? current.description,
@@ -255,9 +255,6 @@ export class MaterialsService {
             : {}),
           status,
           listingVersion: { increment: 1 },
-          ...(current.status === "PUBLISHED"
-            ? { moderationStatus: "PENDING" }
-            : {}),
           // A REJECTED listing edited back to DRAFT drops its old review state.
           ...(status === "DRAFT"
             ? { rejectReason: null, moderationStatus: "NONE" }
@@ -273,10 +270,17 @@ export class MaterialsService {
     return this.ownerProjectionFromRow(updated);
   }
 
-  async submit(principal: Principal, id: string) {
+  async submit(
+    principal: Principal,
+    id: string,
+    expectedListingVersion: number,
+  ) {
     requirePermission(principal, "material:create:self");
+    assertListingVersion(expectedListingVersion);
     const updated = await this.transactions.run(async (tx) => {
       const current = await lockOwned(tx, id, principal.userId);
+      if (current.listingVersion !== expectedListingVersion)
+        throw withdrawalConflict("MATERIAL_VERSION_CONFLICT", current);
       if (current.status !== "DRAFT" && current.status !== "ARCHIVED")
         throw new ConflictException("MATERIAL_TRANSITION_INVALID");
       await assertReadyMaterialFile(tx, current);
@@ -320,10 +324,17 @@ export class MaterialsService {
     return this.ownerProjectionFromRow(updated);
   }
 
-  async archive(principal: Principal, id: string) {
+  async archive(
+    principal: Principal,
+    id: string,
+    expectedListingVersion: number,
+  ) {
     requirePermission(principal, "material:create:self");
+    assertListingVersion(expectedListingVersion);
     const updated = await this.transactions.run(async (tx) => {
       const current = await lockOwned(tx, id, principal.userId);
+      if (current.listingVersion !== expectedListingVersion)
+        throw withdrawalConflict("MATERIAL_VERSION_CONFLICT", current);
       assertArchivable(current.status);
       return tx.material.update({
         where: { id },
@@ -492,6 +503,11 @@ const clearReviewDecision = {
   reviewedAt: null,
   reviewedByUserId: null,
 };
+
+function assertListingVersion(version: number) {
+  if (!Number.isInteger(version) || version < 1)
+    throw new BadRequestException("MATERIAL_VERSION_INVALID");
+}
 
 function withdrawalConflict(
   message: "MATERIAL_VERSION_CONFLICT" | "MATERIAL_TRANSITION_INVALID",

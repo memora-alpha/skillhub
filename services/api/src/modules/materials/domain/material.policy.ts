@@ -58,19 +58,23 @@ export function priceUnits(accessType: MaterialAccess, price: string): bigint {
   return units;
 }
 
-const EDITABLE: ReadonlySet<MaterialState> = new Set([
-  "DRAFT",
-  "PENDING_REVIEW",
-  "PUBLISHED",
-  "REJECTED",
-  "ARCHIVED",
-]);
+export function materialEditBlockedReason(
+  status: MaterialState,
+  hasBeenPublished: boolean,
+): "MATERIAL_CONTENT_LOCKED" | "MATERIAL_NOT_EDITABLE" | null {
+  if (hasBeenPublished) return "MATERIAL_CONTENT_LOCKED";
+  if (status !== "DRAFT" && status !== "REJECTED")
+    return "MATERIAL_NOT_EDITABLE";
+  return null;
+}
 
-/** D3: a live listing goes back to review; a rejected one becomes a draft again. */
-export function statusAfterEdit(status: MaterialState): MaterialState {
-  if (!EDITABLE.has(status))
-    throw new ConflictException("MATERIAL_NOT_EDITABLE");
-  if (status === "PUBLISHED") return "PENDING_REVIEW";
+/** Published content stays immutable even after archive, withdrawal or rejection. */
+export function statusAfterEdit(
+  status: MaterialState,
+  hasBeenPublished = false,
+): MaterialState {
+  const blocked = materialEditBlockedReason(status, hasBeenPublished);
+  if (blocked) throw new ConflictException(blocked);
   if (status === "REJECTED") return "DRAFT";
   return status;
 }
