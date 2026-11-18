@@ -1,5 +1,4 @@
 "use client";
-import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { PageNavigation } from "@/components/pagination/page-navigation";
 import { useStaffListPages } from "./use-staff-list-pages";
@@ -34,20 +33,7 @@ export function StaffUserProfile({
     : null;
   return (
     <div className={styles.workspace}>
-      <Card
-        title={embedded ? undefined : "Hồ sơ người dùng"}
-        actions={
-          <LoadingButton
-            type="button"
-            className="btn"
-            disabled={profile.loading}
-            onClick={() => void profile.reload()}
-            loading={!!profile.loading}
-          >
-            Làm mới hồ sơ
-          </LoadingButton>
-        }
-      >
+      <Card title={embedded ? undefined : "Hồ sơ người dùng"}>
         <QueueState
           loading={profile.loading}
           error={profile.error}
