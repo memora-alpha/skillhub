@@ -120,12 +120,6 @@ export function UserManagementDialog({
               >
                 Kiểm duyệt hồ sơ
               </Link>
-              <Link
-                className="btn"
-                href={`/admin/reputation?userId=${user.userId}`}
-              >
-                Xét lại uy tín
-              </Link>
               {user.roles.includes("STAFF") && (
                 <Link
                   className="btn"

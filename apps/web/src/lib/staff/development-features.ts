@@ -77,49 +77,6 @@ const creditsRows: DevelopmentFeatureInput["rows"] = [
   ],
 ];
 
-const reputationRows: DevelopmentFeatureInput["rows"] = [
-  [
-    "reputation-01",
-    "Nguyễn An",
-    "Đánh giá từ người học",
-    "+2",
-    "62",
-    "27/10/2026 10:00",
-  ],
-  [
-    "reputation-02",
-    "Trần Bình",
-    "Hoàn thành buổi học",
-    "+1",
-    "58",
-    "27/10/2026 08:30",
-  ],
-  [
-    "reputation-03",
-    "Lê Chi",
-    "Hủy buổi học muộn",
-    "−2",
-    "48",
-    "26/10/2026 17:00",
-  ],
-  [
-    "reputation-04",
-    "Phạm Duy",
-    "Đánh giá từ người học",
-    "+1",
-    "55",
-    "26/10/2026 15:15",
-  ],
-  [
-    "reputation-05",
-    "Võ Hà",
-    "Hoàn thành buổi học",
-    "+1",
-    "51",
-    "25/10/2026 13:45",
-  ],
-];
-
 const auditRows: DevelopmentFeatureInput["rows"] = [
   [
     "audit-01",
@@ -167,15 +124,6 @@ export const developmentFeatures = {
     previewTitle: "Giao dịch Credit mẫu",
     columns: ["Mã giao dịch", "Người dùng", "Nội dung", "Credit", "Thời gian"],
     rows: creditsRows,
-  }),
-  reputation: createDevelopmentFeature({
-    href: "/admin/reputation",
-    title: "Quản trị uy tín",
-    description: "Theo dõi điểm và lịch sử uy tín của người dùng.",
-    icon: "star",
-    previewTitle: "Lịch sử uy tín mẫu",
-    columns: ["Người dùng", "Nội dung", "Thay đổi", "Điểm sau", "Thời gian"],
-    rows: reputationRows,
   }),
   audit: createDevelopmentFeature({
     href: "/admin/audit",
