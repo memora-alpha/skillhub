@@ -966,6 +966,9 @@
   gap: 8px;
   flex-wrap: wrap;
   margin: 14px 0;
+  min-inline-size: 0;
+  padding: 0;
+  border: 0;
 }
 .staff-shell[data-admin-redesign] .admin-party-tabs [aria-pressed="true"] {
   background: var(--brand-soft);

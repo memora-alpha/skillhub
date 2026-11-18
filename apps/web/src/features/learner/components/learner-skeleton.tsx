@@ -1,3 +1,4 @@
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 import styles from "./learner-skeleton.module.css";
 
 function Line({ wide = false }: Readonly<{ wide?: boolean }>) {
@@ -5,52 +6,8 @@ function Line({ wide = false }: Readonly<{ wide?: boolean }>) {
 }
 
 export function LearnerContentSkeleton() {
-  return (
-    <div
-      className={styles.content}
-      aria-label="Đang tải nội dung học tập"
-      aria-busy="true"
-    >
-      <output className={styles.status}>Đang tải nội dung học tập</output>
-      <div aria-hidden="true" className={styles.blocks}>
-        <div className={styles.heading}>
-          <Line />
-          <Line wide />
-          <Line />
-        </div>
-        <div className={styles.stats}>
-          {[0, 1, 2].map((key) => (
-            <div key={key} className={styles.stat}>
-              <span className={styles.icon} />
-              <div>
-                <Line />
-                <Line wide />
-                <Line />
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className={styles.columns}>
-          {[0, 1].map((key) => (
-            <div key={key} className={styles.panel}>
-              <Line wide />
-              {[0, 1, 2].map((row) => (
-                <div key={row} className={styles.row}>
-                  <span className={styles.icon} />
-                  <div>
-                    <Line wide />
-                    <Line />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+  return <LoadingSkeleton variant="page" label="Đang tải nội dung học tập" />;
 }
-
 export function LearnerShellSkeleton() {
   return (
     <div className="learner-root workspace">

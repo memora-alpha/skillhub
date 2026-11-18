@@ -1,9 +1,11 @@
 "use client";
+import { LoadingButton } from "@/components/loading-button";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Empty } from "@/components/console/ui";
 import { StaffApiError, isSessionFailure } from "@/lib/staff/client";
 import { useStaffSession } from "./session";
 import { DecisionErrorDialog } from "./decision-error-dialog";
+import { LoadingSkeleton } from "@/components/loading-skeleton";
 export function QueueState({
   loading,
   error,
@@ -29,21 +31,28 @@ export function QueueState({
             {!empty && "Đang hiển thị dữ liệu đã tải trước đó. "}
             {error}
           </p>
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             onClick={reload}
             disabled={loading}
+            loading={!!loading}
           >
             Thử lại
-          </button>
+          </LoadingButton>
         </div>
         {!empty && children}
       </>
     );
-  if (loading && empty)
-    return <output className="staff-state">Đang tải dữ liệu…</output>;
+  if (loading && empty) return <LoadingSkeleton variant="table" />;
   if (empty) return <Empty title={emptyTitle} desc={emptyDescription} />;
+  if (loading)
+    return (
+      <>
+        <LoadingSkeleton variant="inline" label="Đang cập nhật dữ liệu" />
+        {children}
+      </>
+    );
   return children;
 }
 export function Pager({
@@ -57,9 +66,15 @@ export function Pager({
 }>) {
   return hasMore ? (
     <div className="staff-pager">
-      <button type="button" className="btn" onClick={more} disabled={loading}>
+      <LoadingButton
+        type="button"
+        className="btn"
+        onClick={more}
+        disabled={loading}
+        loading={!!loading}
+      >
         {loading ? "Đang tải…" : "Tải thêm"}
-      </button>
+      </LoadingButton>
     </div>
   ) : null;
 }
@@ -198,15 +213,16 @@ export function DecisionDialog({
         }}
       >
         {presentation === "drawer" && (
-          <button
+          <LoadingButton
             type="button"
             className="icon-btn ops-drawer-close"
             aria-label="Đóng hộp thoại"
             disabled={busy}
             onClick={onClose}
+            loading={!!busy}
           >
             ×
-          </button>
+          </LoadingButton>
         )}
         <span className={`badge badge-${danger ? "bad" : "brand"}`}>
           XÁC NHẬN THAO TÁC
@@ -246,14 +262,15 @@ export function DecisionDialog({
           </div>
         )}
         <div className="staff-dialog-actions">
-          <button
+          <LoadingButton
             type="button"
             className="btn"
             disabled={busy}
             onClick={onClose}
+            loading={!!busy}
           >
             Hủy
-          </button>
+          </LoadingButton>
           {mustReload ? (
             <button
               type="button"
@@ -266,13 +283,14 @@ export function DecisionDialog({
               Tải lại dữ liệu
             </button>
           ) : (
-            <button
+            <LoadingButton
               type="submit"
               className={`btn ${danger ? "btn-danger" : "btn-primary"}`}
               disabled={busy}
+              loading={!!busy}
             >
               {busy ? "Đang gửi…" : confirmLabel}
-            </button>
+            </LoadingButton>
           )}
         </div>
       </form>
