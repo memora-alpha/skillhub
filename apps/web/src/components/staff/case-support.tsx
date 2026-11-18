@@ -5,6 +5,10 @@ import { useStaffSession } from "./session";
 import { DecisionDialog } from "./common";
 import { Identifier } from "./operation-tools";
 import type { ReportCaseDetail } from "@/lib/staff/types";
+import {
+  assertReportEditable,
+  isSystemReport,
+} from "@/lib/staff/report-access";
 import { IncidentPanel } from "./report-incident";
 import { PrivateThread } from "./case-private-thread";
 export function CaseSupportPanel({
@@ -29,12 +33,19 @@ export function CaseSupportPanel({
     ),
   ];
   const owns = item.handlerId === actor?.userId;
-  const open = ["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"].includes(item.status);
+  const readOnly = isSystemReport(item);
+  const open =
+    !readOnly &&
+    ["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"].includes(item.status);
   return (
     <Card className="admin-case-support">
       <h2>Trao đổi riêng</h2>
       {!owns ? (
-        <p>Nhận xử lý báo cáo để trao đổi với các bên.</p>
+        <p>
+          {readOnly
+            ? "Trao đổi riêng chỉ hiển thị cho người được giao xử lý."
+            : "Nhận xử lý báo cáo để trao đổi với các bên."}
+        </p>
       ) : (
         <>
           {portal === "admin" ? (
@@ -110,6 +121,11 @@ export function CaseSupportPanel({
               caseId={item.id}
               partyId={party}
               readOnly={!open}
+              readOnlyMessage={
+                readOnly
+                  ? "Báo cáo hệ thống chỉ cho phép xem lịch sử trao đổi."
+                  : undefined
+              }
             />
           )}
           {open && (
@@ -125,7 +141,7 @@ export function CaseSupportPanel({
       )}
       {item.incidentId && (
         <button type="button" className="btn" onClick={() => setIncident(true)}>
-          Mở quyết định vụ việc chung
+          {readOnly ? "Xem vụ việc chung" : "Mở quyết định vụ việc chung"}
         </button>
       )}
       {incident && item.incidentId && (
@@ -133,6 +149,7 @@ export function CaseSupportPanel({
           id={item.incidentId}
           close={() => setIncident(false)}
           onUpdated={onUpdated}
+          readOnly={readOnly}
         />
       )}{" "}
       {needInfo && open && (
@@ -147,6 +164,9 @@ export function CaseSupportPanel({
             onUpdated();
           }}
           onSubmit={async (note) => {
+            assertReportEditable(item);
+            const fresh = await api<ReportCaseDetail>(`reports/${item.id}`);
+            assertReportEditable(fresh.data);
             await api(`reports/${item.id}/need-more-info`, {
               method: "POST",
               body: { note },

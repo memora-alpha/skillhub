@@ -13,6 +13,11 @@ import {
   StatusBadge,
 } from "@/components/console/ui";
 import { Icon } from "@/components/console/icon";
+import type { ReportCaseDetail } from "@/lib/staff/types";
+import {
+  assertReportEditable,
+  isSystemReport,
+} from "@/lib/staff/report-access";
 
 import { useStaffSession } from "./session";
 import { DecisionDialog, QueueState } from "./common";
@@ -74,6 +79,7 @@ export function SupportQueueScreen({
   const selectedCases = list.items.filter((row) => selected.includes(row.id));
   const groupContext = selectedCases[0];
   function selectionIssue(row: SupportCase) {
+    if (isSystemReport(row)) return "Báo cáo hệ thống chỉ cho phép xem.";
     if (row.incidentId) return "Báo cáo đã thuộc một vụ việc chung.";
     if (["RESOLVED", "REJECTED"].includes(row.status))
       return "Báo cáo đã kết thúc.";
@@ -257,6 +263,7 @@ export function SupportQueueScreen({
               <div className="ops-case-list" aria-label="Danh sách báo cáo">
                 {visible.map((row) => {
                   function handlerLabel() {
+                    if (isSystemReport(row)) return "Chỉ xem";
                     if (!row.handlerId) {
                       return "Chưa có người nhận";
                     }
@@ -272,23 +279,25 @@ export function SupportQueueScreen({
                       data-selected={detailId === row.id}
                     >
                       <div className="ops-case-item-top">
-                        <label className="ops-case-checkbox">
-                          <input
-                            type="checkbox"
-                            aria-label={`Chọn báo cáo ${row.id.slice(0, 8)} để gom vụ việc`}
-                            disabled={!!selectionIssue(row)}
-                            title={selectionIssue(row)}
-                            checked={selected.includes(row.id)}
-                            onChange={(e) =>
-                              setSelected((value) =>
-                                e.target.checked
-                                  ? [...value, row.id]
-                                  : value.filter((id) => id !== row.id),
-                              )
-                            }
-                          />
+                        <div className="ops-case-checkbox">
+                          {!isSystemReport(row) && (
+                            <input
+                              type="checkbox"
+                              aria-label={`Chọn báo cáo ${row.id.slice(0, 8)} để gom vụ việc`}
+                              disabled={!!selectionIssue(row)}
+                              title={selectionIssue(row)}
+                              checked={selected.includes(row.id)}
+                              onChange={(e) =>
+                                setSelected((value) =>
+                                  e.target.checked
+                                    ? [...value, row.id]
+                                    : value.filter((id) => id !== row.id),
+                                )
+                              }
+                            />
+                          )}
                           <span className="mono">#{row.id.slice(0, 8)}</span>
-                        </label>
+                        </div>
                         <Badge tone={severityTone(row.severity)}>
                           {severities.find((s) => s.code === row.severity)
                             ?.label ?? "Chưa phân loại"}
@@ -308,19 +317,26 @@ export function SupportQueueScreen({
                       </button>
                       <div className="ops-case-item-foot">
                         <StatusBadge status={row.status} />
-                        <button
-                          type="button"
-                          className="link ops-text-button"
-                          onClick={() => {
-                            if (row.incidentId) setIncident(row.incidentId);
-                            else {
-                              setGroupSeverity(row.severity || "MEDIUM");
-                              setClassify(row);
-                            }
-                          }}
-                        >
-                          Đổi mức độ
-                        </button>
+                        {!isSystemReport(row) &&
+                          ["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"].includes(
+                            row.status,
+                          ) &&
+                          (!row.handlerId ||
+                            row.handlerId === actor?.userId) && (
+                            <button
+                              type="button"
+                              className="link ops-text-button"
+                              onClick={() => {
+                                if (row.incidentId) setIncident(row.incidentId);
+                                else {
+                                  setGroupSeverity(row.severity || "MEDIUM");
+                                  setClassify(row);
+                                }
+                              }}
+                            >
+                              Đổi mức độ
+                            </button>
+                          )}
                         {row.incidentId && (
                           <button
                             type="button"
@@ -390,6 +406,10 @@ export function SupportQueueScreen({
           onClose={() => setGroup(false)}
           onReload={list.reload}
           onSubmit={async (reason) => {
+            for (const id of selected) {
+              const fresh = await api<ReportCaseDetail>(`reports/${id}`);
+              assertReportEditable(fresh.data);
+            }
             const result = await api<{ id: string }>(
               "reports/support/incidents",
               {
@@ -416,6 +436,8 @@ export function SupportQueueScreen({
           onClose={() => setClassify(undefined)}
           onReload={list.reload}
           onSubmit={async (reason) => {
+            const fresh = await api<ReportCaseDetail>(`reports/${classify.id}`);
+            assertReportEditable(fresh.data);
             await api(`reports/support/cases/${classify.id}/severity`, {
               method: "POST",
               body: {
@@ -437,6 +459,9 @@ export function SupportQueueScreen({
           id={incident}
           close={() => setIncident(undefined)}
           onUpdated={list.reload}
+          readOnly={list.items.some(
+            (row) => row.incidentId === incident && isSystemReport(row),
+          )}
         />
       )}
     </section>
