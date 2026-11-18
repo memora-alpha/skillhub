@@ -5,8 +5,17 @@ import { Card, StatusBadge } from "@/components/console/ui";
 import { useStaffResource } from "./hooks";
 import { useStaffSession } from "./session";
 import { DecisionDialog, QueueState } from "./common";
-import { Identifier } from "./operation-tools";
 import { severities, type Incident } from "./report-support-types";
+import type { ReportCaseDetail } from "@/lib/staff/types";
+import {
+  assertReportRuling,
+  assertReportRulingCurrent,
+} from "@/lib/staff/report-ruling";
+import {
+  type ResolutionDraft,
+  reportResolutionBody,
+} from "@/lib/staff/report-resolution";
+import { ReportRulingFields } from "./report-ruling-fields";
 export function IncidentPanel({
   id,
   close,
@@ -19,8 +28,6 @@ export function IncidentPanel({
   const [decision, setDecision] = useState<"resolve" | "reject">();
   const [severity, setSeverity] = useState("MEDIUM");
   const [classifying, setClassifying] = useState(false);
-  const [ruling, setRuling] = useState("");
-  const [makeupUserId, setMakeupUserId] = useState("");
   return (
     <Card>
       <div className="row">
@@ -104,56 +111,15 @@ export function IncidentPanel({
                 <SeveritySelect value={severity} onChange={setSeverity} />
               </DecisionDialog>
             )}
-            {decision && (
-              <DecisionDialog
-                title={
-                  decision === "resolve"
-                    ? "Giải quyết vụ việc chung"
-                    : "Bác bỏ vụ việc chung"
-                }
-                description="Quyết định được áp dụng đồng thời cho tất cả báo cáo liên quan."
-                min={3}
-                max={2000}
-                confirmLabel="Xác nhận quyết định"
-                onClose={() => setDecision(undefined)}
-                onReload={resource.reload}
-                onSubmit={async (note) => {
-                  await api(`reports/support/incidents/${id}/decision`, {
-                    method: "POST",
-                    body: {
-                      action: decision,
-                      note,
-                      expectedVersion: resource.data!.version,
-                      ...(ruling ? { noShowRuling: ruling } : {}),
-                      ...(makeupUserId ? { makeupUserId } : {}),
-                    },
-                  });
-                  setDecision(undefined);
-                  await resource.reload();
-                  onUpdated();
-                }}
-              >
-                <label>
-                  <span>Phán quyết điểm danh</span>
-                  <select
-                    className="select"
-                    value={ruling}
-                    onChange={(e) => setRuling(e.target.value)}
-                  >
-                    <option value="">Không áp dụng</option>
-                    <option value="UPHOLD">Giữ kết luận vắng mặt</option>
-                    <option value="EXCUSE">Chấp nhận lý do vắng</option>
-                    <option value="COMPLETE">Công nhận hoàn thành</option>
-                  </select>
-                </label>
-                {ruling === "EXCUSE" && (
-                  <Identifier
-                    label="Người được học bù"
-                    value={makeupUserId}
-                    onChange={setMakeupUserId}
-                  />
-                )}
-              </DecisionDialog>
+            {decision && !!resource.data.cases.length && (
+              <IncidentDecision
+                key={decision}
+                incident={resource.data}
+                action={decision}
+                close={() => setDecision(undefined)}
+                reload={resource.reload}
+                onUpdated={onUpdated}
+              />
             )}
           </>
         )}
@@ -180,5 +146,102 @@ export function SeveritySelect({
         ))}
       </select>
     </label>
+  );
+}
+
+function IncidentDecision({
+  incident,
+  action,
+  close,
+  reload,
+  onUpdated,
+}: Readonly<{
+  incident: Incident;
+  action: "resolve" | "reject";
+  close: () => void;
+  reload: () => unknown;
+  onUpdated: () => unknown;
+}>) {
+  const { api, actor } = useStaffSession();
+  // The server applies the Session ruling to the lowest case ID once, then closes the other cases.
+  const caseId = incident.cases
+    .map((item) => item.id)
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))[0]!;
+  const detail = useStaffResource<ReportCaseDetail>("reports/" + caseId);
+  const [draft, setDraft] = useState<ResolutionDraft>({
+    participants: [],
+    restrictedUserId: "",
+    days: "1",
+    reversals: "",
+  });
+  return (
+    <DecisionDialog
+      title={
+        action === "resolve"
+          ? "Giải quyết vụ việc chung"
+          : "Bác bỏ vụ việc chung"
+      }
+      description="Phán quyết buổi học được áp dụng một lần; trạng thái được cập nhật cho tất cả báo cáo trong vụ việc."
+      min={3}
+      max={2000}
+      confirmLabel="Xác nhận quyết định"
+      onClose={close}
+      onReload={() => {
+        void detail.reload();
+        void reload();
+      }}
+      onSubmit={async (note) => {
+        if (!detail.data || detail.loading || detail.error)
+          throw new Error(
+            "Chưa tải được điều kiện xử lý. Hãy tải lại dữ liệu trước khi quyết định.",
+          );
+        assertReportRuling(detail.data, draft, action);
+        const fresh = await api<ReportCaseDetail>("reports/" + caseId);
+        assertReportRulingCurrent(detail.data, fresh.data);
+        assertReportRuling(fresh.data, draft, action);
+        const participants = fresh.data.session
+          ? [fresh.data.session.teacherId, fresh.data.session.learnerId].map(
+              (userId) => ({
+                userId,
+                violation: "" as const,
+                delta: "",
+                amount: "",
+              }),
+            )
+          : [];
+        const ruling =
+          action === "resolve"
+            ? reportResolutionBody({ ...draft, participants }, false)
+            : {};
+        await api(`reports/support/incidents/${incident.id}/decision`, {
+          method: "POST",
+          body: { action, note, expectedVersion: incident.version, ...ruling },
+        });
+        void reload();
+        onUpdated();
+      }}
+    >
+      <QueueState
+        loading={detail.loading}
+        error={detail.error}
+        empty={!detail.data}
+        reload={detail.reload}
+      >
+        {detail.data && action === "resolve" && (
+          <ReportRulingFields
+            item={detail.data}
+            value={draft}
+            onChange={setDraft}
+            admin={actor?.roles.includes("ADMIN")}
+          />
+        )}
+        {detail.data && action === "reject" && (
+          <p className="muted">
+            Chỉ bác bỏ khi báo cáo không đủ căn cứ. Buổi học đang tranh chấp cần
+            một phán quyết trước khi đóng vụ việc.
+          </p>
+        )}
+      </QueueState>
+    </DecisionDialog>
   );
 }

@@ -30,7 +30,7 @@ export function PrivateThread({
   const operation = useOperation();
   const attempt = useRef<{ text: string; id: string } | null>(null);
   return (
-    <section>
+    <section className="admin-private-thread">
       <button
         type="button"
         className="btn"
@@ -52,7 +52,11 @@ export function PrivateThread({
         )}
         <ol>
           {messages.items.map((m) => (
-            <li key={m.id}>
+            <li
+              key={m.id}
+              className="admin-case-message"
+              data-self={m.senderId === actor?.userId}
+            >
               <strong>
                 {m.senderId === actor?.userId ? "Bạn" : "Người dùng"}
               </strong>{" "}

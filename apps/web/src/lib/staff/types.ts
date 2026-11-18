@@ -107,6 +107,26 @@ export type InboxNotification = {
   createdAt: string;
 };
 export type ReportCaseDetail = ReportCase & {
+  resolutionOptions?: {
+    makeupQuotas: {
+      userId: string;
+      reason: string | null;
+      remaining: number;
+    }[];
+    eligibleMakeupUserIds: string[];
+    makeupAlreadyGranted: boolean;
+    obligationsEnded?: boolean;
+    cancellationMakeupRulings?: {
+      value: "EXTEND" | "COMPLETE";
+      allowed: boolean;
+      blockedReason: string | null;
+    }[];
+    noShowRulings: {
+      value: "UPHOLD" | "EXCUSE" | "COMPLETE";
+      allowed: boolean;
+      blockedReason: string | null;
+    }[];
+  };
   attendanceOutcome?: {
     attendanceCase: string;
     status: string;
