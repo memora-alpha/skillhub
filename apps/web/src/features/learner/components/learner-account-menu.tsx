@@ -8,14 +8,14 @@ import { ProductIcon } from "./product-icon";
 import styles from "./learner-account-menu.module.css";
 
 const accountLinks = [
-  ["/learn/tag-requests", "Đề xuất tag của tôi", "book"],
   ["/learn/profile", "Hồ sơ & cài đặt tài khoản", "user"],
-  ["/learn/skills", "Quản lý kỹ năng", "book"],
+  ["/learn/skills", "Kỹ năng chia sẻ & xác minh", "check"],
+  ["/learn/reputation", "Uy tín & phục hồi", "shield"],
   ["/learn/achievements", "Thành tích & danh hiệu", "award"],
+  ["/learn/tag-requests", "Đề xuất tag của tôi", "book"],
   ["/learn/materials/mine", "Tài liệu của tôi", "file"],
-  ["/learn/wallet", "Ví & giao dịch", "wallet"],
-  ["/learn/reports", "Báo cáo của tôi", "shield"],
-  ["/learn/reviews", "Đánh giá của tôi", "star"],
+  ["/learn/wallet", "Ví & giao dịch Credit", "wallet"],
+  ["/learn/reports", "Báo cáo của tôi", "filter"],
 ] as const;
 
 function avatarSource(value: string | null) {

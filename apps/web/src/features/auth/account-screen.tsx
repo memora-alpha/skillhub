@@ -133,27 +133,84 @@ export function AccountScreen({
       setPending(false);
     }
   }
+  const stepItems = registering
+    ? [
+        { key: "start", label: "Thông tin" },
+        { key: "otp", label: "Mã OTP" },
+        { key: "done", label: "Hoàn tất" },
+      ]
+    : [
+        { key: "start", label: "Nhập email" },
+        { key: "otp", label: "Mã OTP" },
+        { key: "reset", label: "Mật khẩu mới" },
+      ];
+  const stepIndex =
+    step === "start" ? 0 : step === "otp" ? 1 : step === "reset" ? 2 : 3;
   return (
     <main className="auth-page">
-      <Link href="/" className="auth-brand">
-        <span>S</span> SkillHub
-      </Link>
+      <header className="auth-topbar">
+        <Link
+          href="/"
+          className="auth-home"
+          aria-label="Quay lại trang chủ"
+          title="Quay lại trang chủ"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="20"
+            height="20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.9"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="m12 5-7 7 7 7M5 12h14" />
+          </svg>
+        </Link>
+        <Link href="/" className="auth-brand">
+          <span>S</span> Skill<em>Hub</em>
+        </Link>
+      </header>
       <div className="auth-grid">
         <section className="auth-intro">
           <p className="auth-eyebrow">HỌC CÙNG NHAU, TIẾN XA HƠN</p>
           <h1>
-            Điều bạn biết,
+            Điều bạn biết hôm nay,
             <br />
-            <em>có thể giúp ai đó.</em>
+            <em>mở lối kỹ năng ngày mai.</em>
           </h1>
           <p>
-            Kết nối người đồng hành, chia sẻ kỹ năng và cùng tiến bộ qua từng
-            buổi học.
+            Tài khoản sau khi xác minh email qua mã OTP 6 chữ số sẽ được kích
+            hoạt ngay với 50/100 điểm Uy tín khởi điểm và Ví Credit riêng.
           </p>
+          <div className="auth-highlights">
+            <div className="auth-highlight-item">
+              <span className="auth-highlight-dot">50</span>
+              <div>
+                <strong>Khởi điểm 50 điểm Uy tín</strong>
+                <small>
+                  Vừa học vừa chia sẻ linh hoạt trên cùng một tài khoản — không
+                  cố định vai trò giáo viên hay học viên.
+                </small>
+              </div>
+            </div>
+            <div className="auth-highlight-item">
+              <span className="auth-highlight-dot">OTP</span>
+              <div>
+                <strong>Bảo vệ xác minh 6 chữ số</strong>
+                <small>
+                  Mã OTP có hiệu lực 5 phút. Nhập sai 5 lần hệ thống tạm chặn
+                  thao tác OTP theo email trong 24 giờ để chống lạm dụng.
+                </small>
+              </div>
+            </div>
+          </div>
           <div className="auth-points">
-            <span>Học trực tiếp 1:1</span>
-            <span>Lộ trình rõ ràng</span>
-            <span>Kết nối cộng đồng</span>
+            <span>Trao đổi 2 chiều</span>
+            <span>Dạy &amp; học 1 chiều</span>
+            <span>Kho tài liệu số</span>
           </div>
         </section>
         <section className="auth-card" aria-labelledby="account-heading">
@@ -162,6 +219,19 @@ export function AccountScreen({
           </p>
           <h2 id="account-heading">{titles[step]}</h2>
           <p>{descriptions[step]}</p>
+          <ol className="auth-steps" aria-label="Các bước thực hiện">
+            {stepItems.map((item, idx) => {
+              let state: "done" | "active" | "todo" = "todo";
+              if (step === "done" || idx < stepIndex) state = "done";
+              else if (idx === stepIndex) state = "active";
+              return (
+                <li key={item.key} data-state={state}>
+                  <span>{state === "done" ? "✓" : idx + 1}</span>
+                  {item.label}
+                </li>
+              );
+            })}
+          </ol>
           {step === "done" ? (
             <Link className="auth-submit" href="/login">
               Đến trang đăng nhập →
@@ -187,7 +257,7 @@ export function AccountScreen({
                 </p>
               )}
               {notice && (
-                <p>
+                <p className="auth-notice">
                   <output>{notice}</output>
                 </p>
               )}

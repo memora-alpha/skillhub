@@ -60,7 +60,11 @@ export function SkillsScreen() {
   );
   return (
     <>
-      <PageHeading title="Kỹ năng tôi có thể chia sẻ" />
+      <PageHeading
+        eyebrow="Năng lực chia sẻ"
+        title="Kỹ năng tôi có thể chia sẻ"
+        description="Thêm kỹ năng từ danh mục chuẩn để xuất hiện trong kết quả tìm kiếm. Nộp chứng chỉ để nhân sự duyệt nhãn Đã xác minh (không tự hết hạn)."
+      />
       <fieldset className="learner-tabs" aria-label="Lọc kỹ năng">
         <button
           type="button"

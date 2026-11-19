@@ -1,7 +1,8 @@
 import { PostFeed } from "@/features/learner/posts/post-feed";
 import Link from "next/link";
 import { SharersScreen } from "@/features/learner/discovery/sharers-screen";
-import styles from "@/features/learner/discovery/discovery.module.css";
+import { ProductIcon } from "@/features/learner/components/product-icon";
+
 export default async function Page({
   searchParams,
 }: Readonly<{
@@ -25,20 +26,20 @@ export default async function Page({
       : "";
   return (
     <>
-      <nav className={styles.tabs} aria-label="Khám phá cộng đồng">
+      <nav className="learner-subnav" aria-label="Khám phá cộng đồng">
         <Link
-          className="btn"
           href="/learn/explore"
           aria-current={!sharers ? "page" : undefined}
         >
+          <ProductIcon name="book" size={16} />
           Nhu cầu học
         </Link>
         <Link
-          className="btn"
           href="/learn/explore?view=sharers"
           aria-current={sharers ? "page" : undefined}
         >
-          Người chia sẻ
+          <ProductIcon name="users" size={16} />
+          Người chia sẻ kỹ năng
         </Link>
       </nav>
       {sharers ? (

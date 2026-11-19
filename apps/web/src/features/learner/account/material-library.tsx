@@ -9,7 +9,6 @@ import { useUserCommand } from "../hooks/use-user-command";
 import { UserApiError } from "../api/client";
 import { pageUrl } from "../api/page-url";
 import {
-  Back,
   CommandFeedback,
   Empty,
   Feedback,
@@ -19,6 +18,7 @@ import {
 } from "../components/common";
 import type { Material } from "./account-types";
 import { MaterialThumbnail } from "./material-cover";
+import { MaterialsSubnav } from "./materials-subnav";
 import { useListPages } from "@/components/pagination/use-list-pages";
 import { ListPagination } from "@/components/pagination/list-pagination";
 
@@ -115,15 +115,15 @@ export function MaterialLibrary() {
   const [tab, setTab] = useState("saved");
   return (
     <>
-      <Back href="/learn/materials" />
+      <MaterialsSubnav current="/learn/materials/library" />
       <PageHeading
+        eyebrow="Kho tài liệu số"
         title="Thư viện của tôi"
         description="Tìm lại tài liệu đã lưu và tài liệu miễn phí bạn đã tải."
       />
-      <fieldset className="learner-actions" aria-label="Loại thư viện">
+      <fieldset className="learner-tabs" aria-label="Loại thư viện">
         <button
           type="button"
-          className="btn"
           aria-pressed={tab === "saved"}
           onClick={() => setTab("saved")}
         >
@@ -131,15 +131,11 @@ export function MaterialLibrary() {
         </button>
         <button
           type="button"
-          className="btn"
           aria-pressed={tab === "free"}
           onClick={() => setTab("free")}
         >
           Miễn phí đã tải
         </button>
-        <Link className="btn" href="/learn/materials/orders">
-          Đã mua
-        </Link>
       </fieldset>
       <LibraryList key={`${actor.userId}:${tab}`} free={tab === "free"} />
     </>
