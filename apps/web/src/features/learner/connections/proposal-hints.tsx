@@ -59,7 +59,9 @@ export function ProposalHintsFields({
           disabled={disabled}
         />
         <small>
-          Một chiều: tổng Credit. Hai chiều: mỗi người, tối thiểu 20 CR.
+          Một chiều: tổng Credit. Hai chiều: mỗi người, tối thiểu 20 CR. Giới
+          hạn gợi ý một chiều được kiểm tra khi gửi. Bạn có thể để trống để trao
+          đổi sau.
         </small>
       </label>
       <label>

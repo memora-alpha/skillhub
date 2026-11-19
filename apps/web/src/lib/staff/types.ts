@@ -128,6 +128,7 @@ export type ReportCaseDetail = ReportCase & {
     }[];
   };
   attendanceOutcome?: {
+    evidence?: { makeupGranted?: boolean } | null;
     attendanceCase: string;
     status: string;
     resolution: string | null;

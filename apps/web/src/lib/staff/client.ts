@@ -20,6 +20,11 @@ export function isSessionFailure(error: unknown): boolean {
   );
 }
 const errorMessages: Readonly<Record<string, string>> = {
+  AUDIT_READ_PERMISSION_REQUIRED: "Bạn chưa có quyền xem nhật ký hoạt động.",
+  INVALID_AUDIT_QUERY:
+    "Bộ lọc nhật ký chưa hợp lệ. Kiểm tra lại mã và thời gian.",
+  INVALID_AUDIT_DATE: "Thời gian lọc nhật ký chưa hợp lệ.",
+  INVALID_AUDIT_RANGE: "Thời gian bắt đầu phải trước thời gian kết thúc.",
   INVALID_REPORT_QUEUE_FILTER:
     "Bộ lọc báo cáo không hợp lệ. Xóa bộ lọc rồi thử lại.",
   USER_MAKEUP_LIMIT_REACHED:

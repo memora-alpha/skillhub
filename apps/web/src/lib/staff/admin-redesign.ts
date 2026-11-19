@@ -1,4 +1,5 @@
 const pages = [
+  "/admin/audit",
   "/admin/learning-paths",
   "/admin/disputes",
   "/admin/learning-changes",

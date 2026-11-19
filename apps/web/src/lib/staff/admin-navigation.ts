@@ -132,6 +132,12 @@ export const adminSections: readonly AdminSection[] = [
     ],
   },
   { id: "finance", href: "/admin/credits", label: "Tài chính", icon: "card" },
+  {
+    id: "audit",
+    href: "/admin/audit",
+    label: "Nhật ký hoạt động",
+    icon: "clock",
+  },
   { id: "settings", href: "/admin/config", label: "Cấu hình", icon: "sliders" },
 ];
 

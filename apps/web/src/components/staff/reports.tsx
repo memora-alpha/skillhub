@@ -28,6 +28,8 @@ import { ReportResolutionFields } from "./report-resolution";
 import {
   assertReportRuling,
   assertReportRulingCurrent,
+  reportRulingContext,
+  cancellationRulingAvailable,
 } from "@/lib/staff/report-ruling";
 import { AttendanceEvidence } from "./attendance-evidence";
 import { RecordId } from "./admin-ui";
@@ -222,6 +224,18 @@ function ReportOverview({ item, owns, busy, onAction }: ReportActionProps) {
         </div>
       </div>
       <dl className="ops-case-facts">
+        {isSystemReport(item) &&
+          item.blocksSettlement &&
+          ["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"].includes(item.status) && (
+            <div className="notice notice-warn">
+              <dt>Chờ hỗ trợ kỹ thuật</dt>
+              <dd>
+                Ghi nhận hệ thống này đang chặn quyết toán. Màn hình chỉ cho
+                xem; cần bộ phận kỹ thuật kiểm tra và cung cấp cách xử lý phù
+                hợp.
+              </dd>
+            </div>
+          )}
         <div>
           <dt>Đối tượng</dt>
           <dd>{targetTypeLabel(item.targetType)}</dd>
@@ -374,15 +388,17 @@ function ReportActions({ item, owns, busy, onAction }: ReportActionProps) {
       >
         Đưa ra quyết định
       </LoadingButton>
-      <LoadingButton
-        type="button"
-        className="btn admin-danger-outline"
-        disabled={busy}
-        onClick={() => onAction("reject")}
-        loading={!!busy}
-      >
-        Bác bỏ báo cáo
-      </LoadingButton>
+      {!reportRulingContext(item).required && (
+        <LoadingButton
+          type="button"
+          className="btn admin-danger-outline"
+          disabled={busy}
+          onClick={() => onAction("reject")}
+          loading={!!busy}
+        >
+          Bác bỏ báo cáo
+        </LoadingButton>
+      )}
     </>
   );
 }
@@ -552,6 +568,13 @@ function ReportDecision({
       min={action === "claim" ? 0 : 1}
       max={2000}
       confirmLabel={actions[action].label}
+      submitDisabled={
+        action === "resolve" &&
+        reportRulingContext(item).cancellation &&
+        !(["EXTEND", "COMPLETE"] as const).some((ruling) =>
+          cancellationRulingAvailable(item, ruling),
+        )
+      }
       danger={action === "reject"}
       onClose={onClose}
       onReload={reload}

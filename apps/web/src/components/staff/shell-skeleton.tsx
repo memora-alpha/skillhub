@@ -1,14 +1,17 @@
 import { LoadingSkeleton } from "@/components/loading-skeleton";
 import styles from "./shell-skeleton.module.css";
+import type { Portal } from "@/lib/staff/policy";
 
 const navigationSlots = Array.from(
   { length: 10 },
   (_, position) => `navigation-${position + 1}`,
 );
 
-export function StaffShellSkeleton() {
+export function StaffShellSkeleton({
+  portal = "staff",
+}: Readonly<{ portal?: Portal }>) {
   return (
-    <div className="shell staff-shell">
+    <div className="shell staff-shell" data-portal={portal}>
       <aside className={`side ${styles.sidebar}`} aria-hidden="true">
         <div className="side-head">
           <span className="logo">S</span>

@@ -54,6 +54,27 @@ export async function readBackendReply(
   await rejectUpstreamChallenge(response);
   if (response.status === 204) return { status: 204, value: null };
   if (response.status >= 500) {
+    // This public policy code is safe to expose; never forward arbitrary server errors.
+    if (response.status === 503) {
+      try {
+        const value: unknown = await response.json();
+        if (
+          value &&
+          typeof value === "object" &&
+          "success" in value &&
+          value.success === false &&
+          "message" in value &&
+          value.message === "CONNECTION_POLICY_UNAVAILABLE"
+        )
+          return {
+            status: 503,
+            value: { success: false, message: "CONNECTION_POLICY_UNAVAILABLE" },
+          };
+      } catch {
+        /* Keep infrastructure failures generic. */
+      }
+      throw new GatewayError(503, "API_UNAVAILABLE");
+    }
     await response.body?.cancel().catch(() => undefined);
     throw new GatewayError(response.status, "API_UNAVAILABLE");
   }

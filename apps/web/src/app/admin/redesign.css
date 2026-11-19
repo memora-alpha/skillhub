@@ -1,99 +1,4 @@
-/* Selected Admin workspaces opt into this presentation. */
-.staff-shell[data-admin-redesign="true"] {
-  --bg: #f8fafc;
-  --surface: #fff;
-  --surface-2: #f1f5f9;
-  --ink: #0f172a;
-  --ink-2: #475569;
-  --muted: #64748b;
-  --line: #e2e8f0;
-  --line-strong: #cbd5e1;
-  --brand: #0f766e;
-  --brand-strong: #115e59;
-  --brand-soft: #f0fdfa;
-  --brand-ink: #fff;
-  --ok: #166534;
-  --ok-soft: #f0fdf4;
-  --warn: #92400e;
-  --warn-soft: #fffbeb;
-  --bad: #b91c1c;
-  --bad-soft: #fef2f2;
-  --info: #1d4ed8;
-  --info-soft: #eff6ff;
-  --focus: #0f766e;
-  --shadow: 0 2px 8px rgb(15 23 42 / 0.025);
-  color-scheme: light;
-  color: var(--ink);
-  background: var(--bg);
-  grid-template-columns: 248px minmax(0, 1fr);
-  font-family: var(--font-body);
-  font-size: 14px;
-  line-height: 1.55;
-}
-.staff-shell[data-admin-redesign] .side {
-  background: var(--surface);
-  border-color: var(--line);
-  padding: 24px 16px 16px;
-}
-.staff-shell[data-admin-redesign] .side-title {
-  color: var(--ink);
-  font-size: 19px;
-}
-.staff-shell[data-admin-redesign] .side-sub,
-.staff-shell[data-admin-redesign] .nav-title,
-.staff-shell[data-admin-redesign] .who-role {
-  color: var(--muted);
-}
-.staff-shell[data-admin-redesign] .logo,
-.staff-shell[data-admin-redesign] .avatar {
-  background: var(--brand-soft);
-  color: var(--brand);
-}
-.staff-shell[data-admin-redesign] .logo {
-  background: var(--brand);
-  color: white;
-}
-.staff-shell[data-admin-redesign] .ops-workspace-identity {
-  border-color: var(--line);
-  background: var(--surface);
-}
-.staff-shell[data-admin-redesign] .nav-link {
-  color: var(--ink-2);
-  font-size: 13px;
-  min-height: 42px;
-  border-radius: 8px;
-}
-.staff-shell[data-admin-redesign] .nav-link:hover {
-  background: var(--surface-2);
-}
-.staff-shell[data-admin-redesign] .nav-link[aria-current="page"] {
-  background: var(--brand-soft);
-  color: var(--brand);
-  font-weight: 600;
-}
-.staff-shell[data-admin-redesign] .nav-title {
-  letter-spacing: 0.08em;
-  font-size: 10px;
-}
-.staff-shell[data-admin-redesign] .topbar {
-  background: var(--surface);
-  border-color: var(--line);
-  min-height: 72px;
-  padding: 16px 28px;
-}
-.staff-shell[data-admin-redesign] .content {
-  padding: 28px;
-  max-width: 1680px;
-  width: 100%;
-  margin-inline: auto;
-}
-.staff-shell[data-admin-redesign] .topbar-crumb {
-  font-size: 13px;
-  color: var(--muted);
-}
-.staff-shell[data-admin-redesign] .topbar-crumb strong {
-  color: var(--ink);
-}
+/* Page presentation only. Shared Admin frame geometry lives in frame.css. */
 .staff-shell[data-admin-redesign] .page-head {
   margin: 0 0 26px;
   align-items: center;
@@ -1045,21 +950,7 @@
   border-radius: 50%;
   background: currentColor;
 }
-@media (max-width: 1023px) {
-  .staff-shell[data-admin-redesign] {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .staff-shell[data-admin-redesign] .side {
-    width: 280px;
-  }
-}
 @media (max-width: 1200px) {
-  .staff-shell[data-admin-redesign] {
-    grid-template-columns: 220px minmax(0, 1fr);
-  }
-  .staff-shell[data-admin-redesign] .content {
-    padding: 24px;
-  }
   .staff-shell[data-admin-redesign] .ops-report-workspace {
     grid-template-columns: 275px minmax(0, 1fr);
     gap: 16px;
@@ -1119,19 +1010,6 @@
   }
 }
 @media (max-width: 767px) {
-  .staff-shell[data-admin-redesign] {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .staff-shell[data-admin-redesign] .side {
-    width: 280px;
-  }
-  .staff-shell[data-admin-redesign] .content {
-    padding: 24px 16px;
-  }
-  .staff-shell[data-admin-redesign] .topbar {
-    padding: 14px 16px;
-    min-height: 64px;
-  }
   .staff-shell[data-admin-redesign] .page-head {
     align-items: flex-start;
   }
