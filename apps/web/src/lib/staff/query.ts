@@ -11,6 +11,17 @@ export function staffQuery(path: string, query: URLSearchParams) {
   return accepted.size ? `?${accepted}` : "";
 }
 function staffQueryNames(path: string): string[] {
+  if (path === "audit-logs")
+    return [
+      "limit",
+      "cursor",
+      "actorId",
+      "action",
+      "targetType",
+      "targetId",
+      "from",
+      "to",
+    ];
   if (/^reputation\/users\/[^/]+\/history$/.test(path))
     return ["cursor", "limit"];
   if (path === "dashboard/summary") return ["from", "to", "timezone"];

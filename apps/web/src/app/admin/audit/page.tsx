@@ -1,5 +1,5 @@
-import { notFound } from "next/navigation";
+import { AuditLogsScreen } from "@/components/staff/audit-logs";
 
 export default function Page() {
-  notFound();
+  return <AuditLogsScreen />;
 }
