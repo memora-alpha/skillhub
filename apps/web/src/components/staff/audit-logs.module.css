@@ -2,6 +2,41 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.expanded {
+  transform: rotate(180deg);
+}
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.target {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+.role {
+  display: block;
+  margin-top: 6px;
+  color: var(--ink-2);
+}
+.codes {
+  display: grid;
+  gap: 4px;
+  margin-block: 8px;
+}
+.codes dt {
+  color: var(--ink-2);
+  font-size: 11px;
+}
+.codes dd {
+  margin: 0 0 6px;
+  overflow-wrap: anywhere;
 }
 .filters label {
   display: grid;
