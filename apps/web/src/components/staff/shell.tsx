@@ -128,11 +128,17 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
   } = useNavigationDrawer("(min-width: 1024px)");
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    sidebarRef.current
-      ?.querySelector<HTMLElement>('[aria-current="page"]')
-      ?.scrollIntoView({ block: "nearest" });
+    const nav = sidebarRef.current?.querySelector<HTMLElement>(".side-nav");
+    const current = nav?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!nav || !current || !nav.clientHeight) return;
+    // Reveal the active link inside the sidebar without scrolling the page.
+    const viewportTop = nav.getBoundingClientRect().top + nav.clientTop;
+    const bounds = current.getBoundingClientRect();
+    if (bounds.top < viewportTop) nav.scrollTop += bounds.top - viewportTop;
+    else if (bounds.bottom > viewportTop + nav.clientHeight)
+      nav.scrollTop += bounds.bottom - viewportTop - nav.clientHeight;
   }, [pathname, actor?.userId, sidebarRef]);
-  if (loading) return <StaffShellSkeleton />;
+  if (loading) return <StaffShellSkeleton portal={portal} />;
   if (!actor) return <StaffLogin />;
   const adminSection =
     portal === "admin" ? findAdminSection(pathname) : undefined;
@@ -149,6 +155,7 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <div
       className="shell staff-shell"
+      data-portal={portal}
       key={actor.userId}
       data-admin-redesign={
         portal === "admin" && isRedesignedAdminPath(pathname)

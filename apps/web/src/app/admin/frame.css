@@ -1,0 +1,123 @@
+/* The Admin frame stays identical across routes and while session data loads. */
+.staff-shell[data-portal="admin"] {
+  --bg: #f8fafc;
+  --surface: #fff;
+  --surface-2: #f1f5f9;
+  --ink: #0f172a;
+  --ink-2: #475569;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --line-strong: #cbd5e1;
+  --brand: #0f766e;
+  --brand-strong: #115e59;
+  --brand-soft: #f0fdfa;
+  --brand-ink: #fff;
+  --ok: #166534;
+  --ok-soft: #f0fdf4;
+  --warn: #92400e;
+  --warn-soft: #fffbeb;
+  --bad: #b91c1c;
+  --bad-soft: #fef2f2;
+  --info: #1d4ed8;
+  --info-soft: #eff6ff;
+  --focus: #0f766e;
+  --shadow: 0 2px 8px rgb(15 23 42 / 0.025);
+  color-scheme: light;
+  color: var(--ink);
+  background: var(--bg);
+  grid-template-columns: minmax(0, 1fr);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.staff-shell[data-portal="admin"] .side {
+  width: min(280px, 86vw);
+  background: var(--surface);
+  border-color: var(--line);
+  padding: 24px 16px 16px;
+}
+.staff-shell[data-portal="admin"] .side-title {
+  color: var(--ink);
+  font-size: 19px;
+}
+.staff-shell[data-portal="admin"] :is(.side-sub, .nav-title, .who-role) {
+  color: var(--muted);
+}
+.staff-shell[data-portal="admin"] :is(.logo, .avatar) {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+.staff-shell[data-portal="admin"] .logo {
+  background: var(--brand);
+  color: white;
+}
+.staff-shell[data-portal="admin"] .ops-workspace-identity {
+  border-color: var(--line);
+  background: var(--surface);
+}
+.staff-shell[data-portal="admin"] .nav-link {
+  color: var(--ink-2);
+  font-size: 13px;
+  min-height: 42px;
+  border-radius: 8px;
+}
+.staff-shell[data-portal="admin"] .nav-link:hover {
+  background: var(--surface-2);
+}
+.staff-shell[data-portal="admin"] .nav-link[aria-current="page"] {
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-weight: 600;
+}
+.staff-shell[data-portal="admin"] .nav-title {
+  letter-spacing: 0.08em;
+  font-size: 10px;
+}
+.staff-shell[data-portal="admin"] .topbar {
+  background: var(--surface);
+  border-color: var(--line);
+  height: 72px;
+  min-height: 72px;
+  padding: 0 28px;
+}
+.staff-shell[data-portal="admin"] .content {
+  padding: 28px;
+  max-width: 1680px;
+  width: 100%;
+  margin-inline: auto;
+}
+.staff-shell[data-portal="admin"] .topbar-crumb {
+  font-size: 13px;
+  color: var(--muted);
+}
+.staff-shell[data-portal="admin"] .topbar-crumb strong {
+  color: var(--ink);
+}
+@media (min-width: 1024px) {
+  .staff-shell[data-portal="admin"] {
+    grid-template-columns: 248px minmax(0, 1fr);
+  }
+  .staff-shell[data-portal="admin"] .side {
+    width: auto;
+  }
+}
+@media (min-width: 1024px) and (max-width: 1200px) {
+  .staff-shell[data-portal="admin"] {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+}
+@media (max-width: 1200px) {
+  .staff-shell[data-portal="admin"] .content {
+    padding: 24px;
+  }
+}
+@media (max-width: 767px) {
+  .staff-shell[data-portal="admin"] .content {
+    padding: 24px 16px;
+  }
+  .staff-shell[data-portal="admin"] .topbar {
+    height: 64px;
+    min-height: 64px;
+    padding-inline: 16px;
+  }
+}
