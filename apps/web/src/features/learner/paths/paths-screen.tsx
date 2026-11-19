@@ -21,7 +21,16 @@ export function PathsScreen() {
   );
   return (
     <>
-      <PageHeading title="Lộ trình học của tôi" />
+      <PageHeading
+        eyebrow="Học & Dạy 1:1"
+        title="Lộ trình học của tôi"
+        description="Quản lý thỏa thuận trao đổi 2 chiều (hai kế hoạch đối ứng) và dạy & học 1 chiều, tiến độ buổi học và trạng thái quyết toán 96% / 4%."
+        action={
+          <Link className="btn" href="/learn/messages">
+            Mở tin nhắn thương lượng →
+          </Link>
+        }
+      />
       <Feedback
         loading={query.initialLoading}
         error={query.error}
@@ -31,11 +40,19 @@ export function PathsScreen() {
       <div className="learner-post-grid">
         {query.items.map((path) => (
           <Panel key={path.id}>
-            <Status
-              value={path.status}
-              label={learningStageLabel(path.learningStage)}
-            />
-            <h2>
+            <div className="learner-card-top">
+              <Status
+                value={path.status}
+                label={learningStageLabel(path.learningStage)}
+              />
+              <span
+                className="exchange-pill"
+                data-type={path.exchangeType ?? undefined}
+              >
+                {exchangeLabels[path.exchangeType ?? ""] ?? "Đang thống nhất"}
+              </span>
+            </div>
+            <h2 style={{ marginTop: 12 }}>
               {path.title?.trim() || (
                 <>
                   Học cùng <ProfileName id={path.counterpartId} />
@@ -44,13 +61,9 @@ export function PathsScreen() {
             </h2>
             {path.title?.trim() && (
               <p>
-                Học cùng <ProfileName id={path.counterpartId} />
+                Đối tác: <ProfileName id={path.counterpartId} />
               </p>
             )}
-            <p>
-              {exchangeLabels[path.exchangeType ?? ""] ??
-                "Đang thống nhất hình thức"}
-            </p>
             {path.progress && (
               <PathProgress overview={path as PathSummary & PathOverview} />
             )}
@@ -59,9 +72,14 @@ export function PathsScreen() {
                 Cập nhật {formatTime((path.lastActivityAt || path.updatedAt)!)}
               </p>
             )}
-            <Link className="btn btn-primary" href={"/learn/paths/" + path.id}>
-              {pathActionLabel(path.learningStage, path.attentionCount)}
-            </Link>
+            <div className="learner-actions">
+              <Link
+                className="btn btn-primary"
+                href={"/learn/paths/" + path.id}
+              >
+                {pathActionLabel(path.learningStage, path.attentionCount)}
+              </Link>
+            </div>
           </Panel>
         ))}
       </div>

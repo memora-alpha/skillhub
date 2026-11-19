@@ -95,25 +95,47 @@ export function LoginScreen() {
           </svg>
         </Link>
         <Link href="/" className="auth-brand">
-          <span>S</span> SkillHub
+          <span>S</span> Skill<em>Hub</em>
         </Link>
       </header>
       <div className="auth-grid">
         <section className="auth-intro">
           <p className="auth-eyebrow">HỌC CÙNG NHAU, TIẾN XA HƠN</p>
           <h1>
-            Chia sẻ điều bạn biết.
+            Chia sẻ điều bạn giỏi.
             <br />
-            <em>Học điều bạn muốn.</em>
+            <em>Học điều bạn cần.</em>
           </h1>
           <p>
-            Một tài khoản, một nơi bắt đầu. Đăng nhập để tiếp tục hành trình của
-            bạn cùng SkillHub.
+            Đăng nhập để tiếp tục lộ trình trao đổi kỹ năng 2 chiều, dạy &amp;
+            học 1 chiều, lịch học LiveKit 1:1 và kho tài liệu số trên SkillHub.
           </p>
+          <div className="auth-highlights">
+            <div className="auth-highlight-item">
+              <span className="auth-highlight-dot">01</span>
+              <div>
+                <strong>Trao đổi 2 chiều &amp; Học 1 chiều</strong>
+                <small>
+                  Lộ trình xác nhận theo phiên bản, tạm giữ Credit minh bạch và
+                  quyết toán 96% / 4% sau khi hoàn tất.
+                </small>
+              </div>
+            </div>
+            <div className="auth-highlight-item">
+              <span className="auth-highlight-dot">02</span>
+              <div>
+                <strong>Điểm uy tín &amp; Kỹ năng xác minh</strong>
+                <small>
+                  Khởi điểm 50/100 điểm uy tín, chứng chỉ kỹ năng được nhân sự
+                  duyệt và bảo vệ quyền riêng tư hồ sơ.
+                </small>
+              </div>
+            </div>
+          </div>
           <div className="auth-points">
-            <span>Học trực tiếp 1:1</span>
-            <span>Lộ trình rõ ràng</span>
-            <span>Kết nối cộng đồng</span>
+            <span>Phòng học LiveKit 1:1</span>
+            <span>60–180 phút/buổi</span>
+            <span>1.000 VNĐ = 1 Credit</span>
           </div>
         </section>
         <section className="auth-card" aria-labelledby="login-heading">

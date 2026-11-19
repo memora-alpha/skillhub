@@ -29,26 +29,38 @@ export function PostFeed({
   return (
     <>
       <PageHeading
-        title={mine ? "Bài đăng của tôi" : "Khám phá nhu cầu học"}
+        eyebrow="Cộng đồng SkillHub"
+        title={mine ? "Bài nhu cầu học của tôi" : "Khám phá nhu cầu học"}
+        description={
+          mine
+            ? "Quản lý các bài đăng bạn đã tạo, theo dõi trạng thái kiểm duyệt và đề nghị nhận được."
+            : "Tìm người cần học đúng kỹ năng bạn có thể chia sẻ để gửi đề nghị trao đổi 2 chiều hoặc dạy 1 chiều."
+        }
         action={
-          <div className="learner-tabs">
+          <div className="learner-actions">
+            <div
+              className="learner-tabs"
+              role="group"
+              aria-label="Phạm vi bài đăng"
+            >
+              <button
+                type="button"
+                aria-pressed={!mine}
+                onClick={() => setMine(false)}
+              >
+                Cộng đồng
+              </button>
+              <button
+                type="button"
+                aria-pressed={mine}
+                onClick={() => setMine(true)}
+              >
+                Bài của tôi
+              </button>
+            </div>
             <Link className="btn btn-primary" href="/learn/posts/new">
               + Đăng nhu cầu học
             </Link>
-            <button
-              type="button"
-              aria-pressed={!mine}
-              onClick={() => setMine(false)}
-            >
-              Khám phá
-            </button>
-            <button
-              type="button"
-              aria-pressed={mine}
-              onClick={() => setMine(true)}
-            >
-              Bài của tôi
-            </button>
           </div>
         }
       />

@@ -8,7 +8,6 @@ import { useUserSession } from "../auth/session";
 
 import { useUserCommand } from "../hooks/use-user-command";
 import {
-  Back,
   CommandFeedback,
   Empty,
   Feedback,
@@ -18,6 +17,7 @@ import {
   formatTime,
 } from "../components/common";
 import type { MaterialOrder } from "./account-types";
+import { MaterialsSubnav } from "./materials-subnav";
 import { readRefundedOrder } from "./material-order-policy";
 import { readCursorSnapshot } from "../api/cursor-snapshot";
 import { UserApiError, userErrorText } from "../api/client";
@@ -27,10 +27,11 @@ export function MaterialOrders() {
   const query = useUserPagedList<MaterialOrder>("me/material-orders?limit=20");
   return (
     <>
-      <Back href="/learn/materials" />
+      <MaterialsSubnav current="/learn/materials/orders" />
       <PageHeading
+        eyebrow="Kho tài liệu số"
         title="Đơn tài liệu đã mua"
-        description="Xem tài liệu tại thời điểm mua và điều kiện hoàn của từng đơn."
+        description="Xem bản ghi tài liệu tại thời điểm mua, quyền tải tệp và điều kiện hoàn Credit của từng đơn."
       />
       <Feedback
         loading={query.initialLoading}

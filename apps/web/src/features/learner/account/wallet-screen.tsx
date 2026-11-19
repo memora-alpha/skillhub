@@ -43,7 +43,9 @@ export function WalletScreen() {
   return (
     <>
       <PageHeading
+        eyebrow="Tài chính trên SkillHub"
         title="Ví Credit"
+        description="Quản lý số dư khả dụng, khoản tạm giữ theo thỏa thuận và lịch sử sổ cái bất biến."
         action={
           <Link className="btn btn-primary" href="/learn/wallet/topup">
             + Nạp Credit
@@ -62,31 +64,54 @@ export function WalletScreen() {
           <strong>
             {wallet.data ? wallet.data.availableCredit : "—"} <small>CR</small>
           </strong>
-          <p>Sẵn sàng cho thỏa thuận và tài liệu.</p>
+          <p>
+            Dùng để cam kết trao đổi 2 chiều, thanh toán học 1 chiều và mua tài
+            liệu số.
+          </p>
           <Link className="btn" href="/learn/wallet/topup">
             Nạp thêm Credit →
           </Link>
         </article>
         <article className="product-balance">
-          <small>Credit đang giữ</small>
+          <small>Credit đang tạm giữ (Held)</small>
           <strong>
             {wallet.data ? wallet.data.heldCredit : "—"} <small>CR</small>
           </strong>
-          <p>Credit tạm giữ cho các thỏa thuận đang diễn ra.</p>
+          <p>
+            Được khóa khi chốt lịch và quyết toán một lần duy nhất sau khi toàn
+            bộ lộ trình hoàn tất.
+          </p>
           <Link className="learner-card-link" href="/learn/paths">
-            Xem lộ trình →
+            Theo dõi lộ trình đang học →
           </Link>
         </article>
+      </div>
+      <div
+        className="credit-policy-strip"
+        role="note"
+        aria-label="Quy tắc Credit"
+      >
+        <span>
+          <strong>1.000 VNĐ = 1 Credit</strong>
+        </span>
+        <span>
+          <strong>Quyết toán 96% / 4%:</strong> Hoàn 96% (2 chiều) hoặc trả 96%
+          người dạy (1 chiều), 4% phí nền tảng
+        </span>
+        <span>
+          <strong>Không rút tiền mặt:</strong> Credit chỉ dùng trong hệ thống
+          SkillHub
+        </span>
       </div>
       <Panel>
         <div className="panel-head">
           <div>
-            <span className="panel-kicker">Hoạt động của ví</span>
-            <h2>Lịch sử giao dịch</h2>
+            <span className="panel-kicker">Sổ cái giao dịch</span>
+            <h2>Lịch sử biến động Credit</h2>
           </div>
-          <Link href="/learn/wallet/topup">Lệnh nạp Credit</Link>
+          <Link href="/learn/wallet/topup">Lệnh nạp Credit →</Link>
         </div>
-        <div className="learner-actions">
+        <div className="wallet-filters">
           <label>
             <span>Loại giao dịch</span>
             <select

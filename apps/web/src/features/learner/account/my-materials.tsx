@@ -9,7 +9,6 @@ import { UserApiError } from "../api/client";
 
 import { useUserCommand } from "../hooks/use-user-command";
 import {
-  Back,
   CommandFeedback,
   Empty,
   Feedback,
@@ -18,6 +17,7 @@ import {
   Status,
 } from "../components/common";
 import type { OwnedMaterial } from "./account-types";
+import { MaterialsSubnav } from "./materials-subnav";
 import { MaterialEditor } from "./material-editor";
 import { MaterialCoverStatus } from "./material-cover";
 import {
@@ -51,12 +51,14 @@ export function MyMaterials() {
   );
   return (
     <>
-      <Back href="/learn/materials" />
+      <MaterialsSubnav current="/learn/materials/mine" />
       <PageHeading
-        title="Tài liệu của tôi"
+        eyebrow="Kho tài liệu số"
+        title="Tài liệu tôi chia sẻ"
+        description="Quản lý tài liệu bạn đã đăng tải, gửi duyệt xuất bản và theo dõi trạng thái kiểm duyệt."
         action={
           <Link className="btn btn-primary" href="/learn/materials/new">
-            Chia sẻ tài liệu
+            + Chia sẻ tài liệu
           </Link>
         }
       />

@@ -6,11 +6,11 @@ import { Icon } from "./icon";
 import { Logo } from "./logo";
 
 const navigation = [
-  ["#skills", "Khám phá kỹ năng"],
-  ["#how", "Cách hoạt động"],
   ["#ways", "Hình thức học"],
-  ["#credit", "Credit"],
-  ["#faq", "Câu hỏi thường gặp"],
+  ["#how", "Quy trình"],
+  ["#credit", "Credit 96%/4%"],
+  ["#trust", "Uy tín & xác minh"],
+  ["#faq", "Hỏi đáp"],
 ] as const;
 
 export function LandingHeader() {
@@ -33,7 +33,7 @@ export function LandingHeader() {
       )
         setMenuOpen(false);
     };
-    const desktop = window.matchMedia("(min-width: 761px)");
+    const desktop = window.matchMedia("(min-width: 861px)");
     const resize = () => {
       if (desktop.matches) setMenuOpen(false);
     };
@@ -61,10 +61,20 @@ export function LandingHeader() {
               {label}
             </a>
           ))}
+          <Link
+            className="mobile-only-link"
+            href="/login"
+            onClick={() => setMenuOpen(false)}
+          >
+            Đăng nhập
+          </Link>
         </nav>
         <div className="header-actions">
-          <Link className="button button-small" href="/login">
-            Đăng nhập <Icon name="arrow" size={16} />
+          <Link className="login-link" href="/login">
+            Đăng nhập
+          </Link>
+          <Link className="button button-small" href="/register">
+            Bắt đầu miễn phí <Icon name="arrow" size={16} />
           </Link>
           <button
             ref={toggle}
