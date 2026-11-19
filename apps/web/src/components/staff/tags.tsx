@@ -13,6 +13,8 @@ import {
 import { fmtDateTime } from "@/lib/console/format";
 import type { AdminTag, TagRequest } from "@/lib/staff/admin-types";
 import { useStaffCommand, useStaffResource } from "./hooks";
+import { AdminDrawer, AdminField, RecordId } from "./admin-ui";
+import { UserProfileReference } from "./user-profile-reference";
 import { DecisionDialog, QueueState } from "./common";
 
 export function TagsScreen() {
@@ -251,13 +253,20 @@ export function TagRequestsScreen({
           >
             {queue.items.map((item) => (
               <tr key={item.id}>
-                <td>{item.label}</td>
-                <td className="mono">{item.requestedByUserId}</td>
-                <td>
+                <td data-label="Tag đề xuất">
+                  <strong>{item.label}</strong>
+                </td>
+                <td data-label="Người gửi">
+                  <UserProfileReference
+                    userId={item.requestedByUserId}
+                    label="người gửi"
+                  />
+                </td>
+                <td data-label="Trạng thái">
                   <StatusBadge status={item.status} />
                 </td>
-                <td>{fmtDateTime(item.createdAt)}</td>
-                <td>
+                <td data-label="Ngày gửi">{fmtDateTime(item.createdAt)}</td>
+                <td data-label="Thao tác">
                   <button
                     type="button"
                     className="btn btn-sm"
@@ -302,13 +311,34 @@ function TagRequestDetail({
   const [action, setAction] = useState<"approve" | "reject" | null>(null);
   const item = resource.data;
   return (
-    <Card
-      className="section"
-      title="Chi tiết đề xuất"
-      actions={
-        <button type="button" className="btn" onClick={onClose}>
-          Đóng chi tiết
-        </button>
+    <AdminDrawer
+      title={item ? `Đề xuất tag: ${item.label}` : "Chi tiết đề xuất tag"}
+      subtitle={<RecordId id={id} label="đề xuất tag" />}
+      close={onClose}
+      footer={
+        <>
+          <button type="button" className="btn" onClick={onClose}>
+            Đóng
+          </button>
+          {item?.status === "PENDING" && (
+            <>
+              <button
+                type="button"
+                className="btn admin-danger-outline"
+                onClick={() => setAction("reject")}
+              >
+                Từ chối
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setAction("approve")}
+              >
+                Duyệt vào danh mục
+              </button>
+            </>
+          )}
+        </>
       }
     >
       <QueueState
@@ -319,45 +349,44 @@ function TagRequestDetail({
       >
         {item && (
           <div className="stack">
-            <h3>{item.label}</h3>
-            <StatusBadge status={item.status} />
-            <dl className="kv staff-kv">
-              <dt>Người gửi</dt>
-              <dd className="mono">{item.requestedByUserId}</dd>
-              <dt>Ngày gửi</dt>
-              <dd>{fmtDateTime(item.createdAt)}</dd>
-              <dt>Người duyệt</dt>
-              <dd className="mono">{item.reviewedByUserId ?? "Chưa duyệt"}</dd>
-              <dt>Ngày duyệt</dt>
-              <dd>
+            <div className="row">
+              <StatusBadge status={item.status} />
+            </div>
+            <div className="admin-field-grid">
+              <AdminField label="Tên tag đề xuất">
+                <strong>{item.label}</strong>
+              </AdminField>
+              <AdminField label="Người gửi">
+                <UserProfileReference
+                  userId={item.requestedByUserId}
+                  label="người gửi"
+                />
+              </AdminField>
+              <AdminField label="Ngày gửi">
+                {fmtDateTime(item.createdAt)}
+              </AdminField>
+              <AdminField label="Người duyệt">
+                {item.reviewedByUserId ? (
+                  <UserProfileReference
+                    userId={item.reviewedByUserId}
+                    label="người duyệt"
+                  />
+                ) : (
+                  "Chưa duyệt"
+                )}
+              </AdminField>
+              <AdminField label="Ngày duyệt">
                 {item.reviewedAt ? fmtDateTime(item.reviewedAt) : "Chưa duyệt"}
-              </dd>
+              </AdminField>
               {item.resultTagId && (
-                <>
-                  <dt>Tag đã tạo</dt>
-                  <dd className="mono">{item.resultTagId}</dd>
-                </>
+                <AdminField label="Tag đã tạo">
+                  <RecordId id={item.resultTagId} label="tag" />
+                </AdminField>
               )}
-            </dl>
+            </div>
             {item.rejectReason && (
-              <p className="prose">Lý do từ chối: {item.rejectReason}</p>
-            )}
-            {item.status === "PENDING" && (
-              <div className="row">
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={() => setAction("approve")}
-                >
-                  Duyệt
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-danger"
-                  onClick={() => setAction("reject")}
-                >
-                  Từ chối
-                </button>
+              <div className="admin-reason">
+                <strong>Lý do từ chối:</strong> {item.rejectReason}
               </div>
             )}
           </div>
@@ -366,6 +395,7 @@ function TagRequestDetail({
       {item && action && (
         <DecisionDialog
           key={action}
+          presentation="drawer"
           title={
             action === "approve" ? "Duyệt đề xuất tag" : "Từ chối đề xuất tag"
           }
@@ -387,6 +417,6 @@ function TagRequestDetail({
           }}
         />
       )}
-    </Card>
+    </AdminDrawer>
   );
 }

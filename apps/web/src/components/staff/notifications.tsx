@@ -179,9 +179,7 @@ export function NotificationsScreen() {
                       onClick={() => {
                         void queue.inbox.markRead(item.id);
                       }}
-                      loading={
-                        !!(!!queue.pendingId || queue.pendingId === item.id)
-                      }
+                      loading={queue.pendingId === item.id}
                     >
                       {queue.pendingId === item.id
                         ? "Đang lưu…"

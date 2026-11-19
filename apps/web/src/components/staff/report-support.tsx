@@ -24,6 +24,7 @@ import {
   assertReportEditable,
   isSystemReport,
 } from "@/lib/staff/report-access";
+import { hasPermission } from "@/lib/staff/permissions";
 
 import { useStaffSession } from "./session";
 import { DecisionDialog, QueueState } from "./common";
@@ -54,6 +55,8 @@ export function SupportQueueScreen({
   initialIncidentId,
 }: Readonly<{ initialIncidentId?: string }>) {
   const { api, actor } = useStaffSession();
+  const canClassify = hasPermission(actor, "report:classify");
+  const canGroup = hasPermission(actor, "report:group");
   const [scope, setScope] = useState<ReportQueueView>("actionable");
   const [assignedOnly, setAssignedOnly] = useState(false);
   const [severity, setSeverity] = useState("");
@@ -255,7 +258,7 @@ export function SupportQueueScreen({
             Chỉ tôi phụ trách
           </span>
         </label>
-        {selected.length > 0 && (
+        {canGroup && selected.length > 0 && (
           <LoadingButton
             type="button"
             className="btn"
@@ -377,7 +380,7 @@ export function SupportQueueScreen({
                     >
                       <div className="ops-case-item-top">
                         <div className="ops-case-checkbox">
-                          {!isSystemReport(row) && (
+                          {canGroup && !isSystemReport(row) && (
                             <input
                               type="checkbox"
                               aria-label={`Chọn báo cáo ${row.id.slice(0, 8)} để gom vụ việc`}
@@ -419,7 +422,8 @@ export function SupportQueueScreen({
                       </button>
                       <div className="ops-case-item-foot">
                         <StatusBadge status={row.status} />
-                        {!isSystemReport(row) &&
+                        {canClassify &&
+                          !isSystemReport(row) &&
                           ["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"].includes(
                             row.status,
                           ) &&
@@ -429,7 +433,8 @@ export function SupportQueueScreen({
                               type="button"
                               className="link ops-text-button"
                               onClick={() => {
-                                if (row.incidentId) setIncident(row.incidentId);
+                                if (row.incidentId && canGroup)
+                                  setIncident(row.incidentId);
                                 else {
                                   setGroupSeverity(row.severity || "MEDIUM");
                                   setClassify(row);
@@ -439,7 +444,7 @@ export function SupportQueueScreen({
                               Đổi mức độ
                             </button>
                           )}
-                        {row.incidentId && (
+                        {canGroup && row.incidentId && (
                           <button
                             type="button"
                             className="link ops-text-button"

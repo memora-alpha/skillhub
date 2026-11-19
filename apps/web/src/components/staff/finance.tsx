@@ -2,6 +2,7 @@
 import { LoadingButton } from "@/components/loading-button";
 import { useEffect, useId, useRef, useState } from "react";
 import {
+  Badge,
   DataTable,
   Card,
   PageHeader,
@@ -23,7 +24,6 @@ import {
 import { systemCodeLabel } from "@/lib/system-text";
 import { UserProfileReference } from "./user-profile-reference";
 import styles from "./operations.module.css";
-import { useStaffSession } from "./session";
 import { AdminLedgerScreen } from "./admin-ledger";
 import type { LedgerFilters } from "@/lib/staff/ledger-query";
 import {
@@ -31,19 +31,6 @@ import {
   paymentQuery,
   type PaymentFilters,
 } from "@/lib/staff/payment-query";
-type Ledger = {
-  id: string;
-  userId: string;
-  operationId: string;
-  type: string;
-  status: string;
-  amount: string;
-  availableDelta: string;
-  heldDelta: string;
-  availableAfter: string;
-  heldAfter: string;
-  createdAt: string;
-};
 type Payment = {
   id: string;
   userId: string;
@@ -167,9 +154,13 @@ export function FinanceScreen({
       ? initialTab
       : "ledger",
   );
+  function switchTab(next: string) {
+    setTab(next);
+    window.history.replaceState(null, "", `/admin/credits?tab=${next}`);
+  }
   function financeTab() {
     if (tab === "ledger") {
-      return <LedgerScreen initialFilters={initialLedgerFilters} />;
+      return <AdminLedgerScreen initialFilters={initialLedgerFilters} />;
     }
     if (tab === "payments") {
       return (
@@ -188,17 +179,29 @@ export function FinanceScreen({
   return (
     <>
       <PageHeader
-        title="Tài chính"
-        desc="Tra cứu Credit, thanh toán và phí nền tảng."
+        title="Tài chính & Credit"
+        desc="Tra cứu sổ cái Credit bất biến, đối soát nạp tiền payOS, ví người dùng và chính sách phí nền tảng."
       />
-      <div className={styles.tabs}>
+      <div className="ops-policy-banner" role="note">
+        <span>
+          <strong>Quy chuẩn Credit (SRS V1.7):</strong> 1.000 VND = 1 Credit ·
+          Không hỗ trợ rút Credit ra tiền mặt (BR-26).
+        </span>
+        <div className="ops-policy-pills">
+          <Badge tone="brand">
+            TWO_WAY: cam kết ≥20 CR · hoàn 96% / phí 4%
+          </Badge>
+          <Badge tone="info">ONE_WAY: trả teacher 96% / phí 4%</Badge>
+        </div>
+      </div>
+      <div className="ops-tabbar">
         <Segmented
           label="Mục tài chính"
           value={tab}
-          onChange={setTab}
+          onChange={switchTab}
           options={[
             { id: "ledger", label: "Giao dịch Credit" },
-            { id: "payments", label: "Thanh toán" },
+            { id: "payments", label: "Thanh toán nạp" },
             { id: "wallet", label: "Ví người dùng" },
             { id: "fees", label: "Phí & doanh thu" },
           ]}
@@ -206,140 +209,6 @@ export function FinanceScreen({
       </div>
       {financeTab()}
     </>
-  );
-}
-function LedgerScreen({
-  initialFilters,
-}: Readonly<{ initialFilters?: LedgerFilters }>) {
-  const { portal } = useStaffSession();
-  return portal === "admin" ? (
-    <AdminLedgerScreen initialFilters={initialFilters} />
-  ) : (
-    <LegacyLedgerScreen />
-  );
-}
-function LegacyLedgerScreen() {
-  const [draft, setDraft] = useState("");
-  const [filter, setFilter] = useState("");
-  const [selected, setSelected] = useState<string>();
-  const list = useStaffPagedList<Ledger>(
-    "credit/transactions?" +
-      new URLSearchParams({
-        limit: "20",
-        ...(filter ? { userId: filter } : {}),
-      }),
-  );
-  return (
-    <Card
-      title="Lịch sử giao dịch Credit"
-      actions={
-        <div className={styles.actions}>
-          <LoadingButton
-            type="button"
-            className="btn"
-            disabled={list.loading}
-            onClick={() => void list.reload()}
-            loading={!!list.loading}
-          >
-            Làm mới
-          </LoadingButton>
-        </div>
-      }
-    >
-      <p className={styles.hint}>
-        Xem biến động Credit và số dư sau từng giao dịch.
-      </p>
-      <div className={styles.filters}>
-        <Identifier
-          value={draft}
-          onChange={setDraft}
-          onSearch={(value) => {
-            setFilter(value);
-            setSelected(undefined);
-          }}
-        />
-        <button
-          className="btn"
-          type="button"
-          onClick={() => {
-            setDraft("");
-            setFilter("");
-            setSelected(undefined);
-          }}
-        >
-          Bỏ lọc
-        </button>
-      </div>
-      <QueueState
-        loading={list.loading}
-        error={list.error}
-        empty={!list.items.length}
-        emptyTitle="Chưa có giao dịch"
-        emptyDescription="Thử bỏ bộ lọc hoặc kiểm tra lại mã người dùng."
-        reload={list.reload}
-      >
-        <DataTable
-          columns={[
-            "Ngày / người dùng",
-            "Loại",
-            "Credit",
-            "Số dư sau giao dịch",
-            "Chi tiết",
-          ]}
-          className={`table ${styles.table}`}
-        >
-          {list.items.map((r) => (
-            <tr key={r.id}>
-              <td data-label="Ngày / người dùng">
-                {fmtDateTime(r.createdAt)}
-                <UserProfileReference userId={r.userId} />
-              </td>
-              <td data-label="Loại">
-                {financeLabel(r.type)}
-                <small>
-                  <StatusBadge status={r.status} />
-                </small>
-              </td>
-              <td data-label="Credit">
-                <span className={styles.money}>
-                  {financeNumber(r.amount)} CR
-                </span>
-              </td>
-              <td data-label="Số dư sau giao dịch">
-                <span className={styles.money}>
-                  {financeNumber(r.availableAfter)} CR
-                </span>
-                <small>Đang giữ: {financeNumber(r.heldAfter)} CR</small>
-              </td>
-              <td data-label="Thao tác">
-                <FinanceActions
-                  actions={[
-                    { path: `credit/transactions/${r.id}`, label: "Chi tiết" },
-                    {
-                      path: `credit/operations/${r.operationId}`,
-                      label: "Nghiệp vụ",
-                    },
-                  ]}
-                  onSelect={setSelected}
-                />
-              </td>
-            </tr>
-          ))}
-        </DataTable>
-      </QueueState>
-      <FinanceQueueFooter
-        loading={list.loading}
-        pageNumber={list.pageNumber}
-        totalPages={list.totalPages}
-        hasNext={list.page?.hasMore ?? false}
-        onPageChange={(page) => {
-          setSelected(undefined);
-          void list.goToPage(page);
-        }}
-        selected={selected}
-        onClose={() => setSelected(undefined)}
-      />
-    </Card>
   );
 }
 function PaymentsScreen({

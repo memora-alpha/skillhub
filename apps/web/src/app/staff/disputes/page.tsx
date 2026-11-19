@@ -1,4 +1,8 @@
 import { SupportQueueScreen } from "@/components/staff/report-support";
-export default function StaffReportsPage() {
-  return <SupportQueueScreen />;
+
+export default async function StaffReportsPage({
+  searchParams,
+}: Readonly<{ searchParams: Promise<{ incidentId?: string }> }>) {
+  const { incidentId } = await searchParams;
+  return <SupportQueueScreen initialIncidentId={incidentId} />;
 }

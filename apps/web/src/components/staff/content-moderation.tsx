@@ -18,8 +18,22 @@ import { OperationReference } from "./operation-reference";
 import { StaffUserProfile } from "./user-profile";
 import { UserProfileReference } from "./user-profile-reference";
 import { fmtDateTime } from "@/lib/console/format";
+import { hasPermission } from "@/lib/staff/permissions";
+import { AdminNotice } from "./admin-ui";
 import styles from "./operations.module.css";
 import { MaterialReviewModeration } from "./material-review-moderation";
+
+function safeHttpUrl(value: string | null): string | null {
+  if (!value) return null;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:" || parsed.protocol === "http:"
+      ? parsed.toString()
+      : null;
+  } catch {
+    return null;
+  }
+}
 type Review = {
   id: string;
   reviewerId: string;
@@ -43,28 +57,49 @@ export function ContentModerationScreen({
   initialUserId = "",
   initialView,
 }: Readonly<{ initialUserId?: string; initialView?: "profile" | "reviews" }>) {
+  const { actor, portal } = useStaffSession();
+  const canReviews = hasPermission(actor, "review:moderate");
+  const canMaterialReviews = hasPermission(actor, "material-review:moderate");
+  const canProfile = hasPermission(actor, "profile:moderate");
+  const staffOptions = [
+    ...(canReviews ? [{ id: "reviews", label: "Đánh giá lộ trình" }] : []),
+    ...(canMaterialReviews
+      ? [{ id: "material-reviews", label: "Đánh giá tài liệu" }]
+      : []),
+    ...(canProfile ? [{ id: "profile", label: "Hồ sơ người dùng" }] : []),
+  ];
+  const defaultTab =
+    portal === "admin"
+      ? (initialView ?? (initialUserId ? "profile" : "reviews"))
+      : initialUserId && canProfile
+        ? "profile"
+        : (staffOptions[0]?.id ?? "");
+
   const [draft, setDraft] = useState(initialUserId);
   const [userId, setUserId] = useState(initialUserId);
   const [profileRevision, setProfileRevision] = useState(0);
-  const [tab, setTab] = useState<string>(
-    initialView ?? (initialUserId ? "profile" : "reviews"),
-  );
-  const { actor, portal } = useStaffSession();
-  const adminTitle = tab === "profile" ? "Hồ sơ người dùng" : "Đánh giá";
+  const [tab, setTab] = useState<string>(defaultTab);
+  const activeTab =
+    portal === "admin"
+      ? tab
+      : staffOptions.some((opt) => opt.id === tab)
+        ? tab
+        : (staffOptions[0]?.id ?? "");
+  const adminTitle = activeTab === "profile" ? "Hồ sơ người dùng" : "Đánh giá";
   return (
     <>
       <PageHeader
         title={portal === "admin" ? adminTitle : "Hồ sơ & đánh giá"}
-        desc="Xem nội dung và ghi rõ lý do kiểm duyệt."
+        desc="Xem nội dung vi phạm và ghi rõ lý do kiểm duyệt kèm nhật ký kiểm tra."
       />
       {portal === "admin" ? (
-        tab !== "profile" && (
+        activeTab !== "profile" && (
           <div className={styles.filters}>
             <label>
               Loại đánh giá{" "}
               <select
                 className="select"
-                value={tab}
+                value={activeTab}
                 onChange={(event) => setTab(event.target.value)}
               >
                 <option value="reviews">Lộ trình</option>
@@ -73,21 +108,27 @@ export function ContentModerationScreen({
             </label>
           </div>
         )
-      ) : (
-        <div className={styles.tabs}>
+      ) : staffOptions.length > 0 ? (
+        <div className="ops-tabbar">
           <Segmented
             label="Nội dung kiểm duyệt"
-            value={tab}
+            value={activeTab}
             onChange={setTab}
-            options={[
-              { id: "reviews", label: "Đánh giá lộ trình" },
-              { id: "material-reviews", label: "Đánh giá tài liệu" },
-              { id: "profile", label: "Hồ sơ người dùng" },
-            ]}
+            options={staffOptions}
           />
         </div>
+      ) : (
+        <AdminNotice tone="warn">
+          <strong>Chưa được cấp quyền kiểm duyệt hồ sơ hoặc đánh giá.</strong>
+          <p>
+            Các quyền <code>profile:moderate</code>,{" "}
+            <code>review:moderate</code> và{" "}
+            <code>material-review:moderate</code> là quyền mở rộng cần quản trị
+            viên cấp riêng cho từng nhân viên.
+          </p>
+        </AdminNotice>
       )}
-      {tab === "profile" && (
+      {activeTab === "profile" && canProfile && (
         <div className={styles.workspace}>
           <Card title="Tìm hồ sơ người dùng">
             <p className={styles.hint}>
@@ -139,8 +180,10 @@ export function ContentModerationScreen({
           )}
         </div>
       )}
-      {tab === "material-reviews" && <MaterialReviewModeration />}
-      {tab === "reviews" && <ReviewModeration />}
+      {activeTab === "material-reviews" && canMaterialReviews && (
+        <MaterialReviewModeration />
+      )}
+      {activeTab === "reviews" && canReviews && <ReviewModeration />}
     </>
   );
 }
@@ -149,14 +192,10 @@ function ProfileFieldValue({
   profile,
 }: Readonly<{ field: "BIO" | "AVATAR"; profile: Profile }>) {
   if (field === "BIO") return <p>{profile.bio || "Chưa có giới thiệu."}</p>;
-  if (profile.avatarUrl)
+  const safeAvatar = safeHttpUrl(profile.avatarUrl);
+  if (safeAvatar)
     return (
-      <a
-        className="link"
-        href={profile.avatarUrl}
-        target="_blank"
-        rel="noreferrer"
-      >
+      <a className="link" href={safeAvatar} target="_blank" rel="noreferrer">
         Mở ảnh đại diện ↗
       </a>
     );
@@ -207,7 +246,8 @@ function ProfileModeration({
                         (field === "BIO"
                           ? !resource.data?.bio ||
                             resource.data.moderation?.bio?.action === "HIDE"
-                          : !resource.data?.avatarUrl)
+                          : !resource.data?.avatarUrl ||
+                            resource.data.moderation?.avatar?.action === "HIDE")
                       }
                       onClick={() => setDecision({ field, action })}
                     >

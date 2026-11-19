@@ -22,8 +22,81 @@ import {
 } from "@/lib/staff/account-types";
 import { AdminDrawer, AdminField, AdminNotice, RecordId } from "./admin-ui";
 import { DecisionDialog, DownloadButton, QueueState } from "./common";
-
+import { useStaffList } from "./hooks";
 import { useStaffSession } from "./session";
+
+type MaterialModerationHistoryItem = {
+  id: string;
+  action: string;
+  actor: {
+    kind: string | null;
+    userId: string | null;
+    roles: string[];
+    systemActor: string | null;
+  };
+  occurredAt: string;
+  reason: string | null;
+  previousStatus: string | null;
+  status: string | null;
+  reviewedListingVersion: number | null;
+  listingVersion: number | null;
+};
+
+const historyActions: Record<string, string> = {
+  approve: "Phê duyệt & công bố",
+  reject: "Từ chối tài liệu",
+  hide: "Ẩn tài liệu",
+  unhide: "Hiện lại tài liệu",
+};
+
+function MaterialModerationHistory({
+  materialId,
+}: Readonly<{ materialId: string }>) {
+  const history = useStaffList<MaterialModerationHistoryItem>(
+    `materials/${materialId}/moderation-history?limit=10`,
+  );
+  return (
+    <section className="admin-section">
+      <h3>Lịch sử kiểm duyệt</h3>
+      <QueueState
+        loading={history.loading}
+        error={history.error}
+        empty={!history.items.length}
+        reload={history.reload}
+        emptyTitle="Chưa có lịch sử kiểm duyệt"
+        emptyDescription="Các quyết định phê duyệt, từ chối, ẩn hoặc hiện lại sẽ hiển thị tại đây."
+      >
+        <ol className="ops-timeline">
+          {history.items.map((entry) => (
+            <li className="ops-timeline-item" key={entry.id}>
+              <div className="row">
+                <strong>
+                  {historyActions[entry.action] ?? "Cập nhật kiểm duyệt"}
+                </strong>
+                {entry.status && (
+                  <Badge tone="neutral">
+                    {states[entry.status as MaterialState] ?? entry.status}
+                  </Badge>
+                )}
+                <span className="muted">{fmtDateTime(entry.occurredAt)}</span>
+              </div>
+              {entry.actor.userId && (
+                <div className="muted">
+                  Người xử lý:{" "}
+                  <UserProfileReference
+                    userId={entry.actor.userId}
+                    label="người xử lý"
+                  />
+                </div>
+              )}
+              {entry.reason && <p className="admin-reason">{entry.reason}</p>}
+            </li>
+          ))}
+        </ol>
+      </QueueState>
+    </section>
+  );
+}
 
 const states: Record<MaterialState, string> = {
   PENDING_REVIEW: "Chờ duyệt",
@@ -364,6 +437,10 @@ export function AdminMaterialsScreen() {
               </p>
             </AdminNotice>
           )}
+          <MaterialModerationHistory
+            key={selected.id}
+            materialId={selected.id}
+          />
         </AdminDrawer>
       )}
       {decision && selected && (

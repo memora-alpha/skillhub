@@ -134,8 +134,19 @@ export function auditTargetHref(type: string, id: string) {
   switch (normalizeAuditCode(type)) {
     case "REPORT_CASE":
       return `/admin/disputes/${id}`;
+    case "REPORT_INCIDENT":
+      return `/admin/disputes?incidentId=${id}`;
     case "LEARNING_PATH":
       return `/admin/learning-paths/${id}`;
+    case "SKILL_VERIFICATION":
+      return `/admin/evidence?verificationId=${id}`;
+    case "TAG_REQUEST":
+      return `/admin/tag-requests?requestId=${id}`;
+    case "PAYMENT":
+    case "PAYMENT_REVIEW":
+      return `/admin/credits?tab=payments&paymentId=${id}`;
+    case "CREDIT_TRANSACTION":
+      return `/admin/credits?tab=ledger&transactionId=${id}`;
     default:
       return null;
   }

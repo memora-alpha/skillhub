@@ -3,6 +3,7 @@ import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useStaffListPages } from "./use-staff-list-pages";
 import "./user-management.css";
+import Link from "next/link";
 import { useState } from "react";
 import {
   Avatar,
@@ -13,6 +14,7 @@ import {
   StatusBadge,
 } from "@/components/console/ui";
 import { fmtDateTime } from "@/lib/console/format";
+import { financeNumber } from "@/lib/staff/finance-presentation";
 import type { AdminUser } from "@/lib/staff/admin-types";
 import {
   filterLoadedUsers,
@@ -21,7 +23,10 @@ import {
   userStatuses,
 } from "@/lib/staff/user-list-filters";
 
+import { useStaffResource } from "./hooks";
 import { useStaffSession } from "./session";
+import { AdminDrawer, AdminField, AdminNotice, RecordId } from "./admin-ui";
+import { StaffUserProfile } from "./user-profile";
 import { QueueState } from "./common";
 import { Icon } from "@/components/console/icon";
 import { UserManagementDialog } from "./user-management-dialog";
@@ -357,13 +362,13 @@ export function UsersScreen({
         <ListPagination query={queue} />
       </Card>
       {selectedId && !selected && !queue.loading && !queue.error && (
-        <Card className="section">
-          <p>
-            Tài khoản được chọn chưa có trong trang hiện tại. Chuyển trang hoặc
-            đổi bộ lọc để tìm tài khoản.
-          </p>
-          <ListPagination query={queue} />
-        </Card>
+        <DirectUserLookupDrawer
+          userId={selectedId}
+          onClose={() => {
+            setSelectedId(null);
+            setInitialAction(undefined);
+          }}
+        />
       )}
       {creating && (
         <CreateStaffDialog
@@ -406,5 +411,115 @@ export function UsersScreen({
         />
       )}
     </>
+  );
+}
+
+type WalletSnapshot = {
+  availableCredit: string;
+  heldCredit: string;
+  walletVersion: number;
+};
+
+function DirectUserLookupDrawer({
+  userId,
+  onClose,
+}: Readonly<{ userId: string; onClose: () => void }>) {
+  const validUuid = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(
+    userId,
+  );
+  const wallet = useStaffResource<WalletSnapshot>(`users/${userId}/wallet`, {
+    enabled: validUuid,
+  });
+
+  return (
+    <AdminDrawer
+      wide
+      title="Tra cứu nhanh tài khoản"
+      subtitle={<RecordId id={userId} label="người dùng" />}
+      close={onClose}
+      footer={
+        <button type="button" className="btn" onClick={onClose}>
+          Đóng
+        </button>
+      }
+    >
+      {!validUuid ? (
+        <AdminNotice tone="bad">
+          Mã tài khoản trên đường dẫn không đúng định dạng UUID.
+        </AdminNotice>
+      ) : (
+        <div className="stack">
+          <AdminNotice tone="info">
+            Tài khoản này nằm ngoài trang danh sách hiện tại. Bạn vẫn có thể xem
+            hồ sơ công khai, số dư ví Credit và đi tới các màn hình quản trị
+            liên quan. Để khóa/mở khóa hoặc đổi vai trò, hãy chuyển trang hoặc
+            lọc theo vai trò/trạng thái trong bảng danh sách.
+          </AdminNotice>
+
+          <section className="admin-section">
+            <h3>Liên kết quản trị nhanh</h3>
+            <div className="row">
+              <Link
+                className="btn btn-sm"
+                href={`/admin/profile-moderation?view=profile&userId=${userId}`}
+              >
+                Kiểm duyệt hồ sơ
+              </Link>
+              <Link
+                className="btn btn-sm"
+                href={`/admin/credits?tab=wallet&userId=${userId}`}
+              >
+                Xem ví Credit
+              </Link>
+              <Link
+                className="btn btn-sm"
+                href={`/admin/credits?tab=ledger&userId=${userId}`}
+              >
+                Lịch sử giao dịch Credit
+              </Link>
+              <Link
+                className="btn btn-sm"
+                href={`/admin/staff-permissions?userId=${userId}`}
+              >
+                Quyền nhân viên (nếu là Staff)
+              </Link>
+            </div>
+          </section>
+
+          <section className="admin-section">
+            <h3>Số dư ví Credit</h3>
+            <QueueState
+              loading={wallet.loading}
+              error={wallet.error}
+              empty={!wallet.data}
+              reload={wallet.reload}
+            >
+              {wallet.data && (
+                <div className="admin-summary-strip">
+                  <AdminField label="Credit khả dụng">
+                    <strong className="admin-money">
+                      {financeNumber(wallet.data.availableCredit)} CR
+                    </strong>
+                  </AdminField>
+                  <AdminField label="Credit đang giữ (Held)">
+                    <strong className="admin-money">
+                      {financeNumber(wallet.data.heldCredit)} CR
+                    </strong>
+                  </AdminField>
+                  <AdminField label="Phiên bản ví">
+                    v{wallet.data.walletVersion}
+                  </AdminField>
+                </div>
+              )}
+            </QueueState>
+          </section>
+
+          <section className="admin-section">
+            <h3>Hồ sơ công khai</h3>
+            <StaffUserProfile userId={userId} />
+          </section>
+        </div>
+      )}
+    </AdminDrawer>
   );
 }
