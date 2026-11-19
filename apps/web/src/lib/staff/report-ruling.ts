@@ -13,10 +13,14 @@ export function reportRulingContext(item: ReportCaseDetail) {
     !item.attendanceOutcome &&
     ["DISPUTED", "MAKEUP_REQUIRED"].includes(status);
   const options = item.resolutionOptions;
+  const makeupAlreadyGranted =
+    options?.makeupAlreadyGranted ??
+    item.attendanceOutcome?.evidence?.makeupGranted === true;
   return {
     attendance,
     cancellation,
     required: status === "DISPUTED",
+    makeupAlreadyGranted,
     allowUphold:
       status === "NO_SHOW" &&
       ["TEACHER_ABSENT", "LEARNER_ABSENT", "BOTH_ABSENT"].includes(
@@ -25,9 +29,43 @@ export function reportRulingContext(item: ReportCaseDetail) {
     needsMakeupUser:
       attendance &&
       ["UNVERIFIABLE", "BOTH_PRESENT"].includes(attendanceCase) &&
-      !options?.makeupAlreadyGranted &&
+      !makeupAlreadyGranted &&
       !options?.obligationsEnded,
   };
+}
+
+/** Missing server capabilities must not imply permission to reserve another makeup. */
+export function reportRulingAvailable(
+  item: ReportCaseDetail,
+  ruling: "UPHOLD" | "EXCUSE" | "COMPLETE",
+) {
+  const context = reportRulingContext(item);
+  if (!context.attendance || (ruling === "UPHOLD" && !context.allowUphold))
+    return false;
+  if (item.resolutionOptions)
+    return item.resolutionOptions.noShowRulings.some(
+      (option) => option.value === ruling && option.allowed,
+    );
+  return (
+    ruling === "COMPLETE" ||
+    context.makeupAlreadyGranted ||
+    (ruling === "UPHOLD" &&
+      item.attendanceOutcome?.attendanceCase === "LEARNER_ABSENT")
+  );
+}
+
+export function cancellationRulingAvailable(
+  item: ReportCaseDetail,
+  ruling: "EXTEND" | "COMPLETE",
+  scope: "case" | "incident" = "case",
+) {
+  return (
+    scope === "case" &&
+    reportRulingContext(item).cancellation &&
+    item.resolutionOptions?.cancellationMakeupRulings?.some(
+      (option) => option.value === ruling && option.allowed,
+    ) === true
+  );
 }
 
 /** Validate the selected business decision; never choose completion as a fallback. */
@@ -35,8 +73,13 @@ export function assertReportRuling(
   item: ReportCaseDetail,
   draft: ResolutionDraft,
   action: "resolve" | "reject" = "resolve",
+  scope: "case" | "incident" = "case",
 ) {
   const context = reportRulingContext(item);
+  if (scope === "incident" && draft.cancellationMakeupRuling)
+    throw new Error(
+      "API vụ việc chung chưa hỗ trợ quyết định cho buổi đã hủy. Không thể gửi phương án này.",
+    );
   if (action === "reject") {
     if (context.required)
       throw new Error(
@@ -56,6 +99,14 @@ export function assertReportRuling(
     assertNoShowRuling(item, draft.noShowRuling, draft.makeupUserId, context);
   if (draft.cancellationMakeupRuling)
     assertCancellationRuling(item, draft.cancellationMakeupRuling, context);
+  if (
+    (draft.noShowRuling === "COMPLETE" ||
+      draft.cancellationMakeupRuling === "COMPLETE") &&
+    !draft.completionEvidenceConfirmed
+  )
+    throw new Error(
+      "Xác nhận đã kiểm tra bằng chứng buổi học hoàn thành trước khi lưu.",
+    );
 }
 
 function assertMakeupParticipant(
@@ -81,7 +132,7 @@ function assertMakeupParticipant(
 }
 function assertNoShowRuling(
   item: ReportCaseDetail,
-  ruling: NonNullable<ResolutionDraft["noShowRuling"]>,
+  ruling: Exclude<ResolutionDraft["noShowRuling"], "" | undefined>,
   makeupUserId: string | undefined,
   context: ReturnType<typeof reportRulingContext>,
 ) {
@@ -99,17 +150,25 @@ function assertNoShowRuling(
       409,
       option.blockedReason ?? "NO_SHOW_RULING_NOT_APPLICABLE",
     );
+  if (!reportRulingAvailable(item, ruling))
+    throw new Error(
+      "Chưa có dữ liệu xác nhận hạn mức học bù. Cần bộ phận kỹ thuật bổ sung điều kiện xử lý; không chọn hoàn thành chỉ để đóng báo cáo.",
+    );
   if (ruling === "EXCUSE" && context.needsMakeupUser)
     assertMakeupParticipant(item, makeupUserId);
 }
 function assertCancellationRuling(
   item: ReportCaseDetail,
-  ruling: NonNullable<ResolutionDraft["cancellationMakeupRuling"]>,
+  ruling: Exclude<ResolutionDraft["cancellationMakeupRuling"], "" | undefined>,
   context: ReturnType<typeof reportRulingContext>,
 ) {
   const choices = item.resolutionOptions?.cancellationMakeupRulings;
   const option = choices?.find((row) => row.value === ruling);
-  if (!context.cancellation || (choices && !option?.allowed))
+  if (context.cancellation && !choices)
+    throw new Error(
+      "Chưa có dữ liệu xác nhận điều kiện xử lý buổi đã hủy. Cần bộ phận kỹ thuật bổ sung trước khi quyết định.",
+    );
+  if (!context.cancellation || !cancellationRulingAvailable(item, ruling))
     throw new StaffApiError(
       409,
       option?.blockedReason ?? "CANCELLATION_MAKEUP_RULING_NOT_APPLICABLE",
@@ -125,8 +184,16 @@ export function assertReportRulingCurrent(
       caseStatus: item.status,
       handlerId: item.handlerId,
       incidentId: item.incidentId,
+      sessionId: item.session?.id,
+      teacherId: item.session?.teacherId,
+      learnerId: item.session?.learnerId,
+      pathStatus: item.path?.status,
+      settledAt: item.path?.settledAt,
       status: item.session?.status,
       attendance: item.attendanceOutcome?.attendanceCase,
+      attendanceStatus: item.attendanceOutcome?.status,
+      attendanceResolution: item.attendanceOutcome?.resolution,
+      makeupGranted: item.attendanceOutcome?.evidence?.makeupGranted === true,
       options: item.resolutionOptions,
     });
   if (previous.id !== current.id || snapshot(previous) !== snapshot(current))

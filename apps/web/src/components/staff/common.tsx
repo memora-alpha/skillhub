@@ -94,6 +94,7 @@ export function DecisionDialog({
   children,
   withReason = true,
   presentation = "modal",
+  submitDisabled = false,
 }: Readonly<{
   title: string;
   description: string;
@@ -109,6 +110,7 @@ export function DecisionDialog({
   children?: ReactNode;
   withReason?: boolean;
   presentation?: "modal" | "drawer";
+  submitDisabled?: boolean;
 }>) {
   const { expire } = useStaffSession();
   const dialog = useRef<HTMLDialogElement>(null);
@@ -164,7 +166,7 @@ export function DecisionDialog({
         }}
         onSubmit={async (e) => {
           e.preventDefault();
-          if (flight.current || mustReload) return;
+          if (flight.current || mustReload || submitDisabled) return;
           const trimmed = text.trim(),
             length = Array.from(trimmed).length;
           if (length < min || (max !== undefined && length > max)) {
@@ -286,7 +288,7 @@ export function DecisionDialog({
             <LoadingButton
               type="submit"
               className={`btn ${danger ? "btn-danger" : "btn-primary"}`}
-              disabled={busy}
+              disabled={busy || submitDisabled}
               loading={!!busy}
             >
               {busy ? "Đang gửi…" : confirmLabel}

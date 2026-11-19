@@ -2,7 +2,11 @@
 import Link from "next/link";
 import type { ReportCaseDetail } from "@/lib/staff/types";
 import type { ResolutionDraft } from "@/lib/staff/report-resolution";
-import { reportRulingContext } from "@/lib/staff/report-ruling";
+import {
+  reportRulingContext,
+  reportRulingAvailable,
+  cancellationRulingAvailable,
+} from "@/lib/staff/report-ruling";
 import { StaffApiError } from "@/lib/staff/client";
 
 export function ReportRulingFields({
@@ -10,22 +14,26 @@ export function ReportRulingFields({
   value,
   onChange,
   admin = false,
+  scope = "case",
 }: Readonly<{
   item: ReportCaseDetail;
   value: ResolutionDraft;
   onChange: (value: ResolutionDraft) => void;
   admin?: boolean;
+  scope?: "case" | "incident";
 }>) {
   const context = reportRulingContext(item);
   const options = item.resolutionOptions;
   const choice = (code: string) =>
     options?.noShowRulings.find((row) => row.value === code);
   const blocked = choice("EXCUSE")?.blockedReason;
-  const unavailable = (code: string) =>
-    !!options && choice(code)?.allowed !== true;
+  const unavailable = (code: "UPHOLD" | "EXCUSE" | "COMPLETE") =>
+    !reportRulingAvailable(item, code);
   const cancellationBlocked =
     context.cancellation &&
-    options?.cancellationMakeupRulings?.every((row) => !row.allowed);
+    !(["EXTEND", "COMPLETE"] as const).some((code) =>
+      cancellationRulingAvailable(item, code, scope),
+    );
   const reporterBlocked =
     !!item.reporterId &&
     !!options &&
@@ -34,7 +42,7 @@ export function ReportRulingFields({
     if (options?.obligationsEnded) {
       return "Chấp nhận lý do theo quyết định dừng lộ trình" as const;
     }
-    if (options?.makeupAlreadyGranted) {
+    if (context.makeupAlreadyGranted) {
       return "Gia hạn đặt lịch của lượt học bù đã cấp" as const;
     }
     return "Chấp nhận lý do và yêu cầu học bù" as const;
@@ -86,9 +94,16 @@ export function ReportRulingFields({
       )}
       {cancellationBlocked && (
         <p className="notice notice-warn">
-          Buổi học chưa có lượt học bù từ yêu cầu hủy hợp lệ để gia hạn hoặc
-          chốt kết quả. Kiểm tra lịch sử buổi học và yêu cầu bổ sung thông tin
-          trước khi quyết định.
+          {scope === "incident"
+            ? "API vụ việc chung chưa hỗ trợ quyết định cho buổi đã hủy. Cần bộ phận kỹ thuật bổ sung; không thể xác nhận giải quyết bằng phương án này."
+            : "Chưa có dữ liệu xác nhận điều kiện xử lý buổi đã hủy. Cần bộ phận kỹ thuật bổ sung trước khi quyết định."}
+        </p>
+      )}
+      {context.attendance && !options && !context.makeupAlreadyGranted && (
+        <p className="notice notice-warn">
+          Chưa có dữ liệu hạn mức để cấp học bù. Các phương án cần cấp lượt đang
+          tạm khóa. Chỉ ghi nhận hoàn thành nếu bằng chứng xác nhận buổi học đã
+          hoàn thành.
         </p>
       )}
       {context.attendance &&
@@ -126,6 +141,7 @@ export function ReportRulingFields({
                   .value as ResolutionDraft["noShowRuling"],
                 cancellationMakeupRuling: "",
                 makeupUserId: "",
+                completionEvidenceConfirmed: false,
               })
             }
           >
@@ -150,10 +166,23 @@ export function ReportRulingFields({
       )}
       {(value.noShowRuling === "COMPLETE" ||
         value.cancellationMakeupRuling === "COMPLETE") && (
-        <p className="notice notice-warn">
-          Quyết định này ghi nhận buổi học đã hoàn thành và có thể ảnh hưởng
-          quyết toán Credit. Không dùng chỉ để đóng báo cáo do hết lượt học bù.
-        </p>
+        <label className="notice notice-warn row">
+          <input
+            type="checkbox"
+            required
+            checked={value.completionEvidenceConfirmed === true}
+            onChange={(event) =>
+              onChange({
+                ...value,
+                completionEvidenceConfirmed: event.target.checked,
+              })
+            }
+          />
+          <span>
+            Tôi đã kiểm tra bằng chứng xác nhận buổi học hoàn thành. Quyết định
+            này có thể ảnh hưởng quyết toán Credit.
+          </span>
+        </label>
       )}
       {value.noShowRuling === "UPHOLD" && (
         <p className="muted">
@@ -161,7 +190,7 @@ export function ReportRulingFields({
           bù vẫn phải đáp ứng hạn mức.
         </p>
       )}
-      {value.noShowRuling === "EXCUSE" && options?.makeupAlreadyGranted && (
+      {value.noShowRuling === "EXCUSE" && context.makeupAlreadyGranted && (
         <p className="muted">
           Chỉ gia hạn thời gian đặt lịch của lượt đã cấp; không cấp thêm lượt.
         </p>
@@ -206,6 +235,7 @@ export function ReportRulingFields({
           <select
             aria-label="Quyết định cho buổi đã hủy"
             required={context.required}
+            disabled={cancellationBlocked}
             value={value.cancellationMakeupRuling ?? ""}
             onChange={(event) =>
               onChange({
@@ -214,6 +244,7 @@ export function ReportRulingFields({
                   .value as ResolutionDraft["cancellationMakeupRuling"],
                 noShowRuling: "",
                 makeupUserId: "",
+                completionEvidenceConfirmed: false,
               })
             }
           >
@@ -222,11 +253,7 @@ export function ReportRulingFields({
               <option
                 key={code}
                 value={code}
-                disabled={
-                  options?.cancellationMakeupRulings?.find(
-                    (row) => row.value === code,
-                  )?.allowed === false
-                }
+                disabled={!cancellationRulingAvailable(item, code, scope)}
               >
                 {code === "EXTEND"
                   ? "Gia hạn đặt lịch của lượt học bù đã cấp"

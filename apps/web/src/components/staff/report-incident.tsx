@@ -11,6 +11,7 @@ import { assertReportEditable } from "@/lib/staff/report-access";
 import {
   assertReportRuling,
   assertReportRulingCurrent,
+  reportRulingContext,
 } from "@/lib/staff/report-ruling";
 import {
   type ResolutionDraft,
@@ -203,6 +204,17 @@ function IncidentDecision({
       min={3}
       max={2000}
       confirmLabel="Xác nhận quyết định"
+      submitDisabled={
+        detail.loading ||
+        !!detail.error ||
+        !detail.data ||
+        (action === "reject" &&
+          !!detail.data &&
+          reportRulingContext(detail.data).required) ||
+        (action === "resolve" &&
+          !!detail.data &&
+          reportRulingContext(detail.data).cancellation)
+      }
       onClose={close}
       onReload={() => {
         void detail.reload();
@@ -217,10 +229,10 @@ function IncidentDecision({
           throw new Error(
             "Chưa tải được điều kiện xử lý. Hãy tải lại dữ liệu trước khi quyết định.",
           );
-        assertReportRuling(detail.data, draft, action);
+        assertReportRuling(detail.data, draft, action, "incident");
         const fresh = await api<ReportCaseDetail>("reports/" + caseId);
         assertReportRulingCurrent(detail.data, fresh.data);
-        assertReportRuling(fresh.data, draft, action);
+        assertReportRuling(fresh.data, draft, action, "incident");
         const participants = fresh.data.session
           ? [fresh.data.session.teacherId, fresh.data.session.learnerId].map(
               (userId) => ({
@@ -251,6 +263,7 @@ function IncidentDecision({
       >
         {detail.data && action === "resolve" && (
           <ReportRulingFields
+            scope="incident"
             item={detail.data}
             value={draft}
             onChange={setDraft}

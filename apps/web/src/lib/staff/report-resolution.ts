@@ -13,6 +13,7 @@ export type ParticipantOutcome = {
   amount: string;
 };
 export type ResolutionDraft = {
+  completionEvidenceConfirmed?: boolean;
   noShowRuling?: "" | "UPHOLD" | "EXCUSE" | "COMPLETE";
   cancellationMakeupRuling?: "" | "EXTEND" | "COMPLETE";
   makeupUserId?: string;
