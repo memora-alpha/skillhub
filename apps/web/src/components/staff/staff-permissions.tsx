@@ -1,10 +1,6 @@
 "use client";
 import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
-import {
-  splitPages,
-  useListPages,
-} from "@/components/pagination/use-list-pages";
 import { useStaffListPages } from "./use-staff-list-pages";
 import { useState } from "react";
 import {
@@ -20,9 +16,15 @@ import {
   canDescribeStaffPermission,
   staffPermissionPresentation,
 } from "@/lib/staff/permission-presentation";
+import {
+  isStaffDefaultPermission,
+  STAFF_PERMISSION_GROUPS,
+} from "@/lib/staff/permissions";
+import { AdminField, AdminNotice } from "./admin-ui";
 import { useStaffResource } from "./hooks";
 import { useStaffSession } from "./session";
 import { DecisionDialog, QueueState } from "./common";
+
 type Staff = {
   userId: string;
   fullName: string;
@@ -35,6 +37,7 @@ type Permissions = {
   effectivePermissions: string[];
   overrides: { code: string; effect: string }[];
 };
+
 export function StaffPermissionsScreen({
   initialUserId = "",
 }: Readonly<{ initialUserId?: string }>) {
@@ -51,14 +54,14 @@ export function StaffPermissionsScreen({
   return (
     <section className="ops-permissions">
       <PageHeader
-        title="Quyền nhân viên"
-        desc="Xem quyền đang áp dụng và điều chỉnh quyền cho từng nhân viên."
+        title="Nhân viên & phân quyền"
+        desc="Kiểm soát từng quyền vận hành theo nguyên tắc tách biệt vai trò Staff và Admin (SRS BR-39)."
       />
       <div className="ops-permission-layout">
-        <Card className="ops-staff-picker" title="Nhân viên">
+        <Card className="ops-staff-picker" title="Danh sách nhân viên">
           <SearchBox
             label="Tìm nhân viên trên trang này"
-            placeholder="Tìm nhân viên trên trang này…"
+            placeholder="Tên hoặc email đã che…"
             value={search}
             onChange={setSearch}
           />
@@ -78,7 +81,7 @@ export function StaffPermissionsScreen({
                   onClick={() => setUserId(user.userId)}
                 >
                   <span className="avatar" aria-hidden="true">
-                    {user.fullName.slice(0, 1)}
+                    {user.fullName.trim().slice(0, 1).toUpperCase()}
                   </span>
                   <span>
                     <strong>{user.fullName}</strong>
@@ -98,8 +101,8 @@ export function StaffPermissionsScreen({
         ) : (
           <Card>
             <Empty
-              title="Chọn nhân viên để xem quyền"
-              desc="Quyền hiệu lực và các tùy chỉnh sẽ xuất hiện tại đây."
+              title="Chọn nhân viên để quản lý quyền"
+              desc="Xem nhóm quyền mặc định, quyền mở rộng và các tùy chỉnh GRANT / DENY đang hiệu lực."
             />
           </Card>
         )}
@@ -107,46 +110,123 @@ export function StaffPermissionsScreen({
     </section>
   );
 }
+
 function PermissionEditor({
   userId,
   staff,
 }: Readonly<{ userId: string; staff?: Staff }>) {
-  const { api, actor } = useStaffSession();
+  const { api } = useStaffSession();
   const catalog = useStaffResource<Catalog[]>("staff-permissions/catalog");
   const permissions = useStaffResource<Permissions>(
     `staff-permissions/${userId}`,
   );
-  const catalogPages = useListPages({
-    scope: `permissions:${actor?.userId}:${userId}`,
-    chunks: splitPages(catalog.data ?? []),
-    loading: catalog.loading,
-    error: catalog.error,
-    hasMore: false,
-    more: () => {},
-    reload: catalog.reload,
-  });
   const [code, setCode] = useState("");
   const [effect, setEffect] = useState("GRANT");
   const [password, setPassword] = useState("");
   const [saved, setSaved] = useState(false);
+
+  const catalogByCode = new Map(
+    (catalog.data ?? []).map((item) => [item.code, item]),
+  );
+  const groupedCodes = new Set<string>(
+    STAFF_PERMISSION_GROUPS.flatMap((g) => g.codes),
+  );
+  const extraCatalogItems = (catalog.data ?? []).filter(
+    (item) => !groupedCodes.has(item.code),
+  );
+
+  const activeCount = permissions.data
+    ? (catalog.data ?? []).filter((item) =>
+        permissions.data!.effectivePermissions.includes(item.code),
+      ).length
+    : 0;
+  const totalCatalog = catalog.data?.length ?? 0;
+  const overrideCount = permissions.data?.overrides.length ?? 0;
+
+  function renderPermissionRow(permission: Catalog) {
+    const text = staffPermissionPresentation(permission.code);
+    const override = permissions.data!.overrides.find(
+      (row) => row.code === permission.code,
+    );
+    const allowed = permissions.data!.effectivePermissions.includes(
+      permission.code,
+    );
+    const isDefault = isStaffDefaultPermission(permission.code);
+
+    function overrideLabel() {
+      if (override?.effect === "GRANT") return "Đã cấp riêng";
+      if (override?.effect === "DENY") return "Đã chặn riêng";
+      return "Theo mặc định";
+    }
+
+    return (
+      <li className="ops-permission-row" key={permission.code}>
+        <div>
+          <strong>{text.label}</strong>
+          <p>{text.description}</p>
+          <div className="ops-permission-badges">
+            <Badge tone={isDefault ? "info" : "neutral"}>
+              {isDefault ? "Mặc định Staff" : "Quyền mở rộng"}
+            </Badge>
+            <code className="muted" style={{ fontSize: 11.5 }}>
+              {permission.code}
+            </code>
+          </div>
+        </div>
+        <Badge tone={allowed ? "ok" : "neutral"}>
+          {allowed ? "Được phép" : "Không được phép"}
+        </Badge>
+        <span className="muted">{overrideLabel()}</span>
+        <LoadingButton
+          type="button"
+          className="btn btn-sm"
+          disabled={
+            permissions.loading || !canDescribeStaffPermission(permission.code)
+          }
+          aria-label={`Thay đổi quyền ${text.label.toLocaleLowerCase("vi")}`}
+          title={
+            !canDescribeStaffPermission(permission.code)
+              ? text.description
+              : undefined
+          }
+          onClick={() => {
+            setCode(permission.code);
+            if (override?.effect === "DENY") setEffect("DENY");
+            else if (override?.effect === "GRANT") setEffect("GRANT");
+            else setEffect("RESET");
+            setSaved(false);
+            setPassword("");
+          }}
+          loading={!!permissions.loading}
+        >
+          Điều chỉnh
+        </LoadingButton>
+      </li>
+    );
+  }
+
   return (
     <Card className="ops-permission-editor">
       <div className="ops-staff-summary">
         <span className="avatar" aria-hidden="true">
-          {staff?.fullName.slice(0, 1) ?? "S"}
+          {staff?.fullName.trim().slice(0, 1).toUpperCase() ?? "S"}
         </span>
         <div>
           <h2>{staff?.fullName ?? "Nhân viên đang chọn"}</h2>
           <p className="muted">
-            {staff?.maskedEmail ?? `#${userId.slice(0, 8)}`} · Nhân viên
+            {staff?.maskedEmail ?? `#${userId.slice(0, 8)}`} · Nhân viên vận
+            hành
           </p>
         </div>
         {staff?.accountStatus && <StatusBadge status={staff.accountStatus} />}
       </div>
-      <p className="staff-flag">
-        Thay đổi quyền sẽ thu hồi các phiên hiện tại của nhân viên. Mỗi thay đổi
-        cần xác thực lại bằng mật khẩu quản trị viên.
-      </p>
+
+      <AdminNotice tone="warn">
+        <strong>Lưu ý bảo mật:</strong> Mọi thay đổi quyền sẽ thu hồi toàn bộ
+        phiên đăng nhập hiện tại của nhân viên, yêu cầu xác thực lại bằng mật
+        khẩu quản trị viên và ghi nhật ký kiểm tra (Audit Log).
+      </AdminNotice>
+
       <QueueState
         loading={permissions.loading || catalog.loading}
         error={permissions.error || catalog.error}
@@ -158,10 +238,27 @@ function PermissionEditor({
       >
         {permissions.data && catalog.data && (
           <>
+            <div className="admin-summary-strip">
+              <AdminField label="Quyền đang hiệu lực">
+                <strong>
+                  {activeCount}/{totalCatalog} quyền
+                </strong>
+              </AdminField>
+              <AdminField label="Tùy chỉnh riêng (Override)">
+                <strong>{overrideCount} mục</strong>
+              </AdminField>
+              <AdminField label="Phiên bản phân quyền">
+                <Badge tone="brand">v{permissions.data.version}</Badge>
+              </AdminField>
+            </div>
+
             <div className="ops-permission-heading">
               <div>
-                <h3>Quyền đang áp dụng</h3>
-                <p className="muted">Theo vai trò và tùy chỉnh hiện tại.</p>
+                <h3>Ma trận quyền theo phân hệ nghiệp vụ</h3>
+                <p className="muted">
+                  Staff nhận 9 quyền kiểm duyệt cốt lõi mặc định và có thể được
+                  mở rộng thêm 6 quyền xử lý nâng cao.
+                </p>
               </div>
               <LoadingButton
                 type="button"
@@ -172,77 +269,40 @@ function PermissionEditor({
                 }}
                 loading={!!permissions.loading}
               >
-                Làm mới danh sách quyền
+                Làm mới
               </LoadingButton>
             </div>
-            <ul
-              className="ops-permission-table"
-              aria-label="Danh mục quyền nhân viên"
-            >
-              {catalogPages.items.map((permission) => {
-                const text = staffPermissionPresentation(permission.code);
-                const override = permissions.data!.overrides.find(
-                  (row) => row.code === permission.code,
-                );
-                const allowed = permissions.data!.effectivePermissions.includes(
-                  permission.code,
-                );
-                function overrideLabel() {
-                  if (override?.effect === "GRANT") {
-                    return "Đã cấp riêng";
-                  }
-                  if (override?.effect === "DENY") {
-                    return "Đã chặn riêng";
-                  }
-                  return "Theo mặc định";
-                }
-                return (
-                  <li className="ops-permission-row" key={permission.code}>
-                    <div>
-                      <strong>{text.label}</strong>
-                      <p>{text.description}</p>
-                    </div>
-                    <Badge tone={allowed ? "ok" : "neutral"}>
-                      {allowed ? "Được phép" : "Không được phép"}
-                    </Badge>
-                    <span className="muted">{overrideLabel()}</span>
-                    <LoadingButton
-                      type="button"
-                      className="btn btn-sm"
-                      disabled={
-                        permissions.loading ||
-                        !canDescribeStaffPermission(permission.code)
-                      }
-                      aria-label={`Thay đổi quyền ${text.label.toLocaleLowerCase("vi")}`}
-                      title={
-                        !canDescribeStaffPermission(permission.code)
-                          ? text.description
-                          : undefined
-                      }
-                      onClick={() => {
-                        setCode(permission.code);
-                        function overrideEffect() {
-                          if (override?.effect === "DENY") {
-                            return "DENY";
-                          }
-                          if (override?.effect === "GRANT") {
-                            return "GRANT";
-                          }
-                          return "RESET";
-                        }
-                        setEffect(overrideEffect());
-                        setSaved(false);
-                        setPassword("");
-                      }}
-                      loading={!!permissions.loading}
-                    >
-                      Thay đổi
-                    </LoadingButton>
-                  </li>
-                );
-              })}
-            </ul>
-            <ListPagination query={catalogPages} />
+
+            {STAFF_PERMISSION_GROUPS.map((group) => {
+              const items = group.codes
+                .map((c) => catalogByCode.get(c))
+                .filter((item): item is Catalog => !!item);
+              if (!items.length) return null;
+              return (
+                <section className="ops-permission-group" key={group.id}>
+                  <div className="ops-permission-group-head">
+                    <h4>{group.title}</h4>
+                    <p>{group.description}</p>
+                  </div>
+                  <ul className="ops-permission-table" aria-label={group.title}>
+                    {items.map(renderPermissionRow)}
+                  </ul>
+                </section>
+              );
+            })}
+
+            {extraCatalogItems.length > 0 && (
+              <section className="ops-permission-group">
+                <div className="ops-permission-group-head">
+                  <h4>Quyền bổ sung khác</h4>
+                  <p>Các quyền khác được máy chủ công bố trong danh mục.</p>
+                </div>
+                <ul className="ops-permission-table" aria-label="Quyền bổ sung">
+                  {extraCatalogItems.map(renderPermissionRow)}
+                </ul>
+              </section>
+            )}
+
             {code && (
               <DecisionDialog
                 key={code}
@@ -298,9 +358,9 @@ function PermissionEditor({
                       value={effect}
                       onChange={(e) => setEffect(e.target.value)}
                     >
-                      <option value="GRANT">Cho phép</option>
-                      <option value="DENY">Chặn</option>
-                      <option value="RESET">Theo mặc định</option>
+                      <option value="GRANT">Cho phép (GRANT)</option>
+                      <option value="DENY">Chặn riêng (DENY)</option>
+                      <option value="RESET">Khôi phục mặc định (RESET)</option>
                     </select>
                   </label>
                   <label className="staff-field">

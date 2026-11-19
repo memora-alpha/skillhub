@@ -9,47 +9,52 @@ export type AdminTab = Readonly<{
   label: string;
   view?: ModerationView;
 }>;
+export type AdminSectionGroup =
+  "Điều hành" | "Kiểm duyệt & Vụ việc" | "Danh mục & Quản trị";
+
+export const adminSectionGroups: readonly AdminSectionGroup[] = [
+  "Điều hành",
+  "Kiểm duyệt & Vụ việc",
+  "Danh mục & Quản trị",
+];
+
 export type AdminSection = Readonly<{
   id: string;
   href: string;
   label: string;
   icon: IconName;
+  group: AdminSectionGroup;
   tabs?: readonly AdminTab[];
 }>;
 
 export const adminSections: readonly AdminSection[] = [
-  { id: "overview", href: "/admin", label: "Tổng quan", icon: "grid" },
+  {
+    id: "overview",
+    href: "/admin",
+    label: "Tổng quan",
+    icon: "grid",
+    group: "Điều hành",
+  },
   {
     id: "learning-paths",
     href: "/admin/learning-paths",
     label: "Lộ trình học",
     icon: "book",
+    group: "Điều hành",
   },
   {
-    id: "people",
-    href: "/admin/users",
-    label: "Người dùng & nhân sự",
-    icon: "users",
-    tabs: [
-      {
-        id: "users",
-        href: "/admin/users",
-        path: "/admin/users",
-        label: "Người dùng",
-      },
-      {
-        id: "staff",
-        href: "/admin/staff-permissions",
-        path: "/admin/staff-permissions",
-        label: "Nhân viên & phân quyền",
-      },
-    ],
+    id: "finance",
+    href: "/admin/credits",
+    label: "Tài chính & Credit",
+    icon: "card",
+    group: "Điều hành",
   },
   {
     id: "moderation",
     href: "/admin/moderation",
     label: "Kiểm duyệt",
     icon: "shield",
+    group: "Kiểm duyệt & Vụ việc",
     tabs: [
       {
         id: "requests",
@@ -61,14 +66,13 @@ export const adminSections: readonly AdminSection[] = [
         id: "materials",
         href: "/admin/content",
         path: "/admin/content",
-        label: "Tài liệu",
+        label: "Tài liệu số",
       },
       {
-        id: "profiles",
-        href: "/admin/profile-moderation?view=profile",
-        path: "/admin/profile-moderation",
-        label: "Hồ sơ",
-        view: "profile",
+        id: "evidence",
+        href: "/admin/evidence",
+        path: "/admin/evidence",
+        label: "Bằng chứng kỹ năng",
       },
       {
         id: "reviews",
@@ -78,10 +82,11 @@ export const adminSections: readonly AdminSection[] = [
         view: "reviews",
       },
       {
-        id: "evidence",
-        href: "/admin/evidence",
-        path: "/admin/evidence",
-        label: "Bằng chứng kỹ năng",
+        id: "profiles",
+        href: "/admin/profile-moderation?view=profile",
+        path: "/admin/profile-moderation",
+        label: "Hồ sơ",
+        view: "profile",
       },
     ],
   },
@@ -90,6 +95,7 @@ export const adminSections: readonly AdminSection[] = [
     href: "/admin/disputes",
     label: "Vụ việc & hỗ trợ",
     icon: "alert",
+    group: "Kiểm duyệt & Vụ việc",
     tabs: [
       {
         id: "reports",
@@ -106,10 +112,32 @@ export const adminSections: readonly AdminSection[] = [
     ],
   },
   {
+    id: "people",
+    href: "/admin/users",
+    label: "Người dùng & nhân sự",
+    icon: "users",
+    group: "Danh mục & Quản trị",
+    tabs: [
+      {
+        id: "users",
+        href: "/admin/users",
+        path: "/admin/users",
+        label: "Người dùng",
+      },
+      {
+        id: "staff",
+        href: "/admin/staff-permissions",
+        path: "/admin/staff-permissions",
+        label: "Nhân viên & phân quyền",
+      },
+    ],
+  },
+  {
     id: "catalog",
     href: "/admin/skills",
-    label: "Danh mục",
+    label: "Danh mục chuẩn",
     icon: "tag",
+    group: "Danh mục & Quản trị",
     tabs: [
       {
         id: "skills",
@@ -131,14 +159,20 @@ export const adminSections: readonly AdminSection[] = [
       },
     ],
   },
-  { id: "finance", href: "/admin/credits", label: "Tài chính", icon: "card" },
   {
     id: "audit",
     href: "/admin/audit",
     label: "Nhật ký hoạt động",
     icon: "clock",
+    group: "Danh mục & Quản trị",
   },
-  { id: "settings", href: "/admin/config", label: "Cấu hình", icon: "sliders" },
+  {
+    id: "settings",
+    href: "/admin/config",
+    label: "Cấu hình nghiệp vụ",
+    icon: "sliders",
+    group: "Danh mục & Quản trị",
+  },
 ];
 
 function matchesPath(pathname: string, path: string) {

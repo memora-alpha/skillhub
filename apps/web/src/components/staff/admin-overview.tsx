@@ -428,20 +428,30 @@ function LearningActivity({
 }
 function LearningDashboard({ summary, trends, loading }: Readonly<DataProps>) {
   const learning = sectionData(summary?.learning);
+  const scheduled = learning?.scheduledSessions ?? 0;
+  const completed = learning?.completedInScheduledCohort ?? 0;
+  const completionRate =
+    learning && scheduled > 0
+      ? `${Math.round((completed / scheduled) * 100)}%`
+      : "—";
   return (
     <>
       <div className={`${styles.metrics} ${styles.learningMetrics}`}>
         <DashboardMetric
           label="Lộ trình đang học"
           value={dashboardNumber(learning?.inProgressPaths)}
-          hint="Hiện tại"
+          hint="Hiện tại · Một thỏa thuận tính một lộ trình"
           icon="book"
         />
         <DashboardMetric
-          label="Học xong, chờ quyết toán"
-          value="—"
-          hint="Chưa có số liệu tổng hợp"
-          icon="clock"
+          label="Tỷ lệ hoàn thành buổi học"
+          value={completionRate}
+          hint={
+            scheduled > 0
+              ? `${dashboardNumber(completed)}/${dashboardNumber(scheduled)} buổi có lịch trong kỳ`
+              : "Chưa có buổi học theo lịch trong kỳ"
+          }
+          icon="check"
         />
         <DashboardMetric
           label="Buổi có lịch trong kỳ"

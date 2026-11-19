@@ -85,7 +85,20 @@ const routes: [string, RegExp, (path: string) => string][] = [
     ),
     (p) => p,
   ],
+  [
+    "POST",
+    new RegExp(
+      `^learning-paths/${uuid}/termination-requests/${uuid}/execute$`,
+      "i",
+    ),
+    (p) => p,
+  ],
   ["GET", /^materials$/, () => "staff/materials"],
+  [
+    "GET",
+    new RegExp(`^materials/${uuid}/moderation-history$`, "i"),
+    (p) => `staff/${p}`,
+  ],
   ["GET", new RegExp(`^materials/${uuid}/download$`, "i"), (p) => p],
   [
     "GET",
@@ -106,11 +119,6 @@ const routes: [string, RegExp, (path: string) => string][] = [
   [
     "POST",
     new RegExp(`^verifications/${uuid}/(approve|reject)$`, "i"),
-    (p) => `staff/${p}`,
-  ],
-  [
-    "POST",
-    new RegExp(`^verifications/${uuid}/evidence/${uuid}/revoke$`, "i"),
     (p) => `staff/${p}`,
   ],
   [
@@ -202,11 +210,8 @@ const adminRoutes: [string, RegExp, (path: string) => string][] = [
   ["GET", /^fee-revenue$/, (p) => `admin/${p}`],
   [
     "POST",
-    new RegExp(
-      `^learning-paths/${uuid}/termination-requests/${uuid}/execute$`,
-      "i",
-    ),
-    (p) => p,
+    new RegExp(`^verifications/${uuid}/evidence/${uuid}/revoke$`, "i"),
+    (p) => `staff/${p}`,
   ],
   ["GET", /^achievements$/, () => "me/achievements"],
   [
@@ -290,9 +295,15 @@ export function staffIdentity(value: unknown) {
   )
     return null;
   const profile = v.profile as { fullName?: unknown } | undefined;
+  const permissions =
+    Array.isArray(v.permissions) &&
+    v.permissions.every((p) => typeof p === "string")
+      ? (v.permissions as string[])
+      : undefined;
   return {
     userId: v.userId,
     roles: v.roles as string[],
+    ...(permissions ? { permissions } : {}),
     fullName:
       typeof profile?.fullName === "string" ? profile.fullName : "Nhân viên",
   };

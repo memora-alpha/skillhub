@@ -2,6 +2,7 @@ export type StaffIdentity = {
   userId: string;
   fullName: string;
   roles: string[];
+  permissions?: string[];
 };
 export type Pagination = {
   total?: number;

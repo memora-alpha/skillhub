@@ -5,6 +5,7 @@ import { ListPagination } from "@/components/pagination/list-pagination";
 import { useStaffListPages } from "./use-staff-list-pages";
 import { systemCodeLabel } from "@/lib/system-text";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Card, Empty, PageHeader, StatusBadge } from "@/components/console/ui";
 import { fmtDateTime } from "@/lib/console/format";
@@ -13,8 +14,10 @@ import {
   type CreditEntry,
   type Wallet,
 } from "@/lib/staff/account-types";
+import { AdminNotice } from "./admin-ui";
 import { QueueState } from "./common";
 import { useStaffResource } from "./hooks";
+import { useStaffSession } from "./session";
 
 const types: Record<string, string> = {
   TOP_UP: "Nạp Credit",
@@ -110,6 +113,7 @@ function EntryDetail({
 }
 
 export function WalletScreen() {
+  const { portal } = useStaffSession();
   const wallet = useStaffResource<Wallet>("wallet");
   const [type, setType] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
@@ -205,20 +209,36 @@ export function WalletScreen() {
         title="Ví của tôi"
         desc="Số dư và lịch sử Credit của tài khoản đang đăng nhập."
         actions={
-          <LoadingButton
-            type="button"
-            className="btn"
-            disabled={wallet.loading || ledger.loading}
-            onClick={() => {
-              void wallet.reload();
-              void ledger.reload();
-            }}
-            loading={!!(wallet.loading || ledger.loading)}
-          >
-            Làm mới
-          </LoadingButton>
+          <div className="row">
+            {portal === "staff" ? (
+              <Link href="/learn/wallet" className="btn btn-primary">
+                Mở ví đầy đủ tại Không gian học →
+              </Link>
+            ) : (
+              <Link href="/admin/credits" className="btn btn-primary">
+                Về Tài chính &amp; Credit hệ thống →
+              </Link>
+            )}
+            <LoadingButton
+              type="button"
+              className="btn"
+              disabled={wallet.loading || ledger.loading}
+              onClick={() => {
+                void wallet.reload();
+                void ledger.reload();
+              }}
+              loading={!!(wallet.loading || ledger.loading)}
+            >
+              Làm mới
+            </LoadingButton>
+          </div>
         }
       />
+      <AdminNotice tone="info">
+        {portal === "staff"
+          ? "Chức năng ví cá nhân (bao gồm nạp Credit qua payOS) thuộc Không gian học. Bàn vận hành tập trung vào các hàng đợi kiểm duyệt và hỗ trợ."
+          : "Đây là ví cá nhân của tài khoản đang đăng nhập. Để tra cứu sổ cái Credit, thanh toán và ví của người dùng trên toàn hệ thống, hãy sử dụng mục Tài chính & Credit."}
+      </AdminNotice>
       <Card title="Số dư hiện tại">
         <QueueState
           loading={wallet.loading}

@@ -1,5 +1,6 @@
 "use client";
 import { LoadingButton } from "@/components/loading-button";
+import Link from "next/link";
 import { useState } from "react";
 import {
   editableRules,
@@ -12,6 +13,46 @@ import { fmtDateTime } from "@/lib/console/format";
 import { useStaffResource } from "./hooks";
 import { useStaffSession } from "./session";
 import { DecisionDialog, QueueState } from "./common";
+
+const srsBusinessStandards = [
+  {
+    group: "Trao đổi hai chiều (TWO_WAY)",
+    value: "2 lộ trình đối ứng · ≥20 CR/người",
+    detail:
+      "A tạo lộ trình A→B và B tạo B→A; cả hai xác nhận lịch mới Hold Credit. Quyết toán cuối hoàn 96% Held và thu 4% phí nền tảng.",
+  },
+  {
+    group: "Dạy một chiều (ONE_WAY)",
+    value: "96% cho người dạy · 4% phí",
+    detail:
+      "Chỉ người học bị Hold negotiatedCredit (>0). Không áp ngưỡng 20 Credit cho người dạy; quyết toán một lần sau khi hoàn tất toàn lộ trình.",
+  },
+  {
+    group: "Tỷ lệ nạp & Rút Credit",
+    value: "1.000 VND = 1 Credit · Không rút tiền",
+    detail:
+      "Nạp qua payOS đối soát idempotent. Hệ thống không hỗ trợ rút Credit ra tiền mặt (BR-26 / WD-001).",
+  },
+  {
+    group: "Thời lượng & Đổi lịch Session",
+    value: "60–180 phút · Cutoff 60 phút",
+    detail:
+      "Mỗi buổi học dài 1–3 giờ. Đổi lịch chỉ hiệu lực khi cả hai bên xác nhận trước giờ bắt đầu ít nhất 60 phút.",
+  },
+  {
+    group: "Bảo mật OTP",
+    value: "Sai 5 lần → Softban email 24 giờ",
+    detail:
+      "Chặn gửi/xác minh OTP trong 24 giờ theo email chuẩn hóa, không reset khi resend và không khóa đăng nhập hợp lệ.",
+  },
+  {
+    group: "Reputation & Phục hồi (V1.7)",
+    value: "Khởi tạo 50/100 · Mức hạn chế <40",
+    detail:
+      "30–39 khóa tạo mới 24h; 20–29 khóa 3 ngày + xác nhận chính sách; 10–19 khóa 7 ngày; 0–9 khóa 30 ngày. Nhiệm vụ phục hồi tối đa +5/30 ngày.",
+  },
+];
+
 function RulesEditor({
   snapshot,
   reload,
@@ -30,12 +71,14 @@ function RulesEditor({
   return (
     <div className="stack">
       <div className="row">
-        <Badge>Phiên bản {snapshot.version}</Badge>
+        <Badge tone="brand">Phiên bản {snapshot.version}</Badge>
+        <Badge tone="neutral">{rules.length}/250 quy tắc</Badge>
         <span className="muted">Đọc lúc {fmtDateTime(snapshot.readAt)}</span>
       </div>
       <p className="muted">
-        Nội dung khớp quy tắc sẽ được đưa vào hàng đợi kiểm duyệt. Dùng * để
-        khớp một đoạn văn bản.
+        Khi người dùng đăng yêu cầu học, nội dung khớp quy tắc sẽ chuyển sang
+        trạng thái <strong>Chờ kiểm duyệt</strong> để Staff/Admin xem xét. Dùng{" "}
+        <code>*</code> để khớp một đoạn văn bản bất kỳ.
       </p>
       <form
         className="stack"
@@ -86,7 +129,7 @@ function RulesEditor({
               </label>
               <button
                 type="button"
-                className="btn btn-sm"
+                className="btn btn-sm admin-danger-outline"
                 disabled={rules.length <= 1}
                 onClick={() => setRules(rules.filter((r) => r.id !== rule.id))}
                 aria-label={`Xóa quy tắc ${i + 1}`}
@@ -137,8 +180,9 @@ function RulesEditor({
       )}
       {confirm && (
         <DecisionDialog
+          presentation="drawer"
           title="Lưu quy tắc kiểm duyệt"
-          description={`${rules.length} quy tắc sẽ thay thế bộ quy tắc hiện tại.`}
+          description={`${rules.length} quy tắc sẽ thay thế bộ quy tắc hiện tại và ghi nhận trong Audit Log.`}
           min={10}
           max={500}
           confirmLabel="Lưu quy tắc"
@@ -160,30 +204,36 @@ function RulesEditor({
     </div>
   );
 }
+
 export function RulesScreen() {
   const [success, setSuccess] = useState(false);
   const resource = useStaffResource<ModerationRules>("moderation-rules");
   return (
-    <>
+    <div className="stack">
       <PageHeader
-        title="Quy tắc kiểm duyệt"
-        desc="Cấu hình phát hiện nội dung cần xem xét trong yêu cầu học."
+        title="Cấu hình nghiệp vụ"
+        desc="Quản lý bộ lọc kiểm duyệt yêu cầu học và đối chiếu các quy chuẩn vận hành SRS V1.7 đang áp dụng."
         actions={
-          <LoadingButton
-            type="button"
-            className="btn"
-            disabled={resource.loading}
-            onClick={resource.reload}
-            loading={!!resource.loading}
-          >
-            Làm mới
-          </LoadingButton>
+          <div className="row">
+            <Link className="btn" href="/admin/credits?tab=fees">
+              Quản lý phí tài liệu PAID →
+            </Link>
+            <LoadingButton
+              type="button"
+              className="btn"
+              disabled={resource.loading}
+              onClick={resource.reload}
+              loading={!!resource.loading}
+            >
+              Làm mới
+            </LoadingButton>
+          </div>
         }
       />
       {success && (
         <output className="staff-success">Đã lưu quy tắc kiểm duyệt.</output>
       )}
-      <Card>
+      <Card title="Bộ lọc từ khóa kiểm duyệt yêu cầu học">
         <QueueState
           loading={resource.loading}
           error={resource.error}
@@ -203,6 +253,21 @@ export function RulesScreen() {
           )}
         </QueueState>
       </Card>
-    </>
+
+      <Card
+        title="Quy chuẩn nghiệp vụ SRS V1.7 đang áp dụng"
+        actions={<Badge tone="info">Chỉ đọc · Cố định trên máy chủ</Badge>}
+      >
+        <div className="ops-config-grid">
+          {srsBusinessStandards.map((item) => (
+            <article className="ops-config-card" key={item.group}>
+              <span>{item.group}</span>
+              <strong>{item.value}</strong>
+              <p>{item.detail}</p>
+            </article>
+          ))}
+        </div>
+      </Card>
+    </div>
   );
 }

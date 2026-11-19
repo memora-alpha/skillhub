@@ -13,6 +13,8 @@ import {
 } from "@/components/console/ui";
 import { fmtDateTime, fmtSize } from "@/lib/console/format";
 import type { Verification } from "@/lib/staff/types";
+import { hasPermission, isAdminActor } from "@/lib/staff/permissions";
+import { AdminNotice, RecordId } from "./admin-ui";
 import { useStaffSession } from "./session";
 import { useStaffResource } from "./hooks";
 import { DecisionDialog, DownloadButton, QueueState } from "./common";
@@ -52,11 +54,17 @@ function VerificationDetail({
   id: string;
   onQueueReload: () => void;
 }>) {
-  const { api, actor } = useStaffSession();
+  const { api, actor, portal } = useStaffSession();
   const detail = useStaffResource<Verification>(`verifications/${id}`);
   const [decision, setDecision] = useState<Decision | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const item = detail.data;
+  const canApprove = hasPermission(actor, "skill-verification:approve");
+  const canReject = hasPermission(actor, "skill-verification:reject");
+  const canRevoke =
+    portal === "admin" &&
+    isAdminActor(actor) &&
+    hasPermission(actor, "skill-verification:revoke");
   return (
     <Card title="Chi tiết yêu cầu xác minh">
       <QueueState
@@ -71,11 +79,20 @@ function VerificationDetail({
               <StatusBadge status={item.status} />
               <Badge>Phiên bản {item.version}</Badge>
             </div>
+            <AdminNotice tone="info">
+              <strong>Quy tắc xác minh kỹ năng (BR-06):</strong> Bằng chứng sau
+              khi được phê duyệt không tự động hết hạn; chỉ mất hiệu lực khi
+              quản trị viên thu hồi kèm lý do và nhật ký kiểm tra.
+            </AdminNotice>
             <dl className="kv staff-kv">
               <dt>Mã yêu cầu</dt>
-              <dd className="mono">{item.id}</dd>
-              <dt>Sharing Skill</dt>
-              <dd className="mono">{item.sharingSkillId}</dd>
+              <dd>
+                <RecordId id={item.id} label="yêu cầu xác minh" />
+              </dd>
+              <dt>Mã kỹ năng chia sẻ</dt>
+              <dd>
+                <RecordId id={item.sharingSkillId} label="kỹ năng chia sẻ" />
+              </dd>
               <dt>Gửi lúc</dt>
               <dd>{fmtDateTime(item.submittedAt)}</dd>
               {item.reviewedAt && (
@@ -122,7 +139,7 @@ function VerificationDetail({
                     path={`verifications/${id}/evidence/${file.id}/download`}
                     name={file.title || `Bằng chứng ${index + 1}`}
                   />
-                  {actor?.roles.includes("ADMIN") &&
+                  {canRevoke &&
                     file.approvalStatus === "APPROVED" &&
                     !file.revokedAt && (
                       <LoadingButton
@@ -142,24 +159,33 @@ function VerificationDetail({
             ))}
             {item.status === "PENDING" && (
               <div className="staff-detail-actions">
-                <LoadingButton
-                  type="button"
-                  className="btn btn-danger"
-                  disabled={!!decision || detail.loading}
-                  onClick={() => setDecision({ action: "reject" })}
-                  loading={!!detail.loading}
-                >
-                  Từ chối
-                </LoadingButton>
-                <LoadingButton
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={!!decision || detail.loading}
-                  onClick={() => setDecision({ action: "approve" })}
-                  loading={!!detail.loading}
-                >
-                  Phê duyệt
-                </LoadingButton>
+                {canReject && (
+                  <LoadingButton
+                    type="button"
+                    className="btn admin-danger-outline"
+                    disabled={!!decision || detail.loading}
+                    onClick={() => setDecision({ action: "reject" })}
+                    loading={!!detail.loading}
+                  >
+                    Từ chối
+                  </LoadingButton>
+                )}
+                {canApprove && (
+                  <LoadingButton
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={!!decision || detail.loading}
+                    onClick={() => setDecision({ action: "approve" })}
+                    loading={!!detail.loading}
+                  >
+                    Phê duyệt
+                  </LoadingButton>
+                )}
+                {!canApprove && !canReject && (
+                  <p className="muted">
+                    Tài khoản hiện chỉ có quyền xem danh sách bằng chứng.
+                  </p>
+                )}
               </div>
             )}
             {decision && (

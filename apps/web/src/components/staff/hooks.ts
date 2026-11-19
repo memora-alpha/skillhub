@@ -33,18 +33,20 @@ export function useStaffCommand() {
 }
 export function useStaffResource<T>(
   path: string,
-  options?: { retainOnReload?: boolean },
+  options?: { retainOnReload?: boolean; enabled?: boolean },
 ) {
   const retainOnReload = options?.retainOnReload ?? false;
+  const enabled = options?.enabled ?? true;
   const { expire, api } = useStaffSession();
   const [state, setState] = useState<{
     path: string;
     result?: ApiEnvelope<T>;
     error?: string;
     loading: boolean;
-  }>({ path, loading: true });
+  }>({ path, loading: enabled });
   const current = useRef<AbortController | null>(null);
   const load = useCallback(() => {
+    if (!enabled) return Promise.resolve();
     current.current?.abort();
     const controller = new AbortController();
     current.current = controller;
@@ -65,18 +67,23 @@ export function useStaffResource<T>(
           error: e instanceof Error ? e.message : "Không thể tải dữ liệu.",
         }));
       });
-  }, [path, expire, api, retainOnReload]);
+  }, [path, expire, api, retainOnReload, enabled]);
   useEffect(() => {
+    if (!enabled) {
+      current.current?.abort();
+      return;
+    }
     void load();
     return () => current.current?.abort();
-  }, [load]);
-  const fresh = state.path === path;
+  }, [load, enabled]);
+  const fresh = enabled && state.path === path;
   return {
     data: fresh ? state.result?.data : undefined,
     pagination: fresh ? state.result?.meta?.pagination : undefined,
     error: fresh ? state.error : undefined,
-    loading: !fresh || state.loading,
+    loading: enabled && (!fresh || state.loading),
     reload: () => {
+      if (!enabled) return Promise.resolve();
       setState((previous) => ({
         path,
         loading: true,
@@ -90,10 +97,11 @@ export function useStaffResource<T>(
 }
 export function useStaffList<T extends { id?: string; userId?: string }>(
   path: string,
+  options?: { enabled?: boolean },
 ) {
   const { expire, api, actor, portal } = useStaffSession();
   const scope = `${portal}:${actor?.userId ?? ""}:${path}`;
-  const enabled = !!actor;
+  const enabled = !!actor && (options?.enabled ?? true);
   const [state, setState] = useState<{
     path: string;
     items: T[];
@@ -101,7 +109,7 @@ export function useStaffList<T extends { id?: string; userId?: string }>(
     page?: Pagination;
     loading: boolean;
     error?: string;
-  }>({ path: scope, items: [], chunks: [], loading: true });
+  }>({ path: scope, items: [], chunks: [], loading: enabled });
   const pending = useRef(false);
   const current = useRef<AbortController | null>(null);
   const cursors = useRef(new Set<string>());
@@ -166,23 +174,27 @@ export function useStaffList<T extends { id?: string; userId?: string }>(
     [path, expire, api, scope, enabled],
   );
   useEffect(() => {
+    if (!enabled) {
+      current.current?.abort();
+      return;
+    }
     activeScope.current = scope;
     void load();
     return () => {
       if (activeScope.current === scope) activeScope.current = null;
       current.current?.abort();
     };
-  }, [load, scope]);
+  }, [load, scope, enabled]);
   const fresh = enabled && state.path === scope;
   return {
     scope,
     chunks: fresh ? state.chunks : [],
     items: fresh ? state.items : [],
     page: fresh ? state.page : undefined,
-    loading: !fresh || state.loading,
+    loading: enabled && (!fresh || state.loading),
     error: fresh ? state.error : undefined,
     reload: () => {
-      if (activeScope.current !== scope) return;
+      if (!enabled || activeScope.current !== scope) return;
       setState((s) => ({
         path: scope,
         items: s.path === scope ? s.items : [],
@@ -193,7 +205,7 @@ export function useStaffList<T extends { id?: string; userId?: string }>(
       return load();
     },
     more: () => {
-      if (activeScope.current !== scope) return;
+      if (!enabled || activeScope.current !== scope) return;
       if (pending.current || !fresh || !state.page?.nextCursor) return;
       setState((s) => ({ ...s, loading: true }));
       return load(state.page.nextCursor);

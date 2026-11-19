@@ -119,9 +119,21 @@ export function UserManagementDialog({
             <div className="user-row-actions">
               <Link
                 className="btn"
-                href={`/admin/profile-moderation?userId=${user.userId}`}
+                href={`/admin/profile-moderation?view=profile&userId=${user.userId}`}
               >
                 Kiểm duyệt hồ sơ
+              </Link>
+              <Link
+                className="btn"
+                href={`/admin/credits?tab=wallet&userId=${user.userId}`}
+              >
+                Xem ví Credit
+              </Link>
+              <Link
+                className="btn"
+                href={`/admin/credits?tab=ledger&userId=${user.userId}`}
+              >
+                Lịch sử Credit
               </Link>
               {user.roles.includes("STAFF") && (
                 <Link
