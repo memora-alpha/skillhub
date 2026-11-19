@@ -9,6 +9,7 @@ import type { Skill } from "../types";
 import { useUserResource, useUserList } from "../hooks/use-user-resource";
 import { Empty, Feedback, PageHeading } from "../components/common";
 import type { Material } from "./account-types";
+import { MaterialsSubnav } from "./materials-subnav";
 import { PageNavigation } from "@/components/pagination/page-navigation";
 export function MaterialsScreen() {
   const skills = useUserList<Skill>("skills?limit=50");
@@ -28,23 +29,15 @@ export function MaterialsScreen() {
   const total = query.pagination?.total;
   return (
     <>
+      <MaterialsSubnav current="/learn/materials" />
       <PageHeading
+        eyebrow="Kho tài liệu số"
         title="Thư viện tài liệu"
+        description="Khám phá tài liệu miễn phí (0 CR) hoặc mua bằng Credit khả dụng. Mọi tệp đều qua kiểm duyệt an toàn và cấp quyền tải riêng tư."
         action={
-          <div className="learner-actions">
-            <Link className="btn" href="/learn/materials/library">
-              Thư viện của tôi
-            </Link>
-            <Link className="btn" href="/learn/materials/orders">
-              Đơn tài liệu đã mua
-            </Link>
-            <Link className="btn" href="/learn/materials/mine">
-              Tài liệu của tôi
-            </Link>
-            <Link className="btn btn-primary" href="/learn/materials/new">
-              + Chia sẻ tài liệu
-            </Link>
-          </div>
+          <Link className="btn btn-primary" href="/learn/materials/new">
+            + Chia sẻ tài liệu
+          </Link>
         }
       />
       <div className="product-material-filters">

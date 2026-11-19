@@ -1,19 +1,19 @@
 import type { Metadata } from "next";
-import { Fira_Code, Fira_Sans } from "next/font/google";
+import { Be_Vietnam_Pro, JetBrains_Mono } from "next/font/google";
 import { SessionSync } from "@/features/auth/session-sync";
 import "./globals.css";
 import "./console.css";
 import "./responsive.css";
 
-const sans = Fira_Sans({
+const sans = Be_Vietnam_Pro({
   subsets: ["latin", "vietnamese"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700", "800"],
   variable: "--font-sans",
   display: "swap",
 });
-const mono = Fira_Code({
-  subsets: ["latin"],
-  weight: ["400", "500"],
+const mono = JetBrains_Mono({
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-mono",
   display: "swap",
 });

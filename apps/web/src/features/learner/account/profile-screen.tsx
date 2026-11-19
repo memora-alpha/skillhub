@@ -112,7 +112,10 @@ export function ProfileScreen() {
                   <label>
                     <span>Email</span>
                     <input value={me.email} readOnly type="email" />
-                    <small>Email tài khoản được quản lý bởi hệ thống.</small>
+                    <small>
+                      Email tài khoản chỉ hiển thị với bạn, không bao giờ công
+                      khai trên hồ sơ cộng đồng.
+                    </small>
                   </label>
                   <label>
                     <span>Tiêu đề giới thiệu</span>

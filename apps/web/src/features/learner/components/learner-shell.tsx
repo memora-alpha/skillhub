@@ -8,10 +8,12 @@ import { eventAffectsResource } from "../api/events";
 import { createLearnerEventConnection } from "../api/live-events";
 import { useUserSession } from "../auth/session";
 import { useUserResource } from "../hooks/use-user-resource";
+import type { OwnIdentity } from "../account/account-types";
 import { ProductIcon } from "./product-icon";
 import { NotificationBell } from "./notification-bell";
 import { LearnerAccountMenu } from "./learner-account-menu";
 import { SearchInput } from "@/components/search-input";
+
 function queryAffected(
   query: Query,
   userId: string,
@@ -23,19 +25,43 @@ function queryAffected(
     events.some((type) => eventAffectsResource(query.queryKey[2], type))
   );
 }
-const links = [
-  ["/learn", "Tổng quan", "home"],
-  ["/learn/explore", "Khám phá", "search"],
-  ["/learn/connections", "Đề nghị", "users"],
-  ["/learn/messages", "Tin nhắn", "chat"],
-  ["/learn/paths", "Lộ trình", "book"],
-  ["/learn/calendar", "Lịch học", "calendar"],
-  ["/learn/materials", "Tài liệu", "file"],
-  ["/learn/wallet", "Ví Credit", "wallet"],
-  ["/learn/achievements", "Thành tích", "award"],
-  ["/learn/reviews", "Đánh giá của tôi", "star"],
-  ["/learn/reports", "Báo cáo của tôi", "shield"],
+
+const navSections = [
+  {
+    title: "Không gian học",
+    items: [
+      ["/learn", "Tổng quan", "home"],
+      ["/learn/explore", "Khám phá", "search"],
+      ["/learn/connections", "Đề nghị kết nối", "users"],
+      ["/learn/messages", "Tin nhắn", "chat"],
+    ],
+  },
+  {
+    title: "Học & Dạy 1:1",
+    items: [
+      ["/learn/paths", "Lộ trình học", "book"],
+      ["/learn/calendar", "Lịch học", "calendar"],
+      ["/learn/materials", "Kho tài liệu", "file"],
+    ],
+  },
+  {
+    title: "Năng lực & Uy tín",
+    items: [
+      ["/learn/skills", "Kỹ năng chia sẻ", "check"],
+      ["/learn/reputation", "Uy tín & phục hồi", "shield"],
+      ["/learn/achievements", "Thành tích", "award"],
+    ],
+  },
+  {
+    title: "Tài chính & Hỗ trợ",
+    items: [
+      ["/learn/wallet", "Ví Credit", "wallet"],
+      ["/learn/reviews", "Đánh giá của tôi", "star"],
+      ["/learn/reports", "Báo cáo & hỗ trợ", "filter"],
+    ],
+  },
 ] as const;
+
 export function LearnerShell({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
@@ -44,10 +70,9 @@ export function LearnerShell({
     router = useRouter();
   const cache = useQueryClient();
   const [search, setSearch] = useState("");
-  const identity = useUserResource<{
-    profile: { fullName: string; avatarUrl: string | null };
-  }>("me");
+  const identity = useUserResource<OwnIdentity>("me");
   const fullName = identity.data?.profile.fullName ?? actor.profile.fullName;
+  const reputationScore = identity.data?.profile.reputationScore;
   const wallet = useUserResource<{
     availableCredit: string;
     heldCredit: string;
@@ -58,7 +83,8 @@ export function LearnerShell({
     close,
     trigger: menuButton,
     panel: sidebarRef,
-  } = useNavigationDrawer("(min-width: 761px)");
+  } = useNavigationDrawer("(min-width: 861px)");
+
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const events = new Set<string>();
@@ -115,6 +141,7 @@ export function LearnerShell({
   }, [request, refresh, cache, actor.userId]);
 
   const Sidebar = open ? "dialog" : "aside";
+  const hasHeld = wallet.data && Number(wallet.data.heldCredit) > 0;
   return (
     <div className="learner-root workspace">
       <a className="product-skip" href="#learning-content" inert={open}>
@@ -160,27 +187,40 @@ export function LearnerShell({
             aria-label="Đóng điều hướng"
             onClick={() => close()}
           >
-            <ProductIcon name="close" />
+            <ProductIcon name="close" size={18} />
           </button>
         </div>
         <nav aria-label="Điều hướng học tập">
-          {links.map(([href, label, icon]) => (
-            <Link
-              key={href}
-              href={href}
-              onClick={() => close(false)}
-              aria-current={
-                pathname === href ||
-                (href !== "/learn" && pathname.startsWith(href + "/"))
-                  ? "page"
-                  : undefined
-              }
-            >
-              <ProductIcon name={icon} />
-              <span>{label}</span>
-            </Link>
+          {navSections.map((section) => (
+            <div className="nav-section" key={section.title}>
+              <span className="nav-section-title">{section.title}</span>
+              {section.items.map(([href, label, icon]) => (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => close(false)}
+                  aria-current={
+                    pathname === href ||
+                    (href !== "/learn" && pathname.startsWith(href + "/"))
+                      ? "page"
+                      : undefined
+                  }
+                >
+                  <ProductIcon name={icon} size={18} />
+                  <span>{label}</span>
+                </Link>
+              ))}
+            </div>
           ))}
         </nav>
+        {actor.roles.includes("STAFF") && (
+          <div className="sidebar-footer">
+            <Link className="btn" href="/staff" onClick={() => close(false)}>
+              <ProductIcon name="shield" size={16} />
+              Về khu vực nhân sự
+            </Link>
+          </div>
+        )}
       </Sidebar>
       <div className="workspace-main" inert={open}>
         <header className="app-header">
@@ -196,11 +236,11 @@ export function LearnerShell({
             <ProductIcon name="menu" />
           </button>
           <div className="global-search">
-            <ProductIcon name="search" />
+            <ProductIcon name="search" size={18} />
             <SearchInput
               name="q"
               aria-label="Tìm nhu cầu học"
-              placeholder="Tìm kỹ năng bạn quan tâm…"
+              placeholder="Tìm nhu cầu học, kỹ năng bạn quan tâm…"
               maxLength={120}
               value={search}
               onChange={setSearch}
@@ -218,25 +258,47 @@ export function LearnerShell({
               }}
             />
           </div>
-          <Link
-            className="header-wallet"
-            href="/learn/wallet"
-            aria-label={
-              wallet.data
-                ? "Ví Credit: " + wallet.data.availableCredit + " CR khả dụng"
-                : "Ví Credit"
-            }
-          >
-            <ProductIcon name="wallet" />
-            <span>
-              <b>
-                {wallet.data
-                  ? wallet.data.availableCredit + " CR"
-                  : "Ví Credit"}
-              </b>
-              <small>Credit khả dụng</small>
-            </span>
-          </Link>
+          <div className="header-metrics">
+            {typeof reputationScore === "number" && (
+              <Link
+                className="header-reputation"
+                href="/learn/reputation"
+                data-low={reputationScore < 40}
+                aria-label={`Điểm uy tín: ${reputationScore} trên 100`}
+              >
+                <ProductIcon name="shield" size={18} />
+                <span>
+                  <b>{reputationScore}/100</b>
+                  <small>
+                    {reputationScore < 40 ? "Cần chú ý" : "Điểm uy tín"}
+                  </small>
+                </span>
+              </Link>
+            )}
+            <Link
+              className="header-wallet"
+              href="/learn/wallet"
+              aria-label={
+                wallet.data
+                  ? "Ví Credit: " + wallet.data.availableCredit + " CR khả dụng"
+                  : "Ví Credit"
+              }
+            >
+              <ProductIcon name="wallet" size={18} />
+              <span>
+                <b>
+                  {wallet.data
+                    ? wallet.data.availableCredit + " CR"
+                    : "Ví Credit"}
+                </b>
+                <small>
+                  {hasHeld && wallet.data
+                    ? `Đang giữ ${wallet.data.heldCredit} CR`
+                    : "Credit khả dụng"}
+                </small>
+              </span>
+            </Link>
+          </div>
           <NotificationBell />
           <LearnerAccountMenu
             key={pathname}
@@ -251,13 +313,6 @@ export function LearnerShell({
           />
         </header>
         <main id="learning-content" className="app-content" tabIndex={-1}>
-          {actor.roles.includes("STAFF") && (
-            <p>
-              <Link className="btn" href="/staff">
-                Về khu vực nhân sự
-              </Link>
-            </p>
-          )}
           {children}
         </main>
       </div>

@@ -102,8 +102,9 @@ export function ReputationScreen() {
     <>
       <Back href="/learn/profile" />
       <PageHeading
-        title="Uy tín của bạn"
-        description="Theo dõi sự tin cậy bạn xây dựng qua mỗi lần học cùng nhau."
+        eyebrow="Thang điểm 0–100 · Khởi điểm 50"
+        title="Uy tín & phục hồi"
+        description="Điểm uy tín phản ánh mức độ đáng tin cậy của bạn qua từng lộ trình hoàn tất, đánh giá 1–5 sao và tuân thủ lịch học."
       />
       <Feedback
         loading={query.isPending}
@@ -112,31 +113,68 @@ export function ReputationScreen() {
         refreshing={!!(query.isFetching && !query.isPending)}
       />
       {!denied && current && (
-        <>
-          <Panel title="Uy tín hiện tại">
-            <strong className="product-price">{current.reputationScore}</strong>
-            <p>Cấp độ: {levels[current.level] ?? "Chưa xác định"}</p>
+        <div className="reputation-hero">
+          <Panel title="Điểm uy tín hiện tại">
+            <div
+              className="reputation-score-display"
+              data-low={current.reputationScore < 40}
+            >
+              <strong>{current.reputationScore}</strong>
+              <span>/ 100 điểm</span>
+            </div>
+            <div className="reputation-meter" aria-hidden="true">
+              <div
+                className="reputation-meter-fill"
+                data-low={current.reputationScore < 40}
+                style={{
+                  width: `${Math.min(100, Math.max(0, current.reputationScore))}%`,
+                }}
+              />
+            </div>
+            <div className="reputation-bands">
+              <span>0</span>
+              <span>40 Cảnh báo</span>
+              <span>50 Khởi điểm</span>
+              <span>80 Rất tốt</span>
+              <span>100</span>
+            </div>
+            <p style={{ marginTop: 14 }}>
+              Xếp hạng hiện tại:{" "}
+              <strong>{levels[current.level] ?? "Chưa xác định"}</strong>
+            </p>
           </Panel>
           <Panel title="Hạn chế đang áp dụng">
             {current.activeRestrictions.length ? (
-              current.activeRestrictions.map((restriction) => (
-                <p
-                  key={`${restriction.scope}:${restriction.reasonCode}:${restriction.endsAt}`}
-                >
-                  {scopes[restriction.scope] ??
-                    systemCodeLabel(restriction.scope)}{" "}
-                  ·{" "}
-                  {reasons[restriction.reasonCode] ??
-                    systemCodeLabel(restriction.reasonCode)}{" "}
-                  · thời hạn đến {formatTime(restriction.endsAt)}. Bạn có thể
-                  cần xác nhận chính sách để mở lại quyền khi hết thời hạn.
-                </p>
-              ))
+              <div className="learner-stack">
+                {current.activeRestrictions.map((restriction) => (
+                  <div
+                    className="learner-notice"
+                    key={`${restriction.scope}:${restriction.reasonCode}:${restriction.endsAt}`}
+                  >
+                    <strong>
+                      {scopes[restriction.scope] ??
+                        systemCodeLabel(restriction.scope)}
+                    </strong>
+                    <p>
+                      Lý do:{" "}
+                      {reasons[restriction.reasonCode] ??
+                        systemCodeLabel(restriction.reasonCode)}
+                    </p>
+                    <p>
+                      Hết hạn: <strong>{formatTime(restriction.endsAt)}</strong>
+                      . Bạn vẫn có thể xem lịch và học các buổi đã chốt.
+                    </p>
+                  </div>
+                ))}
+              </div>
             ) : (
-              <p>Không có hạn chế đang áp dụng.</p>
+              <p>
+                Tài khoản không có hạn chế nào. Bạn có đầy đủ quyền tạo nhu cầu
+                học, gửi đề nghị và tham gia thỏa thuận mới.
+              </p>
             )}
           </Panel>
-        </>
+        </div>
       )}
       {!denied &&
         current &&

@@ -26,7 +26,11 @@ export function SharersScreen({
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   return (
     <>
-      <PageHeading title="Tìm người chia sẻ kỹ năng" />
+      <PageHeading
+        eyebrow="Tìm theo kỹ năng chuẩn"
+        title="Tìm người chia sẻ kỹ năng"
+        description="Chọn kỹ năng từ danh mục, lọc người đã được nhân sự xác minh và gửi lời mời trao đổi trực tiếp."
+      />
       <Panel className={styles.filters}>
         <SkillPicker value={skillId} onChange={setSkillId} />
         <label className={styles.verifiedFilter}>

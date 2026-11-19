@@ -126,10 +126,7 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
               });
             }}
           />
-          <details>
-            <summary>Thỏa thuận học tập</summary>
-            <PathAgreementSummary path={path} />
-          </details>
+          <PathAgreementSummary path={path} />
           <CommandFeedback command={command} />
           <PathSetupFlow
             path={path}
