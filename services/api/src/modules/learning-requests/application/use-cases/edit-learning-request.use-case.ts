@@ -31,7 +31,8 @@ import {
   validateExpiryAtPublish,
   type PreparedLearningRequestContent,
 } from "../../domain/request-text.policy";
-import { evaluateModeration } from "../../domain/moderation.policy";
+import { ContentModerationService } from "../../../content-moderation/application/content-moderation.service";
+import { assessLearningRequest } from "../services/learning-request-content-moderation";
 import {
   formatHourlyCredit,
   type PreferredAvailability,
@@ -298,6 +299,7 @@ export class EditLearningRequestUseCase {
     private readonly repository: LearningRequestRepository,
     private readonly configuration: SystemConfigurationService,
     @Inject(SHARING_SKILL_READER) private readonly sharing: SharingSkillReader,
+    private readonly contentModeration?: ContentModerationService,
   ) {}
 
   async execute(
@@ -314,7 +316,7 @@ export class EditLearningRequestUseCase {
       snapshot.request.status === "OPEN" ||
       snapshot.request.status === "PENDING_MODERATION";
     const moderation = published
-      ? evaluateModeration(
+      ? await assessLearningRequest(
           {
             title: snapshot.content.title,
             description: snapshot.content.description,
@@ -324,6 +326,8 @@ export class EditLearningRequestUseCase {
             proposedTags: snapshot.content.proposedTags,
           },
           { ruleSet: snapshot.ruleSet, version: snapshot.configVersion! },
+          input.expectedVersion,
+          this.contentModeration,
         )
       : null;
 

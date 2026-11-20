@@ -57,8 +57,8 @@ export class AdminReportSourceReader extends AdminReportReaderPort {
     );
   }
 
-  caseDetail(tx: TransactionContext, id: string) {
-    return tx.reportCase.findUnique({
+  async caseDetail(tx: TransactionContext, id: string) {
+    const row = await tx.reportCase.findUnique({
       where: { id },
       select: {
         status: true,
@@ -69,8 +69,19 @@ export class AdminReportSourceReader extends AdminReportReaderPort {
         relatedPathId: true,
         createdAt: true,
         version: true,
+        contentModeration: {
+          where: { kind: "CASE_REPORT", restricted: true },
+          select: { sourceId: true },
+          take: 1,
+        },
       },
     });
+    if (!row) return null;
+    const { contentModeration, ...detail } = row;
+    return {
+      ...detail,
+      description: contentModeration.length ? "" : detail.description,
+    };
   }
 
   incidentDetail(tx: TransactionContext, id: string) {

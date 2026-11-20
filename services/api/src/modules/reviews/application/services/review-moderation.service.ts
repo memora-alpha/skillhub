@@ -12,6 +12,8 @@ import {
 } from "../../../auth/application/services/sessions.service";
 import { AuditService } from "../../../audit/application/services/audit.service";
 import { validateReason } from "../../../audit/domain/reason.policy";
+import { lockLearningPath } from "../../../learning-paths/application/services/learning-path-lock";
+import { ReviewsService } from "./reviews.service";
 import {
   listInput,
   listBoundary,
@@ -23,6 +25,7 @@ export class ReviewModerationService {
     private readonly transactions: TransactionRunner,
     private readonly sessions: SessionsService,
     private readonly audit: AuditService,
+    private readonly reviews: ReviewsService,
   ) {}
   private async authorize(tx: TransactionContext, actor: Principal) {
     const live = await this.sessions.assertLive(tx, actor);
@@ -54,6 +57,10 @@ export class ReviewModerationService {
     const reason = validateReason(input.reason, { min: 3, max: 1000 });
     return this.transactions.run(async (tx) => {
       await this.authorize(tx, actor);
+      const snapshot = await tx.review.findUnique({ where: { id } });
+      if (!snapshot) throw new NotFoundException("REVIEW_NOT_FOUND");
+      if (snapshot.publicationState)
+        await lockLearningPath(tx, snapshot.pathId);
       await tx.$queryRaw`SELECT review_id FROM reviews WHERE review_id=${id}::uuid FOR UPDATE`;
       const live = await this.authorize(tx, actor);
       const review = await tx.review.findUnique({ where: { id } });
@@ -70,6 +77,8 @@ export class ReviewModerationService {
         where: { id },
         data: {
           hiddenAt: input.hidden ? clock.now : null,
+          publicationState:
+            input.hidden && review.publicationState ? "REJECTED" : null,
           moderationVersion: { increment: 1 },
         },
       });
@@ -83,7 +92,12 @@ export class ReviewModerationService {
         before: { hidden: !!review.hiddenAt },
         after: { hidden: !!result.hiddenAt, version: result.moderationVersion },
       });
-      // Visibility changes deliberately leave the original reputation history untouched.
+      if (!input.hidden && review.publicationState) {
+        const path = await tx.learningPath.findUniqueOrThrow({
+          where: { id: review.pathId },
+        });
+        await this.reviews.applyReviewEffects(tx, path, result, clock.now);
+      }
       return {
         id,
         hiddenAt: result.hiddenAt,

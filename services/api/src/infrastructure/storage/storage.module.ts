@@ -23,6 +23,8 @@ import { UnavailableObjectStorage } from "./unavailable-object-storage.adapter";
 import { S3Client } from "@aws-sdk/client-s3";
 import { S3ObjectStorage } from "./s3-object-storage.adapter";
 import { MATERIAL_MAX_BYTES } from "./file-policy";
+import { ContentModerationModule } from "../../modules/content-moderation/content-moderation.module";
+import { FileContentModeration } from "./file-content-moderation";
 
 @Module({
   imports: [
@@ -30,10 +32,12 @@ import { MATERIAL_MAX_BYTES } from "./file-policy";
     OutboxModule,
     QueueModule,
     SystemConfigurationModule,
+    ContentModerationModule,
     BullModule.registerQueue({ name: FILE_SCAN_QUEUE }),
   ],
   providers: [
     FileAttachmentService,
+    FileContentModeration,
     PrismaStoredFileRepository,
     {
       provide: STORED_FILE_REPOSITORY,
@@ -109,6 +113,11 @@ import { MATERIAL_MAX_BYTES } from "./file-policy";
       ) => new FileReconciler(repository, objects, config),
     },
   ],
-  exports: [FileStorageService, FileAttachmentService, OBJECT_STORAGE],
+  exports: [
+    FileStorageService,
+    FileAttachmentService,
+    FileContentModeration,
+    OBJECT_STORAGE,
+  ],
 })
 export class StorageModule {}

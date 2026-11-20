@@ -35,6 +35,7 @@ const relations = {
   reportCase: {
     relatedPathIdRecord: ["learningPath", [["relatedPathId", "id"]], false],
     reportEvidenceCaseIdRecords: ["reportEvidence", [["id", "caseId"]], true],
+    contentModeration: ["reportContentModeration", [["id", "caseId"]], true],
   },
   learningPlan: {
     pathIdRecord: ["learningPath", [["pathId", "id"]], false],
@@ -157,6 +158,7 @@ for (const [, modelName, body] of schemaText.matchAll(
 
 // FOR UPDATE lock queries: table -> [model, key field]
 const lockTables = {
+  reviews: ["review", "id"],
   learning_paths: ["learningPath", "id"],
   schedule_proposals: ["scheduleProposal", "id"],
   sessions: ["session", "id"],

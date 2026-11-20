@@ -969,6 +969,7 @@ model Review {
   reviewerIdRecord  User         @relation("Review_reviewer_id", fields: [reviewerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   revieweeIdRecord  User         @relation("Review_reviewee_id", fields: [revieweeId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   moderationVersion Int          @default(0) @map("moderation_version")
+  publicationState  String?      @map("publication_state")
 
   @@unique([pathId, reviewerId])
   @@index([pathId])
@@ -1058,11 +1059,12 @@ model ReportCase {
   relatedOrderIdRecord        MaterialOrder?     @relation("ReportCase_related_order_id", fields: [relatedOrderId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   reportEvidenceCaseIdRecords ReportEvidence[]   @relation("ReportEvidence_case_id")
 
-  severity        String?                @db.VarChar(8)
-  version         Int                    @default(1)
-  incidentId      String?                @map("incident_id") @db.Uuid
-  incident        ReportIncident?        @relation(fields: [incidentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  messageReceipts ReportMessageReceipt[]
+  severity          String?                   @db.VarChar(8)
+  version           Int                       @default(1)
+  incidentId        String?                   @map("incident_id") @db.Uuid
+  incident          ReportIncident?           @relation(fields: [incidentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  messageReceipts   ReportMessageReceipt[]
+  contentModeration ReportContentModeration[]
 
   @@index([reporterId])
   @@index([relatedSessionId])
@@ -1946,6 +1948,7 @@ model StoredFile {
   scanAttempts             Int                   @default(0) @map("scan_attempts")
   scanVerdict              String?               @map("scan_verdict")
   scannerVersion           String?               @map("scanner_version")
+  moderationAssessment     Json?                 @map("moderation_assessment")
   scannedAt                DateTime?             @map("scanned_at") @db.Timestamptz(3)
   scanLeaseToken           String?               @map("scan_lease_token") @db.Uuid
   scanLeaseUntil           DateTime?             @map("scan_lease_until") @db.Timestamptz(3)
@@ -1985,19 +1988,20 @@ model StoredFileScanEvent {
 
 // SRS V1.6 requires Learning Request tags beyond the logical v3 diagram.
 model ChatPublication {
-  id                 String   @id @db.Uuid
-  conversationId     String   @map("conversation_id") @db.Uuid
-  senderId           String   @map("sender_id") @db.Uuid
-  clientMessageId    String   @map("client_message_id") @db.Uuid
-  commandDigest      String   @map("command_digest")
-  draftDigest        String?  @map("draft_digest")
-  draftFormatVersion Int      @default(1) @map("draft_format_version")
-  deliveredEventId   String   @unique @map("delivered_event_id") @db.Uuid
-  status             String   @default("PREPARING")
-  messageSequence    BigInt?  @map("message_sequence")
-  failureCode        String?  @map("failure_code")
-  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id                   String   @id @db.Uuid
+  conversationId       String   @map("conversation_id") @db.Uuid
+  senderId             String   @map("sender_id") @db.Uuid
+  clientMessageId      String   @map("client_message_id") @db.Uuid
+  commandDigest        String   @map("command_digest")
+  draftDigest          String?  @map("draft_digest")
+  draftFormatVersion   Int      @default(1) @map("draft_format_version")
+  deliveredEventId     String   @unique @map("delivered_event_id") @db.Uuid
+  status               String   @default("PREPARING")
+  messageSequence      BigInt?  @map("message_sequence")
+  failureCode          String?  @map("failure_code")
+  moderationAssessment Json?    @map("moderation_assessment")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@unique([conversationId, senderId, clientMessageId])
   @@index([status, createdAt])
@@ -2312,6 +2316,25 @@ model ReportMessageReceipt {
 
   @@index([caseId, partyId, createdAt, messageId], map: "report_message_receipts_thread_idx")
   @@map("report_message_receipts")
+}
+
+model ReportContentModeration {
+  kind              String      @db.VarChar(24)
+  sourceId          String      @map("source_id") @db.VarChar(64)
+  caseId            String?     @map("case_id") @db.Uuid
+  sourceVersion     String      @map("source_version") @db.VarChar(64)
+  digest            String      @db.Char(64)
+  status            String      @default("PENDING") @db.VarChar(16)
+  restricted        Boolean     @default(false)
+  reasonCodes       String[]    @default([]) @map("reason_codes")
+  policyVersion     String?     @map("policy_version") @db.VarChar(80)
+  classifierVersion String?     @map("classifier_version") @db.VarChar(128)
+  assessmentId      String?     @map("assessment_id") @db.VarChar(200)
+  reportCase        ReportCase? @relation(fields: [caseId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([kind, sourceId])
+  @@index([caseId, status], map: "report_content_moderation_case_status_idx")
+  @@map("report_content_moderation")
 }
 
 // Runtime fragment for Staff permission overrides.

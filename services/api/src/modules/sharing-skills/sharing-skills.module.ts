@@ -1,3 +1,4 @@
+import { ContentModerationModule } from "../content-moderation/content-moderation.module";
 import { Module } from "@nestjs/common";
 import { DatabaseModule } from "../../infrastructure/database/database.module";
 import { IdempotencyModule } from "../../infrastructure/idempotency/idempotency.module";
@@ -12,6 +13,7 @@ import {
 } from "./presentation/http/sharing-skills.controller";
 @Module({
   imports: [
+    ContentModerationModule,
     DatabaseModule,
     IdempotencyModule,
     IdentityModule,

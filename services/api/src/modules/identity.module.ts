@@ -33,10 +33,12 @@ import { PublicSkillReader } from "./users/application/services/public-skill-rea
 import { ProfileReader } from "./users/application/services/profile-reader.service";
 import { AdminUserMetricsReaderPort } from "./users/application/ports/admin-user-metrics.reader";
 import { AdminUserMetricsReader } from "./users/application/services/admin-user-metrics.reader";
+import { ContentModerationModule } from "./content-moderation/content-moderation.module";
 
 // Composition root wires owner contracts without circular module imports.
 @Module({
   imports: [
+    ContentModerationModule,
     DatabaseModule,
     RedisModule,
     QueueModule,

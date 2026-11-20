@@ -13,6 +13,8 @@ import type {
 } from "../../../../generated/prisma/client";
 import { ReputationService } from "../../../reputation/application/services/reputation.service";
 import { ReportsService } from "../../../reports/application/services/reports.service";
+import { ContentModerationService } from "../../../content-moderation/application/content-moderation.service";
+import { moderateText } from "../../../content-moderation/application/text-moderation";
 import type { LiveObservation } from "../../infrastructure/livekit/livekit.service";
 import { sessionParticipantIdentity } from "../../domain/session.policy";
 import {
@@ -45,6 +47,7 @@ export class SessionOutcomeService {
     private readonly transactions: TransactionRunner,
     private readonly reputation: ReputationService,
     private readonly reports: ReportsService,
+    private readonly moderation: ContentModerationService,
   ) {}
 
   private async openNoShow(
@@ -71,8 +74,9 @@ export class SessionOutcomeService {
     return { session, outcome, now, absent };
   }
 
-  submitExcuse(actor: Principal, sessionId: string, reason: string) {
-    return this.transactions.run(async (tx) => {
+  async submitExcuse(actor: Principal, sessionId: string, reason: string) {
+    const detail = reason.trim();
+    const validate = async (tx: TransactionContext) => {
       const { session, outcome, absent } = await this.openNoShow(
         tx,
         actor,
@@ -85,11 +89,26 @@ export class SessionOutcomeService {
         })
       )
         throw new ConflictException("ABSENCE_EXCUSE_EXISTS");
+      return { session, outcome };
+    };
+    let assessedOutcome: string | undefined;
+    if (this.moderation && this.moderation.mode("session") !== "off") {
+      const { outcome } = await this.transactions.run(validate);
+      assessedOutcome = outcome.id;
+      await moderateText(this.moderation, "session", {
+        sourceVersion: outcome.id,
+        fields: [detail],
+      });
+    }
+    return this.transactions.run(async (tx) => {
+      const { session, outcome } = await validate(tx);
+      if (assessedOutcome !== undefined && assessedOutcome !== outcome.id)
+        throw new ConflictException("STALE_SESSION_OCCURRENCE");
       const excuse = await tx.sessionAbsenceExcuse.create({
         data: {
           outcomeId: outcome.id,
           absentUserId: actor.userId,
-          reason: reason.trim(),
+          reason: detail,
           status: "PENDING",
         },
       });
@@ -107,13 +126,14 @@ export class SessionOutcomeService {
     });
   }
 
-  decideExcuse(
+  async decideExcuse(
     actor: Principal,
     sessionId: string,
     accept: boolean,
     note?: string,
   ) {
-    return this.transactions.run(async (tx) => {
+    const detail = note?.trim() || null;
+    const validate = async (tx: TransactionContext) => {
       const { session, outcome, now, absent } = await this.openNoShow(
         tx,
         actor,
@@ -125,6 +145,25 @@ export class SessionOutcomeService {
       });
       if (excuse?.status !== "PENDING")
         throw new ConflictException("ABSENCE_EXCUSE_NOT_PENDING");
+      return { session, outcome, now, excuse };
+    };
+    let assessedExcuse: string | undefined;
+    if (
+      detail &&
+      this.moderation &&
+      this.moderation.mode("session") !== "off"
+    ) {
+      const { excuse } = await this.transactions.run(validate);
+      assessedExcuse = excuse.id;
+      await moderateText(this.moderation, "session", {
+        sourceVersion: excuse.id,
+        fields: [detail],
+      });
+    }
+    return this.transactions.run(async (tx) => {
+      const { session, outcome, now, excuse } = await validate(tx);
+      if (assessedExcuse !== undefined && assessedExcuse !== excuse.id)
+        throw new ConflictException("STALE_SESSION_OCCURRENCE");
       const status = accept ? ("ACCEPTED" as const) : ("REJECTED" as const);
       await tx.sessionAbsenceExcuse.update({
         where: { id: excuse.id },
@@ -132,7 +171,7 @@ export class SessionOutcomeService {
           status,
           decidedByUserId: actor.userId,
           decidedAt: now,
-          decisionNote: note?.trim() || null,
+          decisionNote: detail,
         },
       });
       if (accept) {

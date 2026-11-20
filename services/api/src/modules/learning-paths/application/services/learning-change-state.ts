@@ -21,6 +21,13 @@ import { validateReason } from "../../../audit/domain/reason.policy";
 
 export const OPEN_CHANGE_STATUSES = ["PENDING", "ACCEPTED", "STAFF_REVIEW"];
 export type ChangeKind = "SESSION_CANCELLATION" | "PATH_TERMINATION";
+type ChangeCreation = {
+  kind: ChangeKind;
+  key: string;
+  reason: string;
+  session?: Session;
+  expectedStartAt?: string;
+};
 type ChangeStatus =
   | "PENDING"
   | "ACCEPTED"
@@ -129,18 +136,13 @@ export class LearningChangeState {
     return values["learningPath.changeRequests"];
   }
 
-  async create(
+  async prepareCreate(
     tx: TransactionContext,
     actor: Principal,
     path: LearningPath,
-    input: {
-      kind: ChangeKind;
-      key: string;
-      reason: string;
-      session?: Session;
-      expectedStartAt?: string;
-    },
+    input: ChangeCreation,
     now: Date,
+    writing = false,
   ) {
     assertPathParticipant(actor, path);
     if (
@@ -168,7 +170,7 @@ export class LearningChangeState {
     if (existing) {
       if (existing.instructionDigest !== instructionDigest)
         throw new ConflictException("CHANGE_REQUEST_KEY_CONFLICT");
-      return existing;
+      return { existing };
     }
     assertChangeablePath(path);
     if (input.kind === "PATH_TERMINATION") {
@@ -181,13 +183,16 @@ export class LearningChangeState {
       if (total > 0 && remaining === 0)
         throw new ConflictException("PATH_ALREADY_LEARNING_FINISHED");
     }
-    await this.expire(tx, path.id, now);
+    if (writing) await this.expire(tx, path.id, now);
     const other = await tx.learningChangeRequest.findFirst({
       where: {
         pathId: path.id,
         kind: input.kind,
         sessionId: input.session?.id ?? null,
         status: { in: OPEN_CHANGE_STATUSES },
+        ...(!writing
+          ? { OR: [{ expiresAt: { gt: now } }, { approvedAt: { not: null } }] }
+          : {}),
       },
     });
     if (other) throw new ConflictException("CHANGE_REQUEST_ALREADY_PENDING");
@@ -216,6 +221,26 @@ export class LearningChangeState {
         makeupWindowDays: values["session.attendancePolicy"].makeupWindowDays,
       };
     }
+    return { reason, instructionDigest, policySnapshot, expiresAt };
+  }
+
+  async create(
+    tx: TransactionContext,
+    actor: Principal,
+    path: LearningPath,
+    input: ChangeCreation,
+    now: Date,
+  ) {
+    const prepared = await this.prepareCreate(
+      tx,
+      actor,
+      path,
+      input,
+      now,
+      true,
+    );
+    if (prepared.existing) return prepared.existing;
+    const { reason, instructionDigest, policySnapshot, expiresAt } = prepared;
     const row = await tx.learningChangeRequest.create({
       data: {
         pathId: path.id,
@@ -246,8 +271,7 @@ export class LearningChangeState {
     return row;
   }
 
-  async respond(
-    tx: TransactionContext,
+  prepareResponse(
     actor: Principal,
     row: LearningChangeRequest,
     input: { expectedVersion: number; accept: boolean; note?: string },
@@ -262,10 +286,22 @@ export class LearningChangeState {
       row.accepted === input.accept &&
       row.responseNote === note
     )
-      return row;
+      return { note, replayed: true };
     this.assertOpen(row, input.expectedVersion, now);
     if (row.status !== "PENDING")
       throw new ConflictException("CHANGE_REQUEST_ALREADY_DECIDED");
+    return { note, replayed: false };
+  }
+
+  async respond(
+    tx: TransactionContext,
+    actor: Principal,
+    row: LearningChangeRequest,
+    input: { expectedVersion: number; accept: boolean; note?: string },
+    now: Date,
+  ) {
+    const { note, replayed } = this.prepareResponse(actor, row, input, now);
+    if (replayed) return row;
     let status: ChangeStatus = "ACCEPTED";
     if (!input.accept)
       status = row.kind === "PATH_TERMINATION" ? "STAFF_REVIEW" : "REJECTED";

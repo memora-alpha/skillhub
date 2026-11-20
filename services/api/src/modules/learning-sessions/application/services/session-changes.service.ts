@@ -15,33 +15,49 @@ import {
 import { databaseNow, lockedSession, lockSession } from "./session-tx";
 import { completeSession } from "./session-transitions";
 import { makeupQuota, reserveMakeup } from "./makeup-quota";
+import { ContentModerationService } from "../../../content-moderation/application/content-moderation.service";
+import { moderateText } from "../../../content-moderation/application/text-moderation";
 
 @Injectable()
 export class SessionChangesService {
   constructor(
     private readonly transactions: TransactionRunner,
     private readonly changes: LearningChangeState,
+    private readonly moderation: ContentModerationService,
   ) {}
 
-  request(
+  async request(
     actor: Principal,
     sessionId: string,
     key: string,
     input: { reason: string; expectedStartAt: string },
   ) {
+    const request = { ...input, kind: "SESSION_CANCELLATION" as const, key };
+    if (this.moderation && this.moderation.mode("session") !== "off") {
+      const text = await this.transactions.run(async (tx) => {
+        const { session, path, now } = await this.context(tx, actor, sessionId);
+        const prepared = await this.changes.prepareCreate(
+          tx,
+          actor,
+          path,
+          { ...request, session },
+          now,
+        );
+        if (!prepared.existing)
+          return {
+            sourceVersion: session.startAt.toISOString(),
+            fields: [prepared.reason],
+          };
+      });
+      await moderateText(this.moderation, "session", text);
+    }
     return this.transactions.run(async (tx) => {
       const { session, path, now } = await this.context(tx, actor, sessionId);
       const row = await this.changes.create(
         tx,
         actor,
         path,
-        {
-          kind: "SESSION_CANCELLATION",
-          key,
-          reason: input.reason,
-          expectedStartAt: input.expectedStartAt,
-          session,
-        },
+        { ...request, session },
         now,
       );
       return changeView(row, await changeBlockedByDispute(tx, path.id), true);
@@ -62,19 +78,42 @@ export class SessionChangesService {
     });
   }
 
-  respond(
+  async respond(
     actor: Principal,
     sessionId: string,
     requestId: string,
     input: { expectedVersion: number; accept: boolean; note?: string },
   ) {
-    return this.transactions.run(async (tx) => {
+    input = { ...input };
+    const validate = async (tx: TransactionContext) => {
       const { session, path, now } = await this.context(tx, actor, sessionId);
       const row = await this.cancellation(tx, path.id, sessionId, requestId);
       if (input.accept && row.status === "PENDING") {
         const quota = await makeupQuota(tx, session, row.requesterId);
         if (quota.reason) throw new ConflictException(quota.reason);
       }
+      return { session, path, now, row };
+    };
+    if (
+      input.note?.trim() &&
+      this.moderation &&
+      this.moderation.mode("session") !== "off"
+    ) {
+      const text = await this.transactions.run(async (tx) => {
+        const { row, now } = await validate(tx);
+        const { note, replayed } = this.changes.prepareResponse(
+          actor,
+          row,
+          input,
+          now,
+        );
+        if (!replayed)
+          return { sourceVersion: String(row.version), fields: [note] };
+      });
+      await moderateText(this.moderation, "session", text);
+    }
+    return this.transactions.run(async (tx) => {
+      const { session, path, now, row } = await validate(tx);
       const decided = await this.changes.respond(tx, actor, row, input, now);
       const applied = await this.apply(tx, decided, session, now, actor);
       return changeView(

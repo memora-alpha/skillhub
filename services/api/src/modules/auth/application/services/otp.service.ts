@@ -16,6 +16,7 @@ export class OtpService {
     email: string,
     data?: {
       fullName: string;
+      fullNameModerationPolicy?: string;
       passwordHash: string;
       timezone?: string;
       locale?: "vi" | "en";
@@ -29,6 +30,7 @@ export class OtpService {
       ? this.registration(current)
       : {
           fullName: data!.fullName,
+          fullNameModerationPolicy: data!.fullNameModerationPolicy,
           passwordHash: data!.passwordHash,
           timezone: data!.timezone ?? this.config.timezone,
           locale: data!.locale,

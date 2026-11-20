@@ -44,6 +44,8 @@ export class ModeratedReviewItem {
   @ApiProperty({ type: String, nullable: true, format: "date-time" })
   hiddenAt!: string | null;
   @ApiProperty() moderationVersion!: number;
+  @ApiProperty({ type: String, enum: ["PENDING", "REJECTED"], nullable: true })
+  publicationState!: string | null;
 }
 @ApiTags("review-moderation")
 @ApiBearerAuth()

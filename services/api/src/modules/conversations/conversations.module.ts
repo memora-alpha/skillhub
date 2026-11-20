@@ -20,6 +20,7 @@ import { SystemMessagePublisher } from "./application/services/system-message-pu
 import { ConversationsService } from "./application/services/conversations.service";
 import { ConversationsController } from "./presentation/http/conversations.controller";
 import { ConversationMembershipReader } from "./application/services/conversation-membership.reader";
+import { ContentModerationModule } from "../content-moderation/content-moderation.module";
 @Module({
   imports: [
     LearningRequestInboxModule,
@@ -27,6 +28,7 @@ import { ConversationMembershipReader } from "./application/services/conversatio
     DatabaseModule,
     OutboxModule,
     StorageModule,
+    ContentModerationModule,
     IdentityModule,
     ApplicationEventsModule,
     NotificationsModule,

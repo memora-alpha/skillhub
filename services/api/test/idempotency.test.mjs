@@ -75,3 +75,64 @@ test("same identity replays a reference and changed command conflicts", async ()
     (error) => error.getStatus?.() === 400,
   );
 });
+
+test("idempotent commands check new work outside a transaction and skip checks on replay", async () => {
+  const input = {
+    scope: "actor:1",
+    operation: "test:v1",
+    key: "abc",
+    command: { a: 1 },
+  };
+  let active = false;
+  let record;
+  const tx = {
+    $executeRaw: async () => {
+      if (record) return 0;
+      record = { fingerprint: fingerprintCommand(input.command) };
+      return 1;
+    },
+    idempotencyRecord: {
+      findUnique: async () => record,
+      update: async ({ data }) => Object.assign(record, data),
+    },
+  };
+  const commands = new IdempotencyService({
+    async run(work) {
+      assert.equal(active, false);
+      active = true;
+      try {
+        return await work(tx);
+      } finally {
+        active = false;
+      }
+    },
+  });
+  const calls = [];
+  const preflight = {
+    prepare: async () => {
+      assert.equal(active, true);
+      calls.push("prepare");
+      return "content";
+    },
+    check: async (content) => {
+      assert.equal(active, false);
+      assert.equal(content, "content");
+      calls.push("check");
+    },
+  };
+  const authorize = async () => calls.push("authorize");
+  const work = async () => {
+    assert.deepEqual(calls, ["authorize", "prepare", "check", "authorize"]);
+    return { id: "one", status: "CREATED" };
+  };
+  const first = await commands.execute(input, work, authorize, preflight);
+  const replay = await commands.execute(input, work, authorize, preflight);
+  assert.deepEqual(replay, { value: first.value, replayed: true });
+  assert.deepEqual(calls, [
+    "authorize",
+    "prepare",
+    "check",
+    "authorize",
+    "authorize",
+  ]);
+});

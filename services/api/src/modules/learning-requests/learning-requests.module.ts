@@ -39,9 +39,11 @@ import { ListLearningRequestsUseCase } from "./application/use-cases/list-learni
 import { GetLearningRequestUseCase } from "./application/use-cases/get-learning-request.use-case";
 import { LearningPathRequestStateModule } from "../learning-paths/learning-path-request-state.module";
 import { LearningRequestPathReader } from "../learning-paths/application/services/learning-request-path.reader";
+import { ContentModerationModule } from "../content-moderation/content-moderation.module";
 
 @Module({
   imports: [
+    ContentModerationModule,
     DatabaseModule,
     LearningPathRequestStateModule,
     IdentityModule,

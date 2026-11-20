@@ -7,18 +7,23 @@ import {
 import { randomUUID } from "node:crypto";
 import { TransactionRunner } from "../../../../infrastructure/database/transaction-runner";
 import type { Principal } from "../../../auth/application/services/sessions.service";
+import { ContentModerationService } from "../../../content-moderation/application/content-moderation.service";
+import { queueReportText } from "../../../reports/application/services/report-content-moderation";
 import { requirePermission } from "./material-support";
 
 const ACTIVE_CASE = ["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"] as const;
 
 /**
  * SRS 18.41: MATERIAL reports need no learningPathId/sessionId. Staff resolve them in the
- * existing /reports/staff queue, which reads the database, so no outbox event is written;
+ * existing /reports/staff queue, which reads the database.
  * relatedOrderId links an order report to the Admin dispute and Credit workflow.
  */
 @Injectable()
 export class MaterialReportsService {
-  constructor(private readonly transactions: TransactionRunner) {}
+  constructor(
+    private readonly transactions: TransactionRunner,
+    private readonly moderation?: ContentModerationService,
+  ) {}
 
   async report(
     principal: Principal,
@@ -73,6 +78,12 @@ export class MaterialReportsService {
           status: "OPEN",
           blocksSettlement: false,
         },
+      });
+      await queueReportText(tx, this.moderation, {
+        kind: "CASE_REPORT",
+        sourceId: id,
+        caseId: id,
+        text: description,
       });
       return { id, status: "OPEN", relatedOrderId };
     });

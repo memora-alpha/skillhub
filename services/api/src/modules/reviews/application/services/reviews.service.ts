@@ -6,6 +6,8 @@ import {
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { TransactionRunner } from "../../../../infrastructure/database/transaction-runner";
+import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
+import type { LearningPath, Review } from "../../../../generated/prisma/client";
 import { lockLearningPath as lockPath } from "../../../learning-paths/application/services/learning-path-lock";
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import {
@@ -14,6 +16,10 @@ import {
 } from "../../../reputation/application/services/reputation.service";
 import { AchievementsService } from "../../../reputation/application/services/achievements.service";
 import type { CreateReviewDto } from "../../presentation/http/reviews.dto";
+import {
+  ContentModerationService,
+  requireAllowed,
+} from "../../../content-moderation/application/content-moderation.service";
 import {
   effectiveRestriction,
   recoveryPolicy,
@@ -27,28 +33,31 @@ export class ReviewsService {
     private readonly transactions: TransactionRunner,
     private readonly reputation: ReputationService,
     private readonly achievements: AchievementsService,
+    private readonly moderation?: ContentModerationService,
   ) {}
 
-  create(actor: Principal, pathId: string, input: CreateReviewDto) {
+  async create(actor: Principal, pathId: string, input: CreateReviewDto) {
+    const comment = input.comment?.trim() || null;
+    let pending = false;
+    if (
+      comment &&
+      this.moderation &&
+      this.moderation.mode("review") !== "off"
+    ) {
+      await this.transactions.run((tx) =>
+        this.reviewCandidate(tx, actor, pathId),
+      );
+      const assessment = await this.moderation.evaluateText(
+        "review",
+        "submission",
+        [comment],
+      );
+      pending = assessment.outcome === "REVIEW";
+      if (!pending) requireAllowed(assessment);
+    }
     return this.transactions.run(async (tx) => {
       await lockPath(tx, pathId);
-      const path = await tx.learningPath.findUniqueOrThrow({
-        where: { id: pathId },
-      });
-      if (
-        actor.userId !== path.participantAId &&
-        actor.userId !== path.participantBId
-      ) {
-        throw new ForbiddenException("LEARNING_PATH_ACCESS_DENIED");
-      }
-      if (path.status !== "COMPLETED" || path.settledAt === null) {
-        throw new ConflictException("REVIEW_NOT_OPEN");
-      }
-      const existing = await tx.review.findUnique({
-        where: { pathId_reviewerId: { pathId, reviewerId: actor.userId } },
-        select: { id: true },
-      });
-      if (existing) throw new ConflictException("REVIEW_ALREADY_SUBMITTED");
+      const { path, existing } = await this.reviewCandidate(tx, actor, pathId);
       const revieweeId =
         actor.userId === path.participantAId
           ? path.participantBId
@@ -59,30 +68,73 @@ export class ReviewsService {
       if (!(clock?.now instanceof Date)) {
         throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
       }
-      const review = await tx.review.create({
-        data: {
-          id: randomUUID(),
-          pathId,
-          reviewerId: actor.userId,
-          revieweeId,
-          rating: input.rating,
-          comment: input.comment?.trim() || null,
-          createdAt: clock.now,
-        },
-      });
-      await this.reputation.apply(tx, {
-        userId: revieweeId,
-        delta: ratingDelta[input.rating] ?? 0,
-        reasonCode: "REVIEW_RATING",
-        sourceType: "REVIEW",
-        sourceId: review.id,
-        eventKey: `review:${review.id}`,
-        now: clock.now,
-        rewardPath: path,
-      });
-      await this.achievements.evaluate(tx, revieweeId, clock.now);
+      const content = {
+        rating: input.rating,
+        comment,
+        createdAt: clock.now,
+        hiddenAt: pending ? clock.now : null,
+        publicationState: pending ? "PENDING" : null,
+      };
+      const review = existing
+        ? await tx.review.update({
+            where: { id: existing.id },
+            data: { ...content, moderationVersion: { increment: 1 } },
+          })
+        : await tx.review.create({
+            data: {
+              id: randomUUID(),
+              pathId,
+              reviewerId: actor.userId,
+              revieweeId,
+              ...content,
+            },
+          });
+      if (!pending) await this.applyReviewEffects(tx, path, review, clock.now);
       return review;
     });
+  }
+
+  private async reviewCandidate(
+    tx: TransactionContext,
+    actor: Principal,
+    pathId: string,
+  ) {
+    const path = await tx.learningPath.findUniqueOrThrow({
+      where: { id: pathId },
+    });
+    if (
+      actor.userId !== path.participantAId &&
+      actor.userId !== path.participantBId
+    )
+      throw new ForbiddenException("LEARNING_PATH_ACCESS_DENIED");
+    if (path.status !== "COMPLETED" || path.settledAt === null)
+      throw new ConflictException("REVIEW_NOT_OPEN");
+    const existing = await tx.review.findUnique({
+      where: { pathId_reviewerId: { pathId, reviewerId: actor.userId } },
+      select: { id: true, publicationState: true },
+    });
+    if (existing && existing.publicationState !== "REJECTED")
+      throw new ConflictException("REVIEW_ALREADY_SUBMITTED");
+    return { path, existing };
+  }
+
+  async applyReviewEffects(
+    tx: TransactionContext,
+    path: LearningPath,
+    review: Review,
+    now: Date,
+  ) {
+    await this.reputation.apply(tx, {
+      userId: review.revieweeId,
+      delta: ratingDelta[review.rating] ?? 0,
+      reasonCode: "REVIEW_RATING",
+      sourceType: "REVIEW",
+      sourceId: review.id,
+      eventKey: `review:${review.id}`,
+      now,
+      rewardPath: path,
+    });
+    await this.achievements.evaluate(tx, review.revieweeId, now);
   }
 
   listForPath(actor: Principal, pathId: string) {
@@ -96,7 +148,16 @@ export class ReviewsService {
         throw new ForbiddenException("LEARNING_PATH_ACCESS_DENIED");
       }
       return tx.review.findMany({
-        where: { pathId, hiddenAt: null },
+        where: {
+          pathId,
+          OR: [
+            { hiddenAt: null },
+            {
+              reviewerId: actor.userId,
+              publicationState: { in: ["PENDING", "REJECTED"] },
+            },
+          ],
+        },
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       });
     });

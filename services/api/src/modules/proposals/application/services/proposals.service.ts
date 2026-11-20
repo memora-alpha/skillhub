@@ -1,3 +1,5 @@
+import { ContentModerationService } from "../../../content-moderation/application/content-moderation.service";
+import { textModerationPreflight } from "../../../content-moderation/application/text-moderation";
 import {
   BadRequestException,
   ConflictException,
@@ -75,6 +77,7 @@ export class ProposalsService {
     private readonly audit: AuditWriter,
     private readonly conversations: ConversationLifecycleService,
     private readonly notifications: ConnectionNotificationService,
+    private readonly moderation: ContentModerationService,
   ) {}
   private async parties(
     tx: TransactionContext,
@@ -190,6 +193,7 @@ export class ProposalsService {
     return { recipientId: userId };
   }
   async create(command: SkillCommand, input: CreateProposal) {
+    input = { ...input };
     if (
       (input.sourceType === "LEARNING_REQUEST" &&
         (!input.learningRequestId ||
@@ -219,6 +223,70 @@ export class ProposalsService {
         throw new ForbiddenException("NEW_ACTIVITY_RESTRICTED");
       await this.actors.assertConnectionParty(tx, recipientId);
     };
+    const validate = async (tx: TransactionContext) => {
+      const now = await this.clock(tx);
+      const hints = normalizeProposal(input, this.config.policy);
+      if (input.sourceType === "LEARNING_REQUEST") {
+        const request = await this.requests.lockForProposal(
+          tx,
+          input.learningRequestId!,
+          command.principal.userId,
+        );
+        if (
+          request.ownerId !== recipientId ||
+          request.skillId !== source.skillId
+        )
+          throw new ConflictException("REQUEST_VERSION_CONFLICT");
+        await this.sharing.assertTeacherEligible(tx, {
+          userId: command.principal.userId,
+          skillId: request.skillId,
+          verifiedRequired: request.verifiedTeacherOnly,
+        });
+      } else {
+        const target = await this.sharing.connectionTarget(
+          tx,
+          input.recipientSharingSkillId!,
+        );
+        if (target.userId !== recipientId || target.skillId !== source.skillId)
+          throw new ConflictException("DIRECT_TARGET_UNAVAILABLE");
+      }
+      const day = await tx.proposal.count({
+        where: {
+          proposerId: command.principal.userId,
+          createdAt: { gt: new Date(now.getTime() - 86400000) },
+        },
+      });
+      const hour = await tx.proposal.count({
+        where: {
+          proposerId: command.principal.userId,
+          createdAt: { gt: new Date(now.getTime() - 3600000) },
+        },
+      });
+      if (
+        day >= this.config.policy.proposalsPerDay ||
+        hour >= this.config.policy.proposalsPerHour
+      )
+        throw new HttpException("PROPOSAL_RATE_LIMIT", 429);
+      if (
+        input.sourceType === "DIRECT_SEARCH" &&
+        (await tx.proposal.findFirst({
+          where: {
+            proposerId: command.principal.userId,
+            recipientId,
+            skillId: source.skillId,
+            sourceType: "DIRECT_SEARCH",
+            createdAt: {
+              gt: new Date(
+                now.getTime() -
+                  this.config.policy.directCooldownHours * 3600000,
+              ),
+            },
+          },
+        }))
+      )
+        throw new HttpException("DIRECT_INVITATION_COOLDOWN", 429);
+      return { now, hints };
+    };
     try {
       const result = await this.commands.execute(
         {
@@ -228,70 +296,7 @@ export class ProposalsService {
           command: commandJson(input),
         },
         async (tx) => {
-          const now = await this.clock(tx);
-          const hints = normalizeProposal(input, this.config.policy);
-          if (input.sourceType === "LEARNING_REQUEST") {
-            const request = await this.requests.lockForProposal(
-              tx,
-              input.learningRequestId!,
-              command.principal.userId,
-            );
-            if (
-              request.ownerId !== recipientId ||
-              request.skillId !== source.skillId
-            )
-              throw new ConflictException("REQUEST_VERSION_CONFLICT");
-            await this.sharing.assertTeacherEligible(tx, {
-              userId: command.principal.userId,
-              skillId: request.skillId,
-              verifiedRequired: request.verifiedTeacherOnly,
-            });
-          } else {
-            const target = await this.sharing.connectionTarget(
-              tx,
-              input.recipientSharingSkillId!,
-            );
-            if (
-              target.userId !== recipientId ||
-              target.skillId !== source.skillId
-            )
-              throw new ConflictException("DIRECT_TARGET_UNAVAILABLE");
-          }
-          const day = await tx.proposal.count({
-            where: {
-              proposerId: command.principal.userId,
-              createdAt: { gt: new Date(now.getTime() - 86400000) },
-            },
-          });
-          const hour = await tx.proposal.count({
-            where: {
-              proposerId: command.principal.userId,
-              createdAt: { gt: new Date(now.getTime() - 3600000) },
-            },
-          });
-          if (
-            day >= this.config.policy.proposalsPerDay ||
-            hour >= this.config.policy.proposalsPerHour
-          )
-            throw new HttpException("PROPOSAL_RATE_LIMIT", 429);
-          if (
-            input.sourceType === "DIRECT_SEARCH" &&
-            (await tx.proposal.findFirst({
-              where: {
-                proposerId: command.principal.userId,
-                recipientId,
-                skillId: source.skillId,
-                sourceType: "DIRECT_SEARCH",
-                createdAt: {
-                  gt: new Date(
-                    now.getTime() -
-                      this.config.policy.directCooldownHours * 3600000,
-                  ),
-                },
-              },
-            }))
-          )
-            throw new HttpException("DIRECT_INVITATION_COOLDOWN", 429);
+          const { now, hints } = await validate(tx);
           const row = await tx.proposal.create({
             data: {
               ...hints,
@@ -321,6 +326,13 @@ export class ProposalsService {
           return { id: row.id, status: row.status, version: row.version };
         },
         authorize,
+        textModerationPreflight(this.moderation, "proposal", async (tx) => {
+          const { hints } = await validate(tx);
+          return {
+            sourceVersion: "create:1",
+            fields: [hints.message, hints.candidateSlots],
+          };
+        }),
       );
       return {
         proposal: await this.get(command.principal, result.value.id),
@@ -376,6 +388,7 @@ export class ProposalsService {
       expectedRequestVersion?: number;
     },
   ) {
+    input = { ...input };
     const snapshot = await this.raw(this.db, id);
     const permission = {
       update: "proposal:update:self",
@@ -392,6 +405,28 @@ export class ProposalsService {
       )
         throw new NotFoundException();
     };
+    const validate = async (tx: TransactionContext) => {
+      const row = await this.raw(tx, id, true);
+      const now = await this.clock(tx);
+      if (row.version !== input.expectedVersion || row.status !== "PENDING")
+        throw new ConflictException("PROPOSAL_VERSION_CONFLICT");
+      if (!row.expiresAt || row.expiresAt <= now)
+        throw new ConflictException("PROPOSAL_EXPIRED");
+      return { row, now };
+    };
+    const updateHints = (row: Proposal) =>
+      normalizeProposal(
+        {
+          message: row.message,
+          exchangeTypeHint: row.exchangeTypeHint,
+          proposedCredit: formatCredit(row.proposedCredit),
+          proposedDurationMinutes: row.proposedDurationMinutes,
+          initialSessionCount: row.initialSessionCount,
+          candidateSlots: row.candidateSlots,
+          ...input,
+        },
+        this.config.policy,
+      );
     try {
       const result = await this.commands.execute(
         {
@@ -404,12 +439,7 @@ export class ProposalsService {
           let requestVersion: number | undefined;
           if (action === "accept")
             requestVersion = await this.validateAcceptance(tx, snapshot, input);
-          const row = await this.raw(tx, id, true),
-            now = await this.clock(tx);
-          if (row.version !== input.expectedVersion || row.status !== "PENDING")
-            throw new ConflictException("PROPOSAL_VERSION_CONFLICT");
-          if (!row.expiresAt || row.expiresAt <= now)
-            throw new ConflictException("PROPOSAL_EXPIRED");
+          const { row, now } = await validate(tx);
           let data: Prisma.ProposalUpdateInput;
           const resolveStatus = () => {
             if (action === "accept") {
@@ -420,18 +450,8 @@ export class ProposalsService {
             }
             return "WITHDRAWN" as const;
           };
-          if (action === "update") {
-            const merged = {
-              message: row.message,
-              exchangeTypeHint: row.exchangeTypeHint,
-              proposedCredit: formatCredit(row.proposedCredit),
-              proposedDurationMinutes: row.proposedDurationMinutes,
-              initialSessionCount: row.initialSessionCount,
-              candidateSlots: row.candidateSlots,
-              ...input,
-            };
-            data = normalizeProposal(merged, this.config.policy);
-          } else
+          if (action === "update") data = updateHints(row);
+          else
             data = {
               status: resolveStatus(),
               terminalAt: now,
@@ -470,6 +490,22 @@ export class ProposalsService {
           return { id, status: updated.status, version: updated.version };
         },
         authorize,
+        action === "update" &&
+          (input.message !== undefined || input.candidateSlots !== undefined)
+          ? textModerationPreflight(this.moderation, "proposal", async (tx) => {
+              const { row } = await validate(tx);
+              const hints = updateHints(row);
+              if (
+                row.message === hints.message &&
+                row.candidateSlots === hints.candidateSlots
+              )
+                return undefined;
+              return {
+                sourceVersion: String(row.version),
+                fields: [hints.message, hints.candidateSlots],
+              };
+            })
+          : undefined,
       );
       const proposal = await this.get(command.principal, result.value.id);
       const conversation =

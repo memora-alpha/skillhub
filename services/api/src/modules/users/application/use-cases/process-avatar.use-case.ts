@@ -8,6 +8,8 @@ import {
   transaction,
 } from "../../../../shared/database/identity-transactions";
 import { IdentityConfig } from "../../../../configs/identity.config";
+import { MediaModerationService } from "../../../content-moderation/application/media-moderation.service";
+import type { ModerationAssessment } from "../../../content-moderation/application/content-moderation.service";
 import { AvatarRepository } from "../ports/avatar-repository";
 import {
   AvatarStoragePort,
@@ -24,6 +26,7 @@ export class ProcessAvatarUseCase {
     private readonly scanner: AvatarScannerPort,
     private readonly inspector: AvatarInspector,
     private readonly config: IdentityConfig,
+    private readonly moderation?: MediaModerationService,
   ) {}
   async execute(id: string) {
     const found = await this.repository.find(this.db, id);
@@ -56,13 +59,28 @@ export class ProcessAvatarUseCase {
     });
     if (!asset) return;
     let clean: boolean;
+    let assessment: ModerationAssessment | undefined;
     try {
       const bytes = await this.storage.read(asset.storageKey);
+      const checksum = createHash("sha256").update(bytes).digest("hex");
       clean =
         BigInt(bytes.length) === asset.byteSize &&
-        createHash("sha256").update(bytes).digest("hex") === asset.checksum &&
+        checksum === asset.checksum &&
         (await this.inspector.inspect(bytes)) === asset.mime &&
         (await this.scanner.scan(bytes));
+      if (clean && this.moderation) {
+        assessment = await this.moderation.assess({
+          surface: "media",
+          version: id,
+          digest: checksum,
+          mime: asset.mime,
+          bytes,
+        });
+        if (!assessment.observedOutcome) {
+          if (assessment.outcome === "RETRY") return;
+          clean = assessment.outcome === "ALLOW";
+        }
+      }
     } catch {
       return;
     } // Lease expires and durable metadata retries; fail closed.
@@ -81,7 +99,11 @@ export class ProcessAvatarUseCase {
         await this.repository.change(tx, id, {
           state: "REJECTED",
           checkedAt: new Date(),
-          scanEvidence: { clean, selected: false },
+          scanEvidence: {
+            clean,
+            selected: false,
+            ...(assessment && { moderation: assessment }),
+          },
           expiresAt: new Date(),
         });
         return;
@@ -95,7 +117,11 @@ export class ProcessAvatarUseCase {
       await this.repository.change(tx, id, {
         state: "CLEAN",
         checkedAt: new Date(),
-        scanEvidence: { clean: true, selected: true },
+        scanEvidence: {
+          clean: true,
+          selected: true,
+          ...(assessment && { moderation: assessment }),
+        },
         expiresAt: null,
       });
       await this.repository.select(tx, asset.userId, id);

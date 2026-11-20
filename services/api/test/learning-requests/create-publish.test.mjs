@@ -172,7 +172,7 @@ test("publish keeps a draft unchanged when rules are unavailable", async () => {
 });
 
 test("publish clears only on a clean versioned snapshot and flags matched content", async () => {
-  const publish = async (title, rules) => {
+  const publish = async (title, rules, moderation) => {
     const now = new Date("2026-10-06T00:00:00Z");
     const request = {
       id: "req-1",
@@ -219,6 +219,7 @@ test("publish clears only on a clean versioned snapshot and flags matched conten
         }),
       },
       { now: () => now },
+      moderation,
     );
     const result = await useCase.execute(
       {
@@ -242,6 +243,28 @@ test("publish clears only on a clean versioned snapshot and flags matched conten
   ]);
   assert.equal(flagged.writes[0].status, "PENDING_MODERATION");
   assert.deepEqual(flagged.writes[0].flaggedCategories, ["TEST"]);
+  const aiFlag = await publish(
+    "Learn Vietnamese",
+    [{ category: "TEST", pattern: "blocked phrase" }],
+    {
+      evaluateText: async () => ({
+        outcome: "BLOCK",
+        reasonCodes: ["violence"],
+      }),
+    },
+  );
+  assert.equal(aiFlag.result.status, "PENDING_MODERATION");
+  assert.deepEqual(aiFlag.writes[0].flaggedCategories, ["AI:violence"]);
+  await assert.rejects(
+    publish(
+      "Learn Vietnamese",
+      [{ category: "TEST", pattern: "blocked phrase" }],
+      {
+        evaluateText: async () => ({ outcome: "RETRY" }),
+      },
+    ),
+    { message: "CONTENT_MODERATION_TEMPORARILY_UNAVAILABLE" },
+  );
 });
 
 test("publish hides a different owner and rejects requests outside DRAFT", async () => {

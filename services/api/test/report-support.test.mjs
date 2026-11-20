@@ -1,6 +1,8 @@
 import "reflect-metadata";
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { randomUUID } from "node:crypto";
+import { createFakeDb, runner } from "./learning-platform/fake-db.mjs";
 import {
   assertPrivateCaseThread,
   assertSameIncident,
@@ -171,6 +173,55 @@ test("a private case thread is readable by its party and current assigned handle
   assert.throws(
     () => assertIndependentCaseActor(partyA, parties),
     /REPORT_SELF_MODERATION_FORBIDDEN/,
+  );
+});
+
+test("pending and flagged Staff messages keep their text private from the participant", async () => {
+  const db = createFakeDb();
+  db.$queryRawUnsafe = async () => [];
+  const item = { handlerId: handler, status: "OPEN", version: 1 };
+  const documents = new Map();
+  const service = new CaseMessagesService(
+    runner(db),
+    {
+      require: async (_tx, actor) => ({
+        ...actor,
+        roles: actor.userId === handler ? ["STAFF"] : ["USER"],
+        permissions: new Set(["report:communicate", "report:moderate"]),
+        blockedPermissions: new Set(),
+      }),
+    },
+    { parties: async () => ({ item, parties: [partyA, partyB] }) },
+    {
+      stage: async (document) => documents.set(document._id, document),
+      read: async (ids) => ids.map((id) => documents.get(id)),
+    },
+    undefined,
+    undefined,
+    { mode: () => "enforce" },
+  );
+  const text = "A private quote from the evidence";
+  const receipt = await service.send({ userId: handler }, caseId, partyA, {
+    clientMessageId: randomUUID(),
+    text,
+  });
+  const participantPage = () =>
+    service.list({ userId: partyA }, caseId, partyA);
+  assert.equal((await participantPage()).data[0].contentRestricted, true);
+  assert.notEqual((await participantPage()).data[0].text, text);
+  assert.equal(
+    (await service.list({ userId: handler }, caseId, partyA)).data[0].text,
+    text,
+  );
+  assert.equal(db.rows("reportContentModeration")[0].sourceId, receipt.id);
+  db.rows("reportContentModeration")[0].status = "BLOCK";
+  assert.notEqual((await participantPage()).data[0].text, text);
+  db.rows("reportContentModeration")[0].status = "ALLOW";
+  db.rows("reportContentModeration")[0].restricted = false;
+  assert.equal((await participantPage()).data[0].text, text);
+  await assert.rejects(
+    service.list({ userId: partyB }, caseId, partyA),
+    /CASE_THREAD_ACCESS_DENIED/,
   );
 });
 test("matching target alone cannot merge reports across distinct paths or session occurrences", () => {

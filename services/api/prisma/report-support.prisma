@@ -31,3 +31,22 @@ model ReportMessageReceipt {
   @@index([caseId, partyId, createdAt, messageId], map: "report_message_receipts_thread_idx")
   @@map("report_message_receipts")
 }
+
+model ReportContentModeration {
+  kind              String      @db.VarChar(24)
+  sourceId          String      @map("source_id") @db.VarChar(64)
+  caseId            String?     @map("case_id") @db.Uuid
+  sourceVersion     String      @map("source_version") @db.VarChar(64)
+  digest            String      @db.Char(64)
+  status            String      @default("PENDING") @db.VarChar(16)
+  restricted        Boolean     @default(false)
+  reasonCodes       String[]    @default([]) @map("reason_codes")
+  policyVersion     String?     @map("policy_version") @db.VarChar(80)
+  classifierVersion String?     @map("classifier_version") @db.VarChar(128)
+  assessmentId      String?     @map("assessment_id") @db.VarChar(200)
+  reportCase        ReportCase? @relation(fields: [caseId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([kind, sourceId])
+  @@index([caseId, status], map: "report_content_moderation_case_status_idx")
+  @@map("report_content_moderation")
+}

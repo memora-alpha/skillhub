@@ -1,3 +1,5 @@
+import { ContentModerationService } from "../../../content-moderation/application/content-moderation.service";
+import { textModerationPreflight } from "../../../content-moderation/application/text-moderation";
 import {
   BadRequestException,
   ConflictException,
@@ -46,6 +48,7 @@ export class VerificationsService {
     private readonly attachments: FileAttachmentService,
     private readonly audit: AuditWriter,
     private readonly outbox: OutboxWriter,
+    private readonly moderation: ContentModerationService,
   ) {}
   private async own(
     tx: TransactionContext,
@@ -113,6 +116,17 @@ export class VerificationsService {
         ? { description: text(input.description, 0, 500) }
         : {}),
     };
+    const validate = async (tx: TransactionContext) => {
+      const actor = await this.actors.require(
+        tx,
+        command.principal,
+        "skill-verification:submit:self",
+      );
+      const sharing = await this.own(tx, command.principal, id, true);
+      if (await this.repository.pending(tx, id))
+        throw new ConflictException("VERIFICATION_PENDING");
+      return { actor, sharing };
+    };
     try {
       const result = await this.commands.execute(
         {
@@ -122,14 +136,7 @@ export class VerificationsService {
           command: commandJson({ sharingSkillId: id, ...data }),
         },
         async (tx) => {
-          const actor = await this.actors.require(
-            tx,
-            command.principal,
-            "skill-verification:submit:self",
-          );
-          await this.own(tx, command.principal, id, true);
-          if (await this.repository.pending(tx, id))
-            throw new ConflictException("VERIFICATION_PENDING");
+          const { actor } = await validate(tx);
           const request = await this.repository.create(tx, {
             sharingSkillId: id,
             status: "PENDING",
@@ -173,6 +180,19 @@ export class VerificationsService {
             "skill-verification:submit:self",
           );
         },
+        data.title || data.description
+          ? textModerationPreflight(
+              this.moderation,
+              "sharing_skill",
+              async (tx) => {
+                const { sharing } = await validate(tx);
+                return {
+                  sourceVersion: String(sharing.version),
+                  fields: [data.title, data.description],
+                };
+              },
+            )
+          : undefined,
       );
       return verificationView(await this.repository.get(result.value.id));
     } catch (error) {
