@@ -38,14 +38,23 @@ export class MediaModerationService {
   ) {}
 
   async assess(input: MediaModerationInput): Promise<ModerationAssessment> {
-    const base = this.base(input);
+    const mode = this.moderation.mode(input.surface);
+    if (mode === "off")
+      return { ...this.base(input), outcome: "ALLOW", reasonCodes: [] };
+    const result = await this.assessFile(input);
+    return mode === "observe"
+      ? { ...result, observedOutcome: result.outcome }
+      : result;
+  }
+
+  private async assessFile(
+    input: MediaModerationInput,
+  ): Promise<ModerationAssessment> {
     const partial = {
-      ...base,
+      ...this.base(input),
       outcome: "REVIEW" as const,
       reasonCodes: ["MEDIA_REVIEW_REQUIRED"],
     };
-    if (this.moderation.mode(input.surface) === "off")
-      return { ...base, outcome: "ALLOW", reasonCodes: [] };
     try {
       const filename = await this.checkText(input, input.filename ?? "");
       if (filename.outcome !== "ALLOW") return filename;

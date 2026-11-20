@@ -71,6 +71,25 @@ test("unsupported office formats and failed image parsing stay in review", async
   }
 });
 
+test("observe records extraction failures without making them enforcement decisions", async () => {
+  const service = new MediaModerationService(
+    { mode: () => "observe", evaluate: async () => ({ outcome: "ALLOW" }) },
+    {
+      canonicalImage: async () => {
+        throw new Error("extractor unavailable");
+      },
+    },
+  );
+  const result = await service.assess({
+    surface: "media",
+    mime: "image/png",
+    version: "1",
+    digest: "fixed",
+    bytes: Buffer.from("fixture"),
+  });
+  assert.equal(result.observedOutcome, "REVIEW");
+});
+
 test("only a clean file of the exact generation and checksum can record a verdict", async () => {
   const contents = Buffer.from("sample file");
   const digest = createHash("sha256").update(contents).digest("hex");
