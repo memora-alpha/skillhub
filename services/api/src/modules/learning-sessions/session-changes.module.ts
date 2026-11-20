@@ -1,3 +1,4 @@
+import { ContentModerationModule } from "../content-moderation/content-moderation.module";
 import { Module } from "@nestjs/common";
 import { DatabaseModule } from "../../infrastructure/database/database.module";
 import { IdentityModule } from "../identity.module";
@@ -7,7 +8,12 @@ import { SessionChangesController } from "./presentation/http/session-changes.co
 import { LearningChangeRecoveryWorker } from "./infrastructure/jobs/learning-change-recovery.worker";
 
 @Module({
-  imports: [DatabaseModule, IdentityModule, LearningChangeStateModule],
+  imports: [
+    ContentModerationModule,
+    DatabaseModule,
+    IdentityModule,
+    LearningChangeStateModule,
+  ],
   providers: [SessionChangesService, LearningChangeRecoveryWorker],
   controllers: [SessionChangesController],
   exports: [SessionChangesService],

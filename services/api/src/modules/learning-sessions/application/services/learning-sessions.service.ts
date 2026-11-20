@@ -1,3 +1,5 @@
+import { ContentModerationService } from "../../../content-moderation/application/content-moderation.service";
+import { moderateText } from "../../../content-moderation/application/text-moderation";
 import {
   listInput,
   listBoundary,
@@ -134,6 +136,7 @@ export class LearningSessionsService {
     private readonly requests: LearningRequestLifecycleService,
     private readonly requestPaths: LearningRequestPathReader,
     private readonly audit: AuditWriter,
+    private readonly moderation: ContentModerationService,
   ) {}
 
   private async joinPolicy(
@@ -666,7 +669,7 @@ export class LearningSessionsService {
     await this.authorizeSession(actor, sessionId);
     // Own transaction: a rejected confirm must not roll the determination back.
     await this.ensureDetermined(sessionId);
-    return this.transactions.run(async (tx) => {
+    const validate = async (tx: TransactionContext) => {
       const session = await lockedSession(tx, sessionId);
       const path = await tx.learningPath.findUniqueOrThrow({
         where: { id: session.pathId },
@@ -677,7 +680,7 @@ export class LearningSessionsService {
       if (!isTeacher && actor.userId !== session.learnerId)
         throw new ForbiddenException("SESSION_ACCESS_DENIED");
       if (session.status === "COMPLETED")
-        return { id: sessionId, status: session.status };
+        return { unchanged: true as const, session };
       if (["CANCELLED", "DISPUTED", "MAKEUP_REQUIRED"].includes(session.status))
         throw new ConflictException("SESSION_CANNOT_BE_COMPLETED");
       const now = await databaseNow(tx);
@@ -691,9 +694,33 @@ export class LearningSessionsService {
           ? session.teacherConfirmationStatus
           : session.learnerConfirmationStatus) === "CONFIRMED"
       )
-        return { id: sessionId, status: session.status };
+        return { unchanged: true as const, session };
       if (session.confirmDeadlineAt && now >= session.confirmDeadlineAt)
         throw new ConflictException("CONFIRM_WINDOW_CLOSED");
+      return { unchanged: false as const, session, now, outcome, isTeacher };
+    };
+    let assessedOutcome: string | undefined;
+    if (
+      note?.trim() &&
+      this.moderation &&
+      this.moderation.mode("session") !== "off"
+    ) {
+      const candidate = await this.transactions.run(validate);
+      if (!candidate.unchanged) {
+        assessedOutcome = candidate.outcome.id;
+        await moderateText(this.moderation, "session", {
+          sourceVersion: assessedOutcome,
+          fields: [note],
+        });
+      }
+    }
+    return this.transactions.run(async (tx) => {
+      const candidate = await validate(tx);
+      if (candidate.unchanged)
+        return { id: sessionId, status: candidate.session.status };
+      const { session, now, outcome, isTeacher } = candidate;
+      if (assessedOutcome !== undefined && assessedOutcome !== outcome.id)
+        throw new ConflictException("STALE_SESSION_OCCURRENCE");
       const otherConfirmed =
         (isTeacher
           ? session.learnerConfirmationStatus

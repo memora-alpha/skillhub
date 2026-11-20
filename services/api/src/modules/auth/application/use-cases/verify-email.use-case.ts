@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, ServiceUnavailableException } from "@nestjs/common";
 
 import { PrismaService } from "../../../../infrastructure/database/prisma.service";
 import {
@@ -11,6 +11,11 @@ import { AuditService } from "../../../audit/application/services/audit.service"
 
 import { normalizeEmail } from "../../../users/domain/profile-policy";
 import { OtpService } from "../services/otp.service";
+import {
+  ContentModerationService,
+  requireAllowed,
+} from "../../../content-moderation/application/content-moderation.service";
+import { moderationPolicyVersion } from "../../../content-moderation/domain/moderation-policy";
 
 @Injectable()
 export class VerifyEmailUseCase {
@@ -19,12 +24,25 @@ export class VerifyEmailUseCase {
     private readonly users: UsersService,
     private readonly audit: AuditService,
     private readonly otp: OtpService,
+    private readonly moderation: ContentModerationService,
   ) {}
   async execute(email: string, code: string) {
     email = normalizeEmail(email);
-    await this.otp.verify(email, "REGISTER", code, (proof) =>
-      transaction(this.db, async (tx) => {
-        const draft = this.otp.registration(proof);
+    await this.otp.verify(email, "REGISTER", code, async (proof) => {
+      const { fullNameModerationPolicy, ...draft } =
+        this.otp.registration(proof);
+      let requiresCheck =
+        this.moderation?.mode("profile") === "enforce" &&
+        fullNameModerationPolicy !== moderationPolicyVersion;
+      if (requiresCheck && !(await this.users.byEmail(this.db, email))) {
+        requireAllowed(
+          await this.moderation.evaluateText("profile", proof.id, [
+            draft.fullName,
+          ]),
+        );
+        requiresCheck = false;
+      }
+      return transaction(this.db, async (tx) => {
         await lockEmail(tx, email);
         const existing = await this.users.byEmail(tx, email);
         // A committed create followed by Redis cleanup failure can be retried safely.
@@ -33,6 +51,10 @@ export class VerifyEmailUseCase {
             existing.id === proof.userId &&
             existing.emailVerified &&
             existing.accountStatus === "ACTIVE"
+          );
+        if (requiresCheck)
+          throw new ServiceUnavailableException(
+            "CONTENT_MODERATION_TEMPORARILY_UNAVAILABLE",
           );
         const user = await this.users.create(tx, {
           ...draft,
@@ -48,7 +70,7 @@ export class VerifyEmailUseCase {
           targetId: user.id,
         });
         return true;
-      }),
-    );
+      });
+    });
   }
 }

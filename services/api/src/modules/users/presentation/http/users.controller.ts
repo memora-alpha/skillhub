@@ -80,6 +80,7 @@ export class UsersController {
   @Patch("me/profile")
   @ApiOperation({ summary: "Update only owned editable profile fields" })
   @ApiSuccessResponse(200, OwnProfileResponse)
+  @ApiErrorResponse(422, "CONTENT_MODERATION_BLOCKED")
   async update(@CurrentIdentity() actor: Principal, @Body() body: ProfileDto) {
     if (
       Object.values(body).every((value) => value === undefined) ||
@@ -87,7 +88,7 @@ export class UsersController {
     )
       throw new BadRequestException("NONEMPTY_PROFILE_REQUIRED");
     return success(
-      await this.updateProfile.execute(actor.userId, body),
+      await this.updateProfile.execute(actor, body),
       "Profile updated.",
     );
   }

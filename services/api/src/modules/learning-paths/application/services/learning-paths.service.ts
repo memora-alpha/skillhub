@@ -1,3 +1,5 @@
+import { ContentModerationService } from "../../../content-moderation/application/content-moderation.service";
+import { moderateText } from "../../../content-moderation/application/text-moderation";
 import { PathOverviewReader, overviewCard } from "./path-overview.reader";
 import {
   BadRequestException,
@@ -313,6 +315,7 @@ export class LearningPathsService {
     private readonly requests: LearningRequestLifecycleService,
     private readonly requestPaths: LearningRequestPathReader,
     private readonly overview?: PathOverviewReader,
+    private readonly moderation?: ContentModerationService,
   ) {}
 
   async listMine(actor: Principal) {
@@ -790,10 +793,14 @@ export class LearningPathsService {
     pathId: string,
     input: CreateLearningPlanDto,
   ) {
+    input = {
+      ...input,
+      sessionOutline: input.sessionOutline.map(({ content }) => ({ content })),
+    };
     if (input.sessionOutline.length !== input.totalSessions) {
       throw new BadRequestException("SESSION_OUTLINE_COUNT_MISMATCH");
     }
-    return this.transactions.run(async (tx) => {
+    const validate = async (tx: TransactionContext) => {
       await lockPath(tx, pathId);
       const path = await tx.learningPath.findUnique({ where: { id: pathId } });
       if (
@@ -841,6 +848,27 @@ export class LearningPathsService {
       if (existingDirection) {
         throw new ConflictException("LEARNING_PLAN_DIRECTION_ALREADY_EXISTS");
       }
+      return { path, teacherId, learnerId };
+    };
+    let assessedVersion: number | undefined;
+    if (this.moderation && this.moderation.mode("learning_path") !== "off") {
+      const { path } = await this.transactions.run(validate);
+      assessedVersion = path.currentVersion;
+      await moderateText(this.moderation, "learning_path", {
+        sourceVersion: `${assessedVersion}:1`,
+        fields: [
+          input.learningGoal,
+          ...input.sessionOutline.map(({ content }) => content),
+        ],
+      });
+    }
+    return this.transactions.run(async (tx) => {
+      const { path, teacherId, learnerId } = await validate(tx);
+      if (
+        assessedVersion !== undefined &&
+        assessedVersion !== path.currentVersion
+      )
+        throw new ConflictException("STALE_LEARNING_PATH_VERSION");
       const planId = randomUUID();
       await tx.learningPlan.create({
         data: {
@@ -1597,10 +1625,14 @@ export class LearningPathsService {
     expectedVersion: number,
     input: CreateLearningPlanDto,
   ) {
+    input = {
+      ...input,
+      sessionOutline: input.sessionOutline.map(({ content }) => ({ content })),
+    };
     if (input.sessionOutline.length !== input.totalSessions) {
       throw new BadRequestException("SESSION_OUTLINE_COUNT_MISMATCH");
     }
-    return this.transactions.run(async (tx) => {
+    const validate = async (tx: TransactionContext) => {
       const plan = await tx.learningPlan.findUnique({ where: { id: planId } });
       if (!plan) throw new NotFoundException("LEARNING_PLAN_NOT_FOUND");
       await lockPath(tx, plan.pathId);
@@ -1616,7 +1648,6 @@ export class LearningPathsService {
       if (locked.currentVersion !== expectedVersion) {
         throw new ConflictException("STALE_LEARNING_PLAN_VERSION");
       }
-      const nextVersion = expectedVersion + 1;
       const path = await tx.learningPath.findUniqueOrThrow({
         where: { id: locked.pathId },
       });
@@ -1654,6 +1685,30 @@ export class LearningPathsService {
             outline.sessionNo === index + 1 &&
             outline.content === input.sessionOutline[index]?.content,
         );
+      return { plan, locked, path, samePlan };
+    };
+    let assessedVersion: number | undefined;
+    if (this.moderation && this.moderation.mode("learning_path") !== "off") {
+      const { path, samePlan } = await this.transactions.run(validate);
+      assessedVersion = path.currentVersion;
+      if (!samePlan) {
+        await moderateText(this.moderation, "learning_path", {
+          sourceVersion: `${assessedVersion}:${expectedVersion + 1}`,
+          fields: [
+            input.learningGoal,
+            ...input.sessionOutline.map(({ content }) => content),
+          ],
+        });
+      }
+    }
+    return this.transactions.run(async (tx) => {
+      const { plan, locked, path, samePlan } = await validate(tx);
+      if (
+        assessedVersion !== undefined &&
+        assessedVersion !== path.currentVersion
+      )
+        throw new ConflictException("STALE_LEARNING_PATH_VERSION");
+      const nextVersion = expectedVersion + 1;
       if (samePlan) {
         return {
           id: planId,

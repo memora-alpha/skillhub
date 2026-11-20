@@ -1,6 +1,8 @@
 import { OtpStore } from "../../dist/modules/auth/application/ports/otp-store.js";
 import { RedisService } from "../../dist/infrastructure/cache/redis.service.js";
 import { Test } from "@nestjs/testing";
+import { ContentModerationService } from "../../dist/modules/content-moderation/application/content-moderation.service.js";
+import { MediaModerationService } from "../../dist/modules/content-moderation/application/media-moderation.service.js";
 import { IDENTITY_APPLICATION_PROVIDERS } from "../../dist/modules/identity.providers.js";
 import { PrismaService } from "../../dist/infrastructure/database/prisma.service.js";
 import { IdentityConfig } from "../../dist/configs/identity.config.js";
@@ -55,6 +57,19 @@ export async function createIdentityFixture({
   const builder = Test.createTestingModule({
     providers: [
       ...IDENTITY_APPLICATION_PROVIDERS,
+      { provide: ContentModerationService, useValue: { mode: () => "off" } },
+      {
+        provide: MediaModerationService,
+        useValue: {
+          assess: async ({ version, digest }) => ({
+            outcome: "ALLOW",
+            reasonCodes: [],
+            sourceVersion: version,
+            digest,
+            policyVersion: "fixture",
+          }),
+        },
+      },
       { provide: PrismaService, useValue: db },
       { provide: RedisService, useValue: redis ?? {} },
       { provide: IdentityConfig, useValue: config },

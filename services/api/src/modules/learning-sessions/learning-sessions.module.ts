@@ -1,3 +1,4 @@
+import { ContentModerationModule } from "../content-moderation/content-moderation.module";
 import { SessionOutcomeService } from "./application/services/session-outcome.service";
 import { Module } from "@nestjs/common";
 import { DatabaseModule } from "../../infrastructure/database/database.module";
@@ -19,6 +20,7 @@ import { AuditModule } from "../audit/audit.module";
 
 @Module({
   imports: [
+    ContentModerationModule,
     AuditModule,
     DatabaseModule,
     LearningRequestsModule,

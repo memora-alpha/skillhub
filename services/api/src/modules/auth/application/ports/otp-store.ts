@@ -41,6 +41,7 @@ export abstract class OtpStore {
 
 export interface RegistrationDraft {
   fullName: string;
+  fullNameModerationPolicy?: string;
   passwordHash: string;
   timezone: string;
   locale?: "vi" | "en";

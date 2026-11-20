@@ -37,6 +37,8 @@ import { formatCredit, parseCredit } from "../../../credit/domain/money";
 import { validateReason } from "../../../audit/domain/reason.policy";
 import { LearningRequestLifecycleService } from "../../../learning-requests/application/services/learning-request-lifecycle.service";
 import { LearningRequestPathReader } from "./learning-request-path.reader";
+import { ContentModerationService } from "../../../content-moderation/application/content-moderation.service";
+import { moderateText } from "../../../content-moderation/application/text-moderation";
 
 export type TerminationDecision = {
   expectedVersion: number;
@@ -73,18 +75,32 @@ export class PathTerminationService {
     private readonly credit: PathTerminationPort,
     private readonly requests: LearningRequestLifecycleService,
     private readonly requestPaths: LearningRequestPathReader,
+    private readonly moderation: ContentModerationService,
   ) {}
 
-  request(actor: Principal, pathId: string, key: string, reason: string) {
+  async request(actor: Principal, pathId: string, key: string, reason: string) {
+    const input = { kind: "PATH_TERMINATION" as const, key, reason };
+    if (this.moderation && this.moderation.mode("learning_path") !== "off") {
+      const text = await this.transactions.run(async (tx) => {
+        const { path, now } = await this.context(tx, actor, pathId);
+        const prepared = await this.changes.prepareCreate(
+          tx,
+          actor,
+          path,
+          input,
+          now,
+        );
+        if (!prepared.existing)
+          return {
+            sourceVersion: String(path.lockedVersion),
+            fields: [prepared.reason],
+          };
+      });
+      await moderateText(this.moderation, "learning_path", text);
+    }
     return this.transactions.run(async (tx) => {
       const { path, now } = await this.context(tx, actor, pathId);
-      const row = await this.changes.create(
-        tx,
-        actor,
-        path,
-        { kind: "PATH_TERMINATION", key, reason },
-        now,
-      );
+      const row = await this.changes.create(tx, actor, path, input, now);
       return this.view(tx, row);
     });
   }
@@ -105,13 +121,14 @@ export class PathTerminationService {
     });
   }
 
-  respond(
+  async respond(
     actor: Principal,
     pathId: string,
     requestId: string,
     input: { expectedVersion: number; accept: boolean; note?: string },
   ) {
-    return this.transactions.run(async (tx) => {
+    input = { ...input };
+    const validate = async (tx: TransactionContext) => {
       await lockLearningPathLifecycle(
         tx,
         pathId,
@@ -126,6 +143,28 @@ export class PathTerminationService {
         requestId,
         "PATH_TERMINATION",
       );
+      return { path, now, row };
+    };
+    if (
+      input.note?.trim() &&
+      this.moderation &&
+      this.moderation.mode("learning_path") !== "off"
+    ) {
+      const text = await this.transactions.run(async (tx) => {
+        const { row, now } = await validate(tx);
+        const { note, replayed } = this.changes.prepareResponse(
+          actor,
+          row,
+          input,
+          now,
+        );
+        if (!replayed)
+          return { sourceVersion: String(row.version), fields: [note] };
+      });
+      await moderateText(this.moderation, "learning_path", text);
+    }
+    return this.transactions.run(async (tx) => {
+      const { path, now, row } = await validate(tx);
       const decided = await this.changes.respond(tx, actor, row, input, now);
       if (decided.status !== "ACCEPTED") return this.view(tx, decided);
       const approved = decided.approvedAt
@@ -176,14 +215,14 @@ export class PathTerminationService {
     });
   }
 
-  escalate(
+  async escalate(
     actor: Principal,
     pathId: string,
     requestId: string,
     expectedVersion: number,
     reason: string,
   ) {
-    return this.transactions.run(async (tx) => {
+    const validate = async (tx: TransactionContext) => {
       const { now } = await this.context(tx, actor, pathId);
       const row = await this.changes.get(
         tx,
@@ -194,6 +233,21 @@ export class PathTerminationService {
       this.changes.assertOpen(row, expectedVersion, now);
       if (row.approvedAt)
         throw new ConflictException("TERMINATION_ALREADY_APPROVED");
+      return {
+        row,
+        now,
+        explanation: validateReason(reason, { min: 3, max: 1000 }),
+      };
+    };
+    if (this.moderation && this.moderation.mode("learning_path") !== "off") {
+      const { row, explanation } = await this.transactions.run(validate);
+      await moderateText(this.moderation, "learning_path", {
+        sourceVersion: String(row.version),
+        fields: [explanation],
+      });
+    }
+    return this.transactions.run(async (tx) => {
+      const { row, now, explanation } = await validate(tx);
       return this.view(
         tx,
         await this.changes.update(
@@ -201,7 +255,7 @@ export class PathTerminationService {
           row,
           "STAFF_REVIEW",
           actor,
-          validateReason(reason, { min: 3, max: 1000 }),
+          explanation,
           now,
         ),
       );
