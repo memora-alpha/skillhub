@@ -14,6 +14,7 @@ const env = {
   REDIS_URL: "redis://localhost/0",
 };
 const flags = Object.fromEntries(moderationFlags.map((name) => [name, false]));
+const scores = Object.fromEntries(moderationFlags.map((name) => [name, 0]));
 const fixtures = JSON.parse(
   readFileSync(new URL("./fixtures/vi-cases.json", import.meta.url), "utf8"),
 );
@@ -61,19 +62,24 @@ test("classifies designated groups, routes other flagged content to review, and 
       sourceVersion: "1",
       digest: "digest",
     });
-  for (const [category, outcome] of [
-    [undefined, "ALLOW"],
-    ["violence", "BLOCK"],
-    ["sexual", "BLOCK"],
-    ["illicit", "REVIEW"],
+  for (const [category, score, outcome] of [
+    [undefined, 0, "ALLOW"],
+    ["violence", 0.2045, "ALLOW"],
+    ["violence", 0.25, "REVIEW"],
+    ["violence", 0.35, "BLOCK"],
+    ["violence", 0.4226, "BLOCK"],
+    ["sexual", 0.6296, "BLOCK"],
+    ["sexual/minors", 0.1, "BLOCK"],
+    ["illicit", 0.35, "REVIEW"],
   ]) {
     result = {
       id: "modr-test",
       model: "fixture",
       flagged: !!category,
       categories: { ...flags, ...(category && { [category]: true }) },
+      category_scores: { ...scores, ...(category && { [category]: score }) },
     };
-    assert.equal((await classify()).outcome, outcome);
+    assert.equal((await classify()).outcome, outcome, `${category}: ${score}`);
   }
   result = new Error("the provider must not disclose this");
   const unavailable = await classify();
@@ -93,6 +99,7 @@ test("keeps observation separate from enforcement and skips disabled surfaces", 
           model: "fixture",
           flagged: true,
           categories: { ...flags, violence: true },
+          category_scores: { ...scores, violence: 0.42 },
         };
       },
     },

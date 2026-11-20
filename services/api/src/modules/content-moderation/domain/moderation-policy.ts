@@ -37,38 +37,59 @@ export const moderationFlags = [
   "violence/graphic",
 ] as const;
 
-const blockedFlags: ReadonlySet<string> = new Set([
-  "harassment",
+type ModerationFlag = (typeof moderationFlags)[number];
+
+const alwaysBlockWhenFlagged: ReadonlySet<ModerationFlag> = new Set([
   "harassment/threatening",
-  "hate",
   "hate/threatening",
   "illicit/violent",
-  "sexual",
   "sexual/minors",
-  "violence",
   "violence/graphic",
 ]);
 
-export const moderationPolicyVersion = "skillhub-content-v1";
+const scoreThresholds: Partial<
+  Record<ModerationFlag, { review: number; block: number }>
+> = {
+  harassment: { review: 0.4, block: 0.6 },
+  hate: { review: 0.4, block: 0.6 },
+  sexual: { review: 0.4, block: 0.6 },
+  violence: { review: 0.25, block: 0.35 },
+};
+
+export const moderationPolicyVersion = "skillhub-content-v2";
 
 export type ProviderClassification = {
   id: string;
   model: string;
   flagged: boolean;
   categories: Record<string, boolean>;
+  category_scores: Record<string, number>;
 };
 
 export function assessClassification(result: ProviderClassification): {
   outcome: ModerationOutcome;
   reasonCodes: string[];
 } {
-  const categories = moderationFlags.filter((name) => result.categories[name]);
-  if (categories.some((name) => blockedFlags.has(name)))
-    return { outcome: "BLOCK", reasonCodes: categories };
-  if (result.flagged || categories.length)
-    return {
-      outcome: "REVIEW",
-      reasonCodes: categories.length ? categories : ["UNMAPPED_FLAG"],
-    };
+  const flagged = moderationFlags.filter((name) => result.categories[name]);
+  if (result.flagged && flagged.length === 0)
+    return { outcome: "REVIEW", reasonCodes: ["UNMAPPED_FLAG"] };
+
+  const blocked = flagged.filter((name) => {
+    const thresholds = scoreThresholds[name];
+    const score = result.category_scores[name];
+    return (
+      alwaysBlockWhenFlagged.has(name) ||
+      (thresholds && score !== undefined && score >= thresholds.block)
+    );
+  });
+  if (blocked.length) return { outcome: "BLOCK", reasonCodes: blocked };
+
+  const review = flagged.filter((name) => {
+    const thresholds = scoreThresholds[name];
+    const score = result.category_scores[name];
+    return !thresholds || score === undefined || score >= thresholds.review;
+  });
+  if (review.length) return { outcome: "REVIEW", reasonCodes: review };
+
   return { outcome: "ALLOW", reasonCodes: [] };
 }

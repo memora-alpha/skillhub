@@ -11,7 +11,7 @@ Kiểm duyệt qua OpenAI được cấu hình theo loại nội dung. Với c�
    node scripts/evaluate-content-moderation.mjs --send-synthetic-fixtures
    ```
 
-   Lệnh chỉ gửi text trong fixture đã commit. Các mẫu cần ngữ cảnh dùng để phát hiện trường hợp Omni cần hỗ trợ bằng chính sách riêng. Output gồm ID mẫu, kết quả, độ trễ và danh sách nhóm vi phạm.
+   Lệnh chỉ gửi text trong fixture đã commit. Các mẫu cần ngữ cảnh dùng để phát hiện trường hợp Omni cần hỗ trợ bằng chính sách riêng. Output gồm ID mẫu, kết quả, độ trễ và điểm của các nhóm được model gắn cờ.
 
 3. Sau khi quyền riêng tư, dữ liệu gửi và ngưỡng chất lượng được duyệt, bật `CONTENT_MODERATION_MODES=chat:observe` trên staging. Đo độ trễ, timeout, chặn nhầm, bỏ sót và khối lượng Staff cần xem. Chỉ chuyển từng nhóm sang `enforce` khi đạt tiêu chí đã duyệt.
 
@@ -28,7 +28,15 @@ Kiểm duyệt qua OpenAI được cấu hình theo loại nội dung. Với c�
    node scripts/evaluate-content-moderation.mjs --send-synthetic-fixtures
    ```
 
-4. Trên môi trường QA dùng dữ liệu test, đặt `CONTENT_MODERATION_MODES=chat:enforce,media:enforce` rồi redeploy để kiểm tra hành vi chặn. Gửi một tin hợp lệ và một mẫu bị model gắn cờ qua Conversation đã mở. Kiểm tra tin hợp lệ đi vào lịch sử, tin bị chặn trả `422`, và ảnh/PDF mới chỉ gửi được sau khi trạng thái tệp là `READY`. Sau QA, trả lại chế độ rollout đã thống nhất.
+4. Trên môi trường QA dùng dữ liệu test, đặt `CONTENT_MODERATION_MODES=chat:enforce,media:enforce` rồi redeploy để kiểm tra hành vi chặn. Gửi mẫu thể thao và mẫu đe dọa qua Conversation đã mở. Kiểm tra tin hợp lệ đi vào lịch sử, tin bị chặn trả `422`, và ảnh/PDF mới chỉ gửi được sau khi trạng thái tệp là `READY`. Sau QA, trả lại chế độ rollout đã thống nhất.
+
+## Ngưỡng điểm của policy v2
+
+Backend đọc `category_scores` trong các nhóm OpenAI gắn cờ. Với `violence`, điểm dưới 0,25 cho qua, từ 0,25 đến dưới 0,35 trả `REVIEW`, từ 0,35 trả `BLOCK`. Với `harassment`, `hate` và `sexual`, ngưỡng tương ứng là 0,40 và 0,60. Khi có nhiều nhóm, quyết định nghiêm nhất được áp dụng.
+
+Các cờ nghiêm trọng `harassment/threatening`, `hate/threatening`, `illicit/violent`, `sexual/minors` và `violence/graphic` vẫn chặn theo cờ. `REVIEW` đi theo luồng hiện có của từng loại nội dung, gồm trả `422` cho chat. Nếu điểm bị thiếu hoặc không hợp lệ, backend xử lý như lỗi tạm thời của provider.
+
+Các ngưỡng là giá trị ban đầu. Theo dõi trên mẫu tiếng Việt đa dạng ở `observe` và chạy lại đánh giá khi OpenAI cập nhật model. Nội dung giống nhau nhưng khác ngữ cảnh có thể nhận cùng kết quả khi model chỉ thấy nội dung của lần gửi.
 
 ## Nội dung và bằng chứng
 

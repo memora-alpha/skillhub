@@ -33,10 +33,16 @@ for (const fixture of fixtures) {
     const assessment = assessClassification(response);
     samples.push({
       id: fixture.id,
+      surface: fixture.surface,
       expected: fixture.expected,
       contextSupplied: false,
       outcome: assessment.outcome,
       reasonCodes: assessment.reasonCodes,
+      flaggedCategoryScores: Object.fromEntries(
+        Object.entries(response.category_scores).filter(
+          ([category]) => response.categories[category],
+        ),
+      ),
       elapsedMs: Math.round(performance.now() - started),
     });
   } catch {
@@ -53,7 +59,9 @@ const elapsed = samples
   .toSorted((a, b) => a - b);
 const p95 = elapsed[Math.ceil(elapsed.length * 0.95) - 1] ?? null;
 const falseBlocks = samples.filter(
-  ({ expected, outcome }) => expected === "ALLOW" && outcome === "BLOCK",
+  ({ expected, outcome, surface }) =>
+    expected === "ALLOW" &&
+    (outcome === "BLOCK" || (surface === "chat" && outcome === "REVIEW")),
 ).length;
 const missedBlocks = samples.filter(
   ({ expected, outcome }) => expected === "BLOCK" && outcome === "ALLOW",

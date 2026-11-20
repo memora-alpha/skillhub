@@ -28,6 +28,11 @@ const responseSchema = z.object({
         .refine((flags) =>
           moderationFlags.every((name) => Object.hasOwn(flags, name)),
         ),
+      category_scores: z
+        .record(z.string(), z.number().min(0).max(1))
+        .refine((scores) =>
+          moderationFlags.every((name) => Object.hasOwn(scores, name)),
+        ),
     }),
   ]),
 });
