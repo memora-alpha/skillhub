@@ -34,6 +34,7 @@ import {
   requireModerator,
   roleCodes,
 } from "./material-support";
+import { FileContentModeration } from "../../../../infrastructure/storage/file-content-moderation";
 
 @Injectable()
 export class MaterialModerationService {
@@ -41,6 +42,7 @@ export class MaterialModerationService {
     private readonly transactions: TransactionRunner,
     private readonly audit: AuditWriter,
     private readonly auditReader: AuditReader,
+    private readonly contentModeration?: FileContentModeration,
   ) {}
 
   /** Read-only Staff/Admin projection; no arbitrary audit snapshots leave this API. */
@@ -143,7 +145,7 @@ export class MaterialModerationService {
         throw new ConflictException("MATERIAL_VERSION_CONFLICT");
       const next = moderationTransition(action, current.status);
       if (next.status === "PUBLISHED")
-        await assertReadyMaterialFile(tx, current);
+        await assertReadyMaterialFile(tx, current, this.contentModeration);
       const updated = await tx.material.update({
         where: { id },
         data: {

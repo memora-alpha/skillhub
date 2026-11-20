@@ -15,6 +15,7 @@ import type { Prisma } from "../../../../generated/prisma/client";
 import { TransactionRunner } from "../../../../infrastructure/database/transaction-runner";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
 import { FileAttachmentService } from "../../../../infrastructure/storage/file-attachment.service";
+import { FileContentModeration } from "../../../../infrastructure/storage/file-content-moderation";
 import { FileStorageService } from "../../../../infrastructure/storage/file-storage.service";
 import { FileStorageError } from "../../../../infrastructure/storage/file.types";
 import type { Principal } from "../../../auth/application/services/sessions.service";
@@ -76,6 +77,7 @@ export class MaterialsService {
     private readonly attachments: FileAttachmentService,
     private readonly thumbnails: MaterialThumbnailsService,
     private readonly moderation?: ContentModerationService,
+    private readonly fileModeration?: FileContentModeration,
   ) {}
 
   // Public methods that validate before the transaction are async so every
@@ -347,7 +349,7 @@ export class MaterialsService {
       throw withdrawalConflict("MATERIAL_VERSION_CONFLICT", current);
     if (current.status !== "DRAFT" && current.status !== "ARCHIVED")
       throw new ConflictException("MATERIAL_TRANSITION_INVALID");
-    await assertReadyMaterialFile(tx, current);
+    await assertReadyMaterialFile(tx, current, this.fileModeration);
     return current;
   }
 

@@ -5,6 +5,7 @@ import {
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
+import type { FileContentModeration } from "../../../../infrastructure/storage/file-content-moderation";
 import type { PermissionCode } from "../../../../shared/authorization/permission.catalog";
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import { assertPublishableFile } from "../../domain/material.policy";
@@ -49,7 +50,11 @@ export async function lockMaterial(tx: TransactionContext, id: string) {
 
 export async function assertReadyMaterialFile(
   tx: TransactionContext,
-  material: Parameters<typeof assertPublishableFile>[0] & { id: string },
+  material: Parameters<typeof assertPublishableFile>[0] & {
+    id: string;
+    coverFileId?: string | null;
+  },
+  moderation?: FileContentModeration,
 ) {
   const objectKey = assertPublishableFile(material);
   const file = await tx.storedFile.findUnique({
@@ -61,7 +66,28 @@ export async function assertReadyMaterialFile(
       state: "READY",
       scanVerdict: "CLEAN",
     },
-    select: { id: true },
+    select: {
+      id: true,
+      state: true,
+      purpose: true,
+      generation: true,
+      sha256: true,
+      moderationAssessment: true,
+    },
   });
   if (!file) throw new ConflictException("MATERIAL_FILE_REQUIRED");
+  if (!moderation?.isEnforcing()) return;
+  moderation.assertShareable(file);
+  if (!material.coverFileId) return;
+  const cover = await tx.storedFile.findUnique({
+    where: {
+      id: material.coverFileId,
+      purpose: "MATERIAL_COVER",
+      resourceType: "MATERIAL_COVER",
+      resourceId: material.id,
+      scanVerdict: "CLEAN",
+    },
+  });
+  if (!cover) throw new ConflictException("MATERIAL_COVER_NOT_READY");
+  moderation.assertShareable(cover);
 }

@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service";
 import type { TransactionContext } from "../database/transaction-context";
 import { FileStorageError } from "./file.types";
+import { FileContentModeration } from "./file-content-moderation";
 type Binding = {
   type: string;
   id: string;
@@ -9,7 +10,10 @@ type Binding = {
 };
 @Injectable()
 export class FileAttachmentService {
-  constructor(private readonly db: PrismaService) {}
+  constructor(
+    private readonly db: PrismaService,
+    private readonly moderation?: FileContentModeration,
+  ) {}
   async chatManifest(
     tx: TransactionContext,
     userId: string,
@@ -32,6 +36,7 @@ export class FileAttachmentService {
         row.sizeBytes > 15_000_000
       )
         throw new FileStorageError("FILE_NOT_READY", 409);
+      this.moderation?.assertShareable(row);
       if (
         row.attachedAt &&
         (row.resourceType !== "CHAT_MESSAGE" || row.resourceId !== messageId)
@@ -74,7 +79,11 @@ export class FileAttachmentService {
     const row = await this.db.storedFile.findUnique({ where: { id } });
     if (row?.uploadedBy !== userId || row.purpose !== "CHAT")
       throw new FileStorageError("FILE_NOT_FOUND", 404);
-    return { fileId: row.id, state: row.state, generation: row.generation };
+    return {
+      fileId: row.id,
+      state: this.moderation?.status(row) ?? row.state,
+      generation: row.generation,
+    };
   }
   async status(actor: { userId: string }, id: string) {
     const row = await this.db.storedFile.findUnique({ where: { id } });
@@ -86,7 +95,11 @@ export class FileAttachmentService {
         row.purpose !== "MATERIAL_COVER")
     )
       throw new FileStorageError("FILE_NOT_FOUND", 404);
-    return { fileId: row.id, state: row.state, generation: row.generation };
+    return {
+      fileId: row.id,
+      state: this.moderation?.status(row) ?? row.state,
+      generation: row.generation,
+    };
   }
   async attachReady(
     tx: TransactionContext,
@@ -112,6 +125,7 @@ export class FileAttachmentService {
       row.attachedAt
     )
       throw new FileStorageError("FILE_NOT_READY", 409);
+    this.moderation?.assertShareable(row);
     await tx.storedFile.update({
       where: { id },
       data: {

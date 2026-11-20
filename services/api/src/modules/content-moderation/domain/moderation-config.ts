@@ -22,6 +22,9 @@ const settingsSchema = z.object({
     .max(30000)
     .default(defaultModerationTimeoutMs),
   CONTENT_MODERATION_MODES: z.string().trim().default(""),
+  CONTENT_MODERATION_OCR_COMMAND: z.string().trim().min(1).optional(),
+  CONTENT_MODERATION_PDFINFO_COMMAND: z.string().trim().min(1).optional(),
+  CONTENT_MODERATION_PDFTOPPM_COMMAND: z.string().trim().min(1).optional(),
 });
 
 export function moderationModes(

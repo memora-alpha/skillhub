@@ -165,6 +165,7 @@ model StoredFile {
   scanAttempts      Int                   @default(0) @map("scan_attempts")
   scanVerdict       String?               @map("scan_verdict")
   scannerVersion    String?               @map("scanner_version")
+  moderationAssessment Json?              @map("moderation_assessment")
   scannedAt         DateTime?             @map("scanned_at") @db.Timestamptz(3)
   scanLeaseToken    String?               @map("scan_lease_token") @db.Uuid
   scanLeaseUntil    DateTime?             @map("scan_lease_until") @db.Timestamptz(3)
