@@ -17,7 +17,7 @@
 - Giữ rule chặn thông tin liên hệ trong chat và cấu hình từ khóa Learning Request hiện có. Dùng kết quả AI để giảm việc bổ sung từng biến thể câu. Phần quyền Admin của đợt này dùng quyền và audit hiện có. Việc quản lý danh sách NG words toàn hệ thống chỉ đặt lại khi có yêu cầu nghiệp vụ cụ thể.
 - AI phân loại nội dung. Backend quyết định chặn, yêu cầu sửa, giữ chờ hoặc cho qua. Kết quả kiểm duyệt tự động chỉ tác động đến nội dung. Xử lý vi phạm tài khoản tiếp tục qua quy trình có thẩm quyền.
 - Staff xử lý trường hợp cần duyệt theo nghiệp vụ, khiếu nại và case. Learning Request bị gắn cờ dùng hàng đợi `PENDING_MODERATION` hiện có. Report hợp lệ được nhận trước, rồi mới phân loại để ưu tiên và kiểm soát hiển thị trong case.
-- Kiểm duyệt phiên bản được gửi. Web, Expo và Flutter dùng chung phần thực thi tại API. Phần tích hợp client giới hạn ở các trạng thái/mã lỗi thay đổi. Nội dung đã phát hành trước rollout được rà phạm vi và phương án xử lý riêng trước khi xét quét lại.
+- Kiểm duyệt phiên bản được gửi. Phạm vi triển khai chỉ gồm backend và hợp đồng Swagger. Nội dung đã phát hành trước rollout được rà riêng trước khi xét quét lại.
 
 ## Tiêu chí chặn
 
@@ -119,16 +119,15 @@ flowchart TD
 - [ ] Với tài liệu nhiều phần, ghi lại phần đã kiểm tra và trạng thái quét đầy đủ. Tệp chưa trích xuất được nội dung giữ trạng thái chờ xử lý theo chính sách. Các file đặc biệt nhạy cảm trong Report dùng quyền case, trước khi mở rộng xử lý qua provider phải chốt quy định gửi dữ liệu theo loại bằng chứng. Kiểm thử đường download/preview của chat, avatar và material bên cạnh đường upload.
 - [ ] Chạy `pnpm --filter api test:files`, `test:connections`, `test:materials` và smoke test storage riêng. Xác nhận thay file và retry job không làm lộ phiên bản chưa được duyệt.
 
-## Task 7 Tích hợp client và rollout
+## Task 7 Đánh giá và rollout backend
 
-**Files** — Rà `apps/web/src/features/learner/messages/message-composer.tsx`, `apps/mobile/src/features/messages/outbox/outbox-delivery.ts`, `apps/mobile-flutter/lib/features/messages/messages_screens.dart` và API/UI tương ứng với các route thay đổi trong từng app. Đọc hướng dẫn workspace của mỗi app trước khi sửa.
+**Files** — Dùng scorecard tiếng Việt và tài liệu vận hành trong services/api.
 
-- [ ] Viết ca cho client giữ nháp khi bị chặn, dùng ID mới khi sửa và retry có backoff khi upstream lỗi. Với Report, xác nhận giao diện nhận case thành công ngay cả khi kiểm duyệt còn chờ. Với nội dung chờ duyệt, UI của tác giả cho biết trạng thái và hướng xử lý.
-- [ ] Rollout lần lượt chat text, Learning Request và Review, rồi mở rộng các bề mặt còn lại. Report được bật phân loại theo case sau khi Task 4 và phần quyền riêng tư đã đạt. Mở kiểm duyệt tệp theo nhóm định dạng đã qua Task 6. Mỗi đợt cần kiểm chứng API và client tương ứng.
+- [ ] Rollout lần lượt chat text, Learning Request và Review, rồi mở rộng các bề mặt còn lại. Report được bật phân loại theo case sau khi Task 4 và phần quyền riêng tư đã đạt. Mở kiểm duyệt tệp theo nhóm định dạng đã qua Task 6. Mỗi đợt cần kiểm chứng hợp đồng API tương ứng.
 - [ ] Đo tỷ lệ chặn nhầm, tỷ lệ bỏ sót với nhóm nghiêm trọng, tỷ lệ phải chuyển Staff, p95 của gửi tin, rate limit, lỗi provider và tuổi hàng đợi. Trước khi chế độ quan sát nhận dữ liệu thật, chốt quy định gửi và lưu dữ liệu với provider.
 - [ ] Nếu Omni bỏ sót có hệ thống, so sánh Omni với Omni + Decisions API trên bộ mẫu độc lập, gồm cả mẫu Omni cho qua. Dùng câu hỏi theo hành vi, ví dụ phân biệt `THREAT`, `INCITEMENT`, `QUOTED_EVIDENCE`, `UNCLEAR` và `SAFE`. Đánh giá lợi ích, độ trễ, chi phí và quyền riêng tư trước khi quyết định dùng lớp này. Điều kiện chuyển sang lớp tùy chỉnh phải chứng minh được khả năng bắt phần bỏ sót trên bộ đánh giá.
 - [ ] Kiểm thử rollback cấu hình theo loại nội dung, khả năng hoàn tất job đang chờ và việc rollback vẫn áp dụng các quy tắc nghiệp vụ đang có. Ghi revision và kết quả đo cùng phiên bản policy/model.
-- [ ] Chạy API lint, type check, build và các suite bên trên. Chạy web type check rồi build tuần tự. Chạy test và type check Expo cho phần đổi. Chạy `flutter analyze` và test bị ảnh hưởng nếu đổi Flutter. Chạy kiểm thử đầu cuối trên các loại nội dung đã bật.
+- [ ] Chạy API lint, type check, build và kiểm thử hồi quy backend. Lưu số liệu staging trước khi bật từng bề mặt.
 
 ## Quyết định cần chốt trước rollout
 
