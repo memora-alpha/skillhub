@@ -49,6 +49,8 @@ function parseWith(
 
 @Injectable()
 export class MediaTextExtractor {
+  private languagesReady?: Promise<void>;
+
   constructor(private readonly config: ConfigService) {}
 
   async canonicalImage(bytes: Buffer): Promise<Buffer> {
@@ -66,13 +68,35 @@ export class MediaTextExtractor {
   }
 
   async ocr(bytes: Buffer): Promise<string> {
+    const executable = this.config
+      .get("CONTENT_MODERATION_OCR_COMMAND", "tesseract")
+      .trim();
+    this.languagesReady ??= this.requireOcrLanguages(executable);
+    await this.languagesReady;
     const text = await parseWith(
-      this.config.get("CONTENT_MODERATION_OCR_COMMAND", "tesseract").trim(),
+      executable,
       ["stdin", "stdout", "-l", "vie+eng"],
       bytes,
       128_000,
     );
     return new TextDecoder("utf-8", { fatal: true }).decode(text);
+  }
+
+  private async requireOcrLanguages(executable: string): Promise<void> {
+    const output = await parseWith(
+      executable,
+      ["--list-langs"],
+      Buffer.alloc(0),
+      32_000,
+    );
+    const languages = new Set(
+      output
+        .toString("utf8")
+        .split(/\r?\n/)
+        .map((line) => line.trim()),
+    );
+    if (!languages.has("vie") || !languages.has("eng"))
+      throw new Error("MODERATION_OCR_LANGUAGES_UNAVAILABLE");
   }
 
   async pdfPageCount(bytes: Buffer): Promise<number> {
