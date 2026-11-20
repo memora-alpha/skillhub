@@ -73,14 +73,38 @@ function validateReference(value: ResultReference): void {
   }
 }
 
+function assertFingerprint(
+  stored: string,
+  expected: string,
+  conflictMessage?: string,
+) {
+  if (stored !== expected)
+    throw new ConflictException(
+      conflictMessage ?? "Idempotency key belongs to a different command",
+    );
+}
+
+function completedReference<T>(record: {
+  completedAt: Date | null;
+  resultReference: Prisma.JsonValue;
+}): T {
+  if (!record.completedAt || !record.resultReference)
+    throw new ServiceUnavailableException("Idempotency record incomplete");
+  return record.resultReference as T;
+}
+
 @Injectable()
 export class IdempotencyService {
   constructor(private readonly transactions: TransactionRunner) {}
 
-  async execute<T extends ResultReference>(
+  async execute<T extends ResultReference, Prepared = never>(
     input: IdempotencyInput,
     work: (tx: Prisma.TransactionClient) => Promise<T>,
     authorize?: (tx: Prisma.TransactionClient) => Promise<void>,
+    preflight?: {
+      prepare: (tx: Prisma.TransactionClient) => Promise<Prepared>;
+      check: (prepared: Prepared) => Promise<void>;
+    },
   ): Promise<{ value: T; replayed: boolean }> {
     if (
       !/^[\x21-\x7e]{1,128}$/.test(input.key) ||
@@ -90,6 +114,36 @@ export class IdempotencyService {
       throw new BadRequestException("Invalid idempotency identity");
     const keyDigest = sha256(input.key);
     const fingerprint = fingerprintCommand(input.command);
+    const where = {
+      scope_operation_keyDigest: {
+        scope: input.scope,
+        operation: input.operation,
+        keyDigest,
+      },
+    };
+    if (preflight) {
+      const check = await this.transactions.run(async (tx) => {
+        await authorize?.(tx);
+        const record = await tx.idempotencyRecord.findUnique({ where });
+        if (!record)
+          return {
+            replayed: false as const,
+            prepared: await preflight.prepare(tx),
+          };
+        assertFingerprint(
+          record.fingerprint,
+          fingerprint,
+          input.conflictMessage,
+        );
+        return {
+          replayed: true as const,
+          value: completedReference<T>(record),
+        };
+      });
+      if (check.replayed) return check;
+      // The external check runs without locks. The write below authorizes and validates again.
+      await preflight.check(check.prepared);
+    }
     return this.transactions.run(async (tx) => {
       // Authorization runs for fresh commands and completed replays in the same transaction.
       await authorize?.(tx);
@@ -98,30 +152,12 @@ export class IdempotencyService {
         VALUES (${input.scope}, ${input.operation}, ${keyDigest}, ${fingerprint})
         ON CONFLICT ("scope", "operation", "key_digest") DO NOTHING
       `;
-      const where = {
-        scope_operation_keyDigest: {
-          scope: input.scope,
-          operation: input.operation,
-          keyDigest,
-        },
-      };
       const record = await tx.idempotencyRecord.findUnique({ where });
       if (!record)
         throw new ServiceUnavailableException("Idempotency record unavailable");
-      if (record.fingerprint !== fingerprint) {
-        throw new ConflictException(
-          input.conflictMessage ??
-            "Idempotency key belongs to a different command",
-        );
-      }
-      if (inserted === 0) {
-        if (!record.completedAt || !record.resultReference) {
-          throw new ServiceUnavailableException(
-            "Idempotency record incomplete",
-          );
-        }
-        return { value: record.resultReference as T, replayed: true };
-      }
+      assertFingerprint(record.fingerprint, fingerprint, input.conflictMessage);
+      if (inserted === 0)
+        return { value: completedReference<T>(record), replayed: true };
       const value = await work(tx);
       validateReference(value);
       await tx.idempotencyRecord.update({

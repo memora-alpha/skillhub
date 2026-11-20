@@ -40,6 +40,7 @@ import { RewardsModule } from "./modules/rewards/rewards.module";
 import { AdminQaAdjustmentsModule } from "./modules/admin-qa-adjustments/admin-qa-adjustments.module";
 import { AdministrationModule } from "./modules/administration/administration.module";
 import { AdminDashboardModule } from "./modules/admin-dashboard/admin-dashboard.module";
+import { ContentModerationModule } from "./modules/content-moderation/content-moderation.module";
 
 @Module({
   imports: [
@@ -73,6 +74,7 @@ import { AdminDashboardModule } from "./modules/admin-dashboard/admin-dashboard.
     OutboxModule,
     SystemConfigurationModule,
     StorageModule,
+    ContentModerationModule,
     IdentityModule,
     SkillsModule,
     SharingSkillsModule,

@@ -2,12 +2,15 @@
 import { LoadingButton } from "@/components/loading-button";
 import { systemCodeLabel } from "@/lib/system-text";
 
+import Link from "next/link";
 import { useState } from "react";
 import { Card, Empty, PageHeader } from "@/components/console/ui";
 import { fmtDateTime } from "@/lib/console/format";
 import type { ReputationHistory } from "@/lib/staff/account-types";
+import { AdminNotice } from "./admin-ui";
 import { QueueState } from "./common";
 import { useStaffResource } from "./hooks";
+import { useStaffSession } from "./session";
 import { PageNavigation } from "@/components/pagination/page-navigation";
 
 const levels: Record<string, string> = {
@@ -25,9 +28,13 @@ const reasons: Record<string, string> = {
   LATE_CANCELLATION: "Hủy buổi học muộn",
   FRAUD: "Gian lận",
   SPAM: "Spam",
+  LIGHT_VIOLATION: "Vi phạm nội dung mức nhẹ",
   HARASSMENT: "Quấy rối",
+  MEDIUM_HARASSMENT: "Quấy rối / hành vi không phù hợp mức vừa",
   FALSE_INFORMATION: "Thông tin sai lệch",
-  COMPLETION: "Hoàn thành buổi học",
+  COMPLETION: "Hoàn thành lộ trình học",
+  RECOVERY_MISSION: "Nhiệm vụ phục hồi uy tín",
+  REPUTATION_REVERSAL: "Hoàn tác biến động điểm uy tín",
 };
 const scopes: Record<string, string> = {
   CREATE_NEW_ACTIVITY: "Tạo hoạt động mới",
@@ -37,6 +44,7 @@ const scopes: Record<string, string> = {
 };
 
 export function ReputationScreen() {
+  const { portal } = useStaffSession();
   const [cursors, setCursors] = useState<string[]>([]);
   const cursor = cursors.at(-1);
   const resource = useStaffResource<ReputationHistory>(
@@ -50,20 +58,36 @@ export function ReputationScreen() {
         title="Uy tín của tôi"
         desc="Điểm uy tín, lịch sử thay đổi và các hạn chế của tài khoản đang đăng nhập."
         actions={
-          <LoadingButton
-            type="button"
-            className="btn"
-            disabled={resource.loading}
-            onClick={() => {
-              if (cursors.length) setCursors([]);
-              else void resource.reload();
-            }}
-            loading={!!resource.loading}
-          >
-            Làm mới
-          </LoadingButton>
+          <div className="row">
+            {portal === "staff" ? (
+              <Link href="/learn/reputation" className="btn btn-primary">
+                Mở Uy tín &amp; Phục hồi tại Không gian học →
+              </Link>
+            ) : (
+              <Link href="/admin" className="btn btn-primary">
+                Về Tổng quan quản trị →
+              </Link>
+            )}
+            <LoadingButton
+              type="button"
+              className="btn"
+              disabled={resource.loading}
+              onClick={() => {
+                if (cursors.length) setCursors([]);
+                else void resource.reload();
+              }}
+              loading={!!resource.loading}
+            >
+              Làm mới
+            </LoadingButton>
+          </div>
         }
       />
+      <AdminNotice tone="info">
+        {portal === "staff"
+          ? "Chức năng xem điểm uy tín cá nhân, xác nhận chính sách và làm Nhiệm vụ phục hồi (SRS V1.7) đã được chuyển sang Không gian học."
+          : "Đây là dữ liệu uy tín cá nhân của tài khoản đang đăng nhập, tách biệt khỏi các công cụ quản trị hệ thống."}
+      </AdminNotice>
       <QueueState
         loading={resource.loading}
         error={resource.error}

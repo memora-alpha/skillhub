@@ -8,6 +8,7 @@ import {
   type OutboxPublisher,
 } from "../events/outbox.types";
 import { FileScanProcessor } from "./file-scan.processor";
+import { FileContentModeration } from "./file-content-moderation";
 
 export const FILE_SCAN_QUEUE = "file-scan";
 export const FILE_SCAN_EVENT = "file.scan.requested";
@@ -64,7 +65,10 @@ export class FileScanPublisher implements OutboxPublisher, OnModuleInit {
 
 @Processor(FILE_SCAN_QUEUE)
 export class FileScanWorker extends WorkerHost {
-  constructor(private readonly scanner: FileScanProcessor) {
+  constructor(
+    private readonly scanner: FileScanProcessor,
+    private readonly moderation?: FileContentModeration,
+  ) {
     super();
   }
 
@@ -78,6 +82,9 @@ export class FileScanWorker extends WorkerHost {
     ) {
       throw new Error("INVALID_FILE_SCAN_JOB");
     }
-    return this.scanner.process(job.data.fileId, job.data.generation);
+    const { fileId, generation } = job.data;
+    const state = await this.scanner.process(fileId, generation);
+    if (state === "READY") await this.moderation?.process(fileId, generation);
+    return state;
   }
 }

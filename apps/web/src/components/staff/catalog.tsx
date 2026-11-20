@@ -109,9 +109,9 @@ export function CatalogScreen() {
             onChange={(e) => setStatus(e.target.value)}
           >
             <option value="">Mọi trạng thái</option>
-            {["ACTIVE", "INACTIVE", "ARCHIVED"].map((s) => (
-              <option key={s}>{s}</option>
-            ))}
+            <option value="ACTIVE">Hoạt động</option>
+            <option value="INACTIVE">Tạm ngưng</option>
+            <option value="ARCHIVED">Đã ẩn</option>
           </select>
         </label>
       </div>

@@ -14,7 +14,7 @@ import {
   ChangeProposalDto,
 } from "../../dist/modules/proposals/presentation/http/proposals.dto.js";
 
-function fixture(blockedPermissions = new Set()) {
+function fixture(blockedPermissions = new Set(), moderation) {
   const proposerId = randomUUID(),
     recipientId = randomUUID(),
     id = randomUUID(),
@@ -117,8 +117,9 @@ function fixture(blockedPermissions = new Set()) {
     connectionTarget: async () => ({ userId: recipientId, skillId }),
   };
   const commands = {
-    execute: async (_input, work, authorize) => {
+    execute: async (_input, work, authorize, preflight) => {
       await authorize(tx);
+      if (preflight) await preflight.check(await preflight.prepare(tx));
       calls.push("work");
       return { value: await work(tx), replayed: false };
     },
@@ -138,6 +139,7 @@ function fixture(blockedPermissions = new Set()) {
     { append: async () => {} },
     new ConversationLifecycleService(),
     new ConnectionNotificationService(),
+    moderation,
   );
   const command = {
     principal: {
@@ -167,6 +169,54 @@ function fixture(blockedPermissions = new Set()) {
     },
   };
 }
+test("a blocked proposal message or textual schedule suggestion never reaches the recipient", async () => {
+  const f = fixture(new Set(), {
+    mode: () => "enforce",
+    async evaluateText(surface, _version, fields) {
+      assert.equal(surface, "proposal");
+      assert.deepEqual(fields, [
+        "A suitable invitation",
+        "Disallowed suggestion",
+      ]);
+      return { outcome: "BLOCK" };
+    },
+  });
+  f.command.principal.userId = f.row.proposerId;
+  await assert.rejects(
+    f.service.create(f.command, {
+      sourceType: "DIRECT_SEARCH",
+      recipientSharingSkillId: randomUUID(),
+      message: "A suitable invitation",
+      candidateSlots: " <b>Disallowed suggestion</b> ",
+    }),
+    /CONTENT_MODERATION_BLOCKED/,
+  );
+  assert.equal(f.row.targetSharingSkillId, null);
+  assert(!f.calls.includes("work"));
+});
+
+test("a proposal revision rechecks its version after an allowed classification", async () => {
+  const f = fixture(new Set(), {
+    mode: () => "enforce",
+    async evaluateText() {
+      f.row = {
+        ...f.row,
+        version: 2,
+        message: "Someone saved a newer revision",
+      };
+      return { outcome: "ALLOW" };
+    },
+  });
+  f.command.principal.userId = f.row.proposerId;
+  await assert.rejects(
+    f.service.mutate(f.command, f.id, "update", {
+      expectedVersion: 1,
+      message: "An updated invitation",
+    }),
+    /PROPOSAL_VERSION_CONFLICT/,
+  );
+  assert.equal(f.row.message, "Someone saved a newer revision");
+});
 test("direct invitation derives target parties without requiring proposer's teaching skill; expiry is seven days", async () => {
   const f = fixture();
   f.command.principal.userId = f.row.proposerId;

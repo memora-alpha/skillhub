@@ -23,6 +23,12 @@ import { FileStorageService } from "../../../../infrastructure/storage/file-stor
 import { storageActor } from "../../../../shared/authorization/principal-actor";
 import { casePartyCapabilities } from "../../domain/case-capabilities";
 import { partyEvidenceWhere, evidenceMetadata } from "./report-evidence-view";
+import { ContentModerationService } from "../../../content-moderation/application/content-moderation.service";
+import {
+  queueReportEvidence,
+  queueReportText,
+  reportTextDigest,
+} from "./report-content-moderation";
 
 @Injectable()
 export class CaseMessagesService {
@@ -33,6 +39,7 @@ export class CaseMessagesService {
     private readonly messages: CaseMessageRepository,
     private readonly attachments?: FileAttachmentService,
     private readonly storage?: FileStorageService,
+    private readonly moderation?: ContentModerationService,
   ) {}
   async attachEvidence(
     actor: Principal,
@@ -87,6 +94,7 @@ export class CaseMessagesService {
           uploadedAt: file.uploadedAt,
         },
       });
+      await queueReportEvidence(tx, this.moderation, row);
       if (item.status === "NEED_MORE_INFO")
         await tx.reportCase.update({
           where: { id: caseId },
@@ -213,7 +221,7 @@ export class CaseMessagesService {
         JSON.stringify([caseId, partyId, actor.userId, input.clientMessageId]),
       )
       .digest("hex");
-    const digest = createHash("sha256").update(text).digest("hex");
+    const digest = reportTextDigest(text);
     await this.transactions.run(async (tx) => {
       await this.access(tx, actor, caseId, partyId);
     });
@@ -250,6 +258,12 @@ export class CaseMessagesService {
         throw new ConflictException(capabilities.messageBlockedReason);
       const receipt = await tx.reportMessageReceipt.create({
         data: { messageId, caseId, partyId, senderId: actor.userId, digest },
+      });
+      await queueReportText(tx, this.moderation, {
+        kind: "CASE_MESSAGE",
+        sourceId: messageId,
+        caseId,
+        text,
       });
       await tx.outboxEvent.create({
         data: {
@@ -336,22 +350,55 @@ export class CaseMessagesService {
     const page = receipts.slice(0, limit),
       last = page.at(-1);
     const documents = await this.messages.read(page.map((r) => r.messageId));
+    // Recheck assignment/permissions and pending visibility after Mongo I/O.
+    const restricted = await this.transactions.run(async (tx) => {
+      const item = await this.access(tx, actor, caseId, partyId);
+      const otherMessageIds = page
+        .filter((receipt) => receipt.senderId !== actor.userId)
+        .map((receipt) => receipt.messageId);
+      if (
+        !this.moderation ||
+        actor.userId === item.handlerId ||
+        !otherMessageIds.length
+      )
+        return new Set<string>();
+      const rows = await tx.reportContentModeration.findMany({
+        where: {
+          caseId,
+          kind: "CASE_MESSAGE",
+          sourceId: { in: otherMessageIds },
+          restricted: true,
+        },
+        select: { sourceId: true },
+      });
+      return new Set(rows.map((row) => row.sourceId));
+    });
     const data = page.map((receipt) => {
+      const metadata = {
+        id: receipt.messageId,
+        senderId: receipt.senderId,
+        createdAt: receipt.createdAt,
+      };
+      if (restricted.has(receipt.messageId))
+        return {
+          ...metadata,
+          text: "Nội dung đang được giữ để kiểm duyệt.",
+          contentRestricted: true,
+        };
       const row = documents.find((m) => m._id === receipt.messageId);
-      if (!row || row.digest !== receipt.digest)
+      if (
+        !row ||
+        row.caseId !== caseId ||
+        row.partyId !== partyId ||
+        row.senderId !== receipt.senderId ||
+        row.digest !== receipt.digest ||
+        typeof row.text !== "string" ||
+        reportTextDigest(row.text) !== receipt.digest
+      )
         throw new ServiceUnavailableException(
           "CASE_MESSAGE_CONTENT_UNAVAILABLE",
         );
-      return {
-        id: receipt.messageId,
-        senderId: receipt.senderId,
-        text: row.text,
-        createdAt: receipt.createdAt,
-      };
-    });
-    // Recheck assignment/permissions after Mongo I/O, including concurrent revocation.
-    await this.transactions.run(async (tx) => {
-      await this.access(tx, actor, caseId, partyId);
+      return { ...metadata, text: row.text };
     });
     return {
       data,

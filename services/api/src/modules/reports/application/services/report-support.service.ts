@@ -176,8 +176,16 @@ export class ReportSupportService {
       severity?: string;
       status?: string;
       handlerId?: string;
+      contentReview?: "REQUIRED" | "PENDING";
     },
   ) {
+    const scope = JSON.stringify([
+      actor.userId,
+      query.severity ?? null,
+      query.status ?? null,
+      query.handlerId ?? null,
+      ...(query.contentReview ? [query.contentReview] : []),
+    ]);
     let after: string | undefined;
     if (query.cursor) {
       try {
@@ -186,16 +194,7 @@ export class ReportSupportService {
           .parse(
             JSON.parse(Buffer.from(query.cursor, "base64url").toString("utf8")),
           );
-        if (
-          row.scope !==
-          JSON.stringify([
-            actor.userId,
-            query.severity ?? null,
-            query.status ?? null,
-            query.handlerId ?? null,
-          ])
-        )
-          throw new Error("scope");
+        if (row.scope !== scope) throw new Error("scope");
         after = row.id;
       } catch {
         throw new BadRequestException("INVALID_REPORT_QUEUE_CURSOR");
@@ -203,11 +202,19 @@ export class ReportSupportService {
     }
     return this.transactions.run(async (tx) => {
       await this.staff(tx, actor, "report:moderate");
+      const needsReview = { status: { in: ["BLOCK", "REVIEW"] } };
+      const pending = { status: { in: ["PENDING", "RETRY"] } };
       const rows = await tx.reportCase.findMany({
         where: {
           id: after ? { gt: after } : undefined,
           severity: query.severity,
           handlerId: query.handlerId,
+          contentModeration: query.contentReview
+            ? {
+                some:
+                  query.contentReview === "REQUIRED" ? needsReview : pending,
+              }
+            : undefined,
           status: query.status
             ? (query.status as "OPEN")
             : { in: ["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"] },
@@ -225,14 +232,22 @@ export class ReportSupportService {
           relatedSessionId: true,
           targetType: true,
           targetId: true,
+          contentModeration: {
+            where: needsReview,
+            take: 1,
+            select: { sourceId: true },
+          },
         },
         orderBy: { id: "asc" },
         take: query.limit + 1,
       });
-      const data = rows.slice(0, query.limit),
-        last = data.at(-1);
+      const page = rows.slice(0, query.limit);
+      const last = page.at(-1);
       return {
-        data,
+        data: page.map(({ contentModeration, ...row }) => ({
+          ...row,
+          contentReviewRequired: contentModeration.length !== 0,
+        })),
         pagination: {
           limit: query.limit,
           hasMore: rows.length > query.limit,
@@ -241,12 +256,7 @@ export class ReportSupportService {
               ? Buffer.from(
                   JSON.stringify({
                     id: last.id,
-                    scope: JSON.stringify([
-                      actor.userId,
-                      query.severity ?? null,
-                      query.status ?? null,
-                      query.handlerId ?? null,
-                    ]),
+                    scope,
                   }),
                 ).toString("base64url")
               : null,

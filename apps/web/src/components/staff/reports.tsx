@@ -10,8 +10,6 @@ import {
   Card,
   Empty,
   PageHeader,
-  SearchBox,
-  Segmented,
   StatusBadge,
 } from "@/components/console/ui";
 import { fmtDateTime, fmtSize } from "@/lib/console/format";
@@ -32,11 +30,9 @@ import {
   cancellationRulingAvailable,
 } from "@/lib/staff/report-ruling";
 import { AttendanceEvidence } from "./attendance-evidence";
-import { RecordId } from "./admin-ui";
+import { AdminNotice, RecordId } from "./admin-ui";
 import { CaseSupportPanel } from "./case-support";
 import { useStaffResource } from "./hooks";
-import { useStaffListPages } from "./use-staff-list-pages";
-import { ListPagination } from "@/components/pagination/list-pagination";
 import { useStaffSession } from "./session";
 import { DecisionDialog, DownloadButton, QueueState } from "./common";
 import {
@@ -44,117 +40,7 @@ import {
   reportDateLabel,
   targetTypeLabel,
 } from "@/lib/staff/report-presentation";
-export function ReportsScreen() {
-  const { portal } = useStaffSession();
-  const queue = useStaffListPages<ReportCase>("reports");
-  const [status, setStatus] = useState("ALL");
-  const [q, setQ] = useState("");
-  const items = queue.items.filter(
-    (r) =>
-      (status === "ALL" || r.status === status) &&
-      `${r.id} ${r.reasonCode} ${r.description}`
-        .toLocaleLowerCase("vi")
-        .includes(q.trim().toLocaleLowerCase("vi")),
-  );
-  return (
-    <>
-      <PageHeader
-        title="Báo cáo & tranh chấp"
-        desc="Xem báo cáo buổi học, tài liệu và ghi nhận kết quả xử lý."
-        actions={
-          <LoadingButton
-            type="button"
-            className="btn"
-            disabled={queue.loading}
-            onClick={queue.reload}
-            loading={!!queue.loading}
-          >
-            Làm mới
-          </LoadingButton>
-        }
-      />
-      <div className="toolbar">
-        <Segmented
-          label="Trạng thái báo cáo"
-          value={status}
-          onChange={setStatus}
-          options={[
-            { id: "ALL", label: "Tất cả" },
-            { id: "OPEN", label: "Mới" },
-            { id: "UNDER_REVIEW", label: "Đang xem xét" },
-            { id: "NEED_MORE_INFO", label: "Cần bổ sung" },
-          ]}
-        />
-        <SearchBox
-          label="Tìm báo cáo trên trang này"
-          placeholder="Mã hoặc nội dung báo cáo…"
-          value={q}
-          onChange={setQ}
-        />
-      </div>
-      <Card flush>
-        <QueueState
-          loading={queue.loading}
-          error={queue.error}
-          empty={!queue.items.length}
-          reload={queue.reload}
-        >
-          {!items.length ? (
-            <Empty
-              title="Không có kết quả"
-              desc="Thử trạng thái hoặc từ khóa khác."
-            />
-          ) : (
-            <div className="table-wrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Báo cáo</th>
-                    <th>Lý do</th>
-                    <th>Trạng thái</th>
-                    <th>Settlement</th>
-                    <th>Gửi lúc</th>
-                    <th>
-                      <span className="sr-only">Thao tác</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item) => (
-                    <tr key={item.id}>
-                      <td className="mono">#{item.id.slice(0, 8)}</td>
-                      <td>{reportReasonLabel(item.reasonCode)}</td>
-                      <td>
-                        <StatusBadge status={item.status} />
-                      </td>
-                      <td>
-                        <Badge
-                          tone={item.blocksSettlement ? "warn" : "neutral"}
-                        >
-                          {item.blocksSettlement ? "Đang chặn" : "Không chặn"}
-                        </Badge>
-                      </td>
-                      <td>{fmtDateTime(item.createdAt)}</td>
-                      <td>
-                        <Link
-                          className="link"
-                          href={`/${portal}/disputes/${item.id}`}
-                        >
-                          Xem chi tiết →
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </QueueState>
-        <ListPagination query={queue} />
-      </Card>
-    </>
-  );
-}
+
 type ReportAction = "claim" | "resolve" | "reject";
 const actions: Record<
   ReportAction,
@@ -178,7 +64,6 @@ const actions: Record<
   },
 };
 function ReportOverview({ item, owns, busy, onAction }: ReportActionProps) {
-  const { portal } = useStaffSession();
   function handlerIdentity() {
     if (item.handlerId) {
       return (
@@ -206,13 +91,7 @@ function ReportOverview({ item, owns, busy, onAction }: ReportActionProps) {
         />
       </div>
       <div className="ops-case-title">
-        {portal === "admin" ? (
-          <RecordId id={item.id} label="báo cáo" />
-        ) : (
-          <span className="mono" title={item.id}>
-            #{item.id.slice(0, 8)}
-          </span>
-        )}
+        <RecordId id={item.id} label="báo cáo" />
         <h2>{reportReasonLabel(item.reasonCode)}</h2>
         <div className="row">
           <StatusBadge status={item.status} />
@@ -606,6 +485,14 @@ function ReportDecision({
           admin={admin}
           onChange={setDraft}
         />
+      )}
+      {action === "resolve" && !item.path && (
+        <AdminNotice tone="info">
+          Báo cáo này không gắn với lộ trình học (ví dụ tài liệu số, đơn tài
+          liệu hoặc phản ánh người dùng). Vui lòng ghi rõ kết luận xử lý; các
+          thao tác ẩn tài liệu hoặc kiểm duyệt hồ sơ thực hiện tại phân hệ Kiểm
+          duyệt tương ứng.
+        </AdminNotice>
       )}
     </DecisionDialog>
   );

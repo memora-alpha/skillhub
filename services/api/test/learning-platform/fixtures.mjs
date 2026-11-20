@@ -70,7 +70,12 @@ export function fakeOutboxConsumer(db) {
   };
 }
 
-export function setup({ wallets = {}, config = {}, requestId = null } = {}) {
+export function setup({
+  wallets = {},
+  config = {},
+  requestId = null,
+  moderation,
+} = {}) {
   const clock = { now: new Date("2026-10-20T00:00:00.000Z") };
   const db = createFakeDb({ now: () => clock.now });
   db.seed("conversation", {
@@ -167,6 +172,8 @@ export function setup({ wallets = {}, config = {}, requestId = null } = {}) {
     fakeIdempotency(db),
     requests,
     requestPaths,
+    undefined,
+    moderation,
   );
   const schedules = new SchedulingService(
     runner(db),

@@ -8,6 +8,7 @@ import {
   cancellationRulingAvailable,
 } from "@/lib/staff/report-ruling";
 import { StaffApiError } from "@/lib/staff/client";
+import { useStaffSession } from "./session";
 
 export function ReportRulingFields({
   item,
@@ -22,6 +23,7 @@ export function ReportRulingFields({
   admin?: boolean;
   scope?: "case" | "incident";
 }>) {
+  const { portal } = useStaffSession();
   const context = reportRulingContext(item);
   const options = item.resolutionOptions;
   const choice = (code: string) =>
@@ -81,7 +83,7 @@ export function ReportRulingFields({
               Nếu chưa đủ căn cứ, quay lại yêu cầu bổ sung thông tin; nếu hai
               bên không thể tiếp tục, xem xét dừng lộ trình.
             </p>
-            {admin && item.path && (
+            {admin && portal === "admin" && item.path && (
               <Link
                 className="link"
                 href={`/admin/learning-paths/${item.path.id}`}

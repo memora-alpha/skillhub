@@ -20,6 +20,8 @@ import {
   tagRequestQuerySchema,
 } from "../../domain/tag-policy";
 import { expectedVersion } from "../../domain/skill-policy";
+import { ContentModerationService } from "../../../content-moderation/application/content-moderation.service";
+import { textModerationPreflight } from "../../../content-moderation/application/text-moderation";
 import { commandJson, type SkillCommand } from "../contracts/skill-contracts";
 import {
   tagRequestSnapshot,
@@ -39,10 +41,20 @@ export class TagRequestsService {
     private readonly commands: IdempotencyService,
     private readonly transactions: TransactionRunner,
     private readonly audit: AuditWriter,
+    private readonly moderation: ContentModerationService,
   ) {}
 
   async create(command: SkillCommand, input: CreateTagInput) {
     const data = normalizeTagLabel(parseTagInput(createTagSchema, input).label);
+    const validate = async (tx: TransactionContext) => {
+      const existing = await this.repository.findByKey(tx, data.labelKey);
+      if (existing)
+        throw new ConflictException(
+          existing.status === "ACTIVE"
+            ? "TAG_ALREADY_EXISTS"
+            : "TAG_UNAVAILABLE",
+        );
+    };
     try {
       const result = await this.commands.execute(
         {
@@ -53,13 +65,7 @@ export class TagRequestsService {
         },
         async (tx) => {
           const actor = await this.submitActor(tx, command);
-          const existing = await this.repository.findByKey(tx, data.labelKey);
-          if (existing)
-            throw new ConflictException(
-              existing.status === "ACTIVE"
-                ? "TAG_ALREADY_EXISTS"
-                : "TAG_UNAVAILABLE",
-            );
+          await validate(tx);
           const row = await this.repository.createRequest(tx, {
             ...data,
             requestedByUserId: actor.userId,
@@ -77,6 +83,10 @@ export class TagRequestsService {
         async (tx) => {
           await this.submitActor(tx, command);
         },
+        textModerationPreflight(this.moderation, "tag_request", async (tx) => {
+          await validate(tx);
+          return { sourceVersion: "create:1", fields: [data.label] };
+        }),
       );
       return this.repository.getRequest(result.value.id);
     } catch (error) {

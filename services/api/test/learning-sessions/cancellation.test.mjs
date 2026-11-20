@@ -29,12 +29,16 @@ const admin = {
   roles: ["ADMIN"],
   permissions: ["report:moderate", "credit:adjust", "dispute:override"],
 };
-async function fixture() {
+async function fixture(moderation) {
   const ctx = setup({ wallets: { [B]: 10000n } });
   const ids = await finalizedOneWay(ctx);
   const audit = new AuditWriter(new AuditRepository());
   const state = new LearningChangeState(audit, ctx.configuration);
-  const cancellations = new SessionChangesService(runner(ctx.db), state);
+  const cancellations = new SessionChangesService(
+    runner(ctx.db),
+    state,
+    moderation,
+  );
   const stop = new PathTerminationService(
     runner(ctx.db),
     state,
@@ -47,6 +51,7 @@ async function fixture() {
     },
     ctx.requests,
     ctx.requestPaths,
+    moderation,
   );
   const reports = new ReportsService(
     runner(ctx.db),
@@ -75,6 +80,55 @@ async function fixture() {
     cancel,
   };
 }
+
+test("blocked cancellation and termination reasons leave no shared request", async () => {
+  const ctx = await fixture({
+    mode: () => "enforce",
+    async evaluateText(_surface, _version, fields) {
+      assert.equal(fields.length, 1);
+      return { outcome: "BLOCK" };
+    },
+  });
+  for (const operation of [
+    () => ctx.cancel(),
+    () =>
+      ctx.stop.request(
+        user(A),
+        ctx.pathId,
+        "terminate",
+        "Please end this agreement",
+      ),
+  ]) {
+    await assert.rejects(operation(), {
+      message: "CONTENT_MODERATION_BLOCKED",
+    });
+  }
+  assert.equal(ctx.db.rows("learningChangeRequest").length, 0);
+});
+
+test("a blocked response note cannot consent to cancellation or overwrite the pending request", async () => {
+  const ctx = await fixture({
+    mode: () => "enforce",
+    async evaluateText(_surface, _version, fields) {
+      return {
+        outcome: fields[0] === "Disallowed response" ? "BLOCK" : "ALLOW",
+      };
+    },
+  });
+  const request = await ctx.cancel();
+  await assert.rejects(
+    ctx.cancellations.respond(user(B), ctx.session.id, request.id, {
+      expectedVersion: request.version,
+      accept: true,
+      note: " Disallowed response ",
+    }),
+    { message: "CONTENT_MODERATION_BLOCKED" },
+  );
+  const saved = ctx.db.rows("learningChangeRequest")[0];
+  assert.equal(saved.status, "PENDING");
+  assert.equal(saved.version, request.version);
+  assert.equal(saved.responseNote ?? null, null);
+});
 
 test("cancellation requires the other participant, retains 2/5 progress, and makeup completes once", async () => {
   const ctx = await fixture();

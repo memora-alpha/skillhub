@@ -30,6 +30,8 @@ import {
 import { text, expectedVersion } from "../../../skills/domain/skill-policy";
 import { AuditWriter } from "../../../audit/application/services/audit-writer";
 import { auditActorFromActor } from "../../../audit/application/contracts/audit.types";
+import { ContentModerationService } from "../../../content-moderation/application/content-moderation.service";
+import { textModerationPreflight } from "../../../content-moderation/application/text-moderation";
 export type SharingInput = {
   skillId: string;
   level?: SharingSkillLevel;
@@ -49,6 +51,7 @@ export class SharingSkillsService implements OnModuleInit {
     private readonly profiles: ProfileReader,
     private readonly publicReader: PublicSkillReader,
     private readonly audit: AuditWriter,
+    private readonly moderation: ContentModerationService,
   ) {}
   onModuleInit(): void {
     this.publicReader.register((userId) =>
@@ -189,6 +192,17 @@ export class SharingSkillsService implements OnModuleInit {
   }
   async create(command: SkillCommand, input: SharingInput) {
     const data = { ...input, description: text(input.description, 20, 1500) };
+    const authorize = async (tx: TransactionContext) => {
+      await this.actors.require(
+        tx,
+        command.principal,
+        "sharing-skill:create:self",
+      );
+    };
+    const validate = async (tx: TransactionContext) => {
+      await this.skills.assertActive(tx, data.skillId);
+      return this.skills.selectLevel(tx, data.skillId, data);
+    };
     try {
       const result = await this.commands.execute(
         {
@@ -198,17 +212,7 @@ export class SharingSkillsService implements OnModuleInit {
           command: commandJson(data),
         },
         async (tx) => {
-          await this.actors.require(
-            tx,
-            command.principal,
-            "sharing-skill:create:self",
-          );
-          await this.skills.assertActive(tx, data.skillId);
-          const selection = await this.skills.selectLevel(
-            tx,
-            data.skillId,
-            data,
-          );
+          const selection = await validate(tx);
           const row = await this.repository.create(tx, {
             ...data,
             ...selection,
@@ -222,13 +226,15 @@ export class SharingSkillsService implements OnModuleInit {
             version: row.version,
           };
         },
-        async (tx) => {
-          await this.actors.require(
-            tx,
-            command.principal,
-            "sharing-skill:create:self",
-          );
-        },
+        authorize,
+        textModerationPreflight(
+          this.moderation,
+          "sharing_skill",
+          async (tx) => {
+            await validate(tx);
+            return { sourceVersion: "create:1", fields: [data.description] };
+          },
+        ),
       );
       return ownSharing(await this.repository.get(result.value.id));
     } catch (error) {
@@ -240,6 +246,30 @@ export class SharingSkillsService implements OnModuleInit {
     id: string,
     input: { expectedVersion: number },
   ) {
+    const expected = input.expectedVersion;
+    const authorize = async (tx: TransactionContext) => {
+      await this.actors.require(
+        tx,
+        command.principal,
+        "sharing-skill:restore:self",
+      );
+    };
+    const validate = async (tx: TransactionContext) => {
+      // Read ownership first, then lock catalog before the sharing row.
+      const snapshot = await this.repository.get(id, tx);
+      if (snapshot.userId !== command.principal.userId)
+        throw new NotFoundException();
+      await this.skills.assertActive(tx, snapshot.skillId);
+      const before = await this.repository.get(id, tx, true);
+      expectedVersion(before.version, expected);
+      if (!before.archivedAt)
+        throw new ConflictException("SHARING_SKILL_NOT_ARCHIVED");
+      if (
+        await this.repository.findUnarchived(tx, before.userId, before.skillId)
+      )
+        throw new ConflictException("SKILL_DUPLICATE");
+      return before;
+    };
     try {
       const result = await this.commands.execute(
         {
@@ -254,22 +284,7 @@ export class SharingSkillsService implements OnModuleInit {
             command.principal,
             "sharing-skill:restore:self",
           );
-          // Read ownership first, then lock catalog before the sharing row.
-          const snapshot = await this.repository.get(id, tx);
-          if (snapshot.userId !== actor.userId) throw new NotFoundException();
-          await this.skills.assertActive(tx, snapshot.skillId);
-          const before = await this.repository.get(id, tx, true);
-          expectedVersion(before.version, input.expectedVersion);
-          if (!before.archivedAt)
-            throw new ConflictException("SHARING_SKILL_NOT_ARCHIVED");
-          if (
-            await this.repository.findUnarchived(
-              tx,
-              actor.userId,
-              before.skillId,
-            )
-          )
-            throw new ConflictException("SKILL_DUPLICATE");
+          const before = await validate(tx);
           const after = await this.repository.update(tx, id, {
             archivedAt: null,
             version: { increment: 1 },
@@ -290,13 +305,20 @@ export class SharingSkillsService implements OnModuleInit {
             version: after.version,
           };
         },
-        async (tx) => {
-          await this.actors.require(
-            tx,
-            command.principal,
-            "sharing-skill:restore:self",
-          );
-        },
+        authorize,
+        textModerationPreflight(
+          this.moderation,
+          "sharing_skill",
+          async (tx) => {
+            const row = await validate(tx);
+            return row.isVisible
+              ? {
+                  sourceVersion: String(row.version),
+                  fields: [row.description],
+                }
+              : undefined;
+          },
+        ),
       );
       return ownSharing(await this.repository.get(result.value.id));
     } catch (error) {
@@ -326,6 +348,36 @@ export class SharingSkillsService implements OnModuleInit {
       ? "sharing-skill:archive:self"
       : "sharing-skill:update:self";
     const { expectedVersion: version, ...patch } = input;
+    const validate = async (tx: TransactionContext) => {
+      await this.actors.require(tx, command.principal, permission);
+      let selection:
+        { levelId: string; level: SharingSkillLevel | null } | undefined;
+      if (patch.level !== undefined || patch.levelId !== undefined) {
+        const snapshot = await this.repository.get(id, tx);
+        if (snapshot.userId !== command.principal.userId)
+          throw new NotFoundException();
+        await this.skills.assertActive(tx, snapshot.skillId);
+        selection = await this.skills.selectLevel(tx, snapshot.skillId, patch);
+      }
+      const row = await this.assertOwnedActive(
+        tx,
+        command.principal.userId,
+        id,
+      );
+      expectedVersion(row.version, version);
+      if (
+        archive &&
+        row.skillVerificationSharingSkillIdRecords.some(
+          (item) => item.status === "PENDING",
+        )
+      )
+        throw new ConflictException("VERIFICATION_PENDING");
+      const description =
+        patch.description === undefined
+          ? undefined
+          : text(patch.description, 20, 1500);
+      return { row, selection, description };
+    };
     const result = await this.commands.execute(
       {
         scope: command.principal.userId,
@@ -334,39 +386,11 @@ export class SharingSkillsService implements OnModuleInit {
         command: commandJson({ id, ...input }),
       },
       async (tx) => {
-        await this.actors.require(tx, command.principal, permission);
-        let selection:
-          { levelId: string; level: SharingSkillLevel | null } | undefined;
-        if (patch.level !== undefined || patch.levelId !== undefined) {
-          const snapshot = await this.repository.get(id, tx);
-          if (snapshot.userId !== command.principal.userId)
-            throw new NotFoundException();
-          await this.skills.assertActive(tx, snapshot.skillId);
-          selection = await this.skills.selectLevel(
-            tx,
-            snapshot.skillId,
-            patch,
-          );
-        }
-        const row = await this.assertOwnedActive(
-          tx,
-          command.principal.userId,
-          id,
-        );
-        expectedVersion(row.version, version);
-        if (
-          archive &&
-          row.skillVerificationSharingSkillIdRecords.some(
-            (item) => item.status === "PENDING",
-          )
-        )
-          throw new ConflictException("VERIFICATION_PENDING");
+        const { row, selection, description } = await validate(tx);
         const updated = await this.repository.update(tx, id, {
           ...patch,
           ...selection,
-          ...(patch.description !== undefined
-            ? { description: text(patch.description, 20, 1500) }
-            : {}),
+          ...(description === undefined ? {} : { description }),
           ...(archive ? { archivedAt: new Date() } : {}),
           version: { increment: 1 },
         });
@@ -380,6 +404,20 @@ export class SharingSkillsService implements OnModuleInit {
       async (tx) => {
         await this.actors.require(tx, command.principal, permission);
       },
+      archive || (patch.description === undefined && patch.isVisible !== true)
+        ? undefined
+        : textModerationPreflight(
+            this.moderation,
+            "sharing_skill",
+            async (tx) => {
+              const { row, description } = await validate(tx);
+              if (description === undefined && row.isVisible) return undefined;
+              return {
+                sourceVersion: String(row.version),
+                fields: [description ?? row.description],
+              };
+            },
+          ),
     );
     return ownSharing(await this.repository.get(result.value.id));
   }

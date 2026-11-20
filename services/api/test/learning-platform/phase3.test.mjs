@@ -19,6 +19,7 @@ import {
 import { ReportsService } from "../../dist/modules/reports/application/services/reports.service.js";
 import { CreateReviewDto } from "../../dist/modules/reviews/presentation/http/reviews.dto.js";
 import { ReviewsService } from "../../dist/modules/reviews/application/services/reviews.service.js";
+import { ReviewModerationService } from "../../dist/modules/reviews/application/services/review-moderation.service.js";
 import { runner } from "./fake-db.mjs";
 import {
   A,
@@ -74,7 +75,12 @@ function phase3(options = {}) {
     adjustments,
     ctx.configuration,
   );
-  const reviews = new ReviewsService(runner(ctx.db), reputation, achievements);
+  const reviews = new ReviewsService(
+    runner(ctx.db),
+    reputation,
+    achievements,
+    options.moderation,
+  );
   return { ...ctx, reputation, achievements, adjustments, reports, reviews };
 }
 
@@ -89,6 +95,59 @@ const later = (work) => (async () => work())();
 
 const invalid = async (Dto, plain) =>
   (await validate(plainToInstance(Dto, plain))).length > 0;
+
+test("an unapproved review cannot change Reputation or appear in path reviews", async () => {
+  let outcome = "BLOCK";
+  const ctx = phase3({
+    moderation: {
+      mode: () => "enforce",
+      evaluateText: async () => ({ outcome, reasonCodes: [] }),
+    },
+  });
+  const { pathId } = await settledOneWay(ctx);
+  const before = score(ctx.db, A);
+  const input = { comment: "Nội dung kiểm thử", rating: 1 };
+  await rejectsWith(
+    ctx.reviews.create(user(B), pathId, input),
+    422,
+    "CONTENT_MODERATION_BLOCKED",
+  );
+  assert.equal(ctx.db.rows("review").length, 0);
+  outcome = "REVIEW";
+  const staged = await ctx.reviews.create(user(B), pathId, input);
+  assert.equal(staged.publicationState, "PENDING");
+  assert.ok(staged.hiddenAt);
+  assert.equal(score(ctx.db, A), before);
+  assert.deepEqual(await ctx.reviews.listForPath(user(A), pathId), []);
+  assert.equal(
+    (await ctx.reviews.listForPath(user(B), pathId))[0].publicationState,
+    "PENDING",
+  );
+  const moderation = new ReviewModerationService(
+    runner(ctx.db),
+    { assertLive: async (_tx, actor) => actor },
+    { append: async () => undefined },
+    ctx.reviews,
+  );
+  const actor = { ...staff, permissions: ["review:moderate"] };
+  const decision = {
+    hidden: false,
+    expectedVersion: staged.moderationVersion,
+    reason: "Valid rating and comment",
+  };
+  await moderation.change(actor, staged.id, decision);
+  assert.equal(score(ctx.db, A), before - 5);
+  assert.equal(
+    (await ctx.reviews.listForPath(user(A), pathId))[0].id,
+    staged.id,
+  );
+  await rejectsWith(
+    moderation.change(actor, staged.id, decision),
+    409,
+    "STALE_REVIEW_VERSION",
+  );
+  assert.equal(score(ctx.db, A), before - 5);
+});
 
 async function openReport(ctx) {
   const ids = await completedOneWay(ctx);

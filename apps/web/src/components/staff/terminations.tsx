@@ -9,17 +9,16 @@ import {
   useRef,
   useState,
   type ReactNode,
-  type Ref,
 } from "react";
 import { useStaffSession } from "./session";
 import { StaffApiError } from "@/lib/staff/client";
+import { hasPermission } from "@/lib/staff/permissions";
 import {
   sameExecution,
   readTerminationChange,
   readTerminationReview,
   terminationDecision,
   type AllocationDecision,
-  type Allocation,
   type TerminationChange,
   type TerminationDecision,
   type TerminationReview,
@@ -179,98 +178,73 @@ function TerminationQueue({
             hàng đợi để xem xét.
           </p>
         )}
-      {portal === "admin" && (
-        <AdminNotice tone="warn">
-          <strong>Phương án Credit là dữ liệu chỉ đọc.</strong>
-          <p>
-            Số tiền và cách phân bổ được tính từ các kết quả học đã ghi nhận.
-          </p>
-        </AdminNotice>
-      )}
+      <AdminNotice tone="warn">
+        <strong>Phương án phân bổ Credit là dữ liệu chỉ đọc.</strong>
+        <p>
+          Số tiền hoàn lại, trả đối tác và phí nền tảng được máy chủ tính tự
+          động từ các kết quả điểm danh đã ghi nhận.
+        </p>
+      </AdminNotice>
       <QueueState
         loading={loading}
         error={error}
         empty={!rows.length}
         reload={() => void pagination.reload()}
       >
-        {portal === "admin" ? (
-          <Card title="Hàng đợi yêu cầu" flush>
-            <DataTable
-              columns={[
-                "Yêu cầu",
-                "Lộ trình / Người yêu cầu",
-                "Lý do",
-                "Trạng thái",
-                "Thao tác",
-              ]}
-              className="table admin-responsive-table admin-termination-table"
-            >
-              {pagination.items.map((row) => (
-                <tr key={row.id}>
-                  <td data-label="Yêu cầu">
-                    <RecordId id={row.id} label="yêu cầu" />
-                    <small>{fmtDateTime(row.createdAt)}</small>
-                  </td>
-                  <td data-label="Lộ trình / Người yêu cầu">
-                    <RecordId id={row.pathId} label="lộ trình" />
-                    <small>
-                      Người yêu cầu:{" "}
-                      <UserProfileReference
-                        userId={row.requesterId}
-                        label="người yêu cầu"
-                      />
-                    </small>
-                  </td>
-                  <td data-label="Lý do">
-                    <p className="admin-clamp">{row.reason}</p>
-                  </td>
-                  <td data-label="Trạng thái">
-                    <StatusBadge status={row.status} />
-                    <div className="admin-termination-flags">
-                      {row.blockedByDispute && (
-                        <Badge tone="bad">Có tranh chấp</Badge>
-                      )}
-                      {row.awaitingPolicy && (
-                        <Badge tone="warn">Chờ chính sách</Badge>
-                      )}
-                    </div>
-                  </td>
-                  <td data-label="Thao tác">
-                    <button
-                      type="button"
-                      className="btn btn-sm"
-                      onClick={() => setSelected(row)}
-                    >
-                      Xem xét yêu cầu
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </DataTable>
-          </Card>
-        ) : (
-          <div className="staff-termination-grid">
+        <Card title="Hàng đợi yêu cầu dừng lộ trình" flush>
+          <DataTable
+            columns={[
+              "Yêu cầu",
+              "Lộ trình / Người yêu cầu",
+              "Lý do",
+              "Trạng thái",
+              "Thao tác",
+            ]}
+            className="table admin-responsive-table admin-termination-table"
+          >
             {pagination.items.map((row) => (
-              <section className="card" key={row.id}>
-                <h2>Yêu cầu {row.id.slice(0, 8)}</h2>
-                <p className="staff-wrap">Lộ trình: {row.pathId}</p>
-                <p>{row.reason}</p>
-                <p>
-                  {systemCodeLabel(row.status)}
-                  {row.blockedByDispute ? " · Có tranh chấp" : ""}
-                  {row.awaitingPolicy ? " · Chờ chính sách" : ""}
-                </p>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => setSelected(row)}
-                >
-                  Xem phương án & xử lý
-                </button>
-              </section>
+              <tr key={row.id}>
+                <td data-label="Yêu cầu">
+                  <RecordId id={row.id} label="yêu cầu" />
+                  <small>{fmtDateTime(row.createdAt)}</small>
+                </td>
+                <td data-label="Lộ trình / Người yêu cầu">
+                  <RecordId id={row.pathId} label="lộ trình" />
+                  <small>
+                    Người yêu cầu:{" "}
+                    <UserProfileReference
+                      userId={row.requesterId}
+                      label="người yêu cầu"
+                    />
+                  </small>
+                </td>
+                <td data-label="Lý do">
+                  <p className="admin-clamp">{row.reason}</p>
+                </td>
+                <td data-label="Trạng thái">
+                  <StatusBadge status={row.status} />
+                  <div className="admin-termination-flags">
+                    {row.blockedByDispute && (
+                      <Badge tone="bad">Có tranh chấp</Badge>
+                    )}
+                    {row.awaitingPolicy && (
+                      <Badge tone="warn">Chờ chính sách</Badge>
+                    )}
+                  </div>
+                </td>
+                <td data-label="Thao tác">
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    onClick={() => setSelected(row)}
+                  >
+                    Xem xét yêu cầu
+                  </button>
+                </td>
+              </tr>
             ))}
-          </div>
-        )}
+          </DataTable>
+        </Card>
       </QueueState>
       <ListPagination query={pagination} />
       {selected && (
@@ -293,7 +267,7 @@ function TerminationDetail({
   row: TerminationTarget;
   close: () => void;
 }>) {
-  const { api, actor, portal } = useStaffSession();
+  const { api, actor } = useStaffSession();
   const [review, setReview] = useState<TerminationReview>(),
     [amounts, setAmounts] = useState<AllocationDecision[]>([]),
     [reason, setReason] = useState("");
@@ -304,8 +278,7 @@ function TerminationDetail({
     [success, setSuccess] = useState<string>();
   const [rejecting, setRejecting] = useState(false);
   const flight = useRef(false),
-    alive = useRef(true),
-    section = useRef<HTMLElement>(null);
+    alive = useRef(true);
   const base =
     "learning-paths/" + row.pathId + "/termination-requests/" + row.id;
   const read = useCallback(async () => {
@@ -355,8 +328,6 @@ function TerminationDetail({
   useEffect(() => {
     alive.current = true;
     void reload();
-    section.current?.focus();
-    section.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     return () => {
       alive.current = false;
     };
@@ -437,9 +408,11 @@ function TerminationDetail({
       if (alive.current) setBusy(false);
     }
   }
+  const hasTerminatePermission =
+    hasPermission(actor, "report:moderate") &&
+    hasPermission(actor, "learning-path:terminate");
   const canExecute =
-    portal === "admin" &&
-    actor?.roles.includes("ADMIN") &&
+    hasTerminatePermission &&
     review &&
     !review.blockedByDispute &&
     !review.awaitingPolicy &&
@@ -449,7 +422,6 @@ function TerminationDetail({
   return (
     <TerminationFrame
       row={row}
-      sectionRef={section}
       busy={busy}
       close={close}
       reload={() => {
@@ -558,78 +530,66 @@ function TerminationDetail({
                   ))}
                 </ul>
               )}
-              {portal === "admin" ? (
-                <div className="admin-held-table">
-                  <table className="table">
-                    <thead>
-                      <tr>
-                        <th>Khoản giữ / Chủ sở hữu</th>
-                        <th>Còn giữ</th>
-                        <th>Hoàn lại</th>
-                        <th>Trả đối tác</th>
-                        <th>Phí</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {review.execution.allocations.map((held) => {
-                        const amount =
-                          review.execution.quote.status === "READY"
-                            ? amounts.find(
-                                (entry) =>
-                                  entry.allocationId === held.allocationId,
-                              )
-                            : undefined;
-                        return (
-                          <tr key={held.allocationId}>
-                            <td>
-                              <RecordId
-                                id={held.allocationId}
-                                label="khoản giữ"
+              <div className="admin-held-table">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Khoản giữ / Chủ sở hữu</th>
+                      <th>Còn giữ</th>
+                      <th>Hoàn lại</th>
+                      <th>Trả đối tác</th>
+                      <th>Phí</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {review.execution.allocations.map((held) => {
+                      const amount =
+                        review.execution.quote.status === "READY"
+                          ? amounts.find(
+                              (entry) =>
+                                entry.allocationId === held.allocationId,
+                            )
+                          : undefined;
+                      return (
+                        <tr key={held.allocationId}>
+                          <td>
+                            <RecordId
+                              id={held.allocationId}
+                              label="khoản giữ"
+                            />
+                            <small>
+                              Chủ sở hữu:{" "}
+                              <UserProfileReference
+                                userId={held.userId}
+                                label="chủ sở hữu"
                               />
-                              <small>
-                                Chủ sở hữu:{" "}
-                                <UserProfileReference
-                                  userId={held.userId}
-                                  label="chủ sở hữu"
-                                />
-                              </small>
-                            </td>
-                            <td className="admin-money">
-                              {financeNumber(held.remainingHeld)} CR
-                            </td>
-                            <td className="admin-money">
-                              {amount
-                                ? financeNumber(amount.refund) + " CR"
-                                : "Chưa xác nhận"}
-                            </td>
-                            <td className="admin-money">
-                              {amount
-                                ? financeNumber(amount.counterpartyPayment) +
-                                  " CR"
-                                : "Chưa xác nhận"}
-                            </td>
-                            <td className="admin-money">
-                              {amount
-                                ? financeNumber(amount.platformFee) + " CR"
-                                : "Chưa xác nhận"}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                review.execution.allocations.map((held) => (
-                  <HeldAllocationFields
-                    key={held.allocationId}
-                    held={held}
-                    value={amounts.find(
-                      (amount) => amount.allocationId === held.allocationId,
-                    )}
-                  />
-                ))
-              )}
+                            </small>
+                          </td>
+                          <td className="admin-money">
+                            {financeNumber(held.remainingHeld)} CR
+                          </td>
+                          <td className="admin-money">
+                            {amount
+                              ? financeNumber(amount.refund) + " CR"
+                              : "Chưa xác nhận"}
+                          </td>
+                          <td className="admin-money">
+                            {amount
+                              ? financeNumber(amount.counterpartyPayment) +
+                                " CR"
+                              : "Chưa xác nhận"}
+                          </td>
+                          <td className="admin-money">
+                            {amount
+                              ? financeNumber(amount.platformFee) + " CR"
+                              : "Chưa xác nhận"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
               <label>
                 <span>Lý do quyết định</span>
                 <textarea
@@ -653,10 +613,20 @@ function TerminationDetail({
               </LoadingButton>
             )}
             {!canExecute && (
-              <p>
-                Chỉ Admin độc lập có đủ quyền mới thực thi được, khi chính sách
-                và trạng thái cho phép.
-              </p>
+              <AdminNotice tone="info">
+                {!hasTerminatePermission ? (
+                  <>
+                    Tài khoản của bạn chưa được cấp quyền duyệt dừng lộ trình (
+                    <code>learning-path:terminate</code>). Bạn vẫn có thể xem
+                    xét hoặc từ chối yêu cầu không hợp lệ.
+                  </>
+                ) : (
+                  <>
+                    Chưa thể thực thi dừng lộ trình vì chính sách, trạng thái
+                    yêu cầu hoặc tranh chấp hiện tại chưa đáp ứng điều kiện.
+                  </>
+                )}
+              </AdminNotice>
             )}
           </form>
           {!intent && (
@@ -750,16 +720,13 @@ function TerminationFrame({
   close,
   reload,
   children,
-  sectionRef,
 }: Readonly<{
   row: TerminationTarget;
   busy: boolean;
   close: () => void;
   reload: () => void;
   children: ReactNode;
-  sectionRef: Ref<HTMLElement>;
 }>) {
-  const { portal } = useStaffSession();
   const controls = (
     <>
       <LoadingButton
@@ -782,76 +749,20 @@ function TerminationFrame({
       </LoadingButton>
     </>
   );
-  if (portal === "admin")
-    return (
-      <AdminDrawer
-        wide
-        title="Xem xét yêu cầu dừng"
-        subtitle={
-          <>
-            Yêu cầu <RecordId id={row.id} label="yêu cầu" />
-          </>
-        }
-        busy={busy}
-        close={close}
-        footer={controls}
-      >
-        <div className="staff-termination-detail">{children}</div>
-      </AdminDrawer>
-    );
   return (
-    <section
-      className="card staff-termination-detail"
-      ref={sectionRef}
-      tabIndex={-1}
-      aria-label="Xem xét dừng lộ trình"
+    <AdminDrawer
+      wide
+      title="Xem xét yêu cầu dừng lộ trình"
+      subtitle={
+        <>
+          Yêu cầu <RecordId id={row.id} label="yêu cầu" />
+        </>
+      }
+      busy={busy}
+      close={close}
+      footer={controls}
     >
-      <h2>Xem xét yêu cầu {row.id.slice(0, 8)}</h2>
-      <p className="staff-wrap">Lộ trình {row.pathId}</p>
-      {children}
-      <div className="staff-dialog-actions">{controls}</div>
-    </section>
-  );
-}
-
-type AllocationField = "refund" | "counterpartyPayment" | "platformFee";
-function HeldAllocationFields({
-  held,
-  value,
-}: Readonly<{
-  held: Allocation;
-  value: AllocationDecision | undefined;
-}>) {
-  const labels: Record<AllocationField, string> = {
-    refund: "Hoàn người giữ",
-    counterpartyPayment: "Trả đối tác",
-    platformFee: "Phí nền tảng",
-  };
-  return (
-    <div className="staff-held">
-      <p className="staff-wrap">
-        Người giữ:{" "}
-        <UserProfileReference userId={held.userId} label="người giữ Credit" />
-        <br />
-        Khoản: {held.allocationId}
-      </p>
-      <strong>
-        Held còn lại: {held.remainingHeld} CR · {held.status}
-      </strong>
-      {(["refund", "counterpartyPayment", "platformFee"] as const).map(
-        (field) => (
-          <label key={field}>
-            <span>{labels[field]}</span>
-            <input
-              inputMode="decimal"
-              readOnly
-              required
-              pattern="(0|[1-9][0-9]{0,9})(\.[0-9]{1,2})?"
-              value={value?.[field] ?? ""}
-            />
-          </label>
-        ),
-      )}
-    </div>
+      <div className="staff-termination-detail">{children}</div>
+    </AdminDrawer>
   );
 }

@@ -1,9 +1,11 @@
 "use client";
+import Link from "next/link";
 import { LoadingButton } from "@/components/loading-button";
 import { LoadingSkeleton } from "@/components/loading-skeleton";
 import { achievementCopy, achievementTitle } from "@/lib/i18n/system-copy";
 import { Badge, Card, Empty, PageHeader } from "@/components/console/ui";
 import { fmtDateTime } from "@/lib/console/format";
+import { AdminNotice } from "./admin-ui";
 import { useAchievements } from "./use-achievements";
 
 export function AchievementsScreen() {
@@ -15,17 +17,26 @@ export function AchievementsScreen() {
         title="Thành tích & danh hiệu"
         desc="Thành tích đã mở khóa và danh hiệu công khai của tài khoản đang đăng nhập."
         actions={
-          <LoadingButton
-            className="btn"
-            type="button"
-            disabled={loading || saving}
-            onClick={() => void reload()}
-            loading={!!(loading || saving)}
-          >
-            {loading ? "Đang tải…" : "Làm mới"}
-          </LoadingButton>
+          <div className="row">
+            <Link href="/admin" className="btn btn-primary">
+              Về Tổng quan quản trị →
+            </Link>
+            <LoadingButton
+              className="btn"
+              type="button"
+              disabled={loading || saving}
+              onClick={() => void reload()}
+              loading={!!(loading || saving)}
+            >
+              {loading ? "Đang tải…" : "Làm mới"}
+            </LoadingButton>
+          </div>
         }
       />
+      <AdminNotice tone="info">
+        Đây là danh hiệu cá nhân của tài khoản đang đăng nhập, tách biệt khỏi
+        các phân hệ quản trị hệ thống.
+      </AdminNotice>
       {error && (
         <p className="staff-error" role="alert">
           {error}

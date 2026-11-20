@@ -165,6 +165,7 @@ model StoredFile {
   scanAttempts      Int                   @default(0) @map("scan_attempts")
   scanVerdict       String?               @map("scan_verdict")
   scannerVersion    String?               @map("scanner_version")
+  moderationAssessment Json?              @map("moderation_assessment")
   scannedAt         DateTime?             @map("scanned_at") @db.Timestamptz(3)
   scanLeaseToken    String?               @map("scan_lease_token") @db.Uuid
   scanLeaseUntil    DateTime?             @map("scan_lease_until") @db.Timestamptz(3)
@@ -212,6 +213,7 @@ model ChatPublication {
   status String @default("PREPARING")
   messageSequence BigInt? @map("message_sequence")
   failureCode String? @map("failure_code")
+  moderationAssessment Json? @map("moderation_assessment")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   @@unique([conversationId, senderId, clientMessageId])

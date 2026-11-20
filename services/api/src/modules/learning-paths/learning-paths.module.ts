@@ -1,3 +1,4 @@
+import { ContentModerationModule } from "../content-moderation/content-moderation.module";
 import { Module } from "@nestjs/common";
 import { PathOverviewReader } from "./application/services/path-overview.reader";
 import { PathOverviewController } from "./presentation/http/path-overview.controller";
@@ -26,6 +27,7 @@ import { AdminLearningPathSourceReader } from "./application/services/admin-lear
 
 @Module({
   imports: [
+    ContentModerationModule,
     SessionOverviewModule,
     DatabaseModule,
     LearningRequestsModule,

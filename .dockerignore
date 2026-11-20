@@ -18,6 +18,10 @@
 !services/api/prisma/**
 !services/api/scripts/
 !services/api/scripts/**
+!services/api/test/
+!services/api/test/content-moderation/
+!services/api/test/content-moderation/fixtures/
+!services/api/test/content-moderation/fixtures/vi-cases.json
 **/node_modules
 **/dist
 **/src/generated

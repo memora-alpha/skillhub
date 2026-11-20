@@ -7,6 +7,12 @@ import { Module, ValidationPipe, VersioningType } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { Test } from "@nestjs/testing";
 import { getConnectionToken } from "@nestjs/mongoose";
+import { getQueueToken } from "@nestjs/bullmq";
+import { QueueModule } from "../../dist/infrastructure/queue/queue.module.js";
+import {
+  ReportContentModerationWorker,
+  reportModerationQueue,
+} from "../../dist/modules/reports/infrastructure/events/report-content-moderation.queue.js";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { ProposalsModule } from "../../dist/modules/proposals/proposals.module.js";
 import { ProposalsService } from "../../dist/modules/proposals/application/services/proposals.service.js";
@@ -96,6 +102,12 @@ test("feature modules resolve owner contracts and register SSE/chat workers; HTT
     )
     .overrideModule(RedisModule)
     .useModule(fixtureModule([[RedisService, redis]]))
+    .overrideModule(QueueModule)
+    .useModule(fixtureModule([]))
+    .overrideProvider(getQueueToken(reportModerationQueue))
+    .useValue({ add: async () => {} })
+    .overrideProvider(ReportContentModerationWorker)
+    .useValue({})
     .overrideModule(IdentityModule)
     .useModule(
       fixtureModule([

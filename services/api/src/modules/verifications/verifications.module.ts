@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { ContentModerationModule } from "../content-moderation/content-moderation.module";
 import { DatabaseModule } from "../../infrastructure/database/database.module";
 import { IdempotencyModule } from "../../infrastructure/idempotency/idempotency.module";
 import { OutboxModule } from "../../infrastructure/events/outbox.module";
@@ -14,6 +15,7 @@ import { AdminVerificationReaderPort } from "./application/ports/admin-verificat
 import { AdminVerificationSourceReader } from "./application/services/admin-verification-source.reader";
 @Module({
   imports: [
+    ContentModerationModule,
     DatabaseModule,
     IdempotencyModule,
     OutboxModule,

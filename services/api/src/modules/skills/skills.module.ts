@@ -1,3 +1,4 @@
+import { ContentModerationModule } from "../content-moderation/content-moderation.module";
 import { Module } from "@nestjs/common";
 import { DatabaseModule } from "../../infrastructure/database/database.module";
 import { IdempotencyModule } from "../../infrastructure/idempotency/idempotency.module";
@@ -28,7 +29,13 @@ import {
 import { AdminTagRequestReaderPort } from "./application/ports/admin-tag-request.reader";
 import { AdminTagRequestSourceReader } from "./application/services/admin-tag-request-source.reader";
 @Module({
-  imports: [DatabaseModule, IdempotencyModule, AuditModule, IdentityModule],
+  imports: [
+    ContentModerationModule,
+    DatabaseModule,
+    IdempotencyModule,
+    AuditModule,
+    IdentityModule,
+  ],
   providers: [
     SkillsRepository,
     SkillsService,

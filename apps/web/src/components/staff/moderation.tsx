@@ -14,6 +14,9 @@ import {
 } from "@/components/console/ui";
 import { fmtDateTime } from "@/lib/console/format";
 import type { LearningRequest } from "@/lib/staff/types";
+import { hasPermission } from "@/lib/staff/permissions";
+import { AdminNotice, RecordId } from "./admin-ui";
+import { UserProfileReference } from "./user-profile-reference";
 import { useStaffSession } from "./session";
 
 import { DecisionDialog, QueueState } from "./common";
@@ -123,7 +126,9 @@ function decisionDescription(
 }
 
 export function ModerationScreen() {
-  const { api } = useStaffSession();
+  const { api, actor, portal } = useStaffSession();
+  const canApprove = hasPermission(actor, "learning-request:approve");
+  const canReject = hasPermission(actor, "learning-request:reject");
   const [q, setQ] = useState("");
   const queue = useStaffListPages<LearningRequest>(
     "learning-requests?limit=20",
@@ -267,8 +272,10 @@ export function ModerationScreen() {
                     {selected.status === "PENDING_MODERATION" && (
                       <p className="muted">
                         Duyệt yêu cầu sẽ duyệt luôn các tag này vào danh mục
-                        chung và gắn vào bài. Không cần duyệt lại ở mục Đề xuất
-                        tag.
+                        chung và gắn vào bài
+                        {portal === "admin"
+                          ? ". Không cần duyệt lại ở mục Đề xuất tag."
+                          : "."}
                       </p>
                     )}
                   </section>
@@ -303,44 +310,84 @@ export function ModerationScreen() {
                 )}
                 <RequestFacts request={selected} />
                 <RequestAvailability request={selected} />
-                <details>
+                <details className="admin-record-details">
                   <summary>Thông tin đối chiếu</summary>
                   <dl className="kv staff-kv">
                     <dt>Mã yêu cầu</dt>
-                    <dd className="mono">{selected.id}</dd>
-                    <dt>Mã người đăng</dt>
-                    <dd className="mono">{selected.ownerId}</dd>
+                    <dd>
+                      <RecordId id={selected.id} label="yêu cầu học" />
+                    </dd>
+                    <dt>Người đăng</dt>
+                    <dd>
+                      <UserProfileReference
+                        userId={selected.ownerId}
+                        label="người đăng"
+                      />
+                    </dd>
                     <dt>Mã kỹ năng muốn học</dt>
-                    <dd className="mono">{selected.skillId}</dd>
+                    <dd>
+                      <RecordId id={selected.skillId} label="kỹ năng" />
+                    </dd>
                     {selected.moderatedByUserId && (
                       <>
-                        <dt>Mã người xử lý</dt>
-                        <dd className="mono">{selected.moderatedByUserId}</dd>
+                        <dt>Người xử lý</dt>
+                        <dd>
+                          <UserProfileReference
+                            userId={selected.moderatedByUserId}
+                            label="người xử lý"
+                          />
+                        </dd>
                       </>
                     )}
                   </dl>
                 </details>
 
+                {selected.ownerId === actor?.userId &&
+                  selected.status === "PENDING_MODERATION" && (
+                    <AdminNotice tone="warn">
+                      Đây là yêu cầu học do chính bạn đăng. Một nhân sự khác cần
+                      thực hiện kiểm duyệt để đảm bảo tính khách quan.
+                    </AdminNotice>
+                  )}
+
                 {selected.status === "PENDING_MODERATION" && (
                   <div className="staff-detail-actions">
-                    <LoadingButton
-                      type="button"
-                      className="btn btn-danger"
-                      disabled={!!decision || queue.loading}
-                      onClick={() => setDecision("reject")}
-                      loading={!!queue.loading}
-                    >
-                      Từ chối
-                    </LoadingButton>
-                    <LoadingButton
-                      type="button"
-                      className="btn btn-primary"
-                      disabled={!!decision || queue.loading}
-                      onClick={() => setDecision("approve")}
-                      loading={!!queue.loading}
-                    >
-                      Duyệt yêu cầu
-                    </LoadingButton>
+                    {canReject && (
+                      <LoadingButton
+                        type="button"
+                        className="btn admin-danger-outline"
+                        disabled={
+                          !!decision ||
+                          queue.loading ||
+                          selected.ownerId === actor?.userId
+                        }
+                        onClick={() => setDecision("reject")}
+                        loading={!!queue.loading}
+                      >
+                        Từ chối
+                      </LoadingButton>
+                    )}
+                    {canApprove && (
+                      <LoadingButton
+                        type="button"
+                        className="btn btn-primary"
+                        disabled={
+                          !!decision ||
+                          queue.loading ||
+                          selected.ownerId === actor?.userId
+                        }
+                        onClick={() => setDecision("approve")}
+                        loading={!!queue.loading}
+                      >
+                        Duyệt yêu cầu
+                      </LoadingButton>
+                    )}
+                    {!canApprove && !canReject && (
+                      <p className="muted">
+                        Tài khoản hiện chỉ có quyền xem danh sách yêu cầu chờ
+                        kiểm duyệt.
+                      </p>
+                    )}
                   </div>
                 )}
                 {decision && (
