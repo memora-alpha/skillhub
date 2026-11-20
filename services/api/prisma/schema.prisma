@@ -969,6 +969,7 @@ model Review {
   reviewerIdRecord  User         @relation("Review_reviewer_id", fields: [reviewerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   revieweeIdRecord  User         @relation("Review_reviewee_id", fields: [revieweeId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   moderationVersion Int          @default(0) @map("moderation_version")
+  publicationState  String?      @map("publication_state")
 
   @@unique([pathId, reviewerId])
   @@index([pathId])

@@ -520,7 +520,8 @@ model("User", (block) =>
 model("Review", (block) =>
   fields(
     block,
-    '  moderationVersion Int @default(0) @map("moderation_version")',
+    `  moderationVersion Int @default(0) @map("moderation_version")
+  publicationState String? @map("publication_state")`,
   ),
 );
 model("FeePolicyVersion", (block) =>

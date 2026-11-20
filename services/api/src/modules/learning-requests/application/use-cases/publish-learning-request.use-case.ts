@@ -27,7 +27,8 @@ import {
   type LearningRequestRepository,
 } from "../ports/learning-request-repository";
 import { LearningRequestAccessService } from "../services/learning-request-access.service";
-import { evaluateModeration } from "../../domain/moderation.policy";
+import { ContentModerationService } from "../../../content-moderation/application/content-moderation.service";
+import { assessLearningRequest } from "../services/learning-request-content-moderation";
 import { validateExpiryAtPublish } from "../../domain/request-text.policy";
 
 const moderationKey = "learningRequest.moderationRuleSet" as const;
@@ -132,6 +133,7 @@ export class PublishLearningRequestUseCase {
     private readonly catalog: SkillCatalogReader,
     private readonly configuration: SystemConfigurationService,
     @Inject(SHARING_SKILL_READER) private readonly sharing: SharingSkillReader,
+    private readonly contentModeration?: ContentModerationService,
   ) {}
 
   async execute(
@@ -145,7 +147,7 @@ export class PublishLearningRequestUseCase {
       requestId,
       input.expectedVersion,
     );
-    const moderation = evaluateModeration(
+    const moderation = await assessLearningRequest(
       {
         title: snapshot.request.title,
         description: snapshot.request.description,
@@ -155,6 +157,8 @@ export class PublishLearningRequestUseCase {
         proposedTags: snapshot.request.proposedTags,
       },
       { ruleSet: snapshot.ruleSet, version: snapshot.configVersion },
+      input.expectedVersion,
+      this.contentModeration,
     );
 
     return this.transactions.run(async (tx) => {

@@ -28,6 +28,10 @@ import {
   type MaterialState,
 } from "../../domain/material.policy";
 import { ownerMaterialView } from "../contracts/material-view";
+import {
+  ContentModerationService,
+  requireAllowed,
+} from "../../../content-moderation/application/content-moderation.service";
 import { MaterialThumbnailsService } from "./material-thumbnails.service";
 import {
   materialFilterScope,
@@ -71,6 +75,7 @@ export class MaterialsService {
     private readonly storage: FileStorageService,
     private readonly attachments: FileAttachmentService,
     private readonly thumbnails: MaterialThumbnailsService,
+    private readonly moderation?: ContentModerationService,
   ) {}
 
   // Public methods that validate before the transaction are async so every
@@ -294,13 +299,29 @@ export class MaterialsService {
   ) {
     requirePermission(principal, "material:create:self");
     assertListingVersion(expectedListingVersion);
+    if (this.moderation && this.moderation.mode("material") !== "off") {
+      const snapshot = await this.transactions.run((tx) =>
+        this.submittableMaterial(
+          tx,
+          id,
+          principal.userId,
+          expectedListingVersion,
+        ),
+      );
+      const assessment = await this.moderation.evaluateText(
+        "material",
+        String(expectedListingVersion),
+        [snapshot.title, snapshot.description],
+      );
+      if (assessment.outcome !== "REVIEW") requireAllowed(assessment);
+    }
     const updated = await this.transactions.run(async (tx) => {
-      const current = await lockOwned(tx, id, principal.userId);
-      if (current.listingVersion !== expectedListingVersion)
-        throw withdrawalConflict("MATERIAL_VERSION_CONFLICT", current);
-      if (current.status !== "DRAFT" && current.status !== "ARCHIVED")
-        throw new ConflictException("MATERIAL_TRANSITION_INVALID");
-      await assertReadyMaterialFile(tx, current);
+      await this.submittableMaterial(
+        tx,
+        id,
+        principal.userId,
+        expectedListingVersion,
+      );
       return tx.material.update({
         where: { id },
         data: {
@@ -313,6 +334,21 @@ export class MaterialsService {
       });
     });
     return this.ownerProjectionFromRow(updated);
+  }
+
+  private async submittableMaterial(
+    tx: TransactionContext,
+    id: string,
+    userId: string,
+    expectedVersion: number,
+  ) {
+    const current = await lockOwned(tx, id, userId);
+    if (current.listingVersion !== expectedVersion)
+      throw withdrawalConflict("MATERIAL_VERSION_CONFLICT", current);
+    if (current.status !== "DRAFT" && current.status !== "ARCHIVED")
+      throw new ConflictException("MATERIAL_TRANSITION_INVALID");
+    await assertReadyMaterialFile(tx, current);
+    return current;
   }
 
   async withdraw(

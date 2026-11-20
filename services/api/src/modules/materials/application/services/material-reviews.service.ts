@@ -23,6 +23,10 @@ import { AuditWriter } from "../../../audit/application/services/audit-writer";
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import { SkillActorService } from "../../../users/application/services/skill-actor.service";
 import {
+  ContentModerationService,
+  requireAllowed,
+} from "../../../content-moderation/application/content-moderation.service";
+import {
   reviewComment,
   reviewRating,
   type MaterialReviewEligibilityReason,
@@ -58,6 +62,7 @@ export class MaterialReviewsService {
     private readonly idempotency: IdempotencyService,
     private readonly actors: SkillActorService,
     private readonly audit: AuditWriter,
+    private readonly moderation?: ContentModerationService,
   ) {}
 
   async list(materialId: string, query: { limit?: number; cursor?: string }) {
@@ -136,6 +141,24 @@ export class MaterialReviewsService {
     const rating = reviewRating(input.rating);
     const comment = reviewComment(input.comment);
     const command = { materialId, rating, comment } satisfies JsonValue;
+    let checked = false;
+    let hidden = false;
+    const moderation = this.moderation;
+    const moderateComment =
+      comment && moderation && moderation.mode("material_review") !== "off";
+    if (
+      moderateComment &&
+      (await this.eligibility(principal, materialId)).canReview
+    ) {
+      const assessment = await moderation.evaluateText(
+        "material_review",
+        "submission",
+        [comment],
+      );
+      hidden = assessment.outcome === "REVIEW";
+      if (!hidden) requireAllowed(assessment);
+      checked = true;
+    }
     const result = await this.idempotency.execute(
       {
         scope: `material-review:${principal.userId}`,
@@ -153,6 +176,8 @@ export class MaterialReviewsService {
             message: "MATERIAL_REVIEW_NOT_ALLOWED",
             reason: eligibility.reasonCode,
           });
+        if (moderateComment && !checked)
+          throw new ConflictException("MATERIAL_REVIEW_ELIGIBILITY_CHANGED");
         let review: MaterialReview;
         try {
           review = await tx.materialReview.create({
@@ -162,7 +187,7 @@ export class MaterialReviewsService {
               authorId: principal.userId,
               rating,
               comment,
-              status: "VISIBLE",
+              status: hidden ? "HIDDEN" : "VISIBLE",
               eligibilitySource: eligibility.eligibilitySource!,
               sourceOrderId: eligibility.sourceOrderId,
             },
@@ -170,7 +195,7 @@ export class MaterialReviewsService {
         } catch (error) {
           rethrowReviewUnique(error);
         }
-        await recomputeMaterialRatingSummary(tx, materialId);
+        if (!hidden) await recomputeMaterialRatingSummary(tx, materialId);
         await this.auditReview(
           tx,
           principal,
@@ -178,12 +203,13 @@ export class MaterialReviewsService {
           review,
           "Material review created",
         );
-        await reviewEvent(
-          tx,
-          review,
-          "material.review.created",
-          material.ownerId,
-        );
+        if (!hidden)
+          await reviewEvent(
+            tx,
+            review,
+            "material.review.created",
+            material.ownerId,
+          );
         return {
           id: review.id,
           status: review.status,
@@ -211,6 +237,34 @@ export class MaterialReviewsService {
       input.rating === undefined ? undefined : reviewRating(input.rating);
     const comment =
       input.comment === undefined ? undefined : reviewComment(input.comment);
+    if (
+      comment &&
+      this.moderation &&
+      this.moderation.mode("material_review") !== "off"
+    ) {
+      await this.transactions.run(async (tx) => {
+        const current = await tx.materialReview.findUnique({
+          where: { id: reviewId },
+        });
+        if (
+          !current ||
+          current.authorId !== principal.userId ||
+          current.deletedAt
+        )
+          throw new NotFoundException("MATERIAL_REVIEW_NOT_FOUND");
+        if (current.status === "HIDDEN")
+          throw new ConflictException("MATERIAL_REVIEW_HIDDEN");
+        if (current.version !== input.expectedVersion)
+          throw new ConflictException("MATERIAL_REVIEW_VERSION_CONFLICT");
+      });
+      requireAllowed(
+        await this.moderation.evaluateText(
+          "material_review",
+          String(input.expectedVersion),
+          [comment],
+        ),
+      );
+    }
     return this.transactions.run(async (tx) => {
       const snapshot = await tx.materialReview.findUnique({
         where: { id: reviewId },

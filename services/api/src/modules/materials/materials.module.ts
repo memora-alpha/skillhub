@@ -33,9 +33,11 @@ import {
 } from "./presentation/http/material-reviews.controller";
 import { MaterialReviewModerationController } from "./presentation/http/material-review-moderation.controller";
 import { MaterialFavoritesService } from "./application/services/material-favorites.service";
+import { ContentModerationModule } from "../content-moderation/content-moderation.module";
 
 @Module({
   imports: [
+    ContentModerationModule,
     DatabaseModule,
     StorageModule,
     IdentityModule,

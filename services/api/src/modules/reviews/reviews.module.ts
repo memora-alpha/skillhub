@@ -8,9 +8,15 @@ import { IdentityModule } from "../identity.module";
 import { ReputationModule } from "../reputation/reputation.module";
 import { ReviewsController } from "./presentation/http/reviews.controller";
 import { ReviewsService } from "./application/services/reviews.service";
+import { ContentModerationModule } from "../content-moderation/content-moderation.module";
 
 @Module({
-  imports: [DatabaseModule, IdentityModule, ReputationModule],
+  imports: [
+    DatabaseModule,
+    IdentityModule,
+    ReputationModule,
+    ContentModerationModule,
+  ],
   controllers: [
     ReviewsController,
     PublicReviewsController,

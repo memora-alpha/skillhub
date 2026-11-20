@@ -5,6 +5,7 @@ import {
   UnprocessableEntityException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { createHash } from "node:crypto";
 import { moderationModes } from "../domain/moderation-config";
 import {
   assessClassification,
@@ -79,6 +80,20 @@ export class ContentModerationService {
 
   mode(surface: ModerationSurface): ModerationMode {
     return this.modes.get(surface) ?? "off";
+  }
+
+  evaluateText(
+    surface: ModerationSurface,
+    sourceVersion: string,
+    fields: readonly (string | null | undefined)[],
+  ): Promise<ModerationAssessment> {
+    const text = fields
+      .filter((field) => typeof field === "string" && field.trim())
+      .join("\n");
+    const digest = createHash("sha256")
+      .update(JSON.stringify(fields))
+      .digest("hex");
+    return this.evaluate({ surface, sourceVersion, digest, text });
   }
 
   async evaluate(input: ModerationInput): Promise<ModerationAssessment> {
