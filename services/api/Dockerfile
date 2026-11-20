@@ -25,6 +25,10 @@ RUN DATABASE_URL=postgresql://localhost/build_only pnpm --filter api build
 FROM base AS runner
 ENV NODE_ENV=development
 ENV PORT=3001
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        tesseract-ocr tesseract-ocr-eng tesseract-ocr-vie poppler-utils \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/package.json /app/pnpm-workspace.yaml /app/.npmrc ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages ./packages
@@ -34,10 +38,15 @@ COPY --from=builder /app/services/api/dist ./services/api/dist
 COPY --from=builder /app/services/api/prisma ./services/api/prisma
 COPY --from=builder /app/services/api/prisma.config.ts ./services/api/prisma.config.ts
 COPY --from=builder /app/services/api/scripts ./services/api/scripts
+COPY --from=builder /app/services/api/test/content-moderation/fixtures/vi-cases.json ./services/api/test/content-moderation/fixtures/vi-cases.json
 COPY --from=builder /app/services/api/release-seeds.json ./services/api/release-seeds.json
 RUN mkdir /release-state && chown node:node /release-state
 WORKDIR /app/services/api
 USER node
+RUN tesseract --list-langs | grep -Fx eng \
+    && tesseract --list-langs | grep -Fx vie \
+    && pdfinfo -v && pdftoppm -v \
+    && test -r test/content-moderation/fixtures/vi-cases.json
 EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
     CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3001)+'/api/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"

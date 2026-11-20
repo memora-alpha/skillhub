@@ -75,6 +75,8 @@ and use addresses reachable from the application container; container-local
 Disable independent Git auto-deploy so GitHub checks precede the webhook. Do not
 add migrate/seed to Coolify pre/post-deploy commands; the dev entrypoint owns them.
 
+Content Moderation uses the same API image. Follow the [Coolify moderation rollout](content-moderation-rollout.md#thiết-lập-trên-coolify) to set the runtime secret, verify OCR and test the API from the deployed container.
+
 ## Setup in GitHub
 
 Create the **dev** environment and restrict it to branch `dev`. Protect the branch
