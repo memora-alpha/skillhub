@@ -248,3 +248,44 @@ test("reconcile resolves a timed-out issuance without refunding", async () => {
   assert.equal(row.status, "ISSUED");
   assert.equal(calls.refunds, 0);
 });
+
+test("reward catalog data is consistent and its products can be issued", async () => {
+  const { MOCK_BRANDS, MOCK_PRODUCTS } =
+    await import("../../dist/modules/rewards/infrastructure/providers/mock-catalog.js");
+  const brandIds = new Set(MOCK_BRANDS.map((brand) => brand.providerBrandId));
+  assert.equal(brandIds.size, MOCK_BRANDS.length);
+  const productIds = MOCK_PRODUCTS.map((p) => p.providerProductId);
+  assert.equal(new Set(productIds).size, productIds.length);
+  for (const product of MOCK_PRODUCTS) {
+    assert.ok(brandIds.has(product.providerBrandId), product.providerProductId);
+    assert.ok(product.faceValueVnd > 0n);
+  }
+  const catalog = MOCK_PRODUCTS.filter((p) => p.raw.suggestedPriceCredit);
+  assert.ok(catalog.length > 100);
+  for (const product of catalog) {
+    assert.ok(product.providerProductId.endsWith("-ok"));
+    // Demo rate: 1.000 VND = 1 Credit.
+    assert.equal(
+      BigInt(product.raw.suggestedPriceCredit) * 1000n,
+      product.faceValueVnd,
+    );
+  }
+  const issued = await new MockVoucherProvider().issue({
+    clientRef: "catalog-1",
+    providerProductId: catalog[0].providerProductId,
+    faceValueVnd: catalog[0].faceValueVnd,
+  });
+  assert.ok(issued.code);
+});
+
+test("the reward seed refuses to run unless the tier is local or staging", async () => {
+  const { assertRewardSeedAllowed } =
+    await import("../../dist/modules/rewards/application/seed-rewards.js");
+  assertRewardSeedAllowed({ APP_DEPLOYMENT_TIER: "local" });
+  assertRewardSeedAllowed({ APP_DEPLOYMENT_TIER: "staging" });
+  assert.throws(() => assertRewardSeedAllowed({}), /REWARD_SEED_REFUSED/);
+  assert.throws(
+    () => assertRewardSeedAllowed({ APP_DEPLOYMENT_TIER: "production" }),
+    /REWARD_SEED_REFUSED/,
+  );
+});

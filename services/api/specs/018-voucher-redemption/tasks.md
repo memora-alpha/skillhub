@@ -26,9 +26,9 @@
 
 ## Phase 4 — Mock provider
 
-- [x] T030 Mock catalog (fictional brands, placeholder images, scenario suffixes)
+- [x] T030 Mock catalog (fictional Demo brands for scenario tests, scenario suffixes) plus the real-brand reward catalog in `data/reward-catalog.json` (49 brands, 113 products from gotit.vn; face values and prices are demo assumptions)
 - [x] T031 MockVoucherProvider with in-memory issue state
-- [ ] T032 Seed script: sync mock catalog and price `-ok` products for demo (use POST /admin/rewards/catalog/sync + PATCH until scripted)
+- [x] T032 Seed script `pnpm db:seed-rewards [--activate]` (sync the mock catalog; `--activate` prices and activates unpriced catalog products at 1.000 VND = 1 Credit; refuses unless `APP_DEPLOYMENT_TIER` is local or staging)
 
 ## Phase 5 — HTTP
 

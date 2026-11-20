@@ -1,13 +1,13 @@
 {
   "_readme": [
-    "PREVIEW ONLY - not read by any code yet. Review it, then it can feed the T032 seed script.",
+    "Reward catalog served by the mock voucher provider and loaded into the database by `pnpm db:seed-rewards` (spec 018, T032).",
     "Categories, brands, logos, store counts and usage methods come from the public listing that https://www.gotit.vn/buy-vouchers loads for each category tab (read 2026-11-21). For each category the brands with the most locations were kept (up to 3).",
     "Brand names, ids (providerBrandId = Got It brandId), slugs and logo URLs are the real ones. Logos point at img.gotit.vn, as the Got It catalog API is expected to return in phase 2 (spec 018 D7); nothing is copied or mirrored.",
     "Voucher products are NOT published on that page. Face values are assumptions, and productIds are generated as <slug>-<k>k-ok (the -ok suffix selects the mock provider's success scenario). Product images reuse the brand logo.",
     "termsVi/termsEn only restate the usage methods and location counts read from the page. Brand descriptions and Got It's own terms were not copied. validityDays is null because the validity period is not published there.",
     "suggestedPriceCredit is a demo proposal of 1,000 VND = 1 Credit. The real price is a PO decision (Q3) and an admin sets it.",
     "Fields providerBrandId, providerProductId, nameVi/En, imageUrl/logoUrl, faceValueVnd, termsVi/En, validityDays match ProviderBrand/ProviderProduct. 'slug', 'category', 'launchDate', 'storeCount', 'cityCount', 'usageMethods*', 'source', 'gotItCategoryId' and 'suggestedPriceCredit' are preview-only helpers.",
-    "Failure scenarios (-oos, -err, -timeout, -lost, -slow) stay in mock-catalog.ts, whose fictional brands and IDs are unchanged."
+    "Failure scenarios (-oos, -err, -timeout, -lost, -slow) and the fictional Demo brands stay in mock-catalog.ts."
   ],
   "summary": {
     "categories": 17,
