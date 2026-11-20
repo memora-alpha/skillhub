@@ -138,8 +138,7 @@ export class RedemptionService {
       include: { brand: true },
     });
     if (
-      !product ||
-      product.status !== "ACTIVE" ||
+      product?.status !== "ACTIVE" ||
       product.brand.status !== "ACTIVE" ||
       product.priceCredit === null
     )
@@ -350,6 +349,8 @@ export class RedemptionService {
         });
       return due.map((row) => row.id);
     });
+    // Sequential on purpose: each id makes a provider call plus its own transaction, so
+    // running the batch in parallel would burst provider requests and DB connections.
     for (const id of ids) await this.reconcileOne(id);
     return ids.length;
   }
@@ -424,11 +425,7 @@ export class RedemptionService {
   }
 
   /** Owner-only. Revealing a voucher secret is audited. */
-  async get(
-    principal: Principal,
-    id: string,
-    options: { reveal: boolean } = { reveal: true },
-  ) {
+  async get(principal: Principal, id: string, options?: { reveal?: boolean }) {
     requireReward(principal, "reward:redeem");
     const row = await this.db.voucherRedemption.findFirst({
       where: { id, userId: principal.userId },
@@ -436,7 +433,8 @@ export class RedemptionService {
     });
     if (!row) throw new NotFoundException("VOUCHER_REDEMPTION_NOT_FOUND");
     const view = this.view(row);
-    if (!options.reveal || !row.voucher) return { ...view, voucher: null };
+    if (options?.reveal === false || !row.voucher)
+      return { ...view, voucher: null };
     const secret = this.cipher.open(id, {
       ciphertext: row.voucher.secretCiphertext,
       iv: row.voucher.secretIv,

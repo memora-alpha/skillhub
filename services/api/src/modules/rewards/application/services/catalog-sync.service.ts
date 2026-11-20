@@ -42,53 +42,61 @@ export class CatalogSyncService {
         });
         brandIds.set(brand.providerBrandId, row.id);
       }
-      let upserted = 0;
-      for (const product of products) {
-        const brandId = brandIds.get(product.providerBrandId);
-        if (!brandId) continue;
-        const fields = {
-          brandId,
-          category: product.category,
-          nameVi: product.nameVi,
-          nameEn: product.nameEn,
-          imageUrl: product.imageUrl,
-          faceValueVnd: product.faceValueVnd,
-          termsVi: product.termsVi,
-          termsEn: product.termsEn,
-          validityDays: product.validityDays,
-          rawPayload: product.raw as Prisma.InputJsonObject,
-          syncedAt: new Date(),
-        };
-        const existing = await tx.rewardProduct.findUnique({
-          where: {
-            provider_providerProductId: {
+      const syncedAt = new Date();
+      const listed = products.filter((product) =>
+        brandIds.has(product.providerBrandId),
+      );
+      // One read for every listed product instead of a lookup per product.
+      const existing = new Map(
+        (
+          await tx.rewardProduct.findMany({
+            where: {
               provider,
-              providerProductId: product.providerProductId,
+              providerProductId: {
+                in: listed.map((product) => product.providerProductId),
+              },
             },
+          })
+        ).map((row) => [row.providerProductId, row]),
+      );
+      const fieldsOf = (product: (typeof listed)[number]) => ({
+        brandId: brandIds.get(product.providerBrandId) as string,
+        category: product.category,
+        nameVi: product.nameVi,
+        nameEn: product.nameEn,
+        imageUrl: product.imageUrl,
+        faceValueVnd: product.faceValueVnd,
+        termsVi: product.termsVi,
+        termsEn: product.termsEn,
+        validityDays: product.validityDays,
+        rawPayload: product.raw as Prisma.InputJsonObject,
+        syncedAt,
+      });
+      await tx.rewardProduct.createMany({
+        data: listed
+          .filter((product) => !existing.has(product.providerProductId))
+          .map((product) => ({
+            provider,
+            providerProductId: product.providerProductId,
+            ...fieldsOf(product),
+          })),
+      });
+      // Sequential: every row gets its own values, and the transaction owns one connection.
+      for (const product of listed) {
+        const current = existing.get(product.providerProductId);
+        if (!current) continue;
+        await tx.rewardProduct.update({
+          where: { id: current.id },
+          data: {
+            ...fieldsOf(product),
+            // A removed product that reappears returns INACTIVE; an admin reactivates it.
+            ...(current.status === "REMOVED"
+              ? { status: "INACTIVE" as const }
+              : {}),
           },
         });
-        if (!existing) {
-          await tx.rewardProduct.create({
-            data: {
-              provider,
-              providerProductId: product.providerProductId,
-              ...fields,
-            },
-          });
-        } else {
-          // A removed product that reappears returns INACTIVE; an admin reactivates it.
-          await tx.rewardProduct.update({
-            where: { id: existing.id },
-            data: {
-              ...fields,
-              ...(existing.status === "REMOVED"
-                ? { status: "INACTIVE" as const }
-                : {}),
-            },
-          });
-        }
-        upserted += 1;
       }
+      const upserted = listed.length;
       const removed = await tx.rewardProduct.updateMany({
         where: {
           provider,
