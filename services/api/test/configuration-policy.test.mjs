@@ -48,6 +48,9 @@ test("approved defaults and mutability are explicit", () => {
     "session.durationMinutes",
     "storage.downloadTtlSeconds",
     "storage.evidenceMaxBytes",
+    "voucher.platformDailyBudgetVnd",
+    "voucher.reconcileMaxAttempts",
+    "voucher.userDailyLimitCredit",
   ]);
   assert.deepEqual(
     CONFIGURATION_DEFINITIONS["learningPath.changeRequests"].defaultValue,

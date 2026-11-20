@@ -188,6 +188,7 @@ enum CreditTransactionType {
   REFUND
   PENALTY
   ADJUSTMENT
+  VOUCHER_REDEMPTION
 }
 
 enum CreditReferenceType {
@@ -198,6 +199,7 @@ enum CreditReferenceType {
   DISPUTE
   MATERIAL_ORDER
   SYSTEM
+  VOUCHER_REDEMPTION
 }
 
 enum CreditTransactionStatus {
@@ -369,6 +371,8 @@ model User {
   notificationPreferences Json?              @map("notification_preferences")
   profileModeration       Json?              @map("profile_moderation")
   createdFeePolicies      FeePolicyVersion[] @relation("FeePolicy_creator")
+
+  voucherRedemptions VoucherRedemption[] @relation("VoucherRedemption_user")
 
   @@unique([id, avatarAssetId])
   @@index([roleId])
@@ -1472,6 +1476,9 @@ model CreditOperation {
 
   learningChange LearningChangeRequest?
 
+  voucherDebits  VoucherRedemption[] @relation("VoucherRedemption_debit")
+  voucherRefunds VoucherRedemption[] @relation("VoucherRedemption_refund")
+
   @@map("credit_operations")
 }
 
@@ -2329,4 +2336,111 @@ model UserPermissionOverride {
   @@index([permissionId], map: "user_permission_overrides_permission_idx")
   @@index([updatedBy], map: "user_permission_overrides_actor_idx")
   @@map("user_permission_overrides")
+}
+
+// Voucher redemption fragments (spec 018).
+enum VoucherRedemptionStatus {
+  ISSUING
+  ISSUED
+  FAILED_REFUNDED
+  MANUAL_REVIEW
+  REFUNDED_MANUAL
+}
+
+enum RewardItemStatus {
+  ACTIVE
+  INACTIVE
+  REMOVED
+}
+
+model RewardBrand {
+  id              String           @id @default(uuid()) @db.Uuid
+  provider        String           @db.VarChar(30)
+  providerBrandId String           @map("provider_brand_id") @db.VarChar(100)
+  nameVi          String           @map("name_vi") @db.VarChar(150)
+  nameEn          String?          @map("name_en") @db.VarChar(150)
+  logoUrl         String?          @map("logo_url") @db.Text
+  status          RewardItemStatus @default(ACTIVE)
+  syncedAt        DateTime         @default(now()) @map("synced_at") @db.Timestamptz(3)
+  products        RewardProduct[]
+
+  @@unique([provider, providerBrandId])
+  @@map("reward_brands")
+}
+
+model RewardProduct {
+  id                  String              @id @default(uuid()) @db.Uuid
+  provider            String              @db.VarChar(30)
+  providerProductId   String              @map("provider_product_id") @db.VarChar(100)
+  brandId             String              @map("brand_id") @db.Uuid
+  category            String?             @db.VarChar(100)
+  nameVi              String              @map("name_vi") @db.VarChar(200)
+  nameEn              String?             @map("name_en") @db.VarChar(200)
+  imageUrl            String?             @map("image_url") @db.Text
+  faceValueVnd        BigInt              @map("face_value_vnd")
+  termsVi             String?             @map("terms_vi") @db.Text
+  termsEn             String?             @map("terms_en") @db.Text
+  validityDays        Int?                @map("validity_days")
+  priceCredit         BigInt?             @map("price_credit")
+  priceVersion        Int                 @default(1) @map("price_version")
+  status              RewardItemStatus    @default(INACTIVE)
+  sortOrder           Int                 @default(0) @map("sort_order")
+  displayNameOverride String?             @map("display_name_override") @db.VarChar(200)
+  imageOverride       String?             @map("image_override") @db.Text
+  rawPayload          Json?               @map("raw_payload") @db.JsonB
+  syncedAt            DateTime            @default(now()) @map("synced_at") @db.Timestamptz(3)
+  updatedAt           DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+  brand               RewardBrand         @relation(fields: [brandId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  redemptions         VoucherRedemption[]
+
+  @@unique([provider, providerProductId])
+  @@index([status, sortOrder, id], map: "reward_products_catalog_idx")
+  @@map("reward_products")
+}
+
+model VoucherRedemption {
+  id                     String                  @id @default(uuid()) @db.Uuid
+  userId                 String                  @map("user_id") @db.Uuid
+  productId              String                  @map("product_id") @db.Uuid
+  priceCredit            BigInt                  @map("price_credit")
+  priceVersion           Int                     @map("price_version")
+  faceValueVnd           BigInt                  @map("face_value_vnd")
+  provider               String                  @db.VarChar(30)
+  status                 VoucherRedemptionStatus @default(ISSUING)
+  idempotencyKey         String                  @map("idempotency_key") @db.VarChar(255)
+  debitOperationId       String                  @map("debit_operation_id") @db.Uuid
+  refundOperationId      String?                 @map("refund_operation_id") @db.Uuid
+  providerTransactionRef String?                 @map("provider_transaction_ref") @db.VarChar(255)
+  attempts               Int                     @default(0)
+  lastErrorCode          String?                 @map("last_error_code") @db.VarChar(100)
+  nextCheckAt            DateTime?               @map("next_check_at") @db.Timestamptz(3)
+  createdAt              DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
+  resolvedAt             DateTime?               @map("resolved_at") @db.Timestamptz(3)
+  user                   User                    @relation("VoucherRedemption_user", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  product                RewardProduct           @relation(fields: [productId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  debitOperation         CreditOperation         @relation("VoucherRedemption_debit", fields: [debitOperationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  refundOperation        CreditOperation?        @relation("VoucherRedemption_refund", fields: [refundOperationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  voucher                IssuedVoucher?
+
+  @@unique([userId, idempotencyKey])
+  @@unique([debitOperationId])
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)], map: "voucher_redemptions_user_page_idx")
+  @@index([status, nextCheckAt], map: "voucher_redemptions_reconcile_idx")
+  @@index([createdAt], map: "voucher_redemptions_budget_idx")
+  @@map("voucher_redemptions")
+}
+
+model IssuedVoucher {
+  redemptionId     String            @id @map("redemption_id") @db.Uuid
+  snapshot         Json              @db.JsonB
+  secretCiphertext Bytes             @map("secret_ciphertext")
+  secretIv         Bytes             @map("secret_iv")
+  secretTag        Bytes             @map("secret_tag")
+  keyVersion       Int               @map("key_version")
+  expiresAt        DateTime?         @map("expires_at") @db.Timestamptz(3)
+  issuedAt         DateTime          @default(now()) @map("issued_at") @db.Timestamptz(3)
+  redemption       VoucherRedemption @relation(fields: [redemptionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@map("issued_vouchers")
 }

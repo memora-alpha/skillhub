@@ -57,6 +57,10 @@ export const AUDIT_ACTIONS = [
   "MATERIAL_REVIEW_DELETE",
   "MATERIAL_REVIEW_REPORT",
   "MATERIAL_REVIEW_MODERATE",
+  "VOUCHER_REDEEM",
+  "VOUCHER_REVEAL",
+  "VOUCHER_RESOLVE",
+  "REWARD_PRODUCT_UPDATE",
   "ADMIN_WORK_ITEM_READ",
   "ADMIN_LEARNING_PATH_READ",
 ] as const;
@@ -234,6 +238,26 @@ const materialRefund = z.strictObject({
   grossCredit: z.string().regex(/^[1-9]\d*$/),
   operationId: uuid,
 });
+const voucherRedemption = z.strictObject({
+  productId: uuid,
+  priceCredit: z.string().regex(/^[1-9]\d*$/),
+  status: z.enum([
+    "ISSUING",
+    "ISSUED",
+    "FAILED_REFUNDED",
+    "MANUAL_REVIEW",
+    "REFUNDED_MANUAL",
+  ]),
+  operationId: uuid.nullable(),
+});
+const rewardProduct = z.strictObject({
+  priceCredit: z
+    .string()
+    .regex(/^[1-9]\d*$/)
+    .nullable(),
+  priceVersion: z.number().int().positive(),
+  status: z.enum(["ACTIVE", "INACTIVE", "REMOVED"]),
+});
 const materialReview = z.strictObject({
   materialId: uuid,
   rating: z.number().int().min(1).max(5),
@@ -345,6 +369,10 @@ const projectionByAction: Record<
   MATERIAL_REVIEW_DELETE: materialReview,
   MATERIAL_REVIEW_REPORT: materialReviewReport,
   MATERIAL_REVIEW_MODERATE: materialReview,
+  VOUCHER_REDEEM: voucherRedemption,
+  VOUCHER_REVEAL: voucherRedemption,
+  VOUCHER_RESOLVE: voucherRedemption,
+  REWARD_PRODUCT_UPDATE: rewardProduct,
   ADMIN_WORK_ITEM_READ: adminDetailRead,
   ADMIN_LEARNING_PATH_READ: adminDetailRead,
 };

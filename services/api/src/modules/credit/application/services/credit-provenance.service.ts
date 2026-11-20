@@ -77,6 +77,28 @@ export class CreditProvenanceService {
     return { purchased, bonus };
   }
 
+  /** Voucher redemption may spend only PURCHASED lots (spec 018 D3). Caller holds the wallet lock. */
+  async spendPurchased(tx: TransactionContext, userId: string, amount: bigint) {
+    const lots = await tx.creditLot.findMany({
+      where: { userId, source: "PURCHASED", available: { gt: 0n } },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    });
+    const total = lots.reduce((sum, lot) => sum + lot.available, 0n);
+    if (total < amount)
+      throw new ConflictException("INSUFFICIENT_PURCHASED_CREDIT");
+    let left = amount;
+    for (const lot of lots) {
+      if (left === 0n) break;
+      const used = lot.available < left ? lot.available : left;
+      // Each write depends on the remaining amount, so consumption stays deterministic.
+      await tx.creditLot.update({
+        where: { id: lot.id },
+        data: { available: { decrement: used }, consumed: { increment: used } },
+      });
+      left -= used;
+    }
+  }
+
   async hold(
     tx: TransactionContext,
     userId: string,
