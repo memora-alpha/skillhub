@@ -76,6 +76,8 @@ class QueueQuery {
   @IsIn(["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO", "RESOLVED", "REJECTED"])
   status?: string;
   @IsOptional() @IsUUID("4") handlerId?: string;
+  @IsOptional() @IsIn(["REQUIRED", "PENDING"]) contentReview?:
+    "REQUIRED" | "PENDING";
 }
 @ApiTags("report-support")
 @ApiBearerAuth()
@@ -122,7 +124,8 @@ export class ReportSupportController {
   }
   @Get("queue")
   @ApiOperation({
-    summary: "Paginated report queue filtered by severity, state and handler",
+    summary:
+      "Paginated report queue filtered by severity, state, handler and content review",
   })
   async queue(@CurrentIdentity() actor: Principal, @Query() query: QueueQuery) {
     const result = await this.support.queue(actor, query);

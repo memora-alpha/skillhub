@@ -37,6 +37,12 @@ import type {
 import { SessionChangesService } from "../../../learning-sessions/application/services/session-changes.service";
 import { assertIndependentCaseActor } from "../../domain/report-support.policy";
 import { evidenceMetadata, partyEvidenceWhere } from "./report-evidence-view";
+import { ContentModerationService } from "../../../content-moderation/application/content-moderation.service";
+import {
+  queueReportEvidence,
+  queueReportText,
+  staffContentAssessment,
+} from "./report-content-moderation";
 import {
   sessionReportBlockReason,
   sessionReporting,
@@ -89,6 +95,7 @@ export class ReportsService {
     private readonly creditAdjustments: CreditAdjustmentPort,
     private readonly configuration: SystemConfigurationService,
     private readonly sessionChanges: SessionChangesService,
+    private readonly moderation?: ContentModerationService,
   ) {}
 
   /** Advisory preflight for authorized session reads; POST rechecks under its locks. */
@@ -307,9 +314,18 @@ export class ReportsService {
         resource: { type: "REPORT_EVIDENCE", id: evidenceId },
       },
       {
-        assertRead: () => {
+        assertRead: async () => {
           this.requireStaff(actor);
-          return Promise.resolve();
+          await this.transactions.run(async (tx) => {
+            const current = await tx.reportCase.findUnique({
+              where: { id: row.caseId },
+              select: { handlerId: true },
+            });
+            if (current?.handlerId !== actor.userId)
+              throw new ForbiddenException(
+                "REPORT_CASE_NOT_ASSIGNED_TO_CALLER",
+              );
+          });
         },
       },
     );
@@ -371,6 +387,7 @@ export class ReportsService {
       const caseId = randomUUID();
       const blocksSettlement =
         path.settledAt === null && path.status !== "CANCELLED";
+      const description = input.description.trim();
       await tx.reportCase.create({
         data: {
           id: caseId,
@@ -380,10 +397,16 @@ export class ReportsService {
           relatedSessionId: sessionId,
           relatedPathId: path.id,
           reasonCode: input.reasonCode.trim(),
-          description: input.description.trim(),
+          description,
           status: "OPEN",
           blocksSettlement,
         },
+      });
+      await queueReportText(tx, this.moderation, {
+        kind: "CASE_REPORT",
+        sourceId: caseId,
+        caseId,
+        text: description,
       });
       if (session.status === "NO_SHOW")
         await tx.sessionAttendanceOutcome.updateMany({
@@ -396,7 +419,7 @@ export class ReportsService {
           id: caseId,
           purpose: "REPORT",
         });
-        await tx.reportEvidence.create({
+        const evidence = await tx.reportEvidence.create({
           data: {
             id: randomUUID(),
             caseId,
@@ -408,6 +431,7 @@ export class ReportsService {
             uploadedAt: file.uploadedAt,
           },
         });
+        await queueReportEvidence(tx, this.moderation, evidence);
       }
       if (blocksSettlement) {
         await tx.learningPath.update({
@@ -468,8 +492,8 @@ export class ReportsService {
 
   staffQueue(actor: Principal) {
     this.requireStaff(actor);
-    return this.transactions.run(async (tx) =>
-      withEvidenceSizeText(
+    return this.transactions.run(async (tx) => {
+      const rows = withEvidenceSizeText(
         await tx.reportCase.findMany({
           where: {
             status: { in: ["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"] },
@@ -478,8 +502,56 @@ export class ReportsService {
           orderBy: [{ id: "asc" }],
           take: 100,
         }),
-      ),
-    );
+      );
+      return this.limitStaffContent(tx, rows, actor.userId);
+    });
+  }
+
+  private async limitStaffContent<
+    T extends {
+      id: string;
+      handlerId: string | null;
+      description: string;
+      reportEvidenceCaseIdRecords: { id: string }[];
+    },
+  >(tx: TransactionContext, items: T[], viewerId: string) {
+    const ids = items
+      .filter((item) => item.handlerId !== viewerId)
+      .map((item) => item.id);
+    if (!this.moderation || !ids.length) return items;
+    const marked = await tx.reportContentModeration.findMany({
+      where: {
+        kind: { in: ["CASE_REPORT", "CASE_EVIDENCE"] },
+        caseId: { in: ids },
+        restricted: true,
+      },
+      select: { kind: true, sourceId: true },
+    });
+    const reports = new Set<string>();
+    const evidence = new Set<string>();
+    for (const marker of marked) {
+      const restricted = marker.kind === "CASE_REPORT" ? reports : evidence;
+      restricted.add(marker.sourceId);
+    }
+    return items.map((item) => {
+      const restricted = reports.has(item.id);
+      const visibleEvidence = restricted
+        ? []
+        : item.reportEvidenceCaseIdRecords.filter(
+            (row) => !evidence.has(row.id),
+          );
+      if (
+        !restricted &&
+        visibleEvidence.length === item.reportEvidenceCaseIdRecords.length
+      )
+        return item;
+      return {
+        ...item,
+        description: restricted ? "" : item.description,
+        reportEvidenceCaseIdRecords: visibleEvidence,
+        contentRestricted: true,
+      };
+    });
   }
 
   /** True while an unresolved case on the path holds its final settlement. */
@@ -573,7 +645,16 @@ export class ReportsService {
       where: { id: caseId },
     });
     await this.assertIndependentReviewer(tx, actor, item);
-    if (this.isCaseReplay(item, action, incidentDecision)) return item;
+    if (this.isCaseReplay(item, action, incidentDecision)) {
+      if (item.handlerId !== actor.userId) {
+        const marker = await tx.reportContentModeration.findFirst({
+          where: { kind: "CASE_REPORT", sourceId: item.id, restricted: true },
+          select: { sourceId: true },
+        });
+        if (marker) return { ...item, description: "" };
+      }
+      return item;
+    }
     const [clock] = await tx.$queryRaw<
       { now: Date }[]
     >`SELECT CURRENT_TIMESTAMP AS now`;
@@ -859,9 +940,22 @@ export class ReportsService {
             },
           })
         : null;
-      const [withSizes] = withEvidenceSizeText([item]);
+      const [content] = await this.limitStaffContent(
+        tx,
+        withEvidenceSizeText([item]),
+        actor.userId,
+      );
+      const contentAssessments =
+        this.moderation && item.handlerId === actor.userId
+          ? await tx.reportContentModeration.findMany({
+              where: { caseId },
+              select: staffContentAssessment,
+              orderBy: [{ kind: "asc" }, { sourceId: "asc" }],
+            })
+          : undefined;
       return {
-        ...withSizes,
+        ...content,
+        ...(contentAssessments?.length ? { contentAssessments } : {}),
         session,
         path,
         // Attendance evidence lets Staff reconcile a no-show report without uploads.

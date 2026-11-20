@@ -35,6 +35,7 @@ const relations = {
   reportCase: {
     relatedPathIdRecord: ["learningPath", [["relatedPathId", "id"]], false],
     reportEvidenceCaseIdRecords: ["reportEvidence", [["id", "caseId"]], true],
+    contentModeration: ["reportContentModeration", [["id", "caseId"]], true],
   },
   learningPlan: {
     pathIdRecord: ["learningPath", [["pathId", "id"]], false],

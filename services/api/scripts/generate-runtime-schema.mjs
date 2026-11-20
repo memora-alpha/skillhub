@@ -463,6 +463,7 @@ model("ReportCase", (block) =>
   incidentId String? @map("incident_id") @db.Uuid
   incident ReportIncident? @relation(fields: [incidentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   messageReceipts ReportMessageReceipt[]
+  contentModeration ReportContentModeration[]
   @@index([incidentId], map: "report_cases_incident_idx")
 `,
   ),

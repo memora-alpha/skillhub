@@ -18,6 +18,8 @@ import {
 } from "../../../../shared/http/list-page";
 import { AuditWriter } from "../../../audit/application/services/audit-writer";
 import type { Principal } from "../../../auth/application/services/sessions.service";
+import { ContentModerationService } from "../../../content-moderation/application/content-moderation.service";
+import { staffContentAssessment } from "../../../reports/application/services/report-content-moderation";
 import { SkillActorService } from "../../../users/application/services/skill-actor.service";
 import { auditContext, lockMaterial, roleCodes } from "./material-support";
 import { recomputeMaterialRatingSummary } from "./material-rating-summary.service";
@@ -28,6 +30,7 @@ export class MaterialReviewModerationService {
     private readonly transactions: TransactionRunner,
     private readonly actors: SkillActorService,
     private readonly audit: AuditWriter,
+    private readonly moderation?: ContentModerationService,
   ) {}
 
   async queue(
@@ -66,6 +69,22 @@ export class MaterialReviewModerationService {
         take: limit + 1,
       });
       const page = listResult(rows, limit, scope, (row) => row.createdAt);
+      const reportIds = page.data.flatMap((row) =>
+        row.reports.map(({ id }) => id),
+      );
+      const assessments =
+        this.moderation && reportIds.length
+          ? await tx.reportContentModeration.findMany({
+              where: {
+                kind: "MATERIAL_REVIEW_REPORT",
+                sourceId: { in: reportIds },
+              },
+              select: staffContentAssessment,
+            })
+          : [];
+      const assessmentById = new Map(
+        assessments.map((row) => [row.sourceId, row]),
+      );
       const owners = await this.actors.readPublicOwners(
         tx,
         page.data.map((row) => row.authorId),
@@ -89,7 +108,12 @@ export class MaterialReviewModerationService {
           comment: row.comment,
           status: row.status,
           version: row.version,
-          reports: row.reports,
+          reports: row.reports.map((report) => {
+            const contentAssessment = assessmentById.get(report.id);
+            return contentAssessment
+              ? { ...report, contentAssessment }
+              : report;
+          }),
           createdAt: row.createdAt,
           updatedAt: row.updatedAt,
         })),

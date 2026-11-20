@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
+import { queueReportText } from "../../../reports/application/services/report-content-moderation";
 import type {
   Material,
   MaterialReview,
@@ -390,6 +391,11 @@ export class MaterialReviewsService {
           status: "OPEN",
         },
       });
+      await queueReportText(tx, this.moderation, {
+        kind: "MATERIAL_REVIEW_REPORT",
+        sourceId: report.id,
+        text: description,
+      });
       await this.audit.append(tx, {
         actor: {
           kind: "HUMAN",
@@ -399,7 +405,7 @@ export class MaterialReviewsService {
         action: "MATERIAL_REVIEW_REPORT",
         target: { type: "MATERIAL_REVIEW_REPORT", id: report.id },
         after: { reviewId, status: "OPEN" },
-        reason: description,
+        reason: "Material review report submitted",
         context: auditContext(),
       });
       await tx.outboxEvent.create({
