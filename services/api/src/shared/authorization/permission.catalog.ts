@@ -187,6 +187,11 @@ export const PERMISSION_CATALOG = [
     code: "material-review:moderate",
     description: "Read reports and hide or restore material reviews",
   },
+  { code: "reward:redeem", description: "Redeem Credit for reward vouchers" },
+  {
+    code: "reward:manage",
+    description: "Manage reward catalog pricing and voucher redemptions",
+  },
   {
     code: "learning-path:read:admin",
     description: "Read administrative learning path projections",

@@ -576,6 +576,30 @@ model("FeePolicyVersion", (block) =>
   ),
 );
 
+// Voucher redemption (spec 018): enum extensions, back-relations and support models.
+for (const enumName of ["CreditTransactionType", "CreditReferenceType"]) {
+  schema = schema.replace(
+    new RegExp(String.raw`(enum ${enumName} \{[\s\S]*?)\r?\n\}`),
+    "$1\n  VOUCHER_REDEMPTION\n}",
+  );
+}
+model("User", (block) =>
+  fields(
+    block,
+    '  voucherRedemptions VoucherRedemption[] @relation("VoucherRedemption_user")',
+  ),
+);
+model("CreditOperation", (block) =>
+  fields(
+    block,
+    `
+  voucherDebits VoucherRedemption[] @relation("VoucherRedemption_debit")
+  voucherRefunds VoucherRedemption[] @relation("VoucherRedemption_refund")
+`,
+  ),
+);
+schema += "\n" + readFileSync(new URL("voucher-support.prisma", root), "utf8");
+
 schema = schema.replace(
   /^\/\/ Logical v3[^\r\n]*\r?\n(?:\/\/[^\r\n]*\r?\n)*\r?\n/,
   "// Runtime: v3 domain models plus implemented foundation support.\n" +

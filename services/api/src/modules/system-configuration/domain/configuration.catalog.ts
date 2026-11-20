@@ -100,6 +100,22 @@ export const CONFIGURATION_DEFINITIONS = {
     mutable: true,
     defaultValue: { rules: [] },
   },
+  // Demo defaults only; production values need Product Owner approval (spec 018 Q4).
+  "voucher.userDailyLimitCredit": {
+    schema: positiveInt.max(1_000_000),
+    mutable: true,
+    defaultValue: 500,
+  },
+  "voucher.platformDailyBudgetVnd": {
+    schema: positiveInt.max(10_000_000_000),
+    mutable: true,
+    defaultValue: 5_000_000,
+  },
+  "voucher.reconcileMaxAttempts": {
+    schema: z.number().int().min(1).max(48),
+    mutable: true,
+    defaultValue: 6,
+  },
   "storage.downloadTtlSeconds": {
     schema: z.number().int().min(1).max(300),
     mutable: true,

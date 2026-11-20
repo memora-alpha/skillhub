@@ -565,4 +565,110 @@ export class CreditOperationsService {
     }
     return { operationId: operation.id };
   }
+
+  /** Spec 018: debit purchased Credit for a voucher; one operation per redemption ID. */
+  async redeemVoucher(
+    tx: TransactionContext,
+    input: { redemptionId: string; userId: string; amount: bigint },
+  ): Promise<{ operationId: string }> {
+    if (input.amount <= 0n)
+      throw new ConflictException("INVALID_VOUCHER_PRICE");
+    const wallet = await this.lockWallet(tx, input.userId);
+    if (wallet.availableCredit < input.amount)
+      throw new ConflictException("INSUFFICIENT_PURCHASED_CREDIT");
+    const key = `voucher-redeem:${input.redemptionId}`;
+    const operation = await tx.creditOperation.create({
+      data: {
+        operationType: "VOUCHER_REDEMPTION",
+        referenceType: "VOUCHER_REDEMPTION",
+        referenceId: input.redemptionId,
+        idempotencyKey: key,
+        status: "SUCCESS",
+      },
+    });
+    await this.provenance.spendPurchased(tx, input.userId, input.amount);
+    const after = wallet.availableCredit - input.amount;
+    await tx.creditWallet.update({
+      where: { userId: input.userId },
+      data: {
+        availableCredit: after,
+        purchasedCredit: { decrement: input.amount },
+        walletVersion: { increment: 1 },
+      },
+    });
+    await tx.creditTransaction.create({
+      data: {
+        userId: input.userId,
+        operationId: operation.id,
+        entryNo: 1,
+        type: "VOUCHER_REDEMPTION",
+        amount: input.amount,
+        availableDelta: -input.amount,
+        heldDelta: 0n,
+        availableAfter: after,
+        heldAfter: wallet.heldCredit,
+        status: "SUCCESS",
+        idempotencyKey: `${key}:entry`,
+      },
+    });
+    return { operationId: operation.id };
+  }
+
+  /** Compensating entry restoring the purchased bucket; idempotent per redemption. */
+  async refundVoucher(
+    tx: TransactionContext,
+    input: { redemptionId: string; userId: string; amount: bigint },
+  ): Promise<{ operationId: string }> {
+    if (input.amount <= 0n)
+      throw new ConflictException("INVALID_VOUCHER_PRICE");
+    const key = `voucher-refund:${input.redemptionId}`;
+    const wallet = await this.lockWallet(tx, input.userId);
+    const existing = await tx.creditOperation.findUnique({
+      where: { idempotencyKey: key },
+    });
+    if (existing) return { operationId: existing.id };
+    const operation = await tx.creditOperation.create({
+      data: {
+        operationType: "VOUCHER_REFUND",
+        referenceType: "VOUCHER_REDEMPTION",
+        referenceId: input.redemptionId,
+        idempotencyKey: key,
+        status: "SUCCESS",
+      },
+    });
+    await tx.creditLot.create({
+      data: {
+        userId: input.userId,
+        operationId: operation.id,
+        source: "PURCHASED",
+        available: input.amount,
+        granted: input.amount,
+      },
+    });
+    const after = wallet.availableCredit + input.amount;
+    await tx.creditWallet.update({
+      where: { userId: input.userId },
+      data: {
+        availableCredit: after,
+        purchasedCredit: { increment: input.amount },
+        walletVersion: { increment: 1 },
+      },
+    });
+    await tx.creditTransaction.create({
+      data: {
+        userId: input.userId,
+        operationId: operation.id,
+        entryNo: 1,
+        type: "REFUND",
+        amount: input.amount,
+        availableDelta: input.amount,
+        heldDelta: 0n,
+        availableAfter: after,
+        heldAfter: wallet.heldCredit,
+        status: "SUCCESS",
+        idempotencyKey: `${key}:entry`,
+      },
+    });
+    return { operationId: operation.id };
+  }
 }

@@ -34,6 +34,14 @@ const environmentSchema = z.looseObject({
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),
+  VOUCHER_REDEMPTION_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  VOUCHER_PROVIDER: z.enum(["mock", "gotit"]).default("mock"),
+  // 32 bytes, base64; required whenever redemption is enabled.
+  VOUCHER_SECRET_KEY: z.string().optional(),
+  VOUCHER_SECRET_KEY_VERSION: z.coerce.number().int().min(1).default(1),
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
@@ -105,6 +113,23 @@ function insecureProductionSettings(config: Environment): string[] {
   return failures;
 }
 
+/** Spec 018: secrets are mandatory when enabled; the mock provider is never allowed in production. */
+function invalidVoucherSettings(config: Environment): string[] {
+  if (!config.VOUCHER_REDEMPTION_ENABLED) return [];
+  const failures: string[] = [];
+  const key = config.VOUCHER_SECRET_KEY
+    ? Buffer.from(config.VOUCHER_SECRET_KEY, "base64")
+    : undefined;
+  if (key?.length !== 32) failures.push("VOUCHER_SECRET_KEY");
+  if (
+    config.VOUCHER_PROVIDER === "mock" &&
+    (config.NODE_ENV === "production" ||
+      config.APP_DEPLOYMENT_TIER === "production")
+  )
+    failures.push("VOUCHER_PROVIDER");
+  return failures;
+}
+
 /** Provider values are required only when storage is enabled. */
 function invalidStorageSettings(config: Environment): string[] {
   const required = [
@@ -144,6 +169,7 @@ export function validateEnvironment(input: Record<string, unknown>) {
   if (config.NODE_ENV === "production")
     fail(insecureProductionSettings(config));
   if (config.STORAGE_ENABLED) fail(invalidStorageSettings(config));
+  fail(invalidVoucherSettings(config));
   paymentConfiguration(input);
   liveKitConfiguration(input);
   validateModerationSettings(input);
