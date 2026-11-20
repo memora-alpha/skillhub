@@ -1,0 +1,64 @@
+[
+  {
+    "id": "chat-real-threat",
+    "surface": "chat",
+    "text": "Ra ngoài đấm nhau không?",
+    "context": "Hai bên đang cãi vã và một bên thách đánh nhau trực tiếp.",
+    "expected": "BLOCK"
+  },
+  {
+    "id": "chat-ambiguous",
+    "surface": "chat",
+    "text": "Đấm bố đi",
+    "expected": "REVIEW"
+  },
+  {
+    "id": "chat-indirect-incitement",
+    "surface": "chat",
+    "text": "Đấm bố đi",
+    "context": "Người gửi đang xúi người nhận đánh bố của họ ngoài đời.",
+    "expected": "BLOCK"
+  },
+  {
+    "id": "chat-sports",
+    "surface": "chat",
+    "text": "Buổi sau mình tập đấm bao cát nhé",
+    "expected": "ALLOW"
+  },
+  {
+    "id": "request-sexual-solicitation",
+    "surface": "learning_request",
+    "text": "Tìm người trao đổi ảnh khỏa thân để kích dục.",
+    "expected": "BLOCK"
+  },
+  {
+    "id": "request-sexual-health",
+    "surface": "learning_request",
+    "text": "Tìm lớp tìm hiểu về sức khỏe sinh sản.",
+    "expected": "POLICY_PENDING"
+  },
+  {
+    "id": "request-neutral-politics",
+    "surface": "learning_request",
+    "text": "Mình muốn học cách phân tích một bản tin thời sự.",
+    "expected": "POLICY_PENDING"
+  },
+  {
+    "id": "review-negative",
+    "surface": "review",
+    "text": "Bài giảng thiếu ví dụ và buổi học bắt đầu muộn.",
+    "expected": "ALLOW"
+  },
+  {
+    "id": "report-quoted-threat",
+    "surface": "report",
+    "text": "Bạn ấy nhắn: “Ra ngoài đấm nhau không?”",
+    "expected": "CASE_INTAKE"
+  },
+  {
+    "id": "screenshot-threat-ocr",
+    "surface": "media",
+    "text": "Tao sẽ đánh mày sau buổi học.",
+    "expected": "BLOCK"
+  }
+]
