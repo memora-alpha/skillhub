@@ -138,6 +138,11 @@ test("environment refuses the mock provider in production and requires a key", (
     failing({ APP_DEPLOYMENT_TIER: "production" }),
     /VOUCHER_PROVIDER/,
   );
+  // A staging tier may run the mock provider even when NODE_ENV is production.
+  assert.doesNotMatch(
+    failing({ NODE_ENV: "production", APP_DEPLOYMENT_TIER: "staging" }),
+    /VOUCHER_PROVIDER/,
+  );
   assert.doesNotMatch(
     failing({ VOUCHER_REDEMPTION_ENABLED: "false", VOUCHER_SECRET_KEY: "" }),
     /VOUCHER/,

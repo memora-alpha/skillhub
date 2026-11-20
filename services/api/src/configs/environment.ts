@@ -121,10 +121,10 @@ function invalidVoucherSettings(config: Environment): string[] {
     ? Buffer.from(config.VOUCHER_SECRET_KEY, "base64")
     : undefined;
   if (key?.length !== 32) failures.push("VOUCHER_SECRET_KEY");
+  // Only the deployment tier decides: staging containers also run NODE_ENV=production.
   if (
     config.VOUCHER_PROVIDER === "mock" &&
-    (config.NODE_ENV === "production" ||
-      config.APP_DEPLOYMENT_TIER === "production")
+    config.APP_DEPLOYMENT_TIER === "production"
   )
     failures.push("VOUCHER_PROVIDER");
   return failures;
