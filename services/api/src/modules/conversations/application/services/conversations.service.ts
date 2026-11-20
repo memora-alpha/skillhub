@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
   ServiceUnavailableException,
+  UnprocessableEntityException,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
@@ -33,6 +34,20 @@ import { ChatPublicationService } from "./chat-publication.service";
 import type { RequestContext } from "../../../../shared/http/request-context";
 import { conversationView } from "../../domain/conversation-view";
 import { assertNoContactInformation } from "../../domain/contact-information.policy";
+import type { ChatPublication } from "../../../../generated/prisma/client";
+import {
+  ContentModerationService,
+  requireAllowed,
+} from "../../../content-moderation/application/content-moderation.service";
+
+const moderationBlocked = "CONTENT_MODERATION_BLOCKED";
+
+function assertNotCancelled(receipt: ChatPublication): void {
+  if (receipt.status !== "CANCELLED") return;
+  if (receipt.failureCode === moderationBlocked)
+    throw new UnprocessableEntityException(moderationBlocked);
+  throw new ConflictException("MESSAGE_CANCELLED");
+}
 
 @Injectable()
 export class ConversationsService {
@@ -47,6 +62,7 @@ export class ConversationsService {
     private readonly files: FileAttachmentService,
     private readonly storage: FileStorageService,
     private readonly outbox: OutboxWriter,
+    private readonly moderation: ContentModerationService,
   ) {}
   async get(principal: Principal, id: string) {
     return this.transactions.run(async (tx) =>
@@ -127,8 +143,7 @@ export class ConversationsService {
       if (existing) {
         if (existing.commandDigest !== commandDigest)
           throw new ConflictException("MESSAGE_IDEMPOTENCY_CONFLICT");
-        if (existing.status === "CANCELLED")
-          throw new ConflictException("MESSAGE_CANCELLED");
+        assertNotCancelled(existing);
         return existing;
       }
       const clocks = await tx.$queryRaw<
@@ -159,6 +174,7 @@ export class ConversationsService {
     });
     if (receipt.status === "DELIVERED")
       return this.delivery(principal, id, input.clientMessageId);
+    await this.moderateMessage(principal, receipt, body.messageText);
     let draft = await this.chat.get(receipt.id);
     if (!draft) {
       if (receipt.status !== "PREPARING")
@@ -213,8 +229,7 @@ export class ConversationsService {
       const current = await tx.chatPublication.findUniqueOrThrow({
         where: { id: receipt.id },
       });
-      if (current.status === "CANCELLED")
-        throw new ConflictException("MESSAGE_CANCELLED");
+      assertNotCancelled(current);
       if (current.status !== "PREPARING") {
         if (current.draftDigest !== immutableDraft.draftDigest)
           throw new ConflictException("MESSAGE_DRAFT_CONFLICT");
@@ -285,6 +300,7 @@ export class ConversationsService {
       if (!row) throw new NotFoundException();
       return row;
     });
+    assertNotCancelled(receipt);
     if (receipt.status === "DELIVERED") {
       const message = await this.chat.get(receipt.id);
       if (
@@ -312,6 +328,55 @@ export class ConversationsService {
       statusUrl: `/api/v1/conversations/${id}/message-deliveries/${clientMessageId}`,
       failureCode: receipt.failureCode,
     };
+  }
+
+  private async moderateMessage(
+    principal: Principal,
+    receipt: ChatPublication,
+    text: string,
+  ): Promise<void> {
+    if (receipt.status !== "PREPARING" || receipt.moderationAssessment || !text)
+      return;
+    const mode = this.moderation.mode("chat");
+    if (mode === "off") return;
+    const assessment = await this.moderation.evaluate({
+      surface: "chat",
+      sourceVersion: receipt.id,
+      digest: receipt.commandDigest,
+      text,
+    });
+    if (mode === "observe") return;
+
+    const result = await this.transactions.run(async (tx) => {
+      await this.access.require(
+        tx,
+        principal,
+        receipt.conversationId,
+        "message:create:participant",
+        true,
+      );
+      await tx.$queryRaw`SELECT id FROM chat_publications WHERE id=${receipt.id}::uuid FOR UPDATE`;
+      const current = await tx.chatPublication.findUniqueOrThrow({
+        where: { id: receipt.id },
+      });
+      assertNotCancelled(current);
+      if (current.status !== "PREPARING" || current.moderationAssessment)
+        return "accepted";
+      if (assessment.outcome === "RETRY") return "retry";
+      const allowed = assessment.outcome === "ALLOW";
+      await tx.chatPublication.update({
+        where: { id: receipt.id },
+        data: {
+          moderationAssessment: assessment,
+          ...(!allowed && {
+            status: "CANCELLED",
+            failureCode: moderationBlocked,
+          }),
+        },
+      });
+      return allowed ? "accepted" : "blocked";
+    });
+    if (result !== "accepted") requireAllowed(assessment);
   }
   async history(
     principal: Principal,

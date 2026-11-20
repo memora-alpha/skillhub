@@ -125,10 +125,11 @@ export class ConversationsController {
   @Post(":id/messages")
   @ApiSuccessResponse(201, DeliveredMessageResponse)
   @ApiSuccessResponse(202, PendingMessageResponse)
+  @ApiErrorResponse(422)
   @ApiOperation({
     summary: "Send immutable text/files using clientMessageId idempotency",
     description:
-      "Returns 400 CONTACT_INFORMATION_NOT_ALLOWED for email, phone or recognized contact/profile links in message text, before allocating a receipt or persisting/publishing a message. Attachments are not inspected for contact information.",
+      "Returns 400 CONTACT_INFORMATION_NOT_ALLOWED for contact information. With moderation enabled, a rejected command returns 422 CONTENT_MODERATION_BLOCKED and a temporary moderation failure returns 503 CONTENT_MODERATION_TEMPORARILY_UNAVAILABLE. Retry a temporary failure with the same clientMessageId; use a new ID after edits.",
   })
   async send(
     @CurrentIdentity() actor: Principal,
@@ -147,6 +148,7 @@ export class ConversationsController {
     return success(result);
   }
   @Get(":id/message-deliveries/:clientMessageId")
+  @ApiErrorResponse(422)
   @ApiSuccessResponse(200, [DeliveredMessageResponse, PendingMessageResponse])
   async delivery(
     @CurrentIdentity() actor: Principal,

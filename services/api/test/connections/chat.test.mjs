@@ -12,7 +12,7 @@ import {
   publicMessage,
 } from "../../dist/modules/conversations/infrastructure/persistence/chat.repository.js";
 import { connectionSettings } from "../../dist/modules/proposals/domain/connection-policy.js";
-function fixture() {
+function fixture(evaluate) {
   const principal = { userId: randomUUID() },
     conversation = {
       id: randomUUID(),
@@ -187,6 +187,16 @@ function fixture() {
     { chatManifest: async () => [] },
     {},
     { append: async (_tx, event) => outbox.push(event) },
+    {
+      mode: () => (evaluate ? "enforce" : "off"),
+      evaluate: async (input) => {
+        assert(
+          !inTransaction,
+          "OpenAI calls must occur outside PG transactions",
+        );
+        return evaluate(input);
+      },
+    },
   );
   const input = { clientMessageId: randomUUID(), messageText: "Hello" },
     context = { correlationId: randomUUID() };
@@ -216,6 +226,9 @@ function fixture() {
     },
     failAcknowledgement() {
       failAcknowledgement = true;
+    },
+    revoke() {
+      revoked = true;
     },
     revokeDuringMongoRead() {
       const get = chat.get;
@@ -255,6 +268,99 @@ test("durable PREPARING identity survives missing draft and same-body retry; con
   assert.equal(f.sequence, 1n);
   assert.equal(f.notifications.length, 1);
   assert.equal(f.notifications[0].userId, f.conversation.participantBId);
+});
+
+function moderationResult(outcome, input) {
+  return {
+    outcome,
+    sourceVersion: input.sourceVersion,
+    digest: input.digest,
+    policyVersion: "fixture-policy",
+    classifierVersion: "fixture-model",
+    reasonCodes: outcome === "BLOCK" ? ["violence"] : [],
+  };
+}
+
+test("moderation makes a blocked attempt terminal before Mongo, outbox or recipient events", async () => {
+  let calls = 0;
+  const f = fixture((input) => {
+    calls++;
+    return moderationResult(input.text === "Hello" ? "BLOCK" : "ALLOW", input);
+  });
+  const send = (input = f.input) =>
+    f.service.send(f.principal, f.conversation.id, input, f.context);
+  const blocked = { message: "CONTENT_MODERATION_BLOCKED" };
+  await assert.rejects(send(), blocked);
+  await assert.rejects(send(), blocked);
+  await assert.rejects(
+    f.service.delivery(f.principal, f.conversation.id, f.input.clientMessageId),
+    blocked,
+  );
+  assert.equal(calls, 1);
+  assert.equal(f.messages.size, 0);
+  assert.equal(f.outbox.length, 0);
+  assert.equal(f.events.length, 0);
+  assert.equal(f.notifications.length, 0);
+  assert.equal(
+    (await send({ clientMessageId: randomUUID(), messageText: "Xin chào" }))
+      .deliveryStatus,
+    "DELIVERED",
+  );
+});
+
+test("moderation retries temporary errors and reuses a successful result across a draft failure", async () => {
+  let calls = 0;
+  const f = fixture((input) => {
+    calls++;
+    return moderationResult(calls === 1 ? "RETRY" : "ALLOW", input);
+  });
+  const send = () =>
+    f.service.send(f.principal, f.conversation.id, f.input, f.context);
+  await assert.rejects(send(), {
+    message: "CONTENT_MODERATION_TEMPORARILY_UNAVAILABLE",
+  });
+  assert.equal(f.outbox.length, 0);
+  f.failDraft();
+  await assert.rejects(send(), /Mongo unavailable/);
+  assert.equal((await send()).deliveryStatus, "DELIVERED");
+  assert.equal((await send()).deliveryStatus, "DELIVERED");
+  assert.equal(calls, 2);
+  assert.equal(f.notifications.length, 1);
+});
+
+test("moderation checks send permission before provider I/O and again before persisting a decision", async () => {
+  let calls = 0;
+  const unauthorized = fixture(() => calls++);
+  unauthorized.revoke();
+  await assert.rejects(
+    unauthorized.service.send(
+      unauthorized.principal,
+      unauthorized.conversation.id,
+      unauthorized.input,
+      unauthorized.context,
+    ),
+    /session revoked/,
+  );
+  assert.equal(calls, 0);
+  const revoked = fixture((input) => {
+    revoked.revoke();
+    return moderationResult("ALLOW", input);
+  });
+  await assert.rejects(
+    revoked.service.send(
+      revoked.principal,
+      revoked.conversation.id,
+      revoked.input,
+      revoked.context,
+    ),
+    /session revoked/,
+  );
+  assert.equal(revoked.outbox.length, 0);
+  assert.equal(revoked.messages.size, 0);
+  assert.equal(
+    [...revoked.receipts.values()][0].moderationAssessment,
+    undefined,
+  );
 });
 
 test("system message recovers Mongo outages and post-commit crash without duplicate history, SSE or notification", async () => {

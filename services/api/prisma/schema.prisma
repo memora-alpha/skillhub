@@ -1985,19 +1985,20 @@ model StoredFileScanEvent {
 
 // SRS V1.6 requires Learning Request tags beyond the logical v3 diagram.
 model ChatPublication {
-  id                 String   @id @db.Uuid
-  conversationId     String   @map("conversation_id") @db.Uuid
-  senderId           String   @map("sender_id") @db.Uuid
-  clientMessageId    String   @map("client_message_id") @db.Uuid
-  commandDigest      String   @map("command_digest")
-  draftDigest        String?  @map("draft_digest")
-  draftFormatVersion Int      @default(1) @map("draft_format_version")
-  deliveredEventId   String   @unique @map("delivered_event_id") @db.Uuid
-  status             String   @default("PREPARING")
-  messageSequence    BigInt?  @map("message_sequence")
-  failureCode        String?  @map("failure_code")
-  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id                   String   @id @db.Uuid
+  conversationId       String   @map("conversation_id") @db.Uuid
+  senderId             String   @map("sender_id") @db.Uuid
+  clientMessageId      String   @map("client_message_id") @db.Uuid
+  commandDigest        String   @map("command_digest")
+  draftDigest          String?  @map("draft_digest")
+  draftFormatVersion   Int      @default(1) @map("draft_format_version")
+  deliveredEventId     String   @unique @map("delivered_event_id") @db.Uuid
+  status               String   @default("PREPARING")
+  messageSequence      BigInt?  @map("message_sequence")
+  failureCode          String?  @map("failure_code")
+  moderationAssessment Json?    @map("moderation_assessment")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@unique([conversationId, senderId, clientMessageId])
   @@index([status, createdAt])
