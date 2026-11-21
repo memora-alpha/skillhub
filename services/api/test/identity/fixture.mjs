@@ -1,7 +1,9 @@
 import { OtpStore } from "../../dist/modules/auth/application/ports/otp-store.js";
 import { RedisService } from "../../dist/infrastructure/cache/redis.service.js";
 import { Test } from "@nestjs/testing";
+import { ConfigService } from "@nestjs/config";
 import { ContentModerationService } from "../../dist/modules/content-moderation/application/content-moderation.service.js";
+import { OpenAiModerationClient } from "../../dist/modules/content-moderation/infrastructure/openai-moderation.client.js";
 import { MediaModerationService } from "../../dist/modules/content-moderation/application/media-moderation.service.js";
 import { IDENTITY_APPLICATION_PROVIDERS } from "../../dist/modules/identity.providers.js";
 import { PrismaService } from "../../dist/infrastructure/database/prisma.service.js";
@@ -54,10 +56,17 @@ export async function createIdentityFixture({
   queue,
   audit: overrideAudit,
 }) {
+  const moderationConfig = new ConfigService({ CONTENT_MODERATION_MODES: "" });
   const builder = Test.createTestingModule({
     providers: [
       ...IDENTITY_APPLICATION_PROVIDERS,
-      { provide: ContentModerationService, useValue: { mode: () => "off" } },
+      {
+        provide: ContentModerationService,
+        useValue: new ContentModerationService(
+          moderationConfig,
+          new OpenAiModerationClient(moderationConfig),
+        ),
+      },
       {
         provide: MediaModerationService,
         useValue: {
