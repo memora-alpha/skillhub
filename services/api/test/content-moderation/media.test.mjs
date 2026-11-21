@@ -176,3 +176,35 @@ test("only a clean file of the exact generation and checksum can record a verdic
   await service.process(row.id, 6);
   assert.equal(written.length, 0);
 });
+
+test("a new policy version queues one recheck identity for the same file and generation", async () => {
+  let version = 2;
+  const queued = [];
+  const service = new FileContentModeration(
+    {},
+    {},
+    { profanityVersion: async () => version },
+    {},
+    {
+      add: async (_name, _data, options) => queued.push(options.jobId),
+    },
+  );
+  const row = {
+    id: "sample",
+    purpose: "CHAT",
+    state: "READY",
+    generation: 3,
+    sha256: "checksum",
+    moderationAssessment: {
+      outcome: "ALLOW",
+      sourceVersion: "3",
+      digest: "checksum",
+      profanityVersion: 2,
+    },
+  };
+  assert.equal(await service.resolveStatus(row), "READY");
+  version++;
+  assert.equal(await service.resolveStatus(row), "QUARANTINED");
+  assert.equal(await service.resolveStatus(row), "QUARANTINED");
+  assert.deepEqual(queued, ["profanity-sample-3-3", "profanity-sample-3-3"]);
+});

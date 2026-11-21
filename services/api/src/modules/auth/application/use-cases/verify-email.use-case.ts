@@ -59,7 +59,7 @@ export class VerifyEmailUseCase {
           );
         if (this.moderation)
           requireAllowed(
-            this.moderation.assessProfanity({
+            await this.moderation.assessProfanity({
               surface: "profile",
               sourceVersion: proof.id,
               digest: createHash("sha256").update(draft.fullName).digest("hex"),

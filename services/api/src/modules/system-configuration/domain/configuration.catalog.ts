@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  defaultProfanityRuleSet,
+  profanityConfigurationKey,
+  profanityRuleSetSchema,
+} from "../../content-moderation/domain/profanity-rule-set";
 import { moderationRuleSetSchema } from "./moderation-rule-set.schema";
 
 const positiveInt = z.number().int().safe().positive();
@@ -99,6 +104,11 @@ export const CONFIGURATION_DEFINITIONS = {
     schema: moderationRuleSetSchema,
     mutable: true,
     defaultValue: { rules: [] },
+  },
+  [profanityConfigurationKey]: {
+    schema: profanityRuleSetSchema,
+    mutable: true,
+    defaultValue: defaultProfanityRuleSet,
   },
   // Demo defaults only; production values need Product Owner approval (spec 018 Q4).
   "voucher.userDailyLimitCredit": {

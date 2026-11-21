@@ -51,16 +51,7 @@ export async function queueReportText(
   const { kind, sourceId, caseId, text } = source;
   if (!moderation || !mode) return;
   const digest = reportTextDigest(text);
-  if (
-    mode === "off" &&
-    moderation.assessProfanity({
-      surface: reportModerationSurface[kind],
-      sourceVersion: "1",
-      digest,
-      text,
-    }).outcome === "ALLOW"
-  )
-    return;
+  if (mode === "off" && kind === "CASE_MESSAGE") return;
   await queue(tx, {
     kind,
     sourceId,

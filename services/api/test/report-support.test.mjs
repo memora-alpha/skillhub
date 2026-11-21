@@ -198,7 +198,10 @@ test("pending and flagged Staff messages keep their text private from the partic
     },
     undefined,
     undefined,
-    { mode: () => "enforce" },
+    {
+      mode: () => "enforce",
+      assessProfanity: async () => ({ outcome: "ALLOW" }),
+    },
   );
   const text = "A private quote from the evidence";
   const receipt = await service.send({ userId: handler }, caseId, partyA, {

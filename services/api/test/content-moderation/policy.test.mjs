@@ -39,6 +39,45 @@ test("blocks profanity independent of AI mode and keeps field boundaries", async
   }
 });
 
+test("backend instances use each newly committed profanity version", async () => {
+  let version = 1;
+  let enabled = true;
+  const configuration = {
+    systemConfiguration: {
+      findUnique: async () => ({
+        version,
+        value: {
+          rules: [{ id: "custom", term: "cá tím", aliases: [], enabled }],
+        },
+      }),
+    },
+  };
+  const first = new ContentModerationService(
+    new ConfigService(),
+    {},
+    configuration,
+  );
+  const second = new ContentModerationService(
+    new ConfigService(),
+    {},
+    configuration,
+  );
+  assert.equal(
+    (await first.evaluateText("chat", "1", ["cá tím"])).outcome,
+    "BLOCK",
+  );
+  version++;
+  enabled = false;
+  assert.equal(
+    (await second.evaluateText("chat", "2", ["cá tím"])).outcome,
+    "ALLOW",
+  );
+  assert.equal(
+    (await first.evaluateText("chat", "3", ["cá tím"])).outcome,
+    "ALLOW",
+  );
+});
+
 test("requires a provider key only for enabled modes and validates the surface map", () => {
   assert.doesNotThrow(() => validateEnvironment(env));
   assert.throws(

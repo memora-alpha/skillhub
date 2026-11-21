@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, ServiceUnavailableException } from "@nestjs/common";
 import { MediaTextExtractor } from "../infrastructure/media-text-extractor";
 import { moderationPolicyVersion } from "../domain/moderation-policy";
 import {
@@ -78,7 +78,8 @@ export class MediaModerationService {
           input,
           new TextDecoder("utf-8", { fatal: true }).decode(input.bytes),
         );
-    } catch {
+    } catch (error) {
+      if (error instanceof ServiceUnavailableException) throw error;
       // Extractor output and diagnostics can contain the file's content.
     }
     return partial;
@@ -94,7 +95,7 @@ export class MediaModerationService {
 
   private async image(input: MediaModerationInput, bytes: Buffer) {
     const text = await this.extractor.ocr(bytes);
-    const local = this.checkLocalText(input, text);
+    const local = await this.checkLocalText(input, text);
     if (local) return local;
     const visual = classified(
       await this.moderation.evaluate({
@@ -107,7 +108,7 @@ export class MediaModerationService {
     return text.trim() ? this.checkText(input, text) : visual;
   }
 
-  private checkLocalText(input: MediaModerationInput, text: string) {
+  private async checkLocalText(input: MediaModerationInput, text: string) {
     const base = this.base(input);
     if (text.length > textLimit)
       return {
@@ -115,7 +116,7 @@ export class MediaModerationService {
         outcome: "REVIEW" as const,
         reasonCodes: ["MEDIA_TEXT_LIMIT"],
       };
-    const local = this.moderation.assessProfanity?.({
+    const local = await this.moderation.assessProfanity?.({
       ...base,
       surface: input.surface,
       text,
@@ -128,7 +129,7 @@ export class MediaModerationService {
     text: string,
   ): Promise<ModerationAssessment> {
     const base = this.base(input);
-    const local = this.checkLocalText(input, text);
+    const local = await this.checkLocalText(input, text);
     if (local) return local;
     const body: ModerationInput = { ...base, surface: input.surface };
     let last: ModerationAssessment = {

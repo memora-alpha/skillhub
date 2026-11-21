@@ -3,6 +3,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { mongo } from "mongoose";
+import { ConfigService } from "@nestjs/config";
+import { ContentModerationService } from "../../dist/modules/content-moderation/application/content-moderation.service.js";
 import { ConversationsService } from "../../dist/modules/conversations/application/services/conversations.service.js";
 import { ChatPublicationService } from "../../dist/modules/conversations/application/services/chat-publication.service.js";
 import { enqueueSystemMessage } from "../../dist/modules/conversations/application/services/system-messages.js";
@@ -13,6 +15,10 @@ import {
 } from "../../dist/modules/conversations/infrastructure/persistence/chat.repository.js";
 import { connectionSettings } from "../../dist/modules/proposals/domain/connection-policy.js";
 function fixture(evaluate) {
+  const defaultModeration = new ContentModerationService(
+    new ConfigService(),
+    {},
+  );
   const principal = { userId: randomUUID() },
     conversation = {
       id: randomUUID(),
@@ -194,7 +200,7 @@ function fixture(evaluate) {
           !inTransaction,
           "OpenAI calls must occur outside PG transactions",
         );
-        return evaluate(input);
+        return evaluate ? evaluate(input) : defaultModeration.evaluate(input);
       },
     },
   );
@@ -240,6 +246,22 @@ function fixture(evaluate) {
     },
   };
 }
+
+test("chat with AI disabled blocks Vietnamese profanity before staging a message", async () => {
+  const f = fixture();
+  await assert.rejects(
+    f.service.send(
+      f.principal,
+      f.conversation.id,
+      { ...f.input, messageText: "đù má" },
+      f.context,
+    ),
+    /CONTENT_MODERATION_BLOCKED/,
+  );
+  assert.equal(f.messages.size, 0);
+  assert.equal(f.outbox.length, 0);
+});
+
 test("durable PREPARING identity survives missing draft and same-body retry; conflicting body fails", async () => {
   const f = fixture();
   f.failDraft();

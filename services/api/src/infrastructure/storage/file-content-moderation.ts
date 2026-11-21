@@ -24,14 +24,14 @@ function surface(purpose: string) {
   return purpose === "REPORT" ? "report_evidence" : "media";
 }
 
-function currentOutcome(row: FileState): string | undefined {
+function currentOutcome(row: FileState, version: number): string | undefined {
   const value = row.moderationAssessment;
   if (!value || typeof value !== "object" || Array.isArray(value))
     return undefined;
   if (
     value.sourceVersion !== String(row.generation) ||
     value.digest !== row.sha256 ||
-    value.profanityVersion !== 1
+    value.profanityVersion !== version
   )
     return undefined;
   return typeof value.outcome === "string" ? value.outcome : undefined;
@@ -47,26 +47,34 @@ export class FileContentModeration {
     @Optional() @InjectQueue(fileScanQueue) private readonly queue?: Queue,
   ) {}
 
-  status(row: FileState): string {
+  status(row: FileState, version = 1): string {
     if (row.state !== "READY" || row.purpose === "REPORT") return row.state;
-    const outcome = currentOutcome(row);
+    const outcome = currentOutcome(row, version);
     if (outcome === "ALLOW") return "READY";
     if (outcome === "BLOCK") return "REJECTED";
     return "QUARANTINED";
   }
 
-  async recheckIfStale(row: FileState & { id: string }): Promise<void> {
-    if (
-      row.state !== "READY" ||
-      row.purpose === "REPORT" ||
-      currentOutcome(row)
-    )
-      return;
+  async resolveStatus(row: FileState & { id: string }): Promise<string> {
+    if (row.state !== "READY" || row.purpose === "REPORT") return row.state;
+    const version = await this.profanityVersion();
+    if (!currentOutcome(row, version)) await this.enqueueRecheck(row, version);
+    return this.status(row, version);
+  }
+
+  private async profanityVersion(): Promise<number> {
+    return (await this.moderation.profanityVersion?.()) ?? 1;
+  }
+
+  private async enqueueRecheck(
+    row: FileState & { id: string },
+    version: number,
+  ): Promise<void> {
     await this.queue?.add(
       "scan",
       { fileId: row.id, generation: row.generation },
       {
-        jobId: `profanity-${row.id}-${row.generation}-1`,
+        jobId: `profanity-${row.id}-${row.generation}-${version}`,
         attempts: 5,
         backoff: { type: "fixed", delay: 65_000 },
         removeOnComplete: true,
@@ -76,11 +84,10 @@ export class FileContentModeration {
   }
 
   async assertShareable(row: FileState & { id: string }): Promise<void> {
-    const status = this.status(row);
+    const status = await this.resolveStatus(row);
     if (status === "REJECTED")
       throw new FileStorageError("CONTENT_MODERATION_BLOCKED", 409);
     if (status !== "READY") {
-      await this.recheckIfStale(row);
       throw new FileStorageError("FILE_NOT_READY", 409);
     }
   }
@@ -99,10 +106,11 @@ export class FileContentModeration {
       return;
     const scope = surface(row.purpose);
     const mode = this.moderation.mode(scope);
-    if (currentOutcome(row)) return;
     // Report evidence remains restricted to its own case. Enabling an AI mode for
     // general uploads never sends these bytes to the provider.
     if (scope === "report_evidence") return;
+    const version = await this.profanityVersion();
+    if (currentOutcome(row, version)) return;
     const bytes = await this.readExact(
       row.objectKey,
       row.sizeBytes,
@@ -118,7 +126,10 @@ export class FileContentModeration {
       filename: row.originalName,
       bytes,
     });
-    if (assessment.outcome === "RETRY")
+    if (
+      assessment.outcome === "RETRY" ||
+      version !== (await this.profanityVersion())
+    )
       throw new Error("FILE_MODERATION_RETRY");
     await this.db.storedFile.updateMany({
       where: {
@@ -138,7 +149,7 @@ export class FileContentModeration {
         moderationAssessment: {
           ...assessment,
           enforced: mode === "enforce",
-          profanityVersion: 1,
+          profanityVersion: version,
         },
       },
     });

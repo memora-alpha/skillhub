@@ -261,7 +261,7 @@ export class CaseMessagesService {
         throw new ConflictException(capabilities.messageBlockedReason);
       if (this.moderation)
         requireAllowed(
-          this.moderation.assessProfanity({
+          await this.moderation.assessProfanity({
             surface: "case_message",
             sourceVersion: "1",
             digest,

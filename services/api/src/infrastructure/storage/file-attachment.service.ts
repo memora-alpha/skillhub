@@ -79,10 +79,9 @@ export class FileAttachmentService {
     const row = await this.db.storedFile.findUnique({ where: { id } });
     if (row?.uploadedBy !== userId || row.purpose !== "CHAT")
       throw new FileStorageError("FILE_NOT_FOUND", 404);
-    await this.moderation?.recheckIfStale(row);
     return {
       fileId: row.id,
-      state: this.moderation?.status(row) ?? row.state,
+      state: (await this.moderation?.resolveStatus(row)) ?? row.state,
       generation: row.generation,
     };
   }
@@ -96,10 +95,9 @@ export class FileAttachmentService {
         row.purpose !== "MATERIAL_COVER")
     )
       throw new FileStorageError("FILE_NOT_FOUND", 404);
-    await this.moderation?.recheckIfStale(row);
     return {
       fileId: row.id,
-      state: this.moderation?.status(row) ?? row.state,
+      state: (await this.moderation?.resolveStatus(row)) ?? row.state,
       generation: row.generation,
     };
   }

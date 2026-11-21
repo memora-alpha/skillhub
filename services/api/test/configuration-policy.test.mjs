@@ -37,6 +37,7 @@ test("approved defaults and mutability are explicit", () => {
     10_000_000,
   );
   assert.deepEqual(Object.keys(CONFIGURATION_DEFINITIONS).sort(), [
+    "contentModeration.profanityRuleSet",
     "credit.pathSettlementBps",
     "credit.topUpVndPerCredit",
     "learningPath.changeRequests",

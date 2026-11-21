@@ -305,6 +305,7 @@ export class PrismaUsersRepository extends UsersRepository {
         "learning-request:approve",
         "learning-request:reject",
         "learning-request:moderation:configure",
+        "content-moderation:configure",
       ],
     } satisfies Record<RoleCode, readonly PermissionCode[]>;
     const reportGrants = {

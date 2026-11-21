@@ -1,11 +1,17 @@
 import {
   Injectable,
   Logger,
+  Optional,
   ServiceUnavailableException,
   UnprocessableEntityException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { createHash } from "node:crypto";
+import { PrismaService } from "../../../infrastructure/database/prisma.service";
+import {
+  profanityConfigurationKey,
+  profanityRuleSetSchema,
+} from "../domain/profanity-rule-set";
 import { moderationModes } from "../domain/moderation-config";
 import {
   compileProfanityRules,
@@ -74,13 +80,16 @@ function providerInput(input: ModerationInput): ModerationProviderInput {
 export class ContentModerationService {
   private readonly logger = new Logger(ContentModerationService.name);
   private readonly modes: ReadonlyMap<ModerationSurface, ModerationMode>;
-  private readonly profanityRules = compileProfanityRules(
-    defaultProfanityRules,
-  );
+  private readonly defaults = {
+    version: 1,
+    rules: compileProfanityRules(defaultProfanityRules),
+  };
+  private compiled?: typeof this.defaults;
 
   constructor(
     config: ConfigService,
     private readonly provider: OpenAiModerationClient,
+    @Optional() private readonly db?: PrismaService,
   ) {
     this.modes = moderationModes(
       config.get("CONTENT_MODERATION_MODES", "").trim(),
@@ -112,10 +121,39 @@ export class ContentModerationService {
     });
   }
 
-  assessProfanity(input: ModerationInput): ModerationAssessment {
+  private async currentProfanity() {
+    if (!this.db) return this.defaults;
+    const row = await this.db.systemConfiguration
+      .findUnique({
+        where: { key: profanityConfigurationKey },
+        select: { version: true, value: true },
+      })
+      .catch(() => null);
+    if (!row)
+      throw new ServiceUnavailableException(
+        "CONTENT_MODERATION_TEMPORARILY_UNAVAILABLE",
+      );
+    if (row.version === this.compiled?.version) return this.compiled;
+    const value = profanityRuleSetSchema.safeParse(row.value);
+    if (!value.success)
+      throw new ServiceUnavailableException(
+        "CONTENT_MODERATION_TEMPORARILY_UNAVAILABLE",
+      );
+    return (this.compiled = {
+      version: row.version,
+      rules: compileProfanityRules(value.data.rules),
+    });
+  }
+
+  async profanityVersion(): Promise<number> {
+    return (await this.currentProfanity()).version;
+  }
+
+  async assessProfanity(input: ModerationInput): Promise<ModerationAssessment> {
     const fields = input.profanityFields ?? (input.text ? [input.text] : []);
+    const rules = fields.length ? (await this.currentProfanity()).rules : [];
     for (const field of fields) {
-      const match = matchCompiledProfanity(field, this.profanityRules);
+      const match = matchCompiledProfanity(field, rules);
       if (match)
         return {
           sourceVersion: input.sourceVersion,
@@ -135,7 +173,7 @@ export class ContentModerationService {
   }
 
   async evaluate(input: ModerationInput): Promise<ModerationAssessment> {
-    const profanity = this.assessProfanity(input);
+    const profanity = await this.assessProfanity(input);
     if (profanity.outcome === "BLOCK") return profanity;
     const mode = this.mode(input.surface);
     const base = {
