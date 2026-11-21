@@ -39,12 +39,10 @@ export class MediaModerationService {
 
   async assess(input: MediaModerationInput): Promise<ModerationAssessment> {
     const mode = this.moderation.mode(input.surface);
-    if (mode === "off")
-      return { ...this.base(input), outcome: "ALLOW", reasonCodes: [] };
     const result = await this.assessFile(input);
-    return mode === "observe"
-      ? { ...result, observedOutcome: result.outcome }
-      : result;
+    if (mode === "observe" && result.observedOutcome !== undefined)
+      return { ...result, outcome: "ALLOW" };
+    return result;
   }
 
   private async assessFile(
@@ -95,6 +93,9 @@ export class MediaModerationService {
   }
 
   private async image(input: MediaModerationInput, bytes: Buffer) {
+    const text = await this.extractor.ocr(bytes);
+    const local = this.checkLocalText(input, text);
+    if (local) return local;
     const visual = classified(
       await this.moderation.evaluate({
         ...this.base(input),
@@ -103,8 +104,23 @@ export class MediaModerationService {
       }),
     );
     if (visual.outcome !== "ALLOW") return visual;
-    const text = await this.extractor.ocr(bytes);
     return text.trim() ? this.checkText(input, text) : visual;
+  }
+
+  private checkLocalText(input: MediaModerationInput, text: string) {
+    const base = this.base(input);
+    if (text.length > textLimit)
+      return {
+        ...base,
+        outcome: "REVIEW" as const,
+        reasonCodes: ["MEDIA_TEXT_LIMIT"],
+      };
+    const local = this.moderation.assessProfanity?.({
+      ...base,
+      surface: input.surface,
+      text,
+    });
+    return local?.outcome === "BLOCK" ? local : undefined;
   }
 
   private async checkText(
@@ -112,8 +128,8 @@ export class MediaModerationService {
     text: string,
   ): Promise<ModerationAssessment> {
     const base = this.base(input);
-    if (text.length > textLimit)
-      return { ...base, outcome: "REVIEW", reasonCodes: ["MEDIA_TEXT_LIMIT"] };
+    const local = this.checkLocalText(input, text);
+    if (local) return local;
     const body: ModerationInput = { ...base, surface: input.surface };
     let last: ModerationAssessment = {
       ...base,

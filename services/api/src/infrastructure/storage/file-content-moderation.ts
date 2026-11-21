@@ -1,4 +1,6 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
+import { InjectQueue } from "@nestjs/bullmq";
+import type { Queue } from "bullmq";
 import { createHash } from "node:crypto";
 import { Prisma } from "../../generated/prisma/client";
 import { ContentModerationService } from "../../modules/content-moderation/application/content-moderation.service";
@@ -16,6 +18,8 @@ type FileState = {
   moderationAssessment?: Prisma.JsonValue;
 };
 
+export const fileScanQueue = "file-scan";
+
 function surface(purpose: string) {
   return purpose === "REPORT" ? "report_evidence" : "media";
 }
@@ -26,7 +30,8 @@ function currentOutcome(row: FileState): string | undefined {
     return undefined;
   if (
     value.sourceVersion !== String(row.generation) ||
-    value.digest !== row.sha256
+    value.digest !== row.sha256 ||
+    value.profanityVersion !== 1
   )
     return undefined;
   return typeof value.outcome === "string" ? value.outcome : undefined;
@@ -39,34 +44,48 @@ export class FileContentModeration {
     @Inject(OBJECT_STORAGE) private readonly objects: ObjectStorage,
     private readonly moderation: ContentModerationService,
     private readonly media: MediaModerationService,
+    @Optional() @InjectQueue(fileScanQueue) private readonly queue?: Queue,
   ) {}
 
-  isEnforcing(): boolean {
-    return this.moderation.mode("media") === "enforce";
-  }
-
   status(row: FileState): string {
-    if (
-      row.state !== "READY" ||
-      row.purpose === "REPORT" ||
-      this.moderation.mode(surface(row.purpose)) !== "enforce"
-    )
-      return row.state;
+    if (row.state !== "READY" || row.purpose === "REPORT") return row.state;
     const outcome = currentOutcome(row);
     if (outcome === "ALLOW") return "READY";
     if (outcome === "BLOCK") return "REJECTED";
     return "QUARANTINED";
   }
 
-  assertShareable(row: FileState): void {
+  async recheckIfStale(row: FileState & { id: string }): Promise<void> {
+    if (
+      row.state !== "READY" ||
+      row.purpose === "REPORT" ||
+      currentOutcome(row)
+    )
+      return;
+    await this.queue?.add(
+      "scan",
+      { fileId: row.id, generation: row.generation },
+      {
+        jobId: `profanity-${row.id}-${row.generation}-1`,
+        attempts: 5,
+        backoff: { type: "fixed", delay: 65_000 },
+        removeOnComplete: true,
+        removeOnFail: 1000,
+      },
+    );
+  }
+
+  async assertShareable(row: FileState & { id: string }): Promise<void> {
     const status = this.status(row);
     if (status === "REJECTED")
       throw new FileStorageError("CONTENT_MODERATION_BLOCKED", 409);
-    if (status !== "READY") throw new FileStorageError("FILE_NOT_READY", 409);
+    if (status !== "READY") {
+      await this.recheckIfStale(row);
+      throw new FileStorageError("FILE_NOT_READY", 409);
+    }
   }
 
   async process(fileId: string, generation: number): Promise<void> {
-    if (this.moderation.mode("media") === "off") return;
     const row = await this.db.storedFile.findUnique({ where: { id: fileId } });
     if (
       !row ||
@@ -80,7 +99,7 @@ export class FileContentModeration {
       return;
     const scope = surface(row.purpose);
     const mode = this.moderation.mode(scope);
-    if (mode === "off" || row.moderationAssessment) return;
+    if (currentOutcome(row)) return;
     // Report evidence remains restricted to its own case. Enabling an AI mode for
     // general uploads never sends these bytes to the provider.
     if (scope === "report_evidence") return;
@@ -108,10 +127,19 @@ export class FileContentModeration {
         sha256: row.sha256,
         state: "READY",
         scanVerdict: "CLEAN",
-        moderationAssessment: { equals: Prisma.DbNull },
+        moderationAssessment: {
+          equals:
+            row.moderationAssessment === null
+              ? Prisma.DbNull
+              : row.moderationAssessment,
+        },
       },
       data: {
-        moderationAssessment: { ...assessment, enforced: mode === "enforce" },
+        moderationAssessment: {
+          ...assessment,
+          enforced: mode === "enforce",
+          profanityVersion: 1,
+        },
       },
     });
   }

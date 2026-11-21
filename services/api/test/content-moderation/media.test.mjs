@@ -3,8 +3,36 @@ import { createHash } from "node:crypto";
 import { test } from "node:test";
 import { Readable } from "node:stream";
 import { FileContentModeration } from "../../dist/infrastructure/storage/file-content-moderation.js";
+import { ConfigService } from "@nestjs/config";
+import { ContentModerationService } from "../../dist/modules/content-moderation/application/content-moderation.service.js";
 import { MediaModerationService } from "../../dist/modules/content-moderation/application/media-moderation.service.js";
 import { Prisma } from "../../dist/generated/prisma/client.js";
+
+test("enforces keywords from media OCR even without an available AI provider", async () => {
+  for (const mode of ["off", "observe", "enforce"]) {
+    const moderation = new ContentModerationService(
+      new ConfigService({ CONTENT_MODERATION_MODES: `media:${mode}` }),
+      {
+        classify: async () => {
+          throw new Error("offline");
+        },
+      },
+    );
+    const service = new MediaModerationService(moderation, {
+      canonicalImage: async (bytes) => bytes,
+      ocr: async () => "địt mẹ",
+    });
+    const result = await service.assess({
+      surface: "media",
+      mime: "image/png",
+      version: "1",
+      digest: "fixed",
+      bytes: Buffer.from("fixture"),
+    });
+    assert.equal(result.outcome, "BLOCK", mode);
+    assert.equal(result.observedOutcome, undefined);
+  }
+});
 
 test("media cannot approve an image until visual and extracted text checks both pass", async () => {
   const seen = [];
@@ -71,7 +99,7 @@ test("unsupported office formats and failed image parsing stay in review", async
   }
 });
 
-test("observe records extraction failures without making them enforcement decisions", async () => {
+test("an extraction failure holds the file even when AI mode only observes", async () => {
   const service = new MediaModerationService(
     { mode: () => "observe", evaluate: async () => ({ outcome: "ALLOW" }) },
     {
@@ -87,7 +115,7 @@ test("observe records extraction failures without making them enforcement decisi
     digest: "fixed",
     bytes: Buffer.from("fixture"),
   });
-  assert.equal(result.observedOutcome, "REVIEW");
+  assert.equal(result.outcome, "REVIEW");
 });
 
 test("only a clean file of the exact generation and checksum can record a verdict", async () => {

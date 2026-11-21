@@ -36,7 +36,7 @@ export class FileAttachmentService {
         row.sizeBytes > 15_000_000
       )
         throw new FileStorageError("FILE_NOT_READY", 409);
-      this.moderation?.assertShareable(row);
+      await this.moderation?.assertShareable(row);
       if (
         row.attachedAt &&
         (row.resourceType !== "CHAT_MESSAGE" || row.resourceId !== messageId)
@@ -79,6 +79,7 @@ export class FileAttachmentService {
     const row = await this.db.storedFile.findUnique({ where: { id } });
     if (row?.uploadedBy !== userId || row.purpose !== "CHAT")
       throw new FileStorageError("FILE_NOT_FOUND", 404);
+    await this.moderation?.recheckIfStale(row);
     return {
       fileId: row.id,
       state: this.moderation?.status(row) ?? row.state,
@@ -95,6 +96,7 @@ export class FileAttachmentService {
         row.purpose !== "MATERIAL_COVER")
     )
       throw new FileStorageError("FILE_NOT_FOUND", 404);
+    await this.moderation?.recheckIfStale(row);
     return {
       fileId: row.id,
       state: this.moderation?.status(row) ?? row.state,
@@ -125,7 +127,7 @@ export class FileAttachmentService {
       row.attachedAt
     )
       throw new FileStorageError("FILE_NOT_READY", 409);
-    this.moderation?.assertShareable(row);
+    await this.moderation?.assertShareable(row);
     await tx.storedFile.update({
       where: { id },
       data: {
