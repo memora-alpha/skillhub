@@ -175,6 +175,10 @@ export class ContentModerationService {
   async evaluate(input: ModerationInput): Promise<ModerationAssessment> {
     const profanity = await this.assessProfanity(input);
     if (profanity.outcome === "BLOCK") return profanity;
+    return this.evaluateAi(input);
+  }
+
+  async evaluateAi(input: ModerationInput): Promise<ModerationAssessment> {
     const mode = this.mode(input.surface);
     const base = {
       sourceVersion: input.sourceVersion,

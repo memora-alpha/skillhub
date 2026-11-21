@@ -34,12 +34,41 @@ test("enforces keywords from media OCR even without an available AI provider", a
   }
 });
 
+test("an AI result on the filename or first PDF page cannot bypass local screening", async () => {
+  for (const mode of ["observe", "enforce"]) {
+    const moderation = new ContentModerationService(
+      new ConfigService({ CONTENT_MODERATION_MODES: `media:${mode}` }),
+      {
+        classify: async () => {
+          throw new Error("offline");
+        },
+      },
+    );
+    const service = new MediaModerationService(moderation, {
+      pdfPageCount: async () => 2,
+      pdfPage: async (_bytes, page) =>
+        Buffer.from(page === 1 ? "intro" : "đù má"),
+      ocr: async (bytes) => bytes.toString(),
+    });
+    const result = await service.assess({
+      surface: "media",
+      mime: "application/pdf",
+      version: "1",
+      digest: "fixed",
+      filename: "document.pdf",
+      bytes: Buffer.from("fixture"),
+    });
+    assert.equal(result.outcome, "BLOCK", mode);
+    assert.equal(result.observedOutcome, undefined);
+  }
+});
+
 test("media cannot approve an image until visual and extracted text checks both pass", async () => {
   const seen = [];
   const service = new MediaModerationService(
     {
       mode: () => "enforce",
-      evaluate: async (input) => {
+      evaluateAi: async (input) => {
         seen.push(input);
         return {
           outcome: input.text?.includes("threat") ? "BLOCK" : "ALLOW",
@@ -77,7 +106,7 @@ test("unsupported office formats and failed image parsing stay in review", async
   const service = new MediaModerationService(
     {
       mode: () => "enforce",
-      evaluate: async () => ({ outcome: "ALLOW" }),
+      evaluateAi: async () => ({ outcome: "ALLOW" }),
     },
     {
       canonicalImage: async () => {
@@ -101,7 +130,7 @@ test("unsupported office formats and failed image parsing stay in review", async
 
 test("an extraction failure holds the file even when AI mode only observes", async () => {
   const service = new MediaModerationService(
-    { mode: () => "observe", evaluate: async () => ({ outcome: "ALLOW" }) },
+    { mode: () => "observe", evaluateAi: async () => ({ outcome: "ALLOW" }) },
     {
       canonicalImage: async () => {
         throw new Error("extractor unavailable");
