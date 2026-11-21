@@ -851,7 +851,7 @@ export class LearningPathsService {
       return { path, teacherId, learnerId };
     };
     let assessedVersion: number | undefined;
-    if (this.moderation && this.moderation.mode("learning_path") !== "off") {
+    if (this.moderation) {
       const { path } = await this.transactions.run(validate);
       assessedVersion = path.currentVersion;
       await moderateText(this.moderation, "learning_path", {
@@ -1688,7 +1688,7 @@ export class LearningPathsService {
       return { plan, locked, path, samePlan };
     };
     let assessedVersion: number | undefined;
-    if (this.moderation && this.moderation.mode("learning_path") !== "off") {
+    if (this.moderation) {
       const { path, samePlan } = await this.transactions.run(validate);
       assessedVersion = path.currentVersion;
       if (!samePlan) {

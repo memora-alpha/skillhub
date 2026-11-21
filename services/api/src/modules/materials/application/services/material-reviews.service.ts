@@ -145,8 +145,7 @@ export class MaterialReviewsService {
     let checked = false;
     let hidden = false;
     const moderation = this.moderation;
-    const moderateComment =
-      comment && moderation && moderation.mode("material_review") !== "off";
+    const moderateComment = comment && moderation;
     if (
       moderateComment &&
       (await this.eligibility(principal, materialId)).canReview
@@ -238,11 +237,7 @@ export class MaterialReviewsService {
       input.rating === undefined ? undefined : reviewRating(input.rating);
     const comment =
       input.comment === undefined ? undefined : reviewComment(input.comment);
-    if (
-      comment &&
-      this.moderation &&
-      this.moderation.mode("material_review") !== "off"
-    ) {
+    if (comment && this.moderation) {
       await this.transactions.run(async (tx) => {
         const current = await tx.materialReview.findUnique({
           where: { id: reviewId },

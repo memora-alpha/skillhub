@@ -48,14 +48,16 @@ export async function queueReportText(
   },
 ) {
   const mode = moderation?.mode(reportModerationSurface[source.kind]);
-  if (!mode || mode === "off") return;
   const { kind, sourceId, caseId, text } = source;
+  if (!moderation || !mode) return;
+  const digest = reportTextDigest(text);
+  if (mode === "off" && kind === "CASE_MESSAGE") return;
   await queue(tx, {
     kind,
     sourceId,
     caseId,
     sourceVersion: "1",
-    digest: reportTextDigest(text),
+    digest,
     restricted: mode === "enforce" && kind !== "MATERIAL_REVIEW_REPORT",
   });
 }

@@ -101,6 +101,10 @@ export const PERMISSION_CATALOG = [
   { code: "learning-request:approve", description: "Approve flagged request" },
   { code: "learning-request:reject", description: "Reject flagged request" },
   {
+    code: "content-moderation:configure",
+    description: "Configure global profanity rules",
+  },
+  {
     code: "learning-request:moderation:configure",
     description: "Configure learning request moderation rules",
   },

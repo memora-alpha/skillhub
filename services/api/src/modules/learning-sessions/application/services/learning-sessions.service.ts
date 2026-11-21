@@ -700,11 +700,7 @@ export class LearningSessionsService {
       return { unchanged: false as const, session, now, outcome, isTeacher };
     };
     let assessedOutcome: string | undefined;
-    if (
-      note?.trim() &&
-      this.moderation &&
-      this.moderation.mode("session") !== "off"
-    ) {
+    if (note?.trim() && this.moderation) {
       const candidate = await this.transactions.run(validate);
       if (!candidate.unchanged) {
         assessedOutcome = candidate.outcome.id;

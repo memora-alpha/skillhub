@@ -23,7 +23,10 @@ import { FileStorageService } from "../../../../infrastructure/storage/file-stor
 import { storageActor } from "../../../../shared/authorization/principal-actor";
 import { casePartyCapabilities } from "../../domain/case-capabilities";
 import { partyEvidenceWhere, evidenceMetadata } from "./report-evidence-view";
-import { ContentModerationService } from "../../../content-moderation/application/content-moderation.service";
+import {
+  ContentModerationService,
+  requireAllowed,
+} from "../../../content-moderation/application/content-moderation.service";
 import {
   queueReportEvidence,
   queueReportText,
@@ -256,6 +259,15 @@ export class CaseMessagesService {
       });
       if (capabilities.messageBlockedReason)
         throw new ConflictException(capabilities.messageBlockedReason);
+      if (this.moderation)
+        requireAllowed(
+          await this.moderation.assessProfanity({
+            surface: "case_message",
+            sourceVersion: "1",
+            digest,
+            text,
+          }),
+        );
       const receipt = await tx.reportMessageReceipt.create({
         data: { messageId, caseId, partyId, senderId: actor.userId, digest },
       });

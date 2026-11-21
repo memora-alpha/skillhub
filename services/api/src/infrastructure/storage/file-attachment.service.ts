@@ -36,7 +36,7 @@ export class FileAttachmentService {
         row.sizeBytes > 15_000_000
       )
         throw new FileStorageError("FILE_NOT_READY", 409);
-      this.moderation?.assertShareable(row);
+      await this.moderation?.assertShareable(row);
       if (
         row.attachedAt &&
         (row.resourceType !== "CHAT_MESSAGE" || row.resourceId !== messageId)
@@ -81,7 +81,7 @@ export class FileAttachmentService {
       throw new FileStorageError("FILE_NOT_FOUND", 404);
     return {
       fileId: row.id,
-      state: this.moderation?.status(row) ?? row.state,
+      state: (await this.moderation?.resolveStatus(row)) ?? row.state,
       generation: row.generation,
     };
   }
@@ -97,7 +97,7 @@ export class FileAttachmentService {
       throw new FileStorageError("FILE_NOT_FOUND", 404);
     return {
       fileId: row.id,
-      state: this.moderation?.status(row) ?? row.state,
+      state: (await this.moderation?.resolveStatus(row)) ?? row.state,
       generation: row.generation,
     };
   }
@@ -125,7 +125,7 @@ export class FileAttachmentService {
       row.attachedAt
     )
       throw new FileStorageError("FILE_NOT_READY", 409);
-    this.moderation?.assertShareable(row);
+    await this.moderation?.assertShareable(row);
     await tx.storedFile.update({
       where: { id },
       data: {

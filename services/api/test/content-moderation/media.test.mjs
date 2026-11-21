@@ -3,15 +3,72 @@ import { createHash } from "node:crypto";
 import { test } from "node:test";
 import { Readable } from "node:stream";
 import { FileContentModeration } from "../../dist/infrastructure/storage/file-content-moderation.js";
+import { ConfigService } from "@nestjs/config";
+import { ContentModerationService } from "../../dist/modules/content-moderation/application/content-moderation.service.js";
 import { MediaModerationService } from "../../dist/modules/content-moderation/application/media-moderation.service.js";
 import { Prisma } from "../../dist/generated/prisma/client.js";
+
+test("enforces keywords from media OCR even without an available AI provider", async () => {
+  for (const mode of ["off", "observe", "enforce"]) {
+    const moderation = new ContentModerationService(
+      new ConfigService({ CONTENT_MODERATION_MODES: `media:${mode}` }),
+      {
+        classify: async () => {
+          throw new Error("offline");
+        },
+      },
+    );
+    const service = new MediaModerationService(moderation, {
+      canonicalImage: async (bytes) => bytes,
+      ocr: async () => "địt mẹ",
+    });
+    const result = await service.assess({
+      surface: "media",
+      mime: "image/png",
+      version: "1",
+      digest: "fixed",
+      bytes: Buffer.from("fixture"),
+    });
+    assert.equal(result.outcome, "BLOCK", mode);
+    assert.equal(result.observedOutcome, undefined);
+  }
+});
+
+test("an AI result on the filename or first PDF page cannot bypass local screening", async () => {
+  for (const mode of ["observe", "enforce"]) {
+    const moderation = new ContentModerationService(
+      new ConfigService({ CONTENT_MODERATION_MODES: `media:${mode}` }),
+      {
+        classify: async () => {
+          throw new Error("offline");
+        },
+      },
+    );
+    const service = new MediaModerationService(moderation, {
+      pdfPageCount: async () => 2,
+      pdfPage: async (_bytes, page) =>
+        Buffer.from(page === 1 ? "intro" : "đù má"),
+      ocr: async (bytes) => bytes.toString(),
+    });
+    const result = await service.assess({
+      surface: "media",
+      mime: "application/pdf",
+      version: "1",
+      digest: "fixed",
+      filename: "document.pdf",
+      bytes: Buffer.from("fixture"),
+    });
+    assert.equal(result.outcome, "BLOCK", mode);
+    assert.equal(result.observedOutcome, undefined);
+  }
+});
 
 test("media cannot approve an image until visual and extracted text checks both pass", async () => {
   const seen = [];
   const service = new MediaModerationService(
     {
       mode: () => "enforce",
-      evaluate: async (input) => {
+      evaluateAi: async (input) => {
         seen.push(input);
         return {
           outcome: input.text?.includes("threat") ? "BLOCK" : "ALLOW",
@@ -49,7 +106,7 @@ test("unsupported office formats and failed image parsing stay in review", async
   const service = new MediaModerationService(
     {
       mode: () => "enforce",
-      evaluate: async () => ({ outcome: "ALLOW" }),
+      evaluateAi: async () => ({ outcome: "ALLOW" }),
     },
     {
       canonicalImage: async () => {
@@ -71,9 +128,9 @@ test("unsupported office formats and failed image parsing stay in review", async
   }
 });
 
-test("observe records extraction failures without making them enforcement decisions", async () => {
+test("an extraction failure holds the file even when AI mode only observes", async () => {
   const service = new MediaModerationService(
-    { mode: () => "observe", evaluate: async () => ({ outcome: "ALLOW" }) },
+    { mode: () => "observe", evaluateAi: async () => ({ outcome: "ALLOW" }) },
     {
       canonicalImage: async () => {
         throw new Error("extractor unavailable");
@@ -87,7 +144,7 @@ test("observe records extraction failures without making them enforcement decisi
     digest: "fixed",
     bytes: Buffer.from("fixture"),
   });
-  assert.equal(result.observedOutcome, "REVIEW");
+  assert.equal(result.outcome, "REVIEW");
 });
 
 test("only a clean file of the exact generation and checksum can record a verdict", async () => {
@@ -147,4 +204,36 @@ test("only a clean file of the exact generation and checksum can record a verdic
   written = [];
   await service.process(row.id, 6);
   assert.equal(written.length, 0);
+});
+
+test("a new policy version queues one recheck identity for the same file and generation", async () => {
+  let version = 2;
+  const queued = [];
+  const service = new FileContentModeration(
+    {},
+    {},
+    { profanityVersion: async () => version },
+    {},
+    {
+      add: async (_name, _data, options) => queued.push(options.jobId),
+    },
+  );
+  const row = {
+    id: "sample",
+    purpose: "CHAT",
+    state: "READY",
+    generation: 3,
+    sha256: "checksum",
+    moderationAssessment: {
+      outcome: "ALLOW",
+      sourceVersion: "3",
+      digest: "checksum",
+      profanityVersion: 2,
+    },
+  };
+  assert.equal(await service.resolveStatus(row), "READY");
+  version++;
+  assert.equal(await service.resolveStatus(row), "QUARANTINED");
+  assert.equal(await service.resolveStatus(row), "QUARANTINED");
+  assert.deepEqual(queued, ["profanity-sample-3-3", "profanity-sample-3-3"]);
 });

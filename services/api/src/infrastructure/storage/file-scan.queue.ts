@@ -8,9 +8,12 @@ import {
   type OutboxPublisher,
 } from "../events/outbox.types";
 import { FileScanProcessor } from "./file-scan.processor";
-import { FileContentModeration } from "./file-content-moderation";
+import {
+  FileContentModeration,
+  fileScanQueue,
+} from "./file-content-moderation";
 
-export const FILE_SCAN_QUEUE = "file-scan";
+export const FILE_SCAN_QUEUE = fileScanQueue;
 export const FILE_SCAN_EVENT = "file.scan.requested";
 
 function scanPayload(event: OutboxMessage): {

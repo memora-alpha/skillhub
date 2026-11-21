@@ -338,14 +338,13 @@ export class ConversationsService {
     if (receipt.status !== "PREPARING" || receipt.moderationAssessment || !text)
       return;
     const mode = this.moderation.mode("chat");
-    if (mode === "off") return;
     const assessment = await this.moderation.evaluate({
       surface: "chat",
       sourceVersion: receipt.id,
       digest: receipt.commandDigest,
       text,
     });
-    if (mode === "observe") return;
+    if (mode !== "enforce" && assessment.outcome === "ALLOW") return;
 
     const result = await this.transactions.run(async (tx) => {
       await this.access.require(

@@ -76,8 +76,8 @@ export async function assertReadyMaterialFile(
     },
   });
   if (!file) throw new ConflictException("MATERIAL_FILE_REQUIRED");
-  if (!moderation?.isEnforcing()) return;
-  moderation.assertShareable(file);
+  if (!moderation) return;
+  await moderation.assertShareable(file);
   if (!material.coverFileId) return;
   const cover = await tx.storedFile.findUnique({
     where: {
@@ -89,5 +89,5 @@ export async function assertReadyMaterialFile(
     },
   });
   if (!cover) throw new ConflictException("MATERIAL_COVER_NOT_READY");
-  moderation.assertShareable(cover);
+  await moderation.assertShareable(cover);
 }

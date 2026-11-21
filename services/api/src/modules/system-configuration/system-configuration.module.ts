@@ -9,16 +9,22 @@ import { IdentityModule } from "../identity.module";
 import { IdentityGuard } from "../../shared/auth/identity.guard";
 import { LearningRequestModerationRulesUseCase } from "./application/use-cases/learning-request-moderation-rules.use-case";
 import { LearningRequestModerationRulesController } from "./presentation/http/learning-request-moderation-rules.controller";
+import { ProfanityRulesController } from "./presentation/http/profanity-rules.controller";
+import { ProfanityRulesUseCase } from "./application/use-cases/profanity-rules.use-case";
 
 @Module({
   imports: [DatabaseModule, AuditModule, IdentityModule],
-  controllers: [LearningRequestModerationRulesController],
+  controllers: [
+    LearningRequestModerationRulesController,
+    ProfanityRulesController,
+  ],
   providers: [
     { provide: CLOCK, useClass: ServerClock },
     ConfigurationRepository,
     SystemConfigurationService,
     UpdateConfigurationUseCase,
     LearningRequestModerationRulesUseCase,
+    ProfanityRulesUseCase,
     IdentityGuard,
   ],
   // Update stays private until a real users/authorization contract is present.

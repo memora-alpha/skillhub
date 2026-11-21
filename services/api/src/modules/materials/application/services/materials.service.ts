@@ -301,7 +301,7 @@ export class MaterialsService {
   ) {
     requirePermission(principal, "material:create:self");
     assertListingVersion(expectedListingVersion);
-    if (this.moderation && this.moderation.mode("material") !== "off") {
+    if (this.moderation) {
       const snapshot = await this.transactions.run((tx) =>
         this.submittableMaterial(
           tx,

@@ -39,11 +39,7 @@ export class ReviewsService {
   async create(actor: Principal, pathId: string, input: CreateReviewDto) {
     const comment = input.comment?.trim() || null;
     let pending = false;
-    if (
-      comment &&
-      this.moderation &&
-      this.moderation.mode("review") !== "off"
-    ) {
+    if (comment && this.moderation) {
       await this.transactions.run((tx) =>
         this.reviewCandidate(tx, actor, pathId),
       );

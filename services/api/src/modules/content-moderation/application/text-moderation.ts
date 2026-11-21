@@ -26,7 +26,7 @@ export function textModerationPreflight(
   surface: ModerationSurface,
   prepare: (tx: TransactionContext) => Promise<TextToModerate | undefined>,
 ) {
-  if ((moderation?.mode(surface) ?? "off") === "off") return undefined;
+  if (!moderation) return undefined;
   return {
     prepare,
     check: (input: TextToModerate | undefined) =>
