@@ -55,7 +55,7 @@ export function compileProfanityRules(rules: readonly ProfanityRule[]) {
         .map((term) =>
           term
             .split(/\s+/u)
-            .map((part) => RegExp.escape(part))
+            .map((part) => part.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"))
             .join("[\\s\\p{P}]+"),
         );
       return {

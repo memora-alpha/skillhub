@@ -8,6 +8,11 @@ import { ConfigService } from "@nestjs/config";
 import { createHash } from "node:crypto";
 import { moderationModes } from "../domain/moderation-config";
 import {
+  compileProfanityRules,
+  defaultProfanityRules,
+  matchCompiledProfanity,
+} from "../domain/profanity-policy";
+import {
   assessClassification,
   moderationPolicyVersion,
   type ModerationMode,
@@ -24,6 +29,7 @@ export type ModerationInput = {
   sourceVersion: string;
   digest: string;
   text?: string;
+  profanityFields?: readonly string[];
   image?: {
     mimeType: "image/jpeg" | "image/png" | "image/webp" | "image/gif";
     bytes: Buffer;
@@ -68,6 +74,9 @@ function providerInput(input: ModerationInput): ModerationProviderInput {
 export class ContentModerationService {
   private readonly logger = new Logger(ContentModerationService.name);
   private readonly modes: ReadonlyMap<ModerationSurface, ModerationMode>;
+  private readonly profanityRules = compileProfanityRules(
+    defaultProfanityRules,
+  );
 
   constructor(
     config: ConfigService,
@@ -87,16 +96,47 @@ export class ContentModerationService {
     sourceVersion: string,
     fields: readonly (string | null | undefined)[],
   ): Promise<ModerationAssessment> {
-    const text = fields
-      .filter((field) => typeof field === "string" && field.trim())
-      .join("\n");
+    const profanityFields = fields.filter(
+      (field): field is string => typeof field === "string" && !!field.trim(),
+    );
+    const text = profanityFields.join("\n");
     const digest = createHash("sha256")
       .update(JSON.stringify(fields))
       .digest("hex");
-    return this.evaluate({ surface, sourceVersion, digest, text });
+    return this.evaluate({
+      surface,
+      sourceVersion,
+      digest,
+      text,
+      profanityFields,
+    });
+  }
+
+  assessProfanity(input: ModerationInput): ModerationAssessment {
+    const fields = input.profanityFields ?? (input.text ? [input.text] : []);
+    for (const field of fields) {
+      const match = matchCompiledProfanity(field, this.profanityRules);
+      if (match)
+        return {
+          sourceVersion: input.sourceVersion,
+          digest: input.digest,
+          policyVersion: moderationPolicyVersion,
+          outcome: "BLOCK",
+          reasonCodes: [`PROFANITY:${match.ruleId}`],
+        };
+    }
+    return {
+      sourceVersion: input.sourceVersion,
+      digest: input.digest,
+      policyVersion: moderationPolicyVersion,
+      outcome: "ALLOW",
+      reasonCodes: [],
+    };
   }
 
   async evaluate(input: ModerationInput): Promise<ModerationAssessment> {
+    const profanity = this.assessProfanity(input);
+    if (profanity.outcome === "BLOCK") return profanity;
     const mode = this.mode(input.surface);
     const base = {
       sourceVersion: input.sourceVersion,

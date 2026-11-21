@@ -29,9 +29,7 @@ export class UpdateProfileUseCase {
     const userId = typeof owner === "string" ? owner : owner.userId;
     data = { ...data };
     const fields = [data.fullName, data.headline, data.bio];
-    const check =
-      (this.moderation?.mode("profile") ?? "off") !== "off" &&
-      fields.some((value) => value?.trim());
+    const check = this.moderation && fields.some((value) => value?.trim());
     if (check) {
       if (actor) await this.sessions.assertLive(this.db, actor);
       else if (!(await this.repository.byId(this.db, userId)))

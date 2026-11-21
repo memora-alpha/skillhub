@@ -92,7 +92,7 @@ export class SessionOutcomeService {
       return { session, outcome };
     };
     let assessedOutcome: string | undefined;
-    if (this.moderation && this.moderation.mode("session") !== "off") {
+    if (this.moderation) {
       const { outcome } = await this.transactions.run(validate);
       assessedOutcome = outcome.id;
       await moderateText(this.moderation, "session", {
@@ -148,11 +148,7 @@ export class SessionOutcomeService {
       return { session, outcome, now, excuse };
     };
     let assessedExcuse: string | undefined;
-    if (
-      detail &&
-      this.moderation &&
-      this.moderation.mode("session") !== "off"
-    ) {
+    if (detail && this.moderation) {
       const { excuse } = await this.transactions.run(validate);
       assessedExcuse = excuse.id;
       await moderateText(this.moderation, "session", {

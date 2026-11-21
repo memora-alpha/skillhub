@@ -32,7 +32,7 @@ export class RegisterUseCase {
       throw new ConflictException("EMAIL_ALREADY_EXISTS");
     let fullNameModerationPolicy: string | undefined;
     const mode = this.moderation?.mode("profile") ?? "off";
-    if (mode !== "off") {
+    if (this.moderation) {
       const assessment = await this.moderation.evaluateText(
         "profile",
         "registration:1",

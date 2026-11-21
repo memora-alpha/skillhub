@@ -80,7 +80,7 @@ export class PathTerminationService {
 
   async request(actor: Principal, pathId: string, key: string, reason: string) {
     const input = { kind: "PATH_TERMINATION" as const, key, reason };
-    if (this.moderation && this.moderation.mode("learning_path") !== "off") {
+    if (this.moderation) {
       const text = await this.transactions.run(async (tx) => {
         const { path, now } = await this.context(tx, actor, pathId);
         const prepared = await this.changes.prepareCreate(
@@ -145,11 +145,7 @@ export class PathTerminationService {
       );
       return { path, now, row };
     };
-    if (
-      input.note?.trim() &&
-      this.moderation &&
-      this.moderation.mode("learning_path") !== "off"
-    ) {
+    if (input.note?.trim() && this.moderation) {
       const text = await this.transactions.run(async (tx) => {
         const { row, now } = await validate(tx);
         const { note, replayed } = this.changes.prepareResponse(
@@ -239,7 +235,7 @@ export class PathTerminationService {
         explanation: validateReason(reason, { min: 3, max: 1000 }),
       };
     };
-    if (this.moderation && this.moderation.mode("learning_path") !== "off") {
+    if (this.moderation) {
       const { row, explanation } = await this.transactions.run(validate);
       await moderateText(this.moderation, "learning_path", {
         sourceVersion: String(row.version),

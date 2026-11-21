@@ -1,4 +1,5 @@
 import { Injectable, ServiceUnavailableException } from "@nestjs/common";
+import { createHash } from "node:crypto";
 
 import { PrismaService } from "../../../../infrastructure/database/prisma.service";
 import {
@@ -55,6 +56,15 @@ export class VerifyEmailUseCase {
         if (requiresCheck)
           throw new ServiceUnavailableException(
             "CONTENT_MODERATION_TEMPORARILY_UNAVAILABLE",
+          );
+        if (this.moderation)
+          requireAllowed(
+            this.moderation.assessProfanity({
+              surface: "profile",
+              sourceVersion: proof.id,
+              digest: createHash("sha256").update(draft.fullName).digest("hex"),
+              text: draft.fullName,
+            }),
           );
         const user = await this.users.create(tx, {
           ...draft,

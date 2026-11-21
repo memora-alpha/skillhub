@@ -19,6 +19,26 @@ const fixtures = JSON.parse(
   readFileSync(new URL("./fixtures/vi-cases.json", import.meta.url), "utf8"),
 );
 
+test("blocks profanity independent of AI mode and keeps field boundaries", async () => {
+  for (const mode of ["off", "observe", "enforce"]) {
+    let called = false;
+    const moderation = new ContentModerationService(
+      new ConfigService({ CONTENT_MODERATION_MODES: `chat:${mode}` }),
+      {
+        classify: async () => {
+          called = true;
+          throw new Error("outage");
+        },
+      },
+    );
+    const blocked = await moderation.evaluateText("chat", "1", ["đụ...má"]);
+    assert.equal(blocked.outcome, "BLOCK");
+    assert.equal(called, false);
+    const adjacent = await moderation.evaluateText("chat", "1", ["đụ", "má"]);
+    assert.notEqual(adjacent.outcome, "BLOCK");
+  }
+});
+
 test("requires a provider key only for enabled modes and validates the surface map", () => {
   assert.doesNotThrow(() => validateEnvironment(env));
   assert.throws(

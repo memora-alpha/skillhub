@@ -159,14 +159,6 @@ export class ReportContentModerationProcessor {
       };
     }
     const surface = reportModerationSurface[kind];
-    if (this.moderation.mode(surface) === "off")
-      return {
-        sourceVersion,
-        digest,
-        outcome: "RETRY",
-        reasonCodes: ["MODERATION_PAUSED"],
-        policyVersion: moderationPolicyVersion,
-      };
     let text: string;
     if (source.receipt) {
       const { receipt } = source;

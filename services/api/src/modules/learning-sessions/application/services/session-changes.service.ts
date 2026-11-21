@@ -33,7 +33,7 @@ export class SessionChangesService {
     input: { reason: string; expectedStartAt: string },
   ) {
     const request = { ...input, kind: "SESSION_CANCELLATION" as const, key };
-    if (this.moderation && this.moderation.mode("session") !== "off") {
+    if (this.moderation) {
       const text = await this.transactions.run(async (tx) => {
         const { session, path, now } = await this.context(tx, actor, sessionId);
         const prepared = await this.changes.prepareCreate(
@@ -94,11 +94,7 @@ export class SessionChangesService {
       }
       return { session, path, now, row };
     };
-    if (
-      input.note?.trim() &&
-      this.moderation &&
-      this.moderation.mode("session") !== "off"
-    ) {
+    if (input.note?.trim() && this.moderation) {
       const text = await this.transactions.run(async (tx) => {
         const { row, now } = await validate(tx);
         const { note, replayed } = this.changes.prepareResponse(
