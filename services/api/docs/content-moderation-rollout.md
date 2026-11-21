@@ -1,5 +1,28 @@
 # Triển khai kiểm duyệt nội dung
 
+## Bộ từ cấm toàn hệ thống
+
+Backend áp dụng bộ từ cấm cho nội dung mới đi qua các luồng moderation, kể cả khi tắt hoặc chỉ quan sát kết quả OpenAI. Tin nhắn trong phòng học LiveKit dùng kênh gửi trực tiếp, nằm ngoài phạm vi của bộ lọc backend. Report vẫn tiếp nhận trích dẫn nguyên văn. Bằng chứng Report được giữ riêng trong case.
+
+Trong bước bootstrap của bản triển khai mới, chạy `pnpm --filter api db:seed-configuration` và `pnpm --filter api identity:seed` trước khi đưa API và worker mới vào phục vụ. Hai lệnh tạo `contentModeration.profanityRuleSet` và cấp quyền Admin `content-moderation:configure`. Seed thêm bộ mặc định khi key chưa có. Khi lưu cấu hình thành công, yêu cầu mới dùng phiên bản vừa lưu. Tệp đang chờ chia sẻ có thể ở trạng thái chờ kiểm lại nếu phiên bản đổi. Tệp Office hoặc tệp không trích xuất được chữ theo quy trình hiện tại cần xử lý trước khi chia sẻ.
+
+Dùng Swagger hoặc HTTP client với Bearer token Admin. Đường dẫn gốc là `/api/v1/admin/content-moderation/profanity-rules`.
+
+| Thao tác | Yêu cầu |
+| --- | --- |
+| Đọc cấu hình | `GET` trả `rules`, `version` và `effectiveAt`. Dùng danh sách đang lưu làm bản nháp trước khi bổ sung hoặc sửa quy tắc. |
+| Thử bản nháp | `POST /preview` nhận `{ "rules": [...], "text": "Bài tập cá tím" }`. Kết quả cho biết quy tắc khớp, số mục thêm/sửa/tắt và mẫu mặc định đổi quyết định. |
+| Áp dụng cả danh sách | `PUT` nhận `{ "expectedVersion": 1, "rules": [...], "reason": "Cập nhật từ cấm" }`. Mỗi mục gồm `id`, `term`, `aliases` và `enabled`. Gửi toàn bộ danh sách muốn áp dụng. Với `409`, đọc lại bản mới rồi hợp nhất các chỉnh sửa. |
+| Xem và phục hồi lịch sử | `GET /revisions` hỗ trợ `?before=<version>`. `POST /rollback` nhận `expectedVersion`, `targetVersion` và `reason`, tạo một phiên bản hiệu lực mới có audit. |
+
+Ví dụ một mục để thêm vào danh sách hiện tại:
+
+```json
+{ "id": "qa-ca-tim", "term": "cá tím", "aliases": ["ca tim"], "enabled": true }
+```
+
+Trên staging, gọi `PUT`, ghi lại phiên bản trả về rồi gửi câu mẫu qua chat, hồ sơ, đánh giá và tệp ảnh tiếng Việt. Tắt mục vừa thêm, gọi `PUT` và kiểm tra lại trên một instance API khác. Tin đã được backend chấp nhận để giao đi giữ kết quả trước đó khi tiếp tục giao hoặc retry. Tài khoản Staff hoặc User nhận `403` khi gọi API quản trị.
+
 Kiểm duyệt qua OpenAI được cấu hình theo loại nội dung. Với cấu hình hiện tại chưa khai báo mode, hệ thống tiếp tục áp dụng các quy tắc có sẵn của SkillHub. Cấu hình sản phẩm đi qua backend. API key dùng runtime secret.
 
 ## Chạy thử
