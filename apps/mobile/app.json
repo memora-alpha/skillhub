@@ -46,7 +46,9 @@
       "expo-image",
       [
         "@livekit/react-native-expo-plugin",
-        { "enableScreenShareService": true }
+        {
+          "enableScreenShareService": true
+        }
       ],
       [
         "@config-plugins/react-native-webrtc",
@@ -64,9 +66,9 @@
         }
       },
       "eas": {
-        "projectId": "80bdc249-c5ed-48e6-af14-8e8bd0df13fe"
+        "projectId": "5c25046f-feb4-48b1-b9a9-1aa232d330db"
       }
     },
-    "owner": "elwyn.tl"
+    "owner": "thuytienn"
   }
 }
