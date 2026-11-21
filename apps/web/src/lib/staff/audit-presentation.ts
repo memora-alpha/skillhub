@@ -65,6 +65,8 @@ export const auditActionLabels: Readonly<Record<string, string>> = {
   PASSWORD_RESET: "Đặt lại mật khẩu",
   MATERIAL_FEE_POLICY_CREATE: "Tạo chính sách phí tài liệu",
   MATERIAL_FEE_POLICY_APPROVE: "Duyệt chính sách phí tài liệu",
+  LEARNING_FEE_POLICY_CREATE: "Tạo chính sách phí học tập",
+  LEARNING_FEE_POLICY_APPROVE: "Duyệt chính sách phí học tập",
 };
 
 export const auditTargetLabels: Readonly<Record<string, string>> = {

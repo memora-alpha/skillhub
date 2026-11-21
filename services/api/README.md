@@ -2,7 +2,12 @@ Backend completion-gap amendment: pagination for sessions/material lists, newest
 Sharing Skills, completedLearningPathCount, Staff profile/review moderation, notification
 preferences and versioned Admin material fees. See [contracts](specs/015-backend-completion-gaps/contracts.md).
 Requires migration `20261109000000_backend_completion_gaps`; no new env or separate seed.
-Learning fees remain 4%; hiding a review does not reverse reputation history.
+Learning fees use approved, versioned `ONE_WAY`/`TWO_WAY` policies. The seeded
+baseline remains 4%; each Learning Path pins the effective policy when it is
+locked, so later Admin changes are not retroactive. Apply migration
+`20261121000000_versioned_learning_fee_policies`; see
+[versioned learning fees](docs/versioned-learning-fees.vi.md). Hiding a review
+does not reverse reputation history.
 
 # SkillHub API
 

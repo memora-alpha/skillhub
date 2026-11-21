@@ -24,6 +24,27 @@ import {
 import { readRecordedCreditFees } from "./fee-revenue.reader";
 import { formatCredit } from "../../domain/money";
 import { parseAbsoluteTimestamp } from "../../../../shared/time/timestamp.policy";
+import { SystemConfigurationService } from "../../../system-configuration/application/services/system-configuration.service";
+import { randomUUID } from "node:crypto";
+
+type FeePolicyCode = "ONE_WAY" | "TWO_WAY" | "MATERIAL_PAID";
+
+function feeCalculationRule(policyCode: FeePolicyCode, feeBps: number) {
+  return policyCode === "MATERIAL_PAID"
+    ? { feeBps }
+    : { returnedBps: 10_000 - feeBps, feeBps };
+}
+
+function feeBpsFromRule(value: unknown): number {
+  const feeBps = (value as { feeBps?: unknown } | null)?.feeBps;
+  if (
+    !Number.isInteger(feeBps) ||
+    (feeBps as number) < 0 ||
+    (feeBps as number) >= 10_000
+  )
+    throw new ConflictException("FEE_POLICY_INVALID");
+  return feeBps as number;
+}
 
 /** Admin scheduling and reports require an explicit timezone, independent of server TZ. */
 export function feeTimestamp(value: string) {
@@ -41,6 +62,7 @@ export class FeePolicyAdminService {
     private readonly sessions: SessionsService,
     private readonly reauth: ReauthProofService,
     private readonly audit: AuditService,
+    private readonly configuration: SystemConfigurationService,
   ) {}
   private async authorize(
     tx: TransactionContext,
@@ -84,9 +106,55 @@ export class FeePolicyAdminService {
       };
     });
   }
+  current(actor: Principal) {
+    return this.transactions.run(async (tx) => {
+      await tx.$executeRaw`SET TRANSACTION READ ONLY`;
+      await this.authorize(tx, actor);
+      const now = await databaseNow(tx);
+      const rows = await tx.feePolicyVersion.findMany({
+        where: {
+          status: "APPROVED",
+          approvedAt: { not: null },
+          effectiveAt: { lte: now },
+        },
+        orderBy: [{ effectiveAt: "desc" }, { versionNo: "desc" }],
+        distinct: ["policyCode"],
+      });
+      return rows.map((row) => ({ ...row, effective: true }));
+    });
+  }
+  creditPolicy(actor: Principal) {
+    return this.transactions.run(async (tx) => {
+      await tx.$executeRaw`SET TRANSACTION READ ONLY`;
+      await this.authorize(tx, actor, "credit:read:any");
+      const snapshot = await this.configuration.getSnapshot(
+        ["credit.topUpVndPerCredit", "learningPath.minCreditPerUser"],
+        tx,
+      );
+      const policies = await tx.feePolicyVersion.findMany({
+        where: {
+          policyCode: { in: ["ONE_WAY", "TWO_WAY"] },
+          status: "APPROVED",
+          approvedAt: { not: null },
+          effectiveAt: { lte: snapshot.readAt },
+        },
+        orderBy: [{ effectiveAt: "desc" }, { versionNo: "desc" }],
+        distinct: ["policyCode"],
+      });
+      return {
+        topUpVndPerCredit: snapshot.values["credit.topUpVndPerCredit"],
+        minCreditPerUser: snapshot.values["learningPath.minCreditPerUser"],
+        withdrawalsSupported: false,
+        policies: policies.map((row) => ({ ...row, effective: true })),
+        versions: snapshot.versions,
+        readAt: snapshot.readAt,
+      };
+    });
+  }
   create(
     actor: Principal,
     input: {
+      policyCode?: FeePolicyCode;
       versionNo: number;
       feeBps: number;
       reason: string;
@@ -94,22 +162,25 @@ export class FeePolicyAdminService {
     },
   ) {
     const reason = validateReason(input.reason, { min: 3, max: 1000 });
+    const policyCode = input.policyCode ?? "MATERIAL_PAID";
     if (
+      !["ONE_WAY", "TWO_WAY", "MATERIAL_PAID"].includes(policyCode) ||
       !Number.isSafeInteger(input.versionNo) ||
       input.versionNo < 1 ||
       !Number.isInteger(input.feeBps) ||
       input.feeBps < 0 ||
       input.feeBps >= 10000
     )
-      throw new BadRequestException("INVALID_MATERIAL_FEE_POLICY");
+      throw new BadRequestException("INVALID_FEE_POLICY");
     return this.transactions.run(async (tx) => {
       await this.authorize(tx, actor);
       await lockUsers(tx, [actor.userId]);
       const live = await this.authorize(tx, actor);
       // One policy-series lock serializes explicit version allocation across Admins.
-      await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended('fee-policy:MATERIAL_PAID', 0))`;
+      const lockKey = `fee-policy:${policyCode}`;
+      await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
       const latest = await tx.feePolicyVersion.findFirst({
-        where: { policyCode: "MATERIAL_PAID" },
+        where: { policyCode },
         orderBy: { versionNo: "desc" },
       });
       if (input.versionNo !== (latest?.versionNo ?? 0) + 1)
@@ -117,9 +188,9 @@ export class FeePolicyAdminService {
       await this.reauth.consumeReauth(tx, live, input.reauthToken);
       const result = await tx.feePolicyVersion.create({
         data: {
-          policyCode: "MATERIAL_PAID",
+          policyCode,
           versionNo: input.versionNo,
-          calculationRule: { feeBps: input.feeBps },
+          calculationRule: feeCalculationRule(policyCode, input.feeBps),
           roundingRule: { mode: "DOWN", precision: 2 },
           status: "DRAFT",
           createdBy: live.userId,
@@ -128,11 +199,18 @@ export class FeePolicyAdminService {
       await this.audit.append(tx, {
         actorId: live.userId,
         actorRole: "ADMIN",
-        action: "MATERIAL_FEE_POLICY_CREATE",
+        action:
+          policyCode === "MATERIAL_PAID"
+            ? "MATERIAL_FEE_POLICY_CREATE"
+            : "LEARNING_FEE_POLICY_CREATE",
         targetType: "FeePolicyVersion",
         targetId: result.id,
         reason,
-        after: { feeBps: input.feeBps, versionNo: result.versionNo },
+        after: {
+          policyCode,
+          feeBps: input.feeBps,
+          versionNo: result.versionNo,
+        },
       });
       return result;
     });
@@ -147,31 +225,38 @@ export class FeePolicyAdminService {
       await this.authorize(tx, actor);
       await lockUsers(tx, [actor.userId]);
       const live = await this.authorize(tx, actor);
-      await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended('fee-policy:MATERIAL_PAID', 0))`;
-      const row = await tx.feePolicyVersion.findUnique({ where: { id } });
+      let row = await tx.feePolicyVersion.findUnique({ where: { id } });
       if (!row) throw new NotFoundException("FEE_POLICY_NOT_FOUND");
-      if (row.policyCode !== "MATERIAL_PAID")
-        throw new ForbiddenException("LEARNING_FEE_FIXED_AT_FOUR_PERCENT");
+      const lockKey = `fee-policy:${row.policyCode}`;
+      await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
+      row = await tx.feePolicyVersion.findUnique({ where: { id } });
+      if (!row) throw new NotFoundException("FEE_POLICY_NOT_FOUND");
       if (row.status !== "DRAFT")
         throw new ConflictException("FEE_POLICY_ALREADY_DECIDED");
       const now = await databaseNow(tx),
         effectiveAt = input.effectiveAt ? feeTimestamp(input.effectiveAt) : now;
       if (!Number.isFinite(+effectiveAt) || effectiveAt < now)
         throw new BadRequestException("FEE_POLICY_EFFECTIVE_TIME_IN_PAST");
-      const active = await tx.feePolicyVersion.findFirst({
+      const latestApproved = await tx.feePolicyVersion.findFirst({
         where: {
-          policyCode: "MATERIAL_PAID",
+          policyCode: row.policyCode,
           status: "APPROVED",
           approvedAt: { not: null },
           effectiveAt: { not: null },
         },
         orderBy: { effectiveAt: "desc" },
       });
+      const expectedVersion = (latestApproved?.versionNo ?? 0) + 1;
       if (
-        active?.effectiveAt &&
-        (effectiveAt <= active.effectiveAt || row.versionNo <= active.versionNo)
+        row.versionNo !== expectedVersion ||
+        (latestApproved?.effectiveAt &&
+          effectiveAt <= latestApproved.effectiveAt)
       )
         throw new ConflictException("FEE_POLICY_EFFECTIVE_ORDER_CONFLICT");
+      const feeBps = feeBpsFromRule(row.calculationRule);
+      const previousFeeBps = latestApproved
+        ? feeBpsFromRule(latestApproved.calculationRule)
+        : null;
       await this.reauth.consumeReauth(tx, live, input.reauthToken);
       const result = await tx.feePolicyVersion.update({
         where: { id },
@@ -185,13 +270,50 @@ export class FeePolicyAdminService {
       await this.audit.append(tx, {
         actorId: live.userId,
         actorRole: "ADMIN",
-        action: "MATERIAL_FEE_POLICY_APPROVE",
+        action:
+          row.policyCode === "MATERIAL_PAID"
+            ? "MATERIAL_FEE_POLICY_APPROVE"
+            : "LEARNING_FEE_POLICY_APPROVE",
         targetType: "FeePolicyVersion",
         targetId: id,
         reason,
         after: {
+          policyCode: row.policyCode,
           versionNo: row.versionNo,
           effectiveAt: effectiveAt.toISOString(),
+        },
+      });
+      const correlationId = randomUUID();
+      const payload = {
+        policyId: id,
+        policyCode: row.policyCode,
+        versionNo: row.versionNo,
+        feeBps,
+        ...(previousFeeBps === null ? {} : { previousFeeBps }),
+        effectiveAt: effectiveAt.toISOString(),
+      };
+      await tx.outboxEvent.create({
+        data: {
+          aggregateType: "FEE_POLICY",
+          aggregateId: id,
+          version: row.versionNo,
+          type: "admin.fee-policy.approved",
+          payload: { ...payload, approvedByUserId: live.userId },
+          dedupeKey: `fee-policy-approved:${id}`,
+          correlationId,
+          availableAt: now,
+        },
+      });
+      await tx.outboxEvent.create({
+        data: {
+          aggregateType: "FEE_POLICY",
+          aggregateId: id,
+          version: row.versionNo,
+          type: "credit.fee-policy.effective",
+          payload,
+          dedupeKey: `fee-policy-effective:${id}`,
+          correlationId,
+          availableAt: effectiveAt,
         },
       });
       return result;

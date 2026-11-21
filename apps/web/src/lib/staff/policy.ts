@@ -201,6 +201,9 @@ const adminRoutes: [string, RegExp, (path: string) => string][] = [
     (p) => `admin/${p}`,
   ],
   ["GET", /^fee-policies$/, (p) => `admin/${p}`],
+  ["GET", /^fee-policies\/current$/, (p) => `admin/${p}`],
+  ["GET", /^credit-policy$/, (p) => `admin/${p}`],
+  ["POST", /^fee-policies$/, (p) => `admin/${p}`],
   ["POST", /^fee-policies\/material$/, (p) => `admin/${p}`],
   [
     "POST",

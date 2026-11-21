@@ -24,6 +24,15 @@ export class ListedFeePolicyResponse extends FeePolicyResponse {
   })
   effective!: boolean;
 }
+export class CreditPolicyResponse {
+  @ApiProperty() topUpVndPerCredit!: number;
+  @ApiProperty() minCreditPerUser!: number;
+  @ApiProperty() withdrawalsSupported!: boolean;
+  @ApiProperty({ type: [ListedFeePolicyResponse] })
+  policies!: ListedFeePolicyResponse[];
+  @ApiProperty({ type: Object }) versions!: Record<string, number>;
+  @ApiProperty({ format: "date-time" }) readAt!: string;
+}
 export class FeeRevenueItemResponse {
   @ApiProperty() period!: string;
   @ApiProperty() business!: string;

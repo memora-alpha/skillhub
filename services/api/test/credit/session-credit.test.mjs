@@ -43,6 +43,7 @@ test("ONE_WAY freezes exact per-session shares; the first original sessions rece
     10000n,
     oneWay,
     [...rows].reverse(),
+    400,
   );
   assert.deepEqual(
     snapshot.sessions.map((row) => row.creditUnits),
@@ -71,7 +72,7 @@ test("ONE_WAY freezes exact per-session shares; the first original sessions rece
 
 test("TWO_WAY freezes each teaching plan denominator and charges its full commitment", () => {
   const rows = makeSessions(5, 3);
-  const snapshot = createSessionCreditSnapshot(10000n, twoWay, rows, "a");
+  const snapshot = createSessionCreditSnapshot(10000n, twoWay, rows, 400, "a");
   const result = calculateSessionCredit(
     snapshot,
     10000n,
@@ -88,7 +89,7 @@ test("TWO_WAY freezes each teaching plan denominator and charges its full commit
 
 test("makeup keeps the same original share; only a completed occurrence counts", () => {
   const rows = makeSessions(2, 2);
-  const snapshot = createSessionCreditSnapshot(2001n, twoWay, rows, "a");
+  const snapshot = createSessionCreditSnapshot(2001n, twoWay, rows, 400, "a");
   const live = rows.map((row) => ({ ...row, status: "MAKEUP_REQUIRED" }));
   assert.equal(
     calculateSessionCredit(snapshot, 2001n, twoWay, live).completedCredit,
@@ -107,13 +108,13 @@ test("makeup keeps the same original share; only a completed occurrence counts",
 
 test("legacy, changed identities, missing original sessions and altered monetary policy cannot be quoted", () => {
   const rows = makeSessions(1, 1);
-  const snapshot = createSessionCreditSnapshot(2000n, twoWay, rows, "a");
+  const snapshot = createSessionCreditSnapshot(2000n, twoWay, rows, 400, "a");
   const live = rows.map((row) => ({ ...row, status: "CONFIRMED" }));
   const calculate = (value, current = live) =>
     calculateSessionCredit(value, 2000n, twoWay, current);
   assert.throws(() => calculate(null), /SESSION_CREDIT_SNAPSHOT_MISSING/);
   assert.throws(
-    () => calculate({ ...snapshot, feeBps: 500 }),
+    () => calculate({ ...snapshot, feeBps: 10000 }),
     /SESSION_CREDIT_SNAPSHOT_INVALID/,
   );
   assert.throws(
@@ -148,6 +149,7 @@ test("Hold snapshots reject a teacher outside the agreement participants", () =>
         2000n,
         { ...oneWay, teacherId: "outsider" },
         makeSessions(1).map((row) => ({ ...row, teacherId: "outsider" })),
+        400,
       ),
     /SESSION_CREDIT_SNAPSHOT_INVALID/,
   );
@@ -157,7 +159,7 @@ test("exhaustive small-unit splits conserve Credit and aggregate fees once", () 
   for (let n = 1; n <= 12; n++) {
     const rows = makeSessions(n);
     for (let total = 1n; total <= 150n; total++) {
-      const snapshot = createSessionCreditSnapshot(total, oneWay, rows);
+      const snapshot = createSessionCreditSnapshot(total, oneWay, rows, 400);
       assert.equal(
         snapshot.sessions.reduce(
           (sum, row) => sum + BigInt(row.creditUnits),
@@ -181,4 +183,17 @@ test("exhaustive small-unit splits conserve Credit and aggregate fees once", () 
       }
     }
   }
+});
+
+test("session calculations preserve a non-default pinned fee", () => {
+  const rows = makeSessions(2);
+  const snapshot = createSessionCreditSnapshot(10000n, oneWay, rows, 550);
+  const result = calculateSessionCredit(
+    snapshot,
+    10000n,
+    oneWay,
+    rows.map((row) => ({ ...row, status: "COMPLETED" })),
+  );
+  assert.equal(result.feeBps, 550);
+  assert.equal(result.platformFee, 550n);
 });

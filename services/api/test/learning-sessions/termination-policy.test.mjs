@@ -330,10 +330,13 @@ test("Staff approves the server formula without general credit adjustment powers
 });
 
 test("the total 4% fee is rounded once before allocating hundredths to the two Holds", () => {
-  const fees = allocateHeldFee([
-    { userId: A, amount: 10013n },
-    { userId: B, amount: 10013n },
-  ]);
+  const fees = allocateHeldFee(
+    [
+      { userId: A, amount: 10013n },
+      { userId: B, amount: 10013n },
+    ],
+    400,
+  );
   assert.equal(fees.get(A) + fees.get(B), 801n);
   assert.equal(fees.get(A), 401n);
   assert.equal(fees.get(B), 400n);

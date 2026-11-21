@@ -1403,7 +1403,7 @@ export class LearningPathsService {
     if (!(clock?.now instanceof Date)) {
       throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
     }
-    await this.pinSettlementFee(
+    const feeBps = await this.pinSettlementFee(
       tx,
       pathId,
       expectedVersion,
@@ -1420,6 +1420,7 @@ export class LearningPathsService {
       learnerId: agreement.learnerId,
       totalCreditPerUser: agreement.totalCreditPerUser,
       negotiatedCredit: agreement.negotiatedCredit,
+      feeBps,
       sessions: sessionEntries.map(
         ({
           id,
@@ -1530,14 +1531,12 @@ export class LearningPathsService {
       mode?: unknown;
       precision?: unknown;
     };
-    const { values } = await this.configuration.getSnapshot(
-      ["credit.pathSettlementBps"],
-      tx,
-    );
-    const settlementBps = values["credit.pathSettlementBps"];
     if (
-      feeRule.returnedBps !== settlementBps.returned ||
-      feeRule.feeBps !== settlementBps.fee ||
+      !Number.isInteger(feeRule.returnedBps) ||
+      !Number.isInteger(feeRule.feeBps) ||
+      (feeRule.feeBps as number) < 0 ||
+      (feeRule.feeBps as number) >= 10_000 ||
+      (feeRule.returnedBps as number) + (feeRule.feeBps as number) !== 10_000 ||
       roundingRule.mode !== "DOWN" ||
       roundingRule.precision !== 2
     ) {
@@ -1549,16 +1548,17 @@ export class LearningPathsService {
         ? agreement.totalCreditPerUser!
         : agreement.negotiatedCredit!;
     const feeSnapshot =
-      (grossPerPayer * payerCount * BigInt(settlementBps.fee)) / 10_000n;
+      (grossPerPayer * payerCount * BigInt(feeRule.feeBps as number)) / 10_000n;
     await tx.learningPathVersion.update({
       where: { pathId_versionNo: { pathId, versionNo: expectedVersion } },
       data: {
         feePolicyId: feePolicy.id,
-        feeRateSnapshot: String(settlementBps.fee / 10_000),
+        feeRateSnapshot: String((feeRule.feeBps as number) / 10_000),
         feeAmountSnapshot: feeSnapshot,
         roundingSnapshot: { mode: "DOWN", precision: 2 },
       },
     });
+    return feeRule.feeBps as number;
   }
 
   async confirmPlan(actor: Principal, planId: string, expectedVersion: number) {

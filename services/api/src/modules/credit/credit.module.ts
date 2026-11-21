@@ -28,9 +28,10 @@ import { PathTerminationPort } from "./application/ports/path-termination.port";
 import { PathTerminationLedgerService } from "./application/services/path-termination-ledger.service";
 import { AdminCreditReaderPort } from "./application/ports/admin-credit.reader";
 import { AdminCreditSourceReader } from "./application/services/admin-credit-source.reader";
+import { SystemConfigurationModule } from "../system-configuration/system-configuration.module";
 
 @Module({
-  imports: [DatabaseModule, IdentityModule],
+  imports: [DatabaseModule, IdentityModule, SystemConfigurationModule],
   controllers: [
     WalletController,
     AdminCreditController,

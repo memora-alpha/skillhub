@@ -25,6 +25,12 @@ type Fee = {
   effectiveAt: string | null;
   calculationRule: { feeBps?: number; platformFeeBps?: number };
 };
+type FeePolicyCode = "ONE_WAY" | "TWO_WAY" | "MATERIAL_PAID";
+const feePolicyCodes: readonly FeePolicyCode[] = [
+  "TWO_WAY",
+  "ONE_WAY",
+  "MATERIAL_PAID",
+];
 type Revenue = {
   timezone: string;
   items: {
@@ -40,12 +46,13 @@ export function MaterialFeePolicies() {
   const list = useStaffListPages<Fee>("fee-policies?limit=20");
   const operation = useOperation();
   const [mode, setMode] = useState("create");
+  const [policyCode, setPolicyCode] = useState<FeePolicyCode>("MATERIAL_PAID");
   const [version, setVersion] = useState<number>();
   const nextVersion =
     Math.max(
       0,
       ...list.items
-        .filter((fee) => fee.policyCode === "MATERIAL_PAID")
+        .filter((fee) => fee.policyCode === policyCode)
         .map((fee) => fee.versionNo),
     ) + 1;
   const [bps, setBps] = useState(500);
@@ -65,8 +72,9 @@ export function MaterialFeePolicies() {
     <div className={styles.workspace}>
       <Card title="Chính sách phí">
         <p className={styles.hint}>
-          Theo dõi mức phí và thời điểm áp dụng. Phí tài liệu được tạo bản nháp
-          trước khi duyệt.
+          Theo dõi mức phí và thời điểm áp dụng. Mọi thay đổi phí học tập hoặc
+          tài liệu đều tạo bản nháp, xác thực lại và phê duyệt trước khi có hiệu
+          lực. Thỏa thuận đã khóa tiếp tục dùng phiên bản phí đã chốt.
         </p>
         <QueueState
           loading={list.loading}
@@ -116,20 +124,25 @@ export function MaterialFeePolicies() {
                           : "Chưa lên lịch"}
                       </td>
                       <td data-label="Thao tác">
-                        {f.policyCode === "MATERIAL_PAID" &&
-                          f.status === "DRAFT" && (
-                            <button
-                              type="button"
-                              className="btn"
-                              onClick={() => {
-                                setMode(f.id);
-                                setPassword("");
-                                setReason("");
-                              }}
-                            >
-                              Chọn để duyệt
-                            </button>
-                          )}
+                        {f.status === "DRAFT" && (
+                          <button
+                            type="button"
+                            className="btn"
+                            onClick={() => {
+                              setMode(f.id);
+                              if (
+                                feePolicyCodes.includes(
+                                  f.policyCode as FeePolicyCode,
+                                )
+                              )
+                                setPolicyCode(f.policyCode as FeePolicyCode);
+                              setPassword("");
+                              setReason("");
+                            }}
+                          >
+                            Chọn để duyệt
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
@@ -145,7 +158,7 @@ export function MaterialFeePolicies() {
         >
           <summary>
             {mode === "create"
-              ? "Tạo phiên bản phí tài liệu"
+              ? "Tạo phiên bản chính sách phí"
               : "Duyệt phiên bản đã chọn"}
           </summary>
           <form
@@ -173,10 +186,11 @@ export function MaterialFeePolicies() {
                   reauthToken: auth.data.reauthToken,
                 };
                 if (mode === "create")
-                  await api("fee-policies/material", {
+                  await api("fee-policies", {
                     method: "POST",
                     body: {
                       ...body,
+                      policyCode,
                       versionNo: version ?? nextVersion,
                       feeBps: bps,
                     },
@@ -202,6 +216,23 @@ export function MaterialFeePolicies() {
             <fieldset className={styles.form} disabled={operation.busy}>
               {mode === "create" ? (
                 <>
+                  <label>
+                    <span>Phạm vi áp dụng</span>
+                    <select
+                      className="select"
+                      value={policyCode}
+                      onChange={(e) => {
+                        setPolicyCode(e.target.value as FeePolicyCode);
+                        setVersion(undefined);
+                      }}
+                    >
+                      {feePolicyCodes.map((code) => (
+                        <option value={code} key={code}>
+                          {financeLabel(code)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <label>
                     <span>Phiên bản</span>
                     <input

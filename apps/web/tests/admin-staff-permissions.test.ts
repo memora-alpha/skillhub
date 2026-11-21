@@ -124,3 +124,18 @@ test("auditTargetHref resolves deep links for operational Admin screens", () => 
   );
   assert.equal(auditTargetHref("PAYMENT", "not-a-uuid"), null);
 });
+
+test("Admin finance proxy exposes current Credit policy and fee drafts", () => {
+  assert.equal(
+    upstreamPath("GET", "credit-policy", "admin"),
+    "admin/credit-policy",
+  );
+  assert.equal(
+    upstreamPath("GET", "fee-policies/current", "admin"),
+    "admin/fee-policies/current",
+  );
+  assert.equal(
+    upstreamPath("POST", "fee-policies", "admin"),
+    "admin/fee-policies",
+  );
+});

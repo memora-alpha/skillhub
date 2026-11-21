@@ -41,6 +41,20 @@ type Payment = {
   gatewayTransactionId: string | null;
   payosCheckout: { orderCode: string; topUpOperationId: string | null } | null;
 };
+type CurrentFeePolicy = {
+  id: string;
+  policyCode: "ONE_WAY" | "TWO_WAY";
+  versionNo: number;
+  calculationRule: { returnedBps: number; feeBps: number };
+  effectiveAt: string;
+};
+type CurrentCreditPolicy = {
+  topUpVndPerCredit: number;
+  minCreditPerUser: number;
+  withdrawalsSupported: boolean;
+  policies: CurrentFeePolicy[];
+  readAt: string;
+};
 const labels: Record<string, string> = {
   id: "Mã",
   userId: "Người dùng",
@@ -134,6 +148,39 @@ function FinanceDetails({ value }: Readonly<{ value: unknown }>) {
     return <span>{value.toString()}</span>;
   return <span>—</span>;
 }
+function FinancePolicyBanner() {
+  const resource = useStaffResource<CurrentCreditPolicy>("credit-policy");
+  const policy = resource.data;
+  const feeLabel = (code: CurrentFeePolicy["policyCode"]) => {
+    const row = policy?.policies.find((item) => item.policyCode === code);
+    if (!row) return "Chưa có policy hiệu lực";
+    return `hoàn/trả ${row.calculationRule.returnedBps / 100}% · phí ${row.calculationRule.feeBps / 100}% · v${row.versionNo}`;
+  };
+  const policySummary = () => {
+    if (resource.loading) return "Đang tải từ máy chủ…";
+    if (resource.error || !policy) return "Không tải được chính sách Credit.";
+    const withdrawal = policy.withdrawalsSupported
+      ? "Có hỗ trợ rút Credit"
+      : "Không hỗ trợ rút Credit";
+    return `${policy.topUpVndPerCredit.toLocaleString("vi-VN")} VND = 1 Credit · ${withdrawal}`;
+  };
+  return (
+    <div className="ops-policy-banner" role="note">
+      <span>
+        <strong>Chính sách Credit hiện hành:</strong> {policySummary()}
+      </span>
+      {policy && (
+        <div className="ops-policy-pills">
+          <Badge tone="brand">
+            TWO_WAY: cam kết ≥{policy.minCreditPerUser} CR/người ·{" "}
+            {feeLabel("TWO_WAY")}
+          </Badge>
+          <Badge tone="info">ONE_WAY: {feeLabel("ONE_WAY")}</Badge>
+        </div>
+      )}
+    </div>
+  );
+}
 export function FinanceScreen({
   initialTab = "ledger",
   initialPaymentId,
@@ -182,18 +229,7 @@ export function FinanceScreen({
         title="Tài chính & Credit"
         desc="Tra cứu sổ cái Credit bất biến, đối soát nạp tiền payOS, ví người dùng và chính sách phí nền tảng."
       />
-      <div className="ops-policy-banner" role="note">
-        <span>
-          <strong>Quy chuẩn Credit (SRS V1.7):</strong> 1.000 VND = 1 Credit ·
-          Không hỗ trợ rút Credit ra tiền mặt (BR-26).
-        </span>
-        <div className="ops-policy-pills">
-          <Badge tone="brand">
-            TWO_WAY: cam kết ≥20 CR · hoàn 96% / phí 4%
-          </Badge>
-          <Badge tone="info">ONE_WAY: trả teacher 96% / phí 4%</Badge>
-        </div>
-      </div>
+      <FinancePolicyBanner />
       <div className="ops-tabbar">
         <Segmented
           label="Mục tài chính"

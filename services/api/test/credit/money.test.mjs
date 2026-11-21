@@ -30,15 +30,21 @@ test("Credit parses and formats exact signed hundredths including sub-unit negat
 });
 
 test("fee floors only the 4% leg and conserves every small-unit split", () => {
-  assert.deepEqual(feeSplit(1001n), { fee: 40n, net: 961n });
-  assert.deepEqual(feeSplit(1n), { fee: 0n, net: 1n });
+  assert.deepEqual(feeSplit(1001n, 400), { fee: 40n, net: 961n });
+  assert.deepEqual(feeSplit(1n, 400), { fee: 0n, net: 1n });
   for (let gross = 1n; gross <= 5000n; gross++) {
-    const { fee, net } = feeSplit(gross);
+    const { fee, net } = feeSplit(gross, 400);
     assert.equal(net + fee, gross);
     assert.ok(fee * 10000n <= gross * 400n);
     assert.ok((fee + 1n) * 10000n > gross * 400n);
   }
-  assert.throws(() => feeSplit(-1n));
+  assert.throws(() => feeSplit(-1n, 400));
+});
+
+test("fee split uses the pinned policy basis points", () => {
+  assert.deepEqual(feeSplit(10000n, 550), { fee: 550n, net: 9450n });
+  assert.deepEqual(feeSplit(10000n, 0), { fee: 0n, net: 10000n });
+  assert.throws(() => feeSplit(10000n, 10000));
 });
 
 test("VND conversion rejects fractional Credit instead of rounding or floating", () => {
