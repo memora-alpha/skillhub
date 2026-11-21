@@ -2,8 +2,12 @@ import type {
   ProviderBrand,
   ProviderProduct,
 } from "../../application/contracts/voucher-provider";
+import catalog from "./data/reward-catalog.json";
 
-/** Fictional brands and placeholder images only; never real trademarks. */
+/**
+ * Two sources: the fictional Demo brands below (used by the failure-scenario tests) and the
+ * reward catalog in data/reward-catalog.json (real brands from gotit.vn, loaded by db:seed-rewards).
+ */
 export const DEMO_MARKER = "DEMO – không có giá trị sử dụng";
 
 const placeholder = (text: string) =>
@@ -16,7 +20,7 @@ const brand = (id: string, name: string): ProviderBrand => ({
   logoUrl: placeholder(name),
 });
 
-export const MOCK_BRANDS: ProviderBrand[] = [
+const DEMO_BRANDS: ProviderBrand[] = [
   brand("demo-coffee", "Demo Coffee"),
   brand("demo-ride", "Demo Ride"),
   brand("demo-mart", "Demo Mart"),
@@ -47,7 +51,7 @@ function product(
 }
 
 /** Product ID suffix selects the scenario; see specs/018 plan. */
-export const MOCK_PRODUCTS: ProviderProduct[] = [
+const DEMO_PRODUCTS: ProviderProduct[] = [
   product(
     "coffee-50k-ok",
     "demo-coffee",
@@ -128,4 +132,39 @@ export const MOCK_PRODUCTS: ProviderProduct[] = [
     "Demo Coffee (slow)",
     50_000,
   ),
+];
+
+const categoryNames = new Map(
+  catalog.categories.map((category) => [category.id, category.nameVi]),
+);
+
+const CATALOG_BRANDS: ProviderBrand[] = catalog.brands.map((brand) => ({
+  providerBrandId: brand.providerBrandId,
+  nameVi: brand.nameVi,
+  nameEn: brand.nameEn,
+  logoUrl: brand.logoUrl,
+}));
+
+const CATALOG_PRODUCTS: ProviderProduct[] = catalog.products.map((item) => ({
+  providerProductId: item.providerProductId,
+  providerBrandId: item.providerBrandId,
+  category: categoryNames.get(item.category) ?? null,
+  nameVi: item.nameVi,
+  nameEn: item.nameEn,
+  imageUrl: item.imageUrl,
+  faceValueVnd: BigInt(item.faceValueVnd),
+  termsVi: item.termsVi,
+  termsEn: item.termsEn,
+  validityDays: item.validityDays,
+  // The demo price stays out of the contract: db:seed-rewards reads it from here.
+  raw: {
+    catalog: "reward-catalog",
+    suggestedPriceCredit: item.suggestedPriceCredit,
+  },
+}));
+
+export const MOCK_BRANDS: ProviderBrand[] = [...DEMO_BRANDS, ...CATALOG_BRANDS];
+export const MOCK_PRODUCTS: ProviderProduct[] = [
+  ...DEMO_PRODUCTS,
+  ...CATALOG_PRODUCTS,
 ];

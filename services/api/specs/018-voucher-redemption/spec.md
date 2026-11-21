@@ -29,16 +29,16 @@ mock provider is refused when `NODE_ENV=production`.
 
 ## Decisions
 
-| ID  | Decision                                                                                                                                                                                             |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D1  | On-demand issuance only (model A). No pre-purchased voucher inventory.                                                                                                                               |
-| D2  | One `VoucherProvider` port; adapters `mock` (this spec) and `gotit` (phase 2). Selected by `VOUCHER_PROVIDER`.                                                                                       |
-| D3  | Only `purchasedCredit` lots can pay for a voucher (default for Q2).                                                                                                                                  |
-| D4  | Synced products start inactive with no price; an admin sets `priceCredit` and activates. Provider price is never used as the Credit price.                                                           |
-| D5  | Issued voucher keeps a snapshot (name, brand, image, face value, terms, expiry). Code/PIN/link are encrypted at rest (AES-256-GCM, `VOUCHER_SECRET_KEY`).                                            |
-| D6  | Provider call runs outside the debit transaction. Definitive failure → compensating refund. Unknown outcome (timeout/5xx) → no refund; reconcile by `clientRef`; after N attempts → `MANUAL_REVIEW`. |
-| D7  | Catalog stores provider image URLs. Copying images to SkillHub storage is deferred to the Got It phase. Mock data uses fictional brands and placeholder images only.                                 |
-| D8  | Per-user daily Credit limit and platform daily budget (VND face value) are `SystemConfiguration` keys.                                                                                               |
+| ID  | Decision                                                                                                                                                                                                                                             |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | On-demand issuance only (model A). No pre-purchased voucher inventory.                                                                                                                                                                               |
+| D2  | One `VoucherProvider` port; adapters `mock` (this spec) and `gotit` (phase 2). Selected by `VOUCHER_PROVIDER`.                                                                                                                                       |
+| D3  | Only `purchasedCredit` lots can pay for a voucher (default for Q2).                                                                                                                                                                                  |
+| D4  | Synced products start inactive with no price; an admin sets `priceCredit` and activates. Provider price is never used as the Credit price.                                                                                                           |
+| D5  | Issued voucher keeps a snapshot (name, brand, image, face value, terms, expiry). Code/PIN/link are encrypted at rest (AES-256-GCM, `VOUCHER_SECRET_KEY`).                                                                                            |
+| D6  | Provider call runs outside the debit transaction. Definitive failure → compensating refund. Unknown outcome (timeout/5xx) → no refund; reconcile by `clientRef`; after N attempts → `MANUAL_REVIEW`.                                                 |
+| D7  | Catalog stores provider image URLs. Copying images to SkillHub storage is deferred to the Got It phase. Mock data uses real brand names and the logo URLs published by Got It (project owner decision); only the scenario-test brands are fictional. |
+| D8  | Per-user daily Credit limit and platform daily budget (VND face value) are `SystemConfiguration` keys.                                                                                                                                               |
 
 ## User Scenarios & Testing
 

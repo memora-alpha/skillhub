@@ -15,7 +15,8 @@ domain/
   redemption.policy.ts               # state machine, eligibility, limits
 infrastructure/
   providers/mock-voucher.provider.ts
-  providers/mock-catalog.ts          # fictional brands, scenario per product
+  providers/mock-catalog.ts          # fictional scenario brands + reward-catalog.json
+  providers/data/reward-catalog.json # real brands/products for demo
   jobs/redemption-reconcile.worker.ts
   jobs/catalog-sync.worker.ts
 presentation/http/
@@ -89,8 +90,11 @@ RBAC catalog and audit action catalog.
 
 ## Mock provider
 
-Fictional brands (Demo Coffee, Demo Ride, Demo Mart, Demo Books) with placeholder
-images. Scenario chosen by `providerProductId` suffix:
+Two catalogs. Fictional brands (Demo Coffee, Demo Ride, Demo Mart, Demo Books) carry the
+failure scenarios. `infrastructure/providers/data/reward-catalog.json` holds 17 categories,
+49 real brands and 113 `-ok` products read from gotit.vn. `pnpm db:seed-rewards` loads both
+like an admin sync, so a later sync removes nothing. Scenario chosen by `providerProductId`
+suffix:
 
 | Suffix     | Behaviour                                                             |
 | ---------- | --------------------------------------------------------------------- |

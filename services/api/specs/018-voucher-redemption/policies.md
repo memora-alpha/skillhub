@@ -18,4 +18,4 @@ Defaults below let the demo run. They are not approved production policy.
 - Every debit/refund is a `CreditOperation` + ledger entries; history is never edited.
 - Unknown provider outcome is never auto-refunded.
 - Voucher secrets are never logged and are returned only by the owner-detail endpoint.
-- Mock vouchers carry the marker "DEMO – không có giá trị sử dụng"; mock brands are fictional.
+- Mock vouchers are worthless. The reward catalog (`data/reward-catalog.json`) uses real brand names and logo URLs from gotit.vn, as decided by the project owner; the scenario-test brands stay fictional. Mock codes keep the `DEMO-` prefix. `db:seed-rewards` refuses to run unless `APP_DEPLOYMENT_TIER` is local or staging, and the mock provider is refused in production.
