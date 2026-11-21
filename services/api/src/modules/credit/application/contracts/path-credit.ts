@@ -10,5 +10,6 @@ export type PathHoldInput = {
   learnerId: string | null;
   totalCreditPerUser: bigint | null;
   negotiatedCredit: bigint | null;
+  feeBps: number;
   sessions: readonly SessionCreditIdentity[];
 };

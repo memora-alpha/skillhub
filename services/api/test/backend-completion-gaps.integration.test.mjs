@@ -48,6 +48,7 @@ test(
         f.identity.sessions,
         reauth,
         f.identity.audit,
+        undefined,
       );
       let draft, item, order1, order2;
       await t.test(
@@ -79,6 +80,31 @@ test(
           });
           assert.equal(approved.createdBy, admin.user.id);
           assert.equal(approved.approvedByUserId, admin.user.id);
+          const policyEvents = await f.db.outboxEvent.findMany({
+            where: {
+              dedupeKey: {
+                in: [
+                  `fee-policy-approved:${draft.id}`,
+                  `fee-policy-effective:${draft.id}`,
+                ],
+              },
+            },
+            orderBy: { availableAt: "asc" },
+          });
+          assert.equal(policyEvents.length, 2);
+          assert.deepEqual(
+            new Set(policyEvents.map((row) => row.type)),
+            new Set([
+              "admin.fee-policy.approved",
+              "credit.fee-policy.effective",
+            ]),
+          );
+          assert.equal(
+            policyEvents
+              .find((row) => row.type === "credit.fee-policy.effective")
+              .availableAt.toISOString(),
+            approved.effectiveAt.toISOString(),
+          );
           const buyer2 = await f.account();
           await f.fund(buyer2, 10000n);
           order2 = await f.purchases.purchase(
@@ -93,16 +119,39 @@ test(
           });
           assert.equal(old.feeAmount, 50n);
           assert.notEqual(old.feePolicyId, draft.id);
-          const oneWay = await f.db.feePolicyVersion.findFirstOrThrow({
-            where: { policyCode: "ONE_WAY" },
+          const oneWay = await fees.create(admin.principal, {
+            policyCode: "ONE_WAY",
+            versionNo: 2,
+            feeBps: 550,
+            reason: "New one-way learning fee",
+            reauthToken: await proof(),
+          });
+          const skippedOneWay = await fees.create(admin.principal, {
+            policyCode: "ONE_WAY",
+            versionNo: 3,
+            feeBps: 600,
+            reason: "Skipped one-way learning fee",
+            reauthToken: await proof(),
           });
           await assert.rejects(
-            fees.approve(admin.principal, oneWay.id, {
-              reason: "Try changing learning fee",
+            fees.approve(admin.principal, skippedOneWay.id, {
+              reason: "Try approving out of order",
               reauthToken: await proof(),
             }),
-            /LEARNING_FEE_FIXED_AT_FOUR_PERCENT/,
+            /FEE_POLICY_EFFECTIVE_ORDER_CONFLICT/,
           );
+          const approvedOneWay = await fees.approve(
+            admin.principal,
+            oneWay.id,
+            {
+              reason: "Approve one-way learning fee",
+              reauthToken: await proof(),
+            },
+          );
+          assert.deepEqual(approvedOneWay.calculationRule, {
+            returnedBps: 9450,
+            feeBps: 550,
+          });
           await assert.rejects(
             fees.approve(admin.principal, draft.id, {
               reason: "Duplicate decision",
@@ -150,6 +199,7 @@ test(
                 throw new Error("audit rollback");
               },
             },
+            undefined,
           );
           const token = await proof();
           await assert.rejects(

@@ -126,6 +126,7 @@ export class CreditLedgerService {
             item.amount,
             input,
             input.sessions,
+            input.feeBps,
             item.userId,
           ),
         },
@@ -183,11 +184,16 @@ export class CreditLedgerService {
       !policy.approvedAt ||
       !policy.effectiveAt ||
       policy.effectiveAt > input.now ||
-      calculation.returnedBps !== 9600 ||
-      calculation.feeBps !== 400 ||
+      !Number.isInteger(calculation.returnedBps) ||
+      !Number.isInteger(calculation.feeBps) ||
+      (calculation.feeBps as number) < 0 ||
+      (calculation.feeBps as number) >= 10_000 ||
+      (calculation.returnedBps as number) + (calculation.feeBps as number) !==
+        10_000 ||
       rounding.mode !== "DOWN" ||
       rounding.precision !== 2 ||
-      agreement.feeRateSnapshot?.toString() !== "0.04"
+      agreement.feeRateSnapshot?.toString() !==
+        String((calculation.feeBps as number) / 10_000)
     ) {
       throw new ConflictException("UNSUPPORTED_FEE_POLICY");
     }
@@ -265,7 +271,7 @@ export class CreditLedgerService {
     // Historical Holds retain their frozen per-Hold rounding; V2 charges the agreement total once.
     const heldFees =
       planPolicyCount > 0
-        ? allocateHeldFee(allocations)
+        ? allocateHeldFee(allocations, calculation.feeBps as number)
         : new Map(
             allocations.map((item) => [
               item.userId,
@@ -284,7 +290,7 @@ export class CreditLedgerService {
       if (snapshot?.policy === TWO_WAY_SESSION_POLICY) {
         if (snapshot.ownerId !== item.userId)
           throw new ConflictException("SESSION_CREDIT_SNAPSHOT_MISMATCH");
-        compensation = calculateSessionCredit(
+        const sessionCalculation = calculateSessionCredit(
           item.sessionCreditSnapshot,
           item.amount,
           {
@@ -293,7 +299,10 @@ export class CreditLedgerService {
             participantBId: path.participantBId,
           },
           sessionState,
-        ).compensationCredit;
+        );
+        if (sessionCalculation.feeBps !== calculation.feeBps)
+          throw new ConflictException("SESSION_CREDIT_SNAPSHOT_MISMATCH");
+        compensation = sessionCalculation.compensationCredit;
       }
       const maximum = item.amount - fee;
       if (compensation > maximum) compensation = maximum;

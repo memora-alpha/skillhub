@@ -22,10 +22,19 @@ export function formatCredit(value: bigint | null): string | null {
   return `${value < 0n ? "-" : ""}${magnitude / 100n}.${(magnitude % 100n).toString().padStart(2, "0")}`;
 }
 
-export function feeSplit(gross: bigint): { fee: bigint; net: bigint } {
-  if (gross <= 0n || gross > MAX_CREDIT_UNITS)
+export function feeSplit(
+  gross: bigint,
+  feeBps: number,
+): { fee: bigint; net: bigint } {
+  if (
+    gross <= 0n ||
+    gross > MAX_CREDIT_UNITS ||
+    !Number.isInteger(feeBps) ||
+    feeBps < 0 ||
+    feeBps >= 10_000
+  )
     throw new BadRequestException("INVALID_CREDIT_AMOUNT");
-  const fee = (gross * 400n) / 10_000n;
+  const fee = (gross * BigInt(feeBps)) / 10_000n;
   return { fee, net: gross - fee };
 }
 

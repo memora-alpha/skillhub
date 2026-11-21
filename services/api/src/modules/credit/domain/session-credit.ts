@@ -38,13 +38,20 @@ const snapshotSchema = z
       "TWO_WAY_SESSION_V1",
     ]),
     ownerId: z.string().min(1).optional(),
-    feeBps: z.literal(400),
+    feeBps: z.number().int().min(0).max(9_999),
     totalUnits: units,
     participantAId: z.string().min(1),
     participantBId: z.string().min(1),
     sessions: z.array(identity.extend({ creditUnits: units }).strict()).min(1),
   })
   .strict();
+
+export function sessionCreditFeeBps(snapshot: unknown): number {
+  const parsed = snapshotSchema.safeParse(snapshot);
+  if (!parsed.success)
+    throw new ConflictException("SESSION_CREDIT_SNAPSHOT_INVALID");
+  return parsed.data.feeBps;
+}
 
 function assertDirection(
   rows: SessionCreditIdentity[],
@@ -72,6 +79,7 @@ export function createSessionCreditSnapshot(
   total: bigint,
   agreement: SessionCreditAgreement,
   sessions: readonly SessionCreditIdentity[],
+  feeBps: number,
   ownerId?: string,
 ) {
   const { participantAId, participantBId } = agreement;
@@ -97,7 +105,10 @@ export function createSessionCreditSnapshot(
     teacherIds.some((id) => id !== participantAId && id !== participantBId) ||
     new Set(ordered.map((item) => item.id)).size !== ordered.length ||
     new Set(ordered.map((item) => item.planId)).size !== teacherIds.length ||
-    directions.flat().length !== ordered.length
+    directions.flat().length !== ordered.length ||
+    !Number.isInteger(feeBps) ||
+    feeBps < 0 ||
+    feeBps >= 10_000
   )
     throw new ConflictException("SESSION_CREDIT_SNAPSHOT_INVALID");
   for (const rows of directions) assertDirection(rows, agreement);
@@ -117,7 +128,7 @@ export function createSessionCreditSnapshot(
         ? TWO_WAY_SESSION_POLICY
         : ONE_WAY_SESSION_POLICY,
     ...(twoWay ? { ownerId } : {}),
-    feeBps: 400,
+    feeBps,
     totalUnits: String(total),
     participantAId,
     participantBId,
@@ -170,6 +181,7 @@ export function calculateSessionCredit(
         learnerId,
       }),
     ),
+    data.feeBps,
     data.ownerId,
   );
   if (JSON.stringify(expected) !== JSON.stringify(data))
@@ -206,12 +218,13 @@ export function calculateSessionCredit(
   );
   const feeBasis =
     agreement.exchangeType === "TWO_WAY" ? total : completedCredit;
-  const fee = (feeBasis * 400n) / 10_000n;
+  const fee = (feeBasis * BigInt(data.feeBps)) / 10_000n;
   return {
     sessions,
     completedCredit,
     uncompletedCredit: total - completedCredit,
     platformFee: fee,
+    feeBps: data.feeBps,
     compensationCredit,
   };
 }
@@ -219,13 +232,20 @@ export function calculateSessionCredit(
 /** Round the agreement's total fee once; distribute hundredths deterministically. */
 export function allocateHeldFee(
   rows: readonly { userId: string; amount: bigint }[],
+  feeBps: number,
 ) {
   const ordered = [...rows].sort((a, b) =>
     a.userId < b.userId ? -1 : Number(a.userId > b.userId),
   );
   const total = ordered.reduce((sum, row) => sum + row.amount, 0n);
-  if (total <= 0n) throw new ConflictException("INVALID_CREDIT_AMOUNT");
-  const fee = (total * 400n) / 10_000n;
+  if (
+    total <= 0n ||
+    !Number.isInteger(feeBps) ||
+    feeBps < 0 ||
+    feeBps >= 10_000
+  )
+    throw new ConflictException("INVALID_CREDIT_AMOUNT");
+  const fee = (total * BigInt(feeBps)) / 10_000n;
   const fees = ordered.map((row) => ({
     userId: row.userId,
     fee: (fee * row.amount) / total,

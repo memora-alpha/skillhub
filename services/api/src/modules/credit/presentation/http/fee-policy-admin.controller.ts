@@ -6,6 +6,7 @@ import {
   FeePolicyResponse,
   ListedFeePolicyResponse,
   FeeRevenueResponse,
+  CreditPolicyResponse,
 } from "./fee-policy-admin.responses";
 import {
   Body,
@@ -33,13 +34,25 @@ import { success, paginated } from "../../../../shared/http/response";
 import { ListPageQuery } from "../../../../shared/http/list-page";
 import { StaffDto } from "../../../users/presentation/http/users.dto";
 import { FeePolicyAdminService } from "../../application/services/fee-policy-admin.service";
-export class CreateMaterialFeeDto extends StaffDto {
+export class CreateFeePolicyDto extends StaffDto {
+  @ApiProperty({ enum: ["ONE_WAY", "TWO_WAY", "MATERIAL_PAID"] })
+  @IsIn(["ONE_WAY", "TWO_WAY", "MATERIAL_PAID"])
+  policyCode!: "ONE_WAY" | "TWO_WAY" | "MATERIAL_PAID";
+
   @ApiProperty({ minimum: 1 }) @IsInt() @Min(1) versionNo!: number;
   @ApiProperty({
     minimum: 0,
     maximum: 9999,
     description: "Basis points: 500 means 5%",
   })
+  @IsInt()
+  @Min(0)
+  @Max(9999)
+  feeBps!: number;
+}
+export class CreateMaterialFeeDto extends StaffDto {
+  @ApiProperty({ minimum: 1 }) @IsInt() @Min(1) versionNo!: number;
+  @ApiProperty({ minimum: 0, maximum: 9999 })
   @IsInt()
   @Min(0)
   @Max(9999)
@@ -86,13 +99,36 @@ export class FeePolicyAdminController {
     const page = await this.fees.list(actor, query);
     return paginated(page.data, page.pagination);
   }
+  @Get("fee-policies/current")
+  @ApiSuccessResponse(200, ListedFeePolicyResponse, { isArray: true })
+  async current(@CurrentIdentity() actor: Principal) {
+    return success(await this.fees.current(actor));
+  }
+  @Get("credit-policy")
+  @ApiSuccessResponse(200, CreditPolicyResponse)
+  async creditPolicy(@CurrentIdentity() actor: Principal) {
+    return success(await this.fees.creditPolicy(actor));
+  }
+  @Post("fee-policies")
+  @ApiSuccessResponse(201, FeePolicyResponse)
+  async createPolicy(
+    @CurrentIdentity() actor: Principal,
+    @Body() body: CreateFeePolicyDto,
+  ) {
+    return success(await this.fees.create(actor, body));
+  }
   @Post("fee-policies/material")
   @ApiSuccessResponse(201, FeePolicyResponse)
   async create(
     @CurrentIdentity() actor: Principal,
     @Body() body: CreateMaterialFeeDto,
   ) {
-    return success(await this.fees.create(actor, body));
+    return success(
+      await this.fees.create(actor, {
+        ...body,
+        policyCode: "MATERIAL_PAID",
+      }),
+    );
   }
   @Post("fee-policies/:id/approve")
   @ApiSuccessResponse(201, FeePolicyResponse)

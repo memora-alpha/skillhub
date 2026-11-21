@@ -24,6 +24,8 @@ export function notificationDestination(payload: unknown) {
   }
   if (typeof p.paymentId === "string" && uuid.test(p.paymentId))
     return "/learn/wallet/topup?paymentId=" + p.paymentId;
+  if (typeof p.feePolicyId === "string" && uuid.test(p.feePolicyId))
+    return "/learn/wallet";
   return null;
 }
 

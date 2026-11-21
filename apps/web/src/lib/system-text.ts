@@ -48,6 +48,8 @@ const labels: Readonly<Record<string, string>> = {
   INVALID_FEE_TIMESTAMP: "Ngày giờ chưa hợp lệ. Vui lòng chọn lại thời điểm.",
   INVALID_MATERIAL_FEE_POLICY:
     "Phiên bản phải là số nguyên dương, mức phí từ 0% đến 99,99%.",
+  INVALID_FEE_POLICY:
+    "Chọn đúng phạm vi phí, phiên bản số nguyên dương và mức phí từ 0% đến 99,99%.",
   FEE_POLICY_NOT_FOUND:
     "Không tìm thấy chính sách phí. Tải lại danh sách để kiểm tra.",
   FEE_POLICY_ALREADY_DECIDED:
