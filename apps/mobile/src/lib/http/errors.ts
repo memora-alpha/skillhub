@@ -19,6 +19,12 @@ export const OTP_ERROR_MESSAGE =
   "Mã không đúng, đã hết hạn hoặc đang bị giới hạn. Sai 5 lần có thể bị chặn OTP 24 giờ; gửi lại mã không gỡ giới hạn. Mật khẩu hợp lệ vẫn dùng để đăng nhập được.";
 
 const messages: Record<string, string> = {
+  CONTENT_MODERATION_BLOCKED:
+    "Không thể gửi nội dung này vì có thể chứa ngôn từ nhạy cảm hoặc thông tin không phù hợp!",
+  CONTACT_INFORMATION_NOT_ALLOWED:
+    "Tin nhắn không được gửi vì có thông tin liên hệ. Hãy bỏ số điện thoại, email hoặc đường dẫn liên hệ cá nhân.",
+  CONTENT_MODERATION_TEMPORARILY_UNAVAILABLE:
+    "Kiểm tra nội dung tạm thời gián đoạn. Nội dung chưa được gửi. Vui lòng đợi và thử lại.",
   SESSION_NOT_REPORTABLE: "Buổi học đã bị hủy nên không thể gửi báo cáo.",
   DUPLICATE_REPORT_EVIDENCE: "Bằng chứng bị trùng. Bỏ tệp trùng rồi gửi lại.",
   SESSION_MAKEUP_LIMIT_REACHED:

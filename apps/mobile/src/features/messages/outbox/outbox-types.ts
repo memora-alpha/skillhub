@@ -18,6 +18,7 @@ export const queuedTextSchema = z.object({
   messageId: uuid.optional(),
   message: messageSchema.optional(),
   failure: z.string().optional(),
+  failureCode: z.string().optional(),
 });
 export type QueuedText = z.infer<typeof queuedTextSchema>;
 export type OutboxStorage = {

@@ -127,6 +127,7 @@ export class TextOutbox extends OutboxState {
           messageId: result.message.id,
           message: result.message,
           failure: undefined,
+          failureCode: undefined,
         });
         this.options.delivered(result.message);
       } else
@@ -174,6 +175,7 @@ export class TextOutbox extends OutboxState {
     this.update(id, {
       state: retry ? "queued" : "failed",
       failure,
+      failureCode: error instanceof AppError ? error.code : undefined,
       rateLimitedUntil: rateLimitedUntil || item.rateLimitedUntil,
       retryAt: Math.max(
         rateLimitedUntil,

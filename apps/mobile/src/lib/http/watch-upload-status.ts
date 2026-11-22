@@ -53,6 +53,7 @@ export async function watchUploadStatus({
   now?: () => number;
 }) {
   const started = now();
+  let failedReads = 0;
   while (active() && !signal.aborted) {
     const waiting = files().filter((file) => uploadNeedsCheck(file.state));
     if (!waiting.length) return;
@@ -76,15 +77,26 @@ export async function watchUploadStatus({
           throw new AppError("protocol");
         return row;
       }),
-    );
+    ).catch((cause: unknown) => {
+      if (!active() || signal.aborted) return undefined;
+      failedReads++;
+      const temporary =
+        cause instanceof AppError &&
+        (cause.kind === "network" ||
+          (cause.kind === "http" && cause.status >= 500));
+      if (!temporary || failedReads > 2) throw cause;
+      return undefined;
+    });
     if (!active() || signal.aborted) return;
+    if (results) failedReads = 0;
     const next = files().map((file) => {
+      if (!results) return file;
       const row = results.find((result) => result.fileId === file.fileId);
       return row && uploadNeedsCheck(file.state)
         ? { ...file, state: row.state }
         : file;
     });
-    update(next);
+    if (results) update(next);
     if (!next.some((file) => uploadNeedsCheck(file.state))) return;
     const elapsed = now() - started;
     const remaining = UPLOAD_SCAN_TIMEOUT_MS - elapsed;

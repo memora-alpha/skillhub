@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
+import { ChatNotice } from "./ChatNotice";
 import {
   appColors as colors,
   appRadius,
@@ -25,6 +26,7 @@ export function ChatWorkflowCard({
   actionText = "Xem chi tiết",
   showAvatar = true,
   expandSummary = false,
+  variant = "card",
 }: Readonly<{
   mine: boolean;
   partner: string;
@@ -40,9 +42,23 @@ export function ChatWorkflowCard({
   time?: string;
   showAvatar?: boolean;
   expandSummary?: boolean;
+  variant?: "card" | "notice";
   confirmed: boolean;
   onPress: () => void;
 }>) {
+  if (variant === "notice")
+    return (
+      <ChatNotice
+        label={label}
+        title={title}
+        summary={summary}
+        status={badgeLabel ?? (confirmed ? "Đã xác nhận" : "Được chia sẻ")}
+        tone={confirmed ? "success" : "info"}
+        icon={confirmed ? "check-circle" : "calendar"}
+        actionLabel={actionText}
+        onPress={onPress}
+      />
+    );
   return (
     <View style={styles.wrapper}>
       <View style={[styles.row, mine && styles.mine]}>

@@ -1,3 +1,5 @@
+import { FileSelectionError } from "@/lib/http/picked-image";
+
 export const CHAT_MAX_BYTES = 15_000_000;
 export const chatFormats: Record<string, string> = {
   pdf: "application/pdf",
@@ -42,19 +44,21 @@ export function validateChatFile(file: ChatFile) {
         ),
       )
   )
-    throw new Error(
+    throw new FileSelectionError(
       "Chọn PDF, Word, Excel, PowerPoint, TXT hoặc ảnh JPG/PNG/WebP hợp lệ.",
     );
   if (!size || !Number.isSafeInteger(size) || size < 1)
-    throw new Error("Không đọc được kích thước tệp hoặc tệp rỗng.");
+    throw new FileSelectionError(
+      "Không đọc được kích thước tệp hoặc tệp rỗng.",
+    );
   if (size > CHAT_MAX_BYTES)
-    throw new Error("Tệp vượt giới hạn 15 MB (15.000.000 byte).");
+    throw new FileSelectionError("Tệp vượt giới hạn 15 MB (15.000.000 byte).");
   if (
     claimedMime &&
     claimedMime !== "application/octet-stream" &&
     claimedMime !== mime
   )
-    throw new Error("Tên và định dạng tệp không khớp.");
+    throw new FileSelectionError("Tên và định dạng tệp không khớp.");
   return { mime, size };
 }
 export function chatFileFormData(file: ChatFile) {

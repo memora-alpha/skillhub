@@ -1,16 +1,11 @@
-import { Pressable, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Icon } from "@/components/Icon";
-import { fonts, typography } from "@/constants/theme";
+import { colors, fonts, typography } from "@/constants/theme";
 import type { QueuedText } from "../outbox/outbox-types";
-import { messageColors as colors } from "../constants/theme";
+import { messageColors } from "../constants/theme";
 import { MessageBubble } from "./MessageBubble";
 import { chatTime } from "../utils/chat-dates";
-
-function deliveryLabel(entry: QueuedText, offline: boolean) {
-  if (entry.state === "failed") return entry.failure ?? "Chưa gửi được";
-  if (offline) return "Chờ kết nối";
-  return "";
-}
+import { chatSendNotice } from "../utils/chat-send-notice";
 
 export function QueuedMessageBubble({
   entry,
@@ -23,8 +18,10 @@ export function QueuedMessageBubble({
   onRetry: () => void;
   showTime?: boolean;
 }>) {
-  const failed = entry.state === "failed";
-  const label = deliveryLabel(entry, offline);
+  const notice = chatSendNotice(entry, offline);
+  const rejected = notice?.tone === "blocked";
+  const failed = rejected || notice?.tone === "failed";
+  const foreground = failed ? colors.error : messageColors.muted;
   return (
     <View style={{ gap: 4 }}>
       <MessageBubble
@@ -38,51 +35,31 @@ export function QueuedMessageBubble({
           time: chatTime(entry.createdAt),
         }}
       />
-      {(failed || offline) && (
+      {notice && (
         <View
           accessibilityLiveRegion="polite"
-          style={{
-            flexDirection: "row",
-            gap: 5,
-            alignItems: "center",
-            justifyContent: "flex-end",
-          }}
+          accessibilityRole={failed ? "alert" : undefined}
+          style={[styles.notice, rejected && styles.rejected]}
         >
-          <Icon
-            name={failed ? "alert" : "clock"}
-            size={12}
-            color={failed ? colors.brand : colors.muted}
-          />
-          <Text
-            style={{
-              ...typography.caption,
-              fontFamily: fonts.body,
-              color: colors.muted,
-              flexShrink: 1,
-            }}
-          >
-            {label}
-          </Text>
-          {failed && (
+          <View style={styles.row}>
+            {failed && <Icon name="alert" size={12} color={foreground} />}
+            <View style={styles.copy}>
+              <Text style={[styles.title, { color: foreground }]}>
+                {notice.title}
+              </Text>
+              {notice.detail && (
+                <Text style={styles.detail}>{notice.detail}</Text>
+              )}
+            </View>
+          </View>
+          {!rejected && entry.state === "failed" && (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Gửi lại tin nhắn"
               onPress={onRetry}
-              style={{
-                minHeight: 44,
-                justifyContent: "center",
-                paddingHorizontal: 6,
-              }}
+              style={styles.action}
             >
-              <Text
-                style={{
-                  ...typography.caption,
-                  fontFamily: fonts.semibold,
-                  color: colors.brand,
-                }}
-              >
-                Thử lại
-              </Text>
+              <Text style={styles.actionText}>Thử lại</Text>
             </Pressable>
           )}
         </View>
@@ -90,3 +67,34 @@ export function QueuedMessageBubble({
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  notice: { alignSelf: "flex-end", maxWidth: "90%", gap: 2 },
+  rejected: {
+    backgroundColor: colors.errorLight,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  row: { flexDirection: "row", alignItems: "flex-start", gap: 6 },
+  copy: { flexShrink: 1, gap: 3 },
+  title: { ...typography.secondary, fontFamily: fonts.semibold },
+  detail: {
+    ...typography.secondary,
+    fontFamily: fonts.body,
+    color: messageColors.inkSoft,
+  },
+  action: {
+    alignSelf: "flex-end",
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+  actionText: {
+    ...typography.secondary,
+    fontFamily: fonts.bold,
+    color: colors.error,
+  },
+});

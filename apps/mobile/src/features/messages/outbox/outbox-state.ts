@@ -2,6 +2,7 @@ import { AppError } from "@/lib/http/errors";
 import { parse } from "@/lib/http/contracts";
 import type { ApiMessage } from "../api/messages-api";
 import type { OutboxApi } from "./outbox-delivery";
+import { isContentRejection } from "../utils/chat-send-notice";
 import {
   queuedTextSchema,
   savedOutboxSchema,
@@ -107,7 +108,12 @@ export abstract class OutboxState {
     const item = this.snapshot.items.find(
       (entry) => entry.clientMessageId === id,
     );
-    if (item?.state !== "failed" || !this.options.current() || this.stopped)
+    if (
+      item?.state !== "failed" ||
+      isContentRejection(item.failureCode) ||
+      !this.options.current() ||
+      this.stopped
+    )
       return;
     this.update(id, { state: "queued", retryAt: 0, failure: undefined });
     void this.persist()

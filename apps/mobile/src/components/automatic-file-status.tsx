@@ -5,6 +5,7 @@ import type { UploadedFile } from "@/lib/http/file-upload";
 import { filePickerError } from "@/lib/http/file-picker-error";
 import {
   watchUploadStatus,
+  uploadNeedsCheck,
   UploadScanPending,
   UPLOAD_SCAN_PENDING_MESSAGE,
   UPLOAD_SCAN_TIMEOUT_MS,
@@ -22,6 +23,7 @@ export function AutomaticFileStatus(
     ) => Promise<{ fileId: string; state: string }>;
     isCurrent: () => boolean;
     enabled: boolean;
+    onError?: (message: string | undefined) => void;
   }>,
 ) {
   const latest = useRef(props);
@@ -36,6 +38,7 @@ export function AutomaticFileStatus(
   visible.current = { focused, foreground };
   const running = useRef<AbortController | null>(null);
   const ids = props.files.map((file) => file.fileId).join(":");
+  const waiting = props.files.some((file) => uploadNeedsCheck(file.state));
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
       visible.current.foreground = state === "active";
@@ -46,7 +49,8 @@ export function AutomaticFileStatus(
   }, []);
   useEffect(() => {
     setError(undefined);
-    if (!props.enabled || !focused || !foreground || !ids) return;
+    latest.current.onError?.(undefined);
+    if (!props.enabled || !focused || !foreground || !waiting) return;
     const request = new AbortController();
     running.current = request;
     const ownerIsCurrent = latest.current.isCurrent;
@@ -57,8 +61,13 @@ export function AutomaticFileStatus(
       latest.current.enabled &&
       ownerIsCurrent() &&
       latest.current.isCurrent();
+    const showError = (message: string) => {
+      if (!active()) return;
+      setError(message);
+      latest.current.onError?.(message);
+    };
     const deadline = setTimeout(() => {
-      if (active()) setError(UPLOAD_SCAN_PENDING_MESSAGE);
+      showError(UPLOAD_SCAN_PENDING_MESSAGE);
       request.abort();
     }, UPLOAD_SCAN_TIMEOUT_MS);
     void watchUploadStatus({
@@ -73,12 +82,11 @@ export function AutomaticFileStatus(
       signal: request.signal,
     })
       .catch((cause) => {
-        if (active())
-          setError(
-            cause instanceof UploadScanPending
-              ? cause.message
-              : filePickerError(cause, "status"),
-          );
+        showError(
+          cause instanceof UploadScanPending
+            ? cause.message
+            : filePickerError(cause, "status"),
+        );
       })
       .finally(() => {
         clearTimeout(deadline);
@@ -88,7 +96,7 @@ export function AutomaticFileStatus(
       clearTimeout(deadline);
       request.abort();
     };
-  }, [ids, props.enabled, focused, foreground, attempt]);
+  }, [ids, waiting, props.enabled, focused, foreground, attempt]);
   if (!error) return null;
   return (
     <>

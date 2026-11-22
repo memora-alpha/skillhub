@@ -13,6 +13,7 @@ test("attachment preview explains terminal storage failures instead of waiting f
   const filename = local.resolve("./ChatAttachmentPreview.tsx");
   const jsx = (type: unknown, props: unknown) => ({ type, props });
   const mocks = {
+    react: { useState: () => [undefined, () => {}] },
     "react/jsx-runtime": { jsx, jsxs: jsx },
     "react-native": {
       View: "View",
@@ -20,6 +21,9 @@ test("attachment preview explains terminal storage failures instead of waiting f
     },
     "@/components/Button": { Button: "Button" },
     "@/components/FormNotice": { FormNotice: "Notice" },
+    "@/components/automatic-file-status": {
+      AutomaticFileStatus: "AutomaticFileStatus",
+    },
     "@/features/connections": { ConnectionFeedback: "Feedback" },
     "./ChatAttachmentTile": { ChatAttachmentTile: "Tile" },
   };
@@ -37,7 +41,7 @@ test("attachment preview explains terminal storage failures instead of waiting f
         ChatAttachmentPreview({
           attachment: {
             file: { name: "lesson.pdf", uri: "file:///lesson.pdf", size: 100 },
-            status: { data: { state }, isFetching: false },
+            status: { data: { fileId: "file", state }, isFetching: false },
             uploaded: true,
             ready: false,
             locked: processing,
@@ -58,7 +62,7 @@ test("attachment preview explains terminal storage failures instead of waiting f
     ]) {
       const tree = render(state);
       const tile = tree.find((el) => el.type === "Tile")!;
-      assert.notEqual(tile.props.status, "Chờ kiểm tra tệp…", state);
+      assert.notEqual(tile.props.status, "Đang xử lý…", state);
       assert.equal(
         tile.props.onRemove,
         remove,
@@ -78,9 +82,18 @@ test("attachment preview explains terminal storage failures instead of waiting f
       const tree = render(state);
       assert.equal(
         tree.find((el) => el.type === "Tile")!.props.status,
-        "Chờ kiểm tra tệp…",
+        "Đang xử lý…",
       );
-      assert.ok(tree.some((el) => el.type === "Button"));
+      assert.equal(
+        tree.some((el) => el.type === "Button"),
+        false,
+      );
+      assert.ok(
+        tree.some(
+          (el) => el.type === "AutomaticFileStatus" && el.props.enabled,
+        ),
+        "pending scans use the automatic monitor",
+      );
       assert.equal(
         tree.some((el) => el.type === "Notice"),
         false,
@@ -96,7 +109,10 @@ test("attachment preview explains terminal storage failures instead of waiting f
       false,
       "an accepted message keeps delivery recovery instead of suggesting a new upload",
     );
-    assert.ok(delivery.some((el) => el.type === "Button"));
+    assert.equal(
+      delivery.some((el) => el.type === "Button"),
+      false,
+    );
   } finally {
     delete local.cache[filename];
     contexts.reverse().forEach((context) => context.restore());

@@ -1,7 +1,13 @@
+import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { Button } from "@/components/Button";
 import { FormNotice } from "@/components/FormNotice";
+import { AutomaticFileStatus } from "@/components/automatic-file-status";
 import { ConnectionFeedback } from "@/features/connections";
+import { AppError, errorMessage } from "@/lib/http/errors";
+import { filePickerError } from "@/lib/http/file-picker-error";
+import { FileSelectionError } from "@/lib/http/picked-image";
+import { isContentRejection } from "../utils/chat-send-notice";
 import type { useChatAttachment } from "../hooks/use-chat-attachment";
 import { ChatAttachmentTile } from "./ChatAttachmentTile";
 
@@ -33,12 +39,18 @@ const fileProblems: Readonly<
 function attachmentStatus(
   attachment: ReturnType<typeof useChatAttachment>,
   problemLabel?: string,
+  temporaryModeration = false,
+  failedCheck = false,
 ) {
   if (attachment.processing) return "Đang gửi…";
   if (attachment.pending) return "Đang tải lên…";
+  if (temporaryModeration) return "Đang gửi…";
   if (attachment.uncertain) return "Chưa rõ kết quả gửi";
+  if (problemLabel) return problemLabel;
   if (attachment.ready) return undefined;
-  return problemLabel ?? "Chờ kiểm tra tệp…";
+  if (failedCheck) return "Chưa kiểm tra được tệp";
+  if (attachment.error && !attachment.uploaded) return "Chưa tải được tệp lên";
+  return "Đang xử lý…";
 }
 
 export function ChatAttachmentPreview({
@@ -51,6 +63,19 @@ export function ChatAttachmentPreview({
   inComposer?: boolean;
 }>) {
   const { file, status, error, locked } = attachment;
+  const [checkFailure, setCheckFailure] = useState<{
+    fileId: string;
+    message: string | undefined;
+  }>();
+  const checkFailed =
+    !!status.error ||
+    (!!checkFailure?.message && checkFailure.fileId === status.data?.fileId);
+  const failure = error ?? status.error;
+  const temporaryModeration =
+    failure instanceof AppError &&
+    failure.code === "CONTENT_MODERATION_TEMPORARILY_UNAVAILABLE";
+  const contentRejected =
+    failure instanceof AppError && isContentRejection(failure.code);
   const problem =
     attachment.uploaded && !attachment.processing && !attachment.uncertain
       ? fileProblems[status.data?.state ?? ""]
@@ -71,14 +96,39 @@ export function ChatAttachmentPreview({
             file={file}
             locked={locked}
             onRemove={attachment.remove}
-            status={attachmentStatus(attachment, problem?.label)}
+            status={attachmentStatus(
+              attachment,
+              problem?.label,
+              temporaryModeration,
+              checkFailed,
+            )}
           />
           {problem && (
             <FormNotice tone="error" compact>
               {problem.message}
             </FormNotice>
           )}
+          {attachment.uploaded && status.data && (
+            <AutomaticFileStatus
+              files={[
+                {
+                  fileId: status.data.fileId,
+                  state: status.data.state,
+                  name: file.name,
+                },
+              ]}
+              onChange={attachment.updateFileStatus}
+              status={attachment.readFileStatus}
+              isCurrent={attachment.isCurrent}
+              enabled={!locked && !status.error}
+              onError={(message) =>
+                setCheckFailure({ fileId: status.data!.fileId, message })
+              }
+            />
+          )}
           {!attachment.ready &&
+            !!failure &&
+            !contentRejected &&
             !problem &&
             !attachment.processing &&
             !attachment.pending &&
@@ -92,18 +142,33 @@ export function ChatAttachmentPreview({
                   else void attachment.retryUpload();
                 }}
               >
-                Kiểm tra / thử lại
+                Thử lại
               </Button>
             )}
         </>
       )}
-      <ConnectionFeedback error={error ?? status.error} />
-      {attachment.uncertain && (
+      {contentRejected ? (
+        <FormNotice tone="error" compact>
+          {errorMessage(failure)}
+        </FormNotice>
+      ) : failure &&
+        (failure instanceof FileSelectionError ||
+          !attachment.uploaded ||
+          failure === status.error) ? (
+        <FormNotice tone="error" compact>
+          {filePickerError(failure, attachment.uploaded ? "status" : "upload")}
+        </FormNotice>
+      ) : (
+        !temporaryModeration && <ConnectionFeedback error={failure} />
+      )}
+      {attachment.uncertain && !temporaryModeration && (
         <FormNotice tone="info" compact>
           Chưa rõ kết quả gửi. Giữ nguyên tệp để kiểm tra lại lần gửi trước.
         </FormNotice>
       )}
-      {(attachment.processing || attachment.uncertain) && (
+      {(attachment.uncertain ||
+        attachment.publicationFailed ||
+        (attachment.processing && !!failure)) && (
         <Button
           variant="secondary"
           disabled={attachment.pending}
@@ -113,7 +178,7 @@ export function ChatAttachmentPreview({
             });
           }}
         >
-          {attachment.publicationFailed
+          {temporaryModeration || attachment.publicationFailed
             ? "Thử gửi lại cùng tệp"
             : "Kiểm tra lại lần gửi tệp"}
         </Button>

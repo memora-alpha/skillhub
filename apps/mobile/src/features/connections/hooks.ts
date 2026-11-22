@@ -12,6 +12,7 @@ import {
   CommandIntent,
   isConnectionPolicyUnavailable,
   isRejectedCommand,
+  isTerminalModerationRejection,
 } from "@/lib/http/command-intent";
 import { connectionReadAccess } from "@/lib/http/read-access";
 import { useConnections } from "./runtime";
@@ -222,6 +223,7 @@ export function useConnectionCommand<TResult = unknown>(
     // that the command did not commit, even during an exact-key replay.
     const rejected =
       isConnectionPolicyUnavailable(error_) ||
+      isTerminalModerationRejection(error_) ||
       (!recovery.current && isRejectedCommand(error_));
     if (rejected) {
       intent.current.failed(error_);

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getDocumentAsync } from "expo-document-picker";
+import { useQueryClient } from "@tanstack/react-query";
+import type { UploadedFile } from "@/lib/http/file-upload";
 import { useConnections, useConnectionQuery } from "@/features/connections";
 import { useMessagesApi } from "./use-messages-api";
 import { useMessageSend } from "./use-message-send";
@@ -13,6 +15,7 @@ import {
 export function useChatAttachment(id: string) {
   const runtime = useConnections();
   const api = useMessagesApi();
+  const cache = useQueryClient();
   const sender = useMessageSend(id);
   const [file, setFile] = useState<ChatFile>();
   const [fileId, setFileId] = useState<string>();
@@ -153,6 +156,15 @@ export function useChatAttachment(id: string) {
       busy.current = false;
     }
   };
+  const updateFileStatus = (files: UploadedFile[]) => {
+    const latest = files.find((entry) => entry.fileId === fileId);
+    if (!latest || !runtime.isCurrent()) return;
+    cache.setQueryData<Awaited<ReturnType<typeof api.fileStatus>>>(
+      [...runtime.key, "chat-file", id, fileId],
+      (previous) =>
+        previous ? { ...previous, state: latest.state } : previous,
+    );
+  };
   return {
     file,
     pending,
@@ -169,6 +181,10 @@ export function useChatAttachment(id: string) {
     send,
     retry,
     retryUpload,
+    readFileStatus: (selectedId: string, signal?: AbortSignal) =>
+      api.fileStatus(id, selectedId, signal),
+    updateFileStatus,
+    isCurrent: runtime.isCurrent,
     remove: () => {
       if (!busy.current && !accepted.current && !locked) clear();
     },

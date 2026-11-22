@@ -1,9 +1,8 @@
 import { useRef, useState, type ReactNode } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { View } from "react-native";
 import { openURL } from "expo-linking";
 import { useRouter } from "expo-router";
 import { Avatar } from "@/components/Avatar";
-import { appColors, fonts, typography } from "@/constants/theme";
 
 import {
   readPlanShare,
@@ -23,7 +22,7 @@ import {
   readChatSchedule,
   type ChatScheduleNotice as ScheduleNotice,
 } from "../utils/schedule-notice";
-import { systemMessageText } from "../utils/system-message-text";
+import { ChatSystemNotice } from "./ChatSystemNotice";
 
 export function ApiMessageBubble({
   message,
@@ -198,13 +197,7 @@ function ApiMessageContent({
       />
     );
   if (message.messageType === "SYSTEM")
-    return (
-      <View style={systemMessageStyles.container}>
-        <Text selectable style={systemMessageStyles.text}>
-          {systemMessageText(message) || "Cập nhật từ hệ thống"}
-        </Text>
-      </View>
-    );
+    return <ChatSystemNotice message={message} />;
   if (legacy)
     return (
       <>
@@ -334,19 +327,3 @@ function openSharedWorkflow(
     },
   });
 }
-
-const systemMessageStyles = StyleSheet.create({
-  container: {
-    alignSelf: "center",
-    alignItems: "center",
-    maxWidth: "90%",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  text: {
-    ...typography.caption,
-    fontFamily: fonts.body,
-    color: appColors.muted,
-    textAlign: "center",
-  },
-});
