@@ -439,6 +439,22 @@ test("chat attachments check status automatically and only offer retry after an 
       "a normal pending delivery has no manual check button",
     );
     attachment.processing = false;
+    attachment.locked = true;
+    attachment.uncertain = true;
+    assert.equal(
+      render().find((item) => item.type === "AutomaticFileStatus")!.props
+        .enabled,
+      true,
+      "recovery keeps the file locked but allows read-only scan monitoring",
+    );
+    attachment.uncertain = false;
+    assert.equal(
+      render().find((item) => item.type === "AutomaticFileStatus")!.props
+        .enabled,
+      false,
+      "other locks still pause file checks",
+    );
+    attachment.locked = false;
     attachment.uploaded = false;
     attachment.error = new AppError("http", 503, "FILE_STORAGE_UNAVAILABLE");
     assert.equal(

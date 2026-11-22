@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { mock, test } from "node:test";
 import { pathToFileURL } from "node:url";
 import { fixtureId } from "./fixtures/learning-requests-data";
+import { AppError } from "../src/lib/http/errors";
 
 test("manual message recovery reuses the original client ID, text and files and handles both 201 and 202", async () => {
   const local = createRequire(
@@ -15,13 +16,17 @@ test("manual message recovery reuses the original client ID, text and files and 
   const slots: unknown[] = [];
   let cursor = 0;
   let previous: ((key: string) => Promise<unknown>) | undefined;
-  let fail = true;
+  let failure: unknown = new Error("lost response");
+  let current = true;
+  let statusReadFails = false;
+  let terminalRejection: ((error: unknown) => boolean) | undefined;
   let result: unknown = {
     deliveryStatus: "DELIVERED",
     message: { id: fixtureId(4) },
   };
   const requests: unknown[] = [];
   const remembered: unknown[] = [];
+  const invalidations: { queryKey: unknown[]; exact?: boolean }[] = [];
   const command = {
     pending: false,
     uncertain: false,
@@ -63,18 +68,29 @@ test("manual message recovery reuses the original client ID, text and files and 
       useEffect: () => {},
     },
     "@tanstack/react-query": {
-      useQueryClient: () => ({ invalidateQueries: async () => {} }),
+      useQueryClient: () => ({
+        invalidateQueries: async (options: (typeof invalidations)[number]) => {
+          invalidations.push(options);
+          if (statusReadFails) throw new AppError("network");
+        },
+      }),
     },
     "@/features/connections": {
-      useConnections: () => ({ key: ["owner"], isCurrent: () => true }),
-      useConnectionCommand: () => command,
+      useConnections: () => ({ key: ["owner"], isCurrent: () => current }),
+      useConnectionCommand: (
+        _keys: unknown,
+        options?: { isTerminalRejection?: (error: unknown) => boolean },
+      ) => {
+        terminalRejection = options?.isTerminalRejection;
+        return command;
+      },
       useConnectionQuery: () => ({ data: undefined }),
     },
     "./use-messages-api": {
       useMessagesApi: () => ({
         send: async (id: string, body: unknown) => {
           requests.push({ id, body });
-          if (fail) throw new Error("lost response");
+          if (failure) throw failure;
           return result;
         },
       }),
@@ -103,12 +119,54 @@ test("manual message recovery reuses the original client ID, text and files and 
     };
     const files = [fixtureId(2)];
     assert.equal(await render().send(" original ", files), false);
+    assert.equal(
+      invalidations.length,
+      0,
+      "network errors retain the existing reconciliation path",
+    );
+    assert.equal(
+      terminalRejection?.(
+        new AppError("http", 409, "CONTENT_MODERATION_BLOCKED"),
+      ),
+      true,
+    );
+    assert.equal(
+      terminalRejection?.(new AppError("http", 409, "FILE_NOT_READY")),
+      false,
+    );
     files[0] = fixtureId(3);
     assert.equal(await render().send("changed", files), false);
     assert.equal(requests.length, 1);
-    fail = false;
+    for (const code of ["FILE_NOT_READY", "CONTENT_MODERATION_BLOCKED"]) {
+      statusReadFails = code === "CONTENT_MODERATION_BLOCKED";
+      failure = new AppError("http", 409, code);
+      await assert.rejects(
+        render().retryPrevious(),
+        (error) => error === failure,
+      );
+      assert.deepEqual(invalidations.at(-1), {
+        queryKey: ["owner", "chat-file", fixtureId(1), fixtureId(2)],
+        exact: true,
+      });
+      assert.equal(invalidations.length, code === "FILE_NOT_READY" ? 1 : 2);
+      assert.deepEqual(
+        requests.at(-1),
+        requests[0],
+        "status refresh never changes the retry payload or file ID",
+      );
+    }
+    current = false;
+    await assert.rejects(render().retryPrevious());
+    assert.equal(
+      invalidations.length,
+      2,
+      "expired owners cannot refresh file state",
+    );
+    current = true;
+    statusReadFails = false;
+    failure = undefined;
     assert.equal(await render().retryPrevious(), true);
-    assert.deepEqual(requests[1], requests[0]);
+    assert.deepEqual(requests.at(-1), requests[0]);
     assert.deepEqual(requests[0], {
       id: fixtureId(1),
       body: {

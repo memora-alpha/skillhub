@@ -1,4 +1,16 @@
 import type { QueuedText } from "../outbox/outbox-types";
+import { AppError } from "@/lib/http/errors";
+
+// Chat checks the file manifest before committing publication. This 409 proves
+// that the attachment was rejected, even when an earlier response was lost.
+export function isChatMediaRejection(error: unknown): error is AppError {
+  return (
+    error instanceof AppError &&
+    error.kind === "http" &&
+    error.status === 409 &&
+    error.code === "CONTENT_MODERATION_BLOCKED"
+  );
+}
 
 export function isContentRejection(code?: string) {
   return (

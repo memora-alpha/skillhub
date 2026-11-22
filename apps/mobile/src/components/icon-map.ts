@@ -8,6 +8,7 @@ import Check from "lucide-react-native/icons/check";
 import Eye from "lucide-react-native/icons/eye";
 import EyeOff from "lucide-react-native/icons/eye-off";
 import TriangleAlert from "lucide-react-native/icons/triangle-alert";
+import CircleAlert from "lucide-react-native/icons/circle-alert";
 import CircleCheck from "lucide-react-native/icons/circle-check";
 import ChevronRight from "lucide-react-native/icons/chevron-right";
 import Bell from "lucide-react-native/icons/bell";
@@ -69,6 +70,7 @@ export const iconComponents = {
   eye: Eye,
   "eye-off": EyeOff,
   alert: TriangleAlert,
+  "alert-circle": CircleAlert,
   "check-circle": CircleCheck,
   chevron: ChevronRight,
   bell: Bell,

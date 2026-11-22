@@ -7,7 +7,13 @@ import {
 } from "react-native";
 import type { ReactNode } from "react";
 import { Avatar } from "@/components/Avatar";
-import { avatarSizes, typography, fonts } from "@/constants/theme";
+import { Icon } from "@/components/Icon";
+import {
+  avatarSizes,
+  typography,
+  fonts,
+  colors as palette,
+} from "@/constants/theme";
 import type { MessageBubbleModel } from "../api/messages-api";
 import { messageCardShadow, messageColors as colors } from "../constants/theme";
 
@@ -18,6 +24,7 @@ export function MessageBubble({
   avatarUrl,
   showTime = false,
   showAvatar = true,
+  failed = false,
   children,
 }: {
   message: MessageBubbleModel;
@@ -26,6 +33,7 @@ export function MessageBubble({
   avatarUrl?: string | null;
   showTime?: boolean;
   showAvatar?: boolean;
+  failed?: boolean;
   children?: ReactNode;
 }) {
   const { width } = useWindowDimensions();
@@ -34,7 +42,13 @@ export function MessageBubble({
   if (width >= 768) bubbleWidth = "62%";
   return (
     <View style={styles.message}>
-      <View style={[styles.row, mine && styles.mineRow]}>
+      <View
+        style={[
+          styles.row,
+          mine && styles.mineRow,
+          mine && failed && styles.failedSpacing,
+        ]}
+      >
         {!mine &&
           (showAvatar ? (
             <Avatar
@@ -67,11 +81,29 @@ export function MessageBubble({
           )}
           {children}
         </View>
+        {mine && failed && (
+          <View
+            accessible={false}
+            accessibilityElementsHidden
+            pointerEvents="none"
+            style={styles.failure}
+          >
+            <Icon name="alert-circle" size={16} color={palette.error} />
+          </View>
+        )}
       </View>
       {showTime && (
-        <Text style={[styles.time, mine ? styles.myTime : styles.theirTime]}>
-          {message.time}
-        </Text>
+        <View
+          style={[
+            styles.metadata,
+            mine ? styles.myMetadata : styles.theirMetadata,
+            mine && failed && styles.failedSpacing,
+          ]}
+        >
+          <Text style={[styles.time, mine && styles.myTime]}>
+            {message.time}
+          </Text>
+        </View>
       )}
     </View>
   );
@@ -80,6 +112,11 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
   message: { gap: 2 },
   mineRow: { justifyContent: "flex-end" },
+  failedSpacing: { paddingRight: 22 },
+  failure: { position: "absolute", right: 0, bottom: 6 },
+  metadata: { flexDirection: "row", alignItems: "center", gap: 5 },
+  myMetadata: { justifyContent: "flex-end" },
+  theirMetadata: { marginLeft: avatarSizes.inline + 8 },
   bubble: {
     borderRadius: 10,
     paddingHorizontal: 10,
@@ -109,6 +146,5 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.mutedLight,
   },
-  myTime: { color: colors.muted, textAlign: "right" },
-  theirTime: { marginLeft: avatarSizes.inline + 8 },
+  myTime: { color: colors.muted },
 });

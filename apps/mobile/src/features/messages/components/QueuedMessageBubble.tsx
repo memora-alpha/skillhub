@@ -1,5 +1,4 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Icon } from "@/components/Icon";
 import { colors, fonts, typography } from "@/constants/theme";
 import type { QueuedText } from "../outbox/outbox-types";
 import { messageColors } from "../constants/theme";
@@ -28,6 +27,7 @@ export function QueuedMessageBubble({
         partner=""
         partnerId=""
         showTime={showTime}
+        failed={failed}
         message={{
           id: entry.clientMessageId,
           from: "me",
@@ -39,10 +39,13 @@ export function QueuedMessageBubble({
         <View
           accessibilityLiveRegion="polite"
           accessibilityRole={failed ? "alert" : undefined}
-          style={[styles.notice, rejected && styles.rejected]}
+          style={[
+            styles.notice,
+            failed && styles.failedNotice,
+            rejected && styles.rejected,
+          ]}
         >
           <View style={styles.row}>
-            {failed && <Icon name="alert" size={12} color={foreground} />}
             <View style={styles.copy}>
               <Text style={[styles.title, { color: foreground }]}>
                 {notice.title}
@@ -70,6 +73,7 @@ export function QueuedMessageBubble({
 
 const styles = StyleSheet.create({
   notice: { alignSelf: "flex-end", maxWidth: "90%", gap: 2 },
+  failedNotice: { marginRight: 22 },
   rejected: {
     backgroundColor: colors.errorLight,
     borderRadius: 12,

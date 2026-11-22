@@ -120,7 +120,7 @@ export function ChatAttachmentPreview({
               onChange={attachment.updateFileStatus}
               status={attachment.readFileStatus}
               isCurrent={attachment.isCurrent}
-              enabled={!locked && !status.error}
+              enabled={(!locked || attachment.uncertain) && !status.error}
               onError={(message) =>
                 setCheckFailure({ fileId: status.data!.fileId, message })
               }

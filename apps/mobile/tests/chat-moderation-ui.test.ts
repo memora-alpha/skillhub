@@ -4,6 +4,7 @@ import { mock, test } from "node:test";
 import { pathToFileURL } from "node:url";
 import type { QueuedText } from "../src/features/messages/outbox/outbox-types";
 import { fixtureId } from "./fixtures/learning-requests-data";
+import { colors } from "../src/constants/theme";
 
 type Element = { type: unknown; props: Record<string, unknown> };
 function expand(tree: unknown): unknown {
@@ -46,9 +47,10 @@ test("chat only warns for blocked messages and shows sending without mentioning 
       Text: "Text",
       Pressable: "Pressable",
       StyleSheet: { create: (value: unknown) => value },
+      useWindowDimensions: () => ({ width: 390 }),
     },
     "@/components/Icon": { Icon: "Icon" },
-    "./MessageBubble": { MessageBubble: "Bubble" },
+    "@/components/Avatar": { Avatar: "Avatar" },
   };
   const contexts = Object.entries(mocks).map(([name, namedExports]) =>
     mock.module(pathToFileURL(local.resolve(name)), { namedExports }),
@@ -90,6 +92,12 @@ test("chat only warns for blocked messages and shows sending without mentioning 
     const buttons = elements(tree).filter((node) => node.type === "Pressable");
     assert.equal(buttons.length, 0);
     assert.equal(retries, 0);
+    const failureIcons = (tree: unknown) =>
+      elements(tree).filter(
+        (node) => node.type === "Icon" && node.props.name === "alert-circle",
+      );
+    assert.equal(failureIcons(tree).length, 1);
+    assert.equal(failureIcons(tree)[0]!.props.color, colors.error);
     assert.match(
       text(render({ failureCode: "CONTACT_INFORMATION_NOT_ALLOWED" })),
       /số điện thoại, email/,
@@ -122,11 +130,14 @@ test("chat only warns for blocked messages and shows sending without mentioning 
       0,
     );
     assert.match(text(render({ state: "queued" }, true)), /Chờ kết nối/);
+    for (const state of ["queued", "sending", "processing", "sent"] as const)
+      assert.equal(failureIcons(render({ state })).length, 0);
     const failureTree = render({
       failureCode: "FORBIDDEN",
       failure: "Không có quyền gửi",
     });
     assert.match(text(failureTree), /Thử lại/);
+    assert.equal(failureIcons(failureTree).length, 1);
     (
       elements(failureTree).find((node) => node.type === "Pressable")!.props
         .onPress as () => void

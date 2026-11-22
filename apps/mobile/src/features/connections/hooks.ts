@@ -177,6 +177,7 @@ export function useConnectionList<T>(
 // Keep the identity and immutable intent on uncertain failure, including manual retry.
 export function useConnectionCommand<TResult = unknown>(
   affectedKeys: readonly ConnectionReadTarget[] = [[]],
+  options: { isTerminalRejection?: (error: unknown) => boolean } = {},
 ) {
   const runtime = useConnections();
   const cache = useQueryClient();
@@ -224,9 +225,10 @@ export function useConnectionCommand<TResult = unknown>(
     const rejected =
       isConnectionPolicyUnavailable(error_) ||
       isTerminalModerationRejection(error_) ||
+      options.isTerminalRejection?.(error_) ||
       (!recovery.current && isRejectedCommand(error_));
     if (rejected) {
-      intent.current.failed(error_);
+      intent.current.clear();
       clearRecovery();
     } else {
       retainRecovery(error_, fingerprint, send);

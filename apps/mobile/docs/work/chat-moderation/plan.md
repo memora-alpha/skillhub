@@ -12,6 +12,8 @@ Thay đổi thuộc mobile. Backend quyết định chặn nội dung, thông ti
 - `422 CONTENT_MODERATION_BLOCKED`: lần gửi bị hủy; không retry cùng ID. Người dùng vẫn có thể soạn và gửi tin khác bình thường.
 - `503 CONTENT_MODERATION_TEMPORARILY_UNAVAILABLE`: giữ nội dung và ID để kiểm tra/thử lại đúng lần gửi. Text dùng outbox hiện có; tệp dùng recovery thủ công hiện có.
 - Tệp chỉ được gửi khi status là `READY`; `REJECTED` tiếp tục yêu cầu thay tệp. Kiểm duyệt media có thể trả `409 CONTENT_MODERATION_BLOCKED`.
+- `409 CONTENT_MODERATION_BLOCKED` từ POST chat xác nhận manifest tệp bị chặn trước commit: mở khóa recovery để người dùng bỏ/đổi tệp và gửi ý định mới với ID mới. Ngoại lệ này chỉ bật cho chat, không áp mọi lỗi 409 ở feature khác.
+- POST/retry chat trả `409 FILE_NOT_READY` hoặc media bị chặn sẽ refresh status đúng fileId/conversation/owner. Theo dõi scan chỉ đọc vẫn chạy khi intent đang uncertain; giữ tệp/caption/ID trong recovery và không tự gửi lại mutation.
 
 Nguồn: `services/api/src/modules/conversations/presentation/http/conversations.controller.ts`, `services/api/src/modules/conversations/application/services/conversations.service.ts`, `services/api/src/infrastructure/storage/file-content-moderation.ts` và `services/api/docs/content-moderation-rollout.md`.
 
@@ -29,6 +31,8 @@ Nguồn: `services/api/src/modules/conversations/presentation/http/conversations
 - [x] Hiển thị đúng lỗi chọn/tải/đọc trạng thái tệp; nhãn không tiếp tục báo đang xử lý sau lỗi/timeout. Tự thử lại tối đa hai lần đọc trạng thái khi lỗi mạng/5xx, giữ nguyên trạng thái server và không tải/gửi lại mutation.
 - [x] Hoàn tất checks sau khi giản lược UI và ghi kết quả trong [status](status.md).
 - [x] Rà code dư thừa và lỗi hiện tại: giản lược wrapper/props retry và helper chỉ dùng một lần; sửa monitor chạy lại khi cùng tệp chuyển từ READY về chờ kiểm tra, xóa cảnh báo sau trạng thái cuối; đồng bộ test UI và chạy full checks.
+- [x] Mở khóa recovery khi media chat bị chặn bằng 409, refresh trạng thái tệp sau lỗi POST/retry; kiểm giữ nguyên payload/ID, giới hạn owner/file và không mở khóa các lỗi permission/conflict khác.
+- [x] Thêm biểu tượng tròn dấu chấm than đỏ gọn cạnh phải, gần đáy bubble tin gửi thất bại theo tham chiếu Messenger; chỉ tin lỗi chừa chỗ cho icon, tin thường giữ mép phải ban đầu. Giữ lý do bên dưới và không hiển thị lỗi cho tin đang gửi/đã gửi.
 
 ## Nghiệm thu
 

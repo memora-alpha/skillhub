@@ -36,6 +36,7 @@
 
 ## Chú thích và thẻ tệp trong Chat
 
+- Tin gửi thất bại có biểu tượng tròn dấu chấm than đỏ 16px sát cạnh phải, gần đáy bubble. Chỉ tin lỗi chừa 22px cho biểu tượng; tin đang chờ/gửi hoặc đã gửi giữ mép phải ban đầu, không có padding/placeholder trạng thái. Giờ gửi và lý do căn theo bubble tương ứng. Biểu tượng mang tính trình bày; cảnh báo bằng chữ tiếp tục cung cấp semantics cho screen reader.
 - Tin `SYSTEM` và thông báo xác nhận/chốt lịch trong Chat dùng khung thông báo căn giữa, bo góc, nền nhạt và icon theo nội dung. Nhãn dùng caption 11/15; nội dung dùng secondary 13/18, cho phép xuống dòng đầy đủ. Cập nhật/chờ xác nhận dùng màu cam; trạng thái đã đủ xác nhận hoặc chốt theo mẫu server đã biết dùng xanh. Hành động xem lịch chỉ hiện khi đã có callback tương ứng. Thông báo lỗi gửi/tải tiếp tục dùng feedback theo nghiệp vụ, tin thường giữ bubble hiện có.
 - Ghi chú xác nhận lịch rút gọn câu trạng thái lặp, giữ tên/người dạy-người học và bước đang chờ; chốt lịch hiển thị “Đã chốt lịch · N buổi học.” Chỉ rút gọn mẫu hệ thống đã biết theo `objectType`, giữ nguyên nội dung gốc và các mẫu chưa nhận diện.
 - `Copy size="hint"` dùng `typography.secondary` (13/18), nhỏ hơn nội dung chính 15px. `FormNotice compact` giảm padding và dùng cùng cỡ chú thích; mặc định của hai component không đổi cho các màn khác. Các màn thỏa thuận/lộ trình/lịch dùng biến thể này cho hướng dẫn phụ; thông tin mục tiêu, nội dung buổi học và hành động chính vẫn nổi bật.
