@@ -97,6 +97,18 @@ test("extracts real DOCX archive text runs, header text, and image bytes", async
   );
 });
 
+test("extracts text under both Strict OOXML namespaces", async () => {
+  const fixture = makeZip([
+    ...docxEntries.slice(0, 2),
+    [
+      "word/document.xml",
+      '<w:document xmlns:w="http://purl.oclc.org/ooxml/wordprocessingml/main" xmlns:a="http://purl.oclc.org/ooxml/drawingml/main"><w:body><w:p><w:r><w:t>Strict Word</w:t></w:r></w:p><a:p><a:r><a:t>Strict drawing</a:t></a:r></a:p></w:body></w:document>',
+    ],
+  ]);
+  const result = await extractDocx(fixture);
+  assert.equal(result.text, "Strict Word\nStrict drawing");
+});
+
 test("detects a valid PDF and hashes the exact stream", async () => {
   const result = await detector.inspect({
     body: Readable.from([pdf]),

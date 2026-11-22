@@ -1,14 +1,49 @@
-import { DOMParser } from "@xmldom/xmldom";
+import { DOMParser, type Document } from "@xmldom/xmldom";
 import { readWordArchive } from "../../../infrastructure/storage/file-format-detector";
 
-const wordNamespaces = [
+const strictOoxmlNamespace = "http://purl.oclc.org/ooxml"; // NOSONAR: S5332, this is a standardized XML identifier and is never fetched.
+const wordNamespaces = new Set([
   "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
-  "http://purl.oclc.org/ooxml/wordprocessingml/main",
-];
-const drawingNamespaces = [
+  `${strictOoxmlNamespace}/wordprocessingml/main`,
+]);
+const textNamespaces = [
+  ...wordNamespaces,
   "http://schemas.openxmlformats.org/drawingml/2006/main",
-  "http://purl.oclc.org/ooxml/drawingml/main",
+  `${strictOoxmlNamespace}/drawingml/main`,
 ];
+
+function assertSupportedRelationships(doc: Document): void {
+  for (const relationship of Array.from(
+    doc.getElementsByTagNameNS("*", "Relationship"),
+  )) {
+    const type = relationship.getAttribute("Type") ?? "";
+    const isExternal =
+      relationship.getAttribute("TargetMode")?.toLowerCase() === "external";
+    if (
+      /\/(aFChunk|oleObject|package|chart|diagramData|video|audio)$/iu.test(
+        type,
+      ) ||
+      (isExternal && !type.endsWith("/hyperlink"))
+    )
+      throw new Error("Unsupported DOCX relationship");
+  }
+}
+
+function readParagraphs(doc: Document): string[] {
+  return textNamespaces.flatMap((namespace) => {
+    if (
+      doc.getElementsByTagNameNS(namespace, "altChunk").length ||
+      doc.getElementsByTagNameNS(namespace, "object").length
+    )
+      throw new Error("Unsupported DOCX embedded content");
+    return Array.from(doc.getElementsByTagNameNS(namespace, "p"), (paragraph) =>
+      Array.from(
+        paragraph.getElementsByTagNameNS(namespace, "t"),
+        (run) => run.textContent ?? "",
+      ).join(""),
+    );
+  });
+}
 
 export async function extractDocx(bytes: Buffer): Promise<{
   text: string;
@@ -37,39 +72,11 @@ export async function extractDocx(bytes: Buffer): Promise<{
     if (
       name === "word/document.xml" &&
       (doc.documentElement?.localName !== "document" ||
-        !wordNamespaces.includes(doc.documentElement.namespaceURI ?? ""))
+        !wordNamespaces.has(doc.documentElement.namespaceURI ?? ""))
     )
       throw new Error("Invalid DOCX main part");
-    for (const relationship of Array.from(
-      doc.getElementsByTagNameNS("*", "Relationship"),
-    )) {
-      const type = relationship.getAttribute("Type") ?? "";
-      if (
-        /\/(aFChunk|oleObject|package|chart|diagramData|video|audio)$/iu.test(
-          type,
-        ) ||
-        (relationship.getAttribute("TargetMode")?.toLowerCase() ===
-          "external" &&
-          !type.endsWith("/hyperlink"))
-      ) {
-        throw new Error("Unsupported DOCX relationship");
-      }
-    }
-    for (const namespace of [...wordNamespaces, ...drawingNamespaces]) {
-      if (
-        doc.getElementsByTagNameNS(namespace, "altChunk").length ||
-        doc.getElementsByTagNameNS(namespace, "object").length
-      )
-        throw new Error("Unsupported DOCX embedded content");
-      for (const paragraph of Array.from(
-        doc.getElementsByTagNameNS(namespace, "p"),
-      )) {
-        const runs = Array.from(
-          paragraph.getElementsByTagNameNS(namespace, "t"),
-        );
-        paragraphs.push(runs.map((run) => run.textContent ?? "").join(""));
-      }
-    }
+    assertSupportedRelationships(doc);
+    paragraphs.push(...readParagraphs(doc));
   }
   return { text: paragraphs.join("\n"), images };
 }

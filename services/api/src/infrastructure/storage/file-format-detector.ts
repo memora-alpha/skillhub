@@ -270,6 +270,18 @@ async function readEntry(
   return capture ? Buffer.concat(chunks) : undefined;
 }
 
+function readEntriesSerially(
+  entries: readonly ZipEntry[],
+  read: (entry: ZipEntry) => Promise<void>,
+): Promise<void> {
+  // Archives are untrusted. A bounded promise chain keeps one stream and
+  // inflater active and stops at the first invalid entry.
+  return entries.reduce(
+    (previous, entry) => previous.then(() => read(entry)),
+    Promise.resolve(),
+  );
+}
+
 export async function readWordArchive(
   bytes: Buffer,
 ): Promise<Map<string, Buffer>> {
@@ -283,12 +295,16 @@ export async function readWordArchive(
     );
     if (selectOoxmlVariant(names).main !== "word/document.xml")
       throw unsupported();
+    const selected = entries.filter(
+      ({ name }) => name.startsWith("word/") && !name.endsWith("/"),
+    );
+    const captured = selected.reduce(
+      (total, entry) => total + entry.expanded,
+      0,
+    );
+    if (captured > 24_000_000 || selected.length > 100) throw archiveLimit();
     const parts = new Map<string, Buffer>();
-    let captured = 0;
-    for (const entry of entries) {
-      if (!entry.name.startsWith("word/") || entry.name.endsWith("/")) continue;
-      captured += entry.expanded;
-      if (captured > 24_000_000 || parts.size >= 100) throw archiveLimit();
+    await readEntriesSerially(selected, async (entry) => {
       const part = await readEntry(
         path,
         entry,
@@ -296,7 +312,7 @@ export async function readWordArchive(
         entry.name.startsWith("word/media/") ? 10_000_000 : 2_000_000,
       );
       if (part) parts.set(entry.name, part);
-    }
+    });
     return parts;
   } finally {
     await rm(directory, { recursive: true, force: true });
@@ -310,9 +326,7 @@ async function inspectZip(path: string, size: number): Promise<string> {
   );
   const variant = selectOoxmlVariant(names);
   const captured = new Map<string, string>();
-  // Sequential on purpose: up to 1,000 entries of an untrusted archive, with one
-  // file handle and one inflater open at a time.
-  for (const entry of entries) {
+  await readEntriesSerially(entries, async (entry) => {
     const capture =
       entry.name === CONTENT_TYPES || entry.name === ROOT_RELATIONSHIPS;
     const xml = await readEntry(
@@ -322,7 +336,7 @@ async function inspectZip(path: string, size: number): Promise<string> {
       capture ? MAX_CAPTURED_XML : 0,
     );
     if (xml !== undefined) captured.set(entry.name, decodeXml(xml));
-  }
+  });
   const contentTypes = captured.get(CONTENT_TYPES) ?? "";
   const relationships = captured.get(ROOT_RELATIONSHIPS) ?? "";
   const hasOverride = [...contentTypes.matchAll(/<Override\b[^>]*>/gu)].some(

@@ -91,7 +91,10 @@ export class MediaModerationService {
               ),
             ),
           );
-          last = assessed.reduce(combineAi, last);
+          last = assessed.reduce(
+            (previous, page) => combineAi(previous, page),
+            last,
+          );
           if (last.reasonCodes.some((code) => code.startsWith("PROFANITY:")))
             return last;
         }
@@ -99,16 +102,15 @@ export class MediaModerationService {
       }
       if (input.mime === docxMime) {
         const { text, images } = await this.extractor.docx(input.bytes);
-        let result = combineAi(filename, await this.assessText(input, text));
-        for (const bytes of images) {
+        const initial = combineAi(filename, await this.assessText(input, text));
+        // Keep at most one embedded image in the OCR pipeline per document.
+        return await images.reduce(async (previous, bytes) => {
+          const result = await previous;
           if (result.reasonCodes?.some((code) => code.startsWith("PROFANITY:")))
-            break;
-          result = combineAi(
-            result,
-            await this.image(input, await this.extractor.canonicalImage(bytes)),
-          );
-        }
-        return result;
+            return result;
+          const image = await this.extractor.canonicalImage(bytes);
+          return combineAi(result, await this.image(input, image));
+        }, Promise.resolve(initial));
       }
       if (input.mime === "text/plain") {
         const text = new TextDecoder("utf-8", { fatal: true }).decode(
