@@ -6,6 +6,7 @@ import { fixtureId } from "./fixtures/learning-requests-data";
 import { AppError } from "../src/lib/http/errors";
 import { filePickerError } from "../src/lib/http/file-picker-error";
 import { validateChatFile } from "../src/features/messages/utils/chat-file";
+import type { FileModerationStatus } from "../src/lib/http/file-upload";
 
 function harness() {
   const local = createRequire(
@@ -62,7 +63,12 @@ function harness() {
     },
   };
   const status = {
-    data: { fileId: fixtureId(40), generation: 1, state: "READY" },
+    data: {
+      fileId: fixtureId(40),
+      generation: 1,
+      state: "READY",
+      moderationStatus: undefined as FileModerationStatus | undefined,
+    },
     error: undefined as unknown,
     isFetching: false,
     refetch: () => latest(),
@@ -322,6 +328,41 @@ test("automatic file-status updates unlock sending without a manual status tap a
   }
 });
 
+test("chat cache retains moderation details, blocks unsettled sends and clears old details on READY", async () => {
+  const h = harness();
+  try {
+    await h.render().choose();
+    h.render().updateFileStatus([
+      {
+        fileId: fixtureId(40),
+        name: h.file.name,
+        state: "QUARANTINED",
+        moderationStatus: "REVIEW_REQUIRED",
+      },
+    ]);
+    assert.equal(h.status.data.moderationStatus, "REVIEW_REQUIRED");
+    assert.equal(h.status.data.generation, 1);
+    assert.equal(await h.render().send("draft"), false);
+    h.render().updateFileStatus([
+      { fileId: fixtureId(40), name: h.file.name, state: "READY" },
+    ]);
+    assert.equal(h.status.data.moderationStatus, undefined);
+    assert.equal(h.render().ready, true);
+    for (const moderationStatus of [
+      "PENDING",
+      "REVIEW_REQUIRED",
+      "FAILED",
+    ] as const) {
+      h.status.data.moderationStatus = moderationStatus;
+      assert.equal(h.render().ready, false);
+      assert.equal(await h.render().send("draft"), false);
+    }
+    assert.equal(h.calls.sends.length, 0);
+  } finally {
+    h.cleanup();
+  }
+});
+
 test("chat attachments check status automatically and only offer retry after an error", () => {
   const local = createRequire(
     new URL(
@@ -377,7 +418,11 @@ test("chat attachments check status automatically and only offer retry after an 
     publicationFailed: false,
     error: undefined as unknown,
     status: {
-      data: { fileId: fixtureId(40), state: "QUARANTINED" },
+      data: {
+        fileId: fixtureId(40),
+        state: "QUARANTINED",
+        moderationStatus: undefined as FileModerationStatus | undefined,
+      },
       error: undefined as unknown,
       isFetching: false,
       refetch: () => {
@@ -455,6 +500,32 @@ test("chat attachments check status automatically and only offer retry after an 
       "other locks still pause file checks",
     );
     attachment.locked = false;
+    for (const moderationStatus of ["REVIEW_REQUIRED", "FAILED"] as const) {
+      attachment.status.data.moderationStatus = moderationStatus;
+      const tree = render();
+      assert.equal(
+        tree.find((item) => item.type === "Tile")!.props.status,
+        moderationStatus === "REVIEW_REQUIRED"
+          ? "Tệp cần được xem xét"
+          : "Kiểm tra tệp thất bại",
+      );
+      assert.ok(
+        tree.some(
+          (item) =>
+            item.type === "Notice" &&
+            String(item.props.children).includes(
+              moderationStatus === "REVIEW_REQUIRED"
+                ? "xem xét thêm"
+                : "Máy chủ chưa xử lý được",
+            ),
+        ),
+      );
+      assert.equal(tree.filter((item) => item.type === "Button").length, 0);
+      const files = tree.find((item) => item.type === "AutomaticFileStatus")!
+        .props.files as { moderationStatus?: string }[];
+      assert.equal(files[0]!.moderationStatus, moderationStatus);
+    }
+    attachment.status.data.moderationStatus = undefined;
     attachment.uploaded = false;
     attachment.error = new AppError("http", 503, "FILE_STORAGE_UNAVAILABLE");
     assert.equal(

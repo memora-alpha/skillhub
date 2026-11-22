@@ -11,6 +11,11 @@ import { isContentRejection } from "../utils/chat-send-notice";
 import type { useChatAttachment } from "../hooks/use-chat-attachment";
 import { ChatAttachmentTile } from "./ChatAttachmentTile";
 
+const failedCheckProblem = {
+  label: "Kiểm tra tệp thất bại",
+  message:
+    "Máy chủ chưa xử lý được tệp này. Hãy bỏ tệp và thử tải lại sau, hoặc chọn tệp khác.",
+};
 const fileProblems: Readonly<
   Record<string, { label: string; message: string }>
 > = {
@@ -18,10 +23,13 @@ const fileProblems: Readonly<
     label: "Tệp bị từ chối",
     message: "Tệp không vượt qua kiểm tra. Hãy bỏ tệp và chọn tệp khác.",
   },
-  SCAN_FAILED: {
-    label: "Kiểm tra tệp thất bại",
-    message: "Không thể kiểm tra tệp. Hãy bỏ tệp và chọn lại.",
+  SCAN_FAILED: failedCheckProblem,
+  REVIEW_REQUIRED: {
+    label: "Tệp cần được xem xét",
+    message:
+      "Tệp cần được xem xét thêm nên chưa thể gửi. Bạn có thể bỏ tệp và chọn tệp khác.",
   },
+  FAILED: failedCheckProblem,
   UPLOAD_FAILED: {
     label: "Tải tệp lên thất bại",
     message: "Tải tệp lên không thành công. Hãy bỏ tệp và chọn lại.",
@@ -78,7 +86,8 @@ export function ChatAttachmentPreview({
     failure instanceof AppError && isContentRejection(failure.code);
   const problem =
     attachment.uploaded && !attachment.processing && !attachment.uncertain
-      ? fileProblems[status.data?.state ?? ""]
+      ? (fileProblems[status.data?.state ?? ""] ??
+        fileProblems[status.data?.moderationStatus ?? ""])
       : undefined;
   if (
     !file &&
@@ -115,6 +124,9 @@ export function ChatAttachmentPreview({
                   fileId: status.data.fileId,
                   state: status.data.state,
                   name: file.name,
+                  ...(status.data.moderationStatus
+                    ? { moderationStatus: status.data.moderationStatus }
+                    : {}),
                 },
               ]}
               onChange={attachment.updateFileStatus}

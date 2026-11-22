@@ -1,4 +1,9 @@
-import type { UploadedFile } from "./file-upload";
+import {
+  fileModerationStatusSchema,
+  type FileModerationStatus,
+  type UploadedFile,
+  type UploadStatus,
+} from "./file-upload";
 import { AppError } from "./errors";
 
 export const UPLOAD_SCAN_TIMEOUT_MS = 240_000;
@@ -9,8 +14,15 @@ export class UploadScanPending extends Error {
     super(UPLOAD_SCAN_PENDING_MESSAGE);
   }
 }
-export function uploadNeedsCheck(state: string) {
-  return ["UPLOADING", "QUARANTINED", "SCANNING"].includes(state);
+export function uploadNeedsCheck(
+  state: string,
+  moderationStatus?: FileModerationStatus,
+) {
+  return (
+    ["UPLOADING", "QUARANTINED", "SCANNING"].includes(state) &&
+    moderationStatus !== "REVIEW_REQUIRED" &&
+    moderationStatus !== "FAILED"
+  );
 }
 export function waitForUploadCheck(ms: number, signal: AbortSignal) {
   return new Promise<void>((resolve, reject) => {
@@ -42,10 +54,7 @@ export async function watchUploadStatus({
   now = Date.now,
 }: {
   files: () => readonly UploadedFile[];
-  read: (
-    id: string,
-    signal: AbortSignal,
-  ) => Promise<{ fileId: string; state: string }>;
+  read: (id: string, signal: AbortSignal) => Promise<UploadStatus>;
   update: (files: UploadedFile[]) => void;
   active: () => boolean;
   signal: AbortSignal;
@@ -55,7 +64,9 @@ export async function watchUploadStatus({
   const started = now();
   let failedReads = 0;
   while (active() && !signal.aborted) {
-    const waiting = files().filter((file) => uploadNeedsCheck(file.state));
+    const waiting = files().filter((file) =>
+      uploadNeedsCheck(file.state, file.moderationStatus),
+    );
     if (!waiting.length) return;
     if (now() - started >= UPLOAD_SCAN_TIMEOUT_MS)
       throw new UploadScanPending();
@@ -63,6 +74,11 @@ export async function watchUploadStatus({
       waiting.map(async (file) => {
         const row = await read(file.fileId, signal);
         if (row.fileId !== file.fileId) throw new AppError("protocol");
+        if (
+          row.moderationStatus !== undefined &&
+          !fileModerationStatusSchema.safeParse(row.moderationStatus).success
+        )
+          throw new AppError("protocol");
         if (
           !uploadNeedsCheck(row.state) &&
           ![
@@ -92,12 +108,18 @@ export async function watchUploadStatus({
     const next = files().map((file) => {
       if (!results) return file;
       const row = results.find((result) => result.fileId === file.fileId);
-      return row && uploadNeedsCheck(file.state)
-        ? { ...file, state: row.state }
-        : file;
+      if (!row || !uploadNeedsCheck(file.state, file.moderationStatus))
+        return file;
+      const updated = { ...file, state: row.state };
+      if (row.moderationStatus === undefined) delete updated.moderationStatus;
+      else updated.moderationStatus = row.moderationStatus;
+      return updated;
     });
     if (results) update(next);
-    if (!next.some((file) => uploadNeedsCheck(file.state))) return;
+    if (
+      !next.some((file) => uploadNeedsCheck(file.state, file.moderationStatus))
+    )
+      return;
     const elapsed = now() - started;
     const remaining = UPLOAD_SCAN_TIMEOUT_MS - elapsed;
     if (remaining <= 0) throw new UploadScanPending();

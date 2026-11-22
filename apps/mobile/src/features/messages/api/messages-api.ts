@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { RequestOptions } from "@/lib/http/client";
 import { AppError } from "@/lib/http/errors";
+import { fileModerationStatusSchema } from "@/lib/http/file-upload";
 import {
   parse,
   parsePage,
@@ -185,6 +186,7 @@ export function createMessagesApi(
           fileId: uuid,
           state: z.string(),
           generation: z.number().int(),
+          moderationStatus: fileModerationStatusSchema.optional(),
         }),
         await call(
           `${root(id)}/attachments/${fileId}/status`,

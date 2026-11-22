@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { useIsFocused } from "expo-router";
-import type { UploadedFile } from "@/lib/http/file-upload";
+import type { UploadedFile, UploadStatus } from "@/lib/http/file-upload";
 import { filePickerError } from "@/lib/http/file-picker-error";
 import {
   watchUploadStatus,
@@ -17,10 +17,7 @@ export function AutomaticFileStatus(
   props: Readonly<{
     files: UploadedFile[];
     onChange: (files: UploadedFile[]) => void;
-    status: (
-      id: string,
-      signal?: AbortSignal,
-    ) => Promise<{ fileId: string; state: string }>;
+    status: (id: string, signal?: AbortSignal) => Promise<UploadStatus>;
     isCurrent: () => boolean;
     enabled: boolean;
     onError?: (message: string | undefined) => void;
@@ -38,7 +35,9 @@ export function AutomaticFileStatus(
   visible.current = { focused, foreground };
   const running = useRef<AbortController | null>(null);
   const ids = props.files.map((file) => file.fileId).join(":");
-  const waiting = props.files.some((file) => uploadNeedsCheck(file.state));
+  const waiting = props.files.some((file) =>
+    uploadNeedsCheck(file.state, file.moderationStatus),
+  );
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
       visible.current.foreground = state === "active";

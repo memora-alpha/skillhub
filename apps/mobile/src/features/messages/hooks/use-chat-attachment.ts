@@ -103,6 +103,7 @@ export function useChatAttachment(id: string) {
       locked ||
       status.error ||
       status.data?.state !== "READY" ||
+      status.data.moderationStatus !== undefined ||
       !runtime.isCurrent()
     )
       return false;
@@ -114,6 +115,7 @@ export function useChatAttachment(id: string) {
       if (
         latest.error ||
         latest.data?.state !== "READY" ||
+        latest.data.moderationStatus !== undefined ||
         !runtime.isCurrent()
       ) {
         if (runtime.isCurrent()) setError(latest.error);
@@ -162,7 +164,13 @@ export function useChatAttachment(id: string) {
     cache.setQueryData<Awaited<ReturnType<typeof api.fileStatus>>>(
       [...runtime.key, "chat-file", id, fileId],
       (previous) =>
-        previous ? { ...previous, state: latest.state } : previous,
+        previous
+          ? {
+              ...previous,
+              state: latest.state,
+              moderationStatus: latest.moderationStatus,
+            }
+          : previous,
     );
   };
   return {
@@ -172,7 +180,11 @@ export function useChatAttachment(id: string) {
     status,
     uploaded: !!fileId,
     ready:
-      !!fileId && !status.error && status.data?.state === "READY" && !locked,
+      !!fileId &&
+      !status.error &&
+      status.data?.state === "READY" &&
+      status.data.moderationStatus === undefined &&
+      !locked,
     processing: sender.processing,
     publicationFailed,
     uncertain: sender.uncertain,

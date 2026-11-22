@@ -74,6 +74,48 @@ test("failed or rejected scans stop checking and never become READY on the clien
     assert.equal(ctx.files()[0]?.state, state);
   }
 });
+
+test("moderation review and failure stop polling without changing the server state", async () => {
+  for (const moderationStatus of ["REVIEW_REQUIRED", "FAILED"] as const) {
+    const ctx = context();
+    let reads = 0;
+    const state = moderationStatus === "FAILED" ? "SCAN_FAILED" : "QUARANTINED";
+    await watchUploadStatus({
+      ...ctx.options,
+      read: async (fileId) => {
+        reads++;
+        return { fileId, state, moderationStatus };
+      },
+    });
+    assert.equal(reads, 1);
+    assert.equal(ctx.time(), 0);
+    assert.deepEqual(ctx.files(), [
+      { fileId: "upload-1", name: "lesson.docx", state, moderationStatus },
+    ]);
+    await watchUploadStatus({
+      ...ctx.options,
+      read: async () => {
+        throw new Error("settled moderation must not be polled again");
+      },
+    });
+  }
+});
+
+test("pending moderation continues polling and clears its metadata when the server becomes READY", async () => {
+  const ctx = context();
+  let reads = 0;
+  await watchUploadStatus({
+    ...ctx.options,
+    read: async (fileId) =>
+      ++reads === 1
+        ? { fileId, state: "QUARANTINED", moderationStatus: "PENDING" as const }
+        : { fileId, state: "READY" },
+  });
+  assert.equal(reads, 2);
+  assert.deepEqual(ctx.files(), [
+    { fileId: "upload-1", name: "lesson.docx", state: "READY" },
+  ]);
+});
 test("a quick scan is observed within one second instead of waiting for a five-second polling gap", async () => {
   const ctx = context();
   const readyAt = 4500;

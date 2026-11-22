@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { mock, test } from "node:test";
 import { pathToFileURL } from "node:url";
 import { AppError } from "../src/lib/http/errors";
+import type { FileModerationStatus } from "../src/lib/http/file-upload";
 import {
   uploadNeedsCheck,
   UploadScanPending,
@@ -181,11 +182,16 @@ test("file monitor resumes when a READY file is quarantined again without resett
     const { AutomaticFileStatus } = local(
       filename,
     ) as typeof import("../src/components/automatic-file-status");
-    const render = async (state: string) => {
+    const render = async (
+      state: string,
+      moderationStatus?: FileModerationStatus,
+    ) => {
       cursor = 0;
       pendingEffects = [];
       AutomaticFileStatus({
-        files: [{ fileId: "same-file", name: "photo.png", state }],
+        files: [
+          { fileId: "same-file", name: "photo.png", state, moderationStatus },
+        ],
         onChange() {},
         status: async () => ({ fileId: "same-file", state: "READY" }),
         isCurrent: () => true,
@@ -222,6 +228,19 @@ test("file monitor resumes when a READY file is quarantined again without resett
     );
     await render("QUARANTINED");
     assert.equal(starts, 2);
+    await render("QUARANTINED", "REVIEW_REQUIRED");
+    assert.equal(
+      starts,
+      2,
+      "review is settled even though its public state remains quarantined",
+    );
+    assert.equal(callbacks.at(-1), undefined);
+    await render("QUARANTINED", "PENDING");
+    assert.equal(
+      starts,
+      3,
+      "a later server recheck can start a new read window",
+    );
   } finally {
     effects.forEach((effect) => effect?.cleanup?.());
     delete local.cache[filename];

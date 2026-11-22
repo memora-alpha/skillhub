@@ -14,6 +14,7 @@ Thay đổi thuộc mobile. Backend quyết định chặn nội dung, thông ti
 - Tệp chỉ được gửi khi status là `READY`; `REJECTED` tiếp tục yêu cầu thay tệp. Kiểm duyệt media có thể trả `409 CONTENT_MODERATION_BLOCKED`.
 - `409 CONTENT_MODERATION_BLOCKED` từ POST chat xác nhận manifest tệp bị chặn trước commit: mở khóa recovery để người dùng bỏ/đổi tệp và gửi ý định mới với ID mới. Ngoại lệ này chỉ bật cho chat, không áp mọi lỗi 409 ở feature khác.
 - POST/retry chat trả `409 FILE_NOT_READY` hoặc media bị chặn sẽ refresh status đúng fileId/conversation/owner. Theo dõi scan chỉ đọc vẫn chạy khi intent đang uncertain; giữ tệp/caption/ID trong recovery và không tự gửi lại mutation.
+- Theo BE `2e464e63`, CHAT chỉ upload PDF/DOCX/TXT/JPG/JPEG/PNG/WebP. Status thêm `moderationStatus?`: PENDING tiếp tục đọc, REVIEW_REQUIRED/FAILED dừng chờ tự động và hiển thị đúng kết quả, giữ nguyên state server và quyền gửi. Không sửa scanner, OCR, worker hoặc triển khai backend.
 
 Nguồn: `services/api/src/modules/conversations/presentation/http/conversations.controller.ts`, `services/api/src/modules/conversations/application/services/conversations.service.ts`, `services/api/src/infrastructure/storage/file-content-moderation.ts` và `services/api/docs/content-moderation-rollout.md`.
 
@@ -33,6 +34,7 @@ Nguồn: `services/api/src/modules/conversations/presentation/http/conversations
 - [x] Rà code dư thừa và lỗi hiện tại: giản lược wrapper/props retry và helper chỉ dùng một lần; sửa monitor chạy lại khi cùng tệp chuyển từ READY về chờ kiểm tra, xóa cảnh báo sau trạng thái cuối; đồng bộ test UI và chạy full checks.
 - [x] Mở khóa recovery khi media chat bị chặn bằng 409, refresh trạng thái tệp sau lỗi POST/retry; kiểm giữ nguyên payload/ID, giới hạn owner/file và không mở khóa các lỗi permission/conflict khác.
 - [x] Thêm biểu tượng tròn dấu chấm than đỏ gọn cạnh phải, gần đáy bubble tin gửi thất bại theo tham chiếu Messenger; chỉ tin lỗi chừa chỗ cho icon, tin thường giữ mép phải ban đầu. Giữ lý do bên dưới và không hiển thị lỗi cho tin đang gửi/đã gửi.
+- [x] Đồng bộ định dạng chat và trường moderationStatus xuyên adapter/monitor/cache/UI; dừng poll khi cần xem xét hoặc thất bại, giữ tương thích response cũ, kiểm READY thật và không tự upload/gửi lại.
 
 ## Nghiệm thu
 

@@ -3,12 +3,7 @@ import { FileSelectionError } from "@/lib/http/picked-image";
 export const CHAT_MAX_BYTES = 15_000_000;
 export const chatFormats: Record<string, string> = {
   pdf: "application/pdf",
-  doc: "application/msword",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  xls: "application/vnd.ms-excel",
-  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  ppt: "application/vnd.ms-powerpoint",
-  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   txt: "text/plain",
   jpg: "image/jpeg",
   jpeg: "image/jpeg",
@@ -45,7 +40,7 @@ export function validateChatFile(file: ChatFile) {
       )
   )
     throw new FileSelectionError(
-      "Chọn PDF, Word, Excel, PowerPoint, TXT hoặc ảnh JPG/PNG/WebP hợp lệ.",
+      "Chọn PDF, DOCX, TXT hoặc ảnh JPG/PNG/WebP hợp lệ.",
     );
   if (!size || !Number.isSafeInteger(size) || size < 1)
     throw new FileSelectionError(
