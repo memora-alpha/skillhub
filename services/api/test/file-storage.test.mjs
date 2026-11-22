@@ -101,6 +101,23 @@ test("bad format and oversized streamed body stay private and never finalize", a
   );
 });
 
+test("chat rejects a format without a media extractor before creating an upload", async () => {
+  const { service, rows, objects } = setup();
+  await assert.rejects(
+    service.upload({
+      actor,
+      purpose: "CHAT",
+      name: "legacy.doc",
+      claimedMime: "application/msword",
+      body: Readable.from([Buffer.from("unused")]),
+      context: { correlationId: "test" },
+    }),
+    { code: "FILE_FORMAT_UNSUPPORTED" },
+  );
+  assert.equal(rows.size, 0);
+  assert.equal(objects.size, 0);
+});
+
 test("download checks policy before file state and signs only READY", async () => {
   const { service, rows, calls } = setup();
   const result = await service.upload({

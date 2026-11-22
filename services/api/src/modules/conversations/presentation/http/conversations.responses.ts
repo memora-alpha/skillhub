@@ -56,6 +56,8 @@ export class ChatFileStatusResponse {
   @ApiProperty({ format: "uuid" }) fileId!: string;
   @ApiProperty() state!: string;
   @ApiProperty({ type: Number }) generation!: number;
+  @ApiPropertyOptional({ enum: ["PENDING", "REVIEW_REQUIRED", "FAILED"] })
+  moderationStatus?: string;
 }
 export class ChatDownloadResponse {
   @ApiProperty() url!: string;

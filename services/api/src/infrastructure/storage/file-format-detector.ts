@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { createReadStream, createWriteStream } from "node:fs";
-import { mkdtemp, open, readFile, rm } from "node:fs/promises";
+import { mkdtemp, open, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable, Transform } from "node:stream";
@@ -217,13 +217,14 @@ function decodeXml(bytes: Buffer): string {
 
 /**
  * Checks one entry against its local header and declared expanded size.
- * Returns the XML of the two package parts that are inspected, otherwise undefined.
+ * Captures requested entries up to the caller's bound while validating the stream.
  */
 async function readEntry(
   path: string,
   entry: ZipEntry,
   centralOffset: number,
-): Promise<string | undefined> {
+  captureLimit = 0,
+): Promise<Buffer | undefined> {
   const local = await readAt(path, entry.localOffset, 30);
   if (
     local.readUInt32LE(0) !== 0x04034b50 ||
@@ -232,9 +233,8 @@ async function readEntry(
     throw unsupported();
   const start =
     entry.localOffset + 30 + local.readUInt16LE(26) + local.readUInt16LE(28);
-  const capture =
-    entry.name === CONTENT_TYPES || entry.name === ROOT_RELATIONSHIPS;
-  const oversizedCapture = capture && entry.expanded > MAX_CAPTURED_XML;
+  const capture = captureLimit > 0;
+  const oversizedCapture = capture && entry.expanded > captureLimit;
   if (oversizedCapture) throw archiveLimit();
   if (start + entry.compressed > centralOffset) throw unsupported();
 
@@ -267,7 +267,56 @@ async function readEntry(
     }
   }
   if (actual !== entry.expanded) throw unsupported();
-  return capture ? decodeXml(Buffer.concat(chunks)) : undefined;
+  return capture ? Buffer.concat(chunks) : undefined;
+}
+
+function readEntriesSerially(
+  entries: readonly ZipEntry[],
+  read: (entry: ZipEntry) => Promise<void>,
+): Promise<void> {
+  // Archives are untrusted. A bounded promise chain keeps one stream and
+  // inflater active and stops at the first invalid entry.
+  return entries.reduce(
+    (previous, entry) => previous.then(() => read(entry)),
+    Promise.resolve(),
+  );
+}
+
+export async function readWordArchive(
+  bytes: Buffer,
+): Promise<Map<string, Buffer>> {
+  const directory = await mkdtemp(join(tmpdir(), "skillhub-docx-"));
+  const path = join(directory, "input.docx");
+  try {
+    await writeFile(path, bytes);
+    const { entries, names, centralOffset } = await readCentralDirectory(
+      path,
+      bytes.length,
+    );
+    if (selectOoxmlVariant(names).main !== "word/document.xml")
+      throw unsupported();
+    const selected = entries.filter(
+      ({ name }) => name.startsWith("word/") && !name.endsWith("/"),
+    );
+    const captured = selected.reduce(
+      (total, entry) => total + entry.expanded,
+      0,
+    );
+    if (captured > 24_000_000 || selected.length > 100) throw archiveLimit();
+    const parts = new Map<string, Buffer>();
+    await readEntriesSerially(selected, async (entry) => {
+      const part = await readEntry(
+        path,
+        entry,
+        centralOffset,
+        entry.name.startsWith("word/media/") ? 10_000_000 : 2_000_000,
+      );
+      if (part) parts.set(entry.name, part);
+    });
+    return parts;
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 }
 
 async function inspectZip(path: string, size: number): Promise<string> {
@@ -277,12 +326,17 @@ async function inspectZip(path: string, size: number): Promise<string> {
   );
   const variant = selectOoxmlVariant(names);
   const captured = new Map<string, string>();
-  // Sequential on purpose: up to 1,000 entries of an untrusted archive, with one
-  // file handle and one inflater open at a time.
-  for (const entry of entries) {
-    const xml = await readEntry(path, entry, centralOffset);
-    if (xml !== undefined) captured.set(entry.name, xml);
-  }
+  await readEntriesSerially(entries, async (entry) => {
+    const capture =
+      entry.name === CONTENT_TYPES || entry.name === ROOT_RELATIONSHIPS;
+    const xml = await readEntry(
+      path,
+      entry,
+      centralOffset,
+      capture ? MAX_CAPTURED_XML : 0,
+    );
+    if (xml !== undefined) captured.set(entry.name, decodeXml(xml));
+  });
   const contentTypes = captured.get(CONTENT_TYPES) ?? "";
   const relationships = captured.get(ROOT_RELATIONSHIPS) ?? "";
   const hasOverride = [...contentTypes.matchAll(/<Override\b[^>]*>/gu)].some(

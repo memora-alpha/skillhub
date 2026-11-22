@@ -1,5 +1,6 @@
 import { randomUUID, createHash } from "node:crypto";
 import { Readable, Transform } from "node:stream";
+import { supportsMediaModeration } from "../../modules/content-moderation/application/media-moderation.service";
 import type { Actor } from "../../shared/authorization/authorization.types";
 import type { SystemConfigurationService } from "../../modules/system-configuration/application/services/system-configuration.service";
 import { FileFormatDetector } from "./file-format-detector";
@@ -56,6 +57,12 @@ export class FileStorageService {
       sizeBytes: 1,
       capBytes: cap,
     });
+    if (
+      input.purpose === "CHAT" &&
+      !supportsMediaModeration(input.claimedMime)
+    ) {
+      throw new FileStorageError("FILE_FORMAT_UNSUPPORTED", 415);
+    }
     const fileId = randomUUID();
     const objectKey = `private/${fileId}`;
     await this.repository.createUploading({

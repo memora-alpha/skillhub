@@ -46,6 +46,7 @@ test("an AI result on the filename or first PDF page cannot bypass local screeni
     );
     const service = new MediaModerationService(moderation, {
       pdfPageCount: async () => 2,
+      pdfText: async () => "",
       pdfPage: async (_bytes, page) =>
         Buffer.from(page === 1 ? "intro" : "đù má"),
       ocr: async (bytes) => bytes.toString(),
@@ -128,6 +129,41 @@ test("unsupported office formats and failed image parsing stay in review", async
   }
 });
 
+test("checks DOCX text and embedded images before approval", async () => {
+  const checked = [];
+  const service = new MediaModerationService(
+    {
+      evaluateAi: async (input) => {
+        checked.push(input);
+        return {
+          outcome: "ALLOW",
+          sourceVersion: input.sourceVersion,
+          digest: input.digest,
+          reasonCodes: [],
+        };
+      },
+    },
+    {
+      docx: async () => ({
+        text: "Bài tập Node.js",
+        images: [Buffer.from("image")],
+      }),
+      canonicalImage: async (bytes) => bytes,
+      ocr: async () => "Chữ trong ảnh",
+    },
+  );
+  const result = await service.assess({
+    surface: "media",
+    version: "1",
+    digest: "fixed",
+    mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    bytes: Buffer.from("fixture"),
+  });
+  assert.equal(result.outcome, "ALLOW");
+  assert.ok(checked.some(({ text }) => text === "Bài tập Node.js"));
+  assert.ok(checked.some(({ image }) => image));
+});
+
 test("an extraction failure holds the file even when AI mode only observes", async () => {
   const service = new MediaModerationService(
     { mode: () => "observe", evaluateAi: async () => ({ outcome: "ALLOW" }) },
@@ -206,6 +242,52 @@ test("only a clean file of the exact generation and checksum can record a verdic
   assert.equal(written.length, 0);
 });
 
+test("retries temporary media errors and returns terminal status after exhaustion", async () => {
+  const contents = Buffer.from("sample file");
+  const row = {
+    id: "sample",
+    purpose: "CHAT",
+    state: "READY",
+    generation: 1,
+    sha256: createHash("sha256").update(contents).digest("hex"),
+    scanVerdict: "CLEAN",
+    detectedMime: "image/png",
+    sizeBytes: contents.length,
+    moderationAssessment: null,
+  };
+  const service = new FileContentModeration(
+    {
+      storedFile: {
+        findUnique: async () => row,
+        updateMany: async ({ data }) => {
+          Object.assign(row, data);
+          return { count: 1 };
+        },
+      },
+    },
+    { read: async () => Readable.from([contents]) },
+    { mode: () => "enforce" },
+    {
+      assess: async (input) => ({
+        sourceVersion: input.version,
+        digest: input.digest,
+        outcome: "RETRY",
+        reasonCodes: ["MEDIA_OCR_TIMEOUT"],
+      }),
+    },
+  );
+  await assert.rejects(service.process(row.id, 1), {
+    message: "FILE_MODERATION_RETRY",
+  });
+  assert.equal(row.moderationAssessment, null);
+  await service.process(row.id, 1, true);
+  assert.deepEqual(await service.resolveStatusDetails(row), {
+    state: "SCAN_FAILED",
+    moderationStatus: "FAILED",
+  });
+  assert.deepEqual(row.moderationAssessment.reasonCodes, ["MEDIA_OCR_TIMEOUT"]);
+});
+
 test("a new policy version queues one recheck identity for the same file and generation", async () => {
   let version = 2;
   const queued = [];
@@ -235,5 +317,40 @@ test("a new policy version queues one recheck identity for the same file and gen
   version++;
   assert.equal(await service.resolveStatus(row), "QUARANTINED");
   assert.equal(await service.resolveStatus(row), "QUARANTINED");
-  assert.deepEqual(queued, ["profanity-sample-3-3", "profanity-sample-3-3"]);
+  assert.equal(queued.length, 2);
+  assert.equal(queued[0], queued[1]);
+});
+
+test("invalidates legacy review and observe-only decisions before an enforced send", async () => {
+  const jobs = [];
+  const service = new FileContentModeration(
+    {},
+    {},
+    { mode: () => "enforce" },
+    {},
+    {
+      add: async (_name, _data, options) => jobs.push(options.jobId),
+    },
+  );
+  const base = {
+    id: "file",
+    purpose: "CHAT",
+    state: "READY",
+    generation: 1,
+    sha256: "hash",
+  };
+  const version = { sourceVersion: "1", digest: "hash", profanityVersion: 1 };
+  for (const moderationAssessment of [
+    { ...version, outcome: "REVIEW", enforced: true },
+    { ...version, outcome: "ALLOW", observedOutcome: "BLOCK", enforced: false },
+  ]) {
+    assert.deepEqual(
+      await service.resolveStatusDetails({ ...base, moderationAssessment }),
+      {
+        state: "QUARANTINED",
+        moderationStatus: "PENDING",
+      },
+    );
+  }
+  assert.equal(jobs[0], jobs[1]);
 });

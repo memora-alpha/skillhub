@@ -27,7 +27,7 @@ ENV NODE_ENV=development
 ENV PORT=3001
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        tesseract-ocr tesseract-ocr-eng tesseract-ocr-vie poppler-utils \
+        tesseract-ocr tesseract-ocr-eng tesseract-ocr-vie poppler-utils fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/package.json /app/pnpm-workspace.yaml /app/.npmrc ./
 COPY --from=builder /app/node_modules ./node_modules
@@ -46,6 +46,7 @@ USER node
 RUN tesseract --list-langs | grep -Fx eng \
     && tesseract --list-langs | grep -Fx vie \
     && pdfinfo -v && pdftoppm -v \
+    && node scripts/check-media-extraction.mjs \
     && test -r test/content-moderation/fixtures/vi-cases.json
 EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
