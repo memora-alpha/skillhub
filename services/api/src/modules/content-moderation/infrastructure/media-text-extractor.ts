@@ -2,14 +2,25 @@ import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { spawn } from "node:child_process";
 import sharp from "sharp";
+import { extractDocx } from "./docx-content";
 
 export const maximumModeratedPdfPages = 12;
+
+export class MediaExtractionError extends Error {
+  constructor(
+    readonly code: string,
+    readonly retryable = false,
+  ) {
+    super(code);
+  }
+}
 
 function parseWith(
   command: string,
   args: string[],
   bytes: Buffer,
   maxOutput: number,
+  stage: string,
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -26,23 +37,27 @@ function parseWith(
     });
     const chunks: Buffer[] = [];
     let count = 0;
-    const fail = () => reject(new Error("MODERATION_MEDIA_EXTRACTION_FAILED"));
-    child.on("error", fail);
+    const fail = (code: string, retryable = false) =>
+      reject(new MediaExtractionError(code, retryable));
+    child.on("error", () => fail(`MEDIA_${stage}_UNAVAILABLE`, true));
     child.stdout.on("data", (chunk: Buffer) => {
       count += chunk.length;
       if (count > maxOutput) {
         child.kill();
-        fail();
+        fail(`MEDIA_${stage}_OUTPUT_LIMIT`);
         return;
       }
       chunks.push(chunk);
     });
-    child.on("close", (code) => {
+    child.on("close", (code, signal) => {
       if (code === 0 && count <= maxOutput)
         resolve(Buffer.concat(chunks, count));
-      else fail();
+      else if (signal) fail(`MEDIA_${stage}_TIMEOUT`, true);
+      else fail(`MEDIA_${stage}_FAILED`);
     });
-    child.stdin.on("error", fail);
+    child.stdin.on("error", () => {
+      /* close reports the command failure */
+    });
     child.stdin.end(bytes);
   });
 }
@@ -50,34 +65,52 @@ function parseWith(
 @Injectable()
 export class MediaTextExtractor {
   private languagesReady?: Promise<void>;
+  private languageRetryAt = 0;
 
   constructor(private readonly config: ConfigService) {}
 
   async canonicalImage(bytes: Buffer): Promise<Buffer> {
-    const image = sharp(bytes, {
-      limitInputPixels: 25_000_000,
-      animated: true,
-    });
-    if (((await image.metadata()).pages ?? 1) > 1)
-      throw new Error("MODERATION_ANIMATED_IMAGE_UNSUPPORTED");
-    return image
-      .rotate()
-      .resize(2000, 2000, { fit: "inside", withoutEnlargement: true })
-      .png()
-      .toBuffer();
+    try {
+      const image = sharp(bytes, {
+        limitInputPixels: 25_000_000,
+        animated: true,
+      });
+      if (((await image.metadata()).pages ?? 1) > 1)
+        throw new MediaExtractionError("MODERATION_ANIMATED_IMAGE_UNSUPPORTED");
+      return await image
+        .rotate()
+        .resize(2000, 2000, { fit: "inside", withoutEnlargement: true })
+        .png()
+        .toBuffer();
+    } catch (error) {
+      if (error instanceof MediaExtractionError) throw error;
+      throw new MediaExtractionError("MEDIA_IMAGE_INVALID");
+    }
   }
 
   async ocr(bytes: Buffer): Promise<string> {
     const executable = this.config
       .get("CONTENT_MODERATION_OCR_COMMAND", "tesseract")
       .trim();
-    this.languagesReady ??= this.requireOcrLanguages(executable);
+    if (
+      !this.languagesReady ||
+      (this.languageRetryAt && Date.now() >= this.languageRetryAt)
+    ) {
+      this.languageRetryAt = 0;
+      this.languagesReady = this.requireOcrLanguages(executable).catch(
+        (error: unknown) => {
+          this.languageRetryAt = Date.now() + 2_000;
+          throw error;
+        },
+      );
+    }
     await this.languagesReady;
     const text = await parseWith(
       executable,
       ["stdin", "stdout", "-l", "vie+eng"],
       bytes,
       128_000,
+      "OCR",
     );
     return new TextDecoder("utf-8", { fatal: true }).decode(text);
   }
@@ -88,6 +121,7 @@ export class MediaTextExtractor {
       ["--list-langs"],
       Buffer.alloc(0),
       32_000,
+      "OCR_PROBE",
     );
     const languages = new Set(
       output
@@ -96,7 +130,10 @@ export class MediaTextExtractor {
         .map((line) => line.trim()),
     );
     if (!languages.has("vie") || !languages.has("eng"))
-      throw new Error("MODERATION_OCR_LANGUAGES_UNAVAILABLE");
+      throw new MediaExtractionError(
+        "MODERATION_OCR_LANGUAGES_UNAVAILABLE",
+        true,
+      );
   }
 
   async pdfPageCount(bytes: Buffer): Promise<number> {
@@ -105,12 +142,13 @@ export class MediaTextExtractor {
       ["-"],
       bytes,
       32_000,
+      "PDF_INFO",
     );
     const pages = Number(
       /^Pages:\s+([1-9]\d*)\s*$/mu.exec(output.toString("utf8"))?.[1],
     );
     if (!Number.isSafeInteger(pages) || pages > maximumModeratedPdfPages)
-      throw new Error("MODERATION_PDF_PAGE_LIMIT");
+      throw new MediaExtractionError("MODERATION_PDF_PAGE_LIMIT");
     return pages;
   }
 
@@ -130,7 +168,29 @@ export class MediaTextExtractor {
       ],
       bytes,
       10_000_000,
+      "PDF_RENDER",
     );
-    return this.canonicalImage(rendered);
+    return this.canonicalImage(rendered).catch(() => {
+      throw new MediaExtractionError("MEDIA_PDF_RENDER_FAILED");
+    });
+  }
+
+  async pdfText(bytes: Buffer): Promise<string> {
+    const output = await parseWith(
+      "pdftotext",
+      ["-enc", "UTF-8", "-", "-"],
+      bytes,
+      128_000,
+      "PDF_TEXT",
+    );
+    return new TextDecoder("utf-8", { fatal: true }).decode(output);
+  }
+
+  async docx(bytes: Buffer) {
+    try {
+      return await extractDocx(bytes);
+    } catch {
+      throw new MediaExtractionError("MEDIA_DOCX_UNREADABLE");
+    }
   }
 }

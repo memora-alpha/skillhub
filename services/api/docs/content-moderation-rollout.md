@@ -48,6 +48,7 @@ Kiểm duyệt qua OpenAI được cấu hình theo loại nội dung. Với c�
    tesseract --list-langs
    pdfinfo -v
    pdftoppm -v
+   node scripts/check-media-extraction.mjs
    node scripts/evaluate-content-moderation.mjs --send-synthetic-fixtures
    ```
 
@@ -66,8 +67,8 @@ Các ngưỡng là giá trị ban đầu. Theo dõi trên mẫu tiếng Việt �
 - Chat bị chặn trả `422 CONTENT_MODERATION_BLOCKED`. Khi người dùng sửa, client gửi yêu cầu mới. Lỗi tạm thời trả `503 CONTENT_MODERATION_TEMPORARILY_UNAVAILABLE`, dùng lại cùng ID cho lần thử tiếp theo của đúng nội dung đó.
 - Learning Request vẫn dùng quy tắc sẵn có và `PENDING_MODERATION` theo SRS. Review lộ trình chờ duyệt chỉ hiển thị cho tác giả và Staff có quyền. Reputation được ghi khi chấp nhận review.
 - Report hợp lệ đi vào case trước khi phân loại. Chỉ bật phân loại mô tả hoặc tin trong case sau khi duyệt chính sách dữ liệu của từng loại. Bằng chứng tệp trong Report vẫn đi theo quyền của case.
-- `media:enforce` yêu cầu tệp mới có kết quả đúng checksum trước khi chia sẻ. Ảnh đi qua phân loại ảnh và OCR tiếng Việt/Anh. PDF đi qua render từng trang trong giới hạn của worker. Tệp Office, lỗi đọc và nội dung vượt giới hạn kiểm tra vẫn bị giữ chờ. Chốt đường xử lý và định dạng được phép trước khi bật chế độ này.
-- Tệp cũ trong bản nháp hoặc chưa xuất bản cần tải lại để kiểm duyệt nếu trước đó chưa có kết quả. Tệp đã hết số lần thử sau lỗi tạm thời cũng cần tải lại. Kiểm tra các bản nháp đang chờ và thống nhất đường xử lý nội dung giữ chờ trước khi bật `media:enforce`.
+- `media:enforce` yêu cầu kết quả đúng checksum và phiên bản nội dung trước khi chia sẻ. Ảnh đi qua phân loại ảnh và OCR tiếng Việt/Anh. PDF được kiểm tra lớp chữ và render từng trang trong giới hạn của worker. DOCX được đọc chữ và kiểm tra ảnh nhúng hỗ trợ. Tìm `FileContentModeration` và `fileId` trong Runtime Logs để xem kết quả cuối. API status cho biết lúc đang chờ, cần xem xét hoặc xử lý thất bại qua trường tùy chọn `moderationStatus`. Bằng chứng Report tiếp tục dùng quyền của case.
+- Với tệp cũ chưa gửi đã quét sạch, mở lại trạng thái tệp để lên lịch kiểm tra khi kết quả cũ hết hiệu lực. Tệp đã hết lượt thử và báo `SCAN_FAILED` cần tải lại sau khi nguyên nhân đã được xử lý. Kiểm tra các bản nháp đang chờ trước khi bật `media:enforce`.
 - Khi chạy API trực tiếp ngoài Docker, cài Tesseract với dữ liệu `vie` và `eng`, cùng Poppler `pdfinfo` và `pdftoppm` trên PATH của worker. Có thể cấu hình đường dẫn cho từng chương trình trong biến môi trường của API.
 
 ## Theo dõi và rollback

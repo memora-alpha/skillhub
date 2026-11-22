@@ -327,6 +327,9 @@ importers:
       '@smithy/core':
         specifier: 3.35.1
         version: 3.35.1
+      '@xmldom/xmldom':
+        specifier: 0.9.12
+        version: 0.9.12
       argon2:
         specifier: ^0.45.1
         version: 0.45.1

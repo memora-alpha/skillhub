@@ -81,7 +81,9 @@ export class FileAttachmentService {
       throw new FileStorageError("FILE_NOT_FOUND", 404);
     return {
       fileId: row.id,
-      state: (await this.moderation?.resolveStatus(row)) ?? row.state,
+      ...((await this.moderation?.resolveStatusDetails(row)) ?? {
+        state: row.state,
+      }),
       generation: row.generation,
     };
   }
@@ -97,7 +99,9 @@ export class FileAttachmentService {
       throw new FileStorageError("FILE_NOT_FOUND", 404);
     return {
       fileId: row.id,
-      state: (await this.moderation?.resolveStatus(row)) ?? row.state,
+      ...((await this.moderation?.resolveStatusDetails(row)) ?? {
+        state: row.state,
+      }),
       generation: row.generation,
     };
   }

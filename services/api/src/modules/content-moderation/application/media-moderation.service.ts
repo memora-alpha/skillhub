@@ -1,5 +1,8 @@
 import { Injectable, ServiceUnavailableException } from "@nestjs/common";
-import { MediaTextExtractor } from "../infrastructure/media-text-extractor";
+import {
+  MediaExtractionError,
+  MediaTextExtractor,
+} from "../infrastructure/media-text-extractor";
 import { moderationPolicyVersion } from "../domain/moderation-policy";
 import {
   ContentModerationService,
@@ -22,11 +25,24 @@ const imageTypes: ReadonlySet<string> = new Set([
   "image/webp",
 ]);
 const textLimit = 32_000;
+export const docxMime =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+export function supportsMediaModeration(mime: string): boolean {
+  return (
+    imageTypes.has(mime) ||
+    mime === "application/pdf" ||
+    mime === "text/plain" ||
+    mime === docxMime
+  );
+}
 
 function combineAi(first: ModerationAssessment, second: ModerationAssessment) {
-  if (first.outcome !== "ALLOW") return first;
-  if (second.outcome !== "ALLOW") return second;
-  return first.observedOutcome && first.observedOutcome !== "ALLOW"
+  const severity = { ALLOW: 0, REVIEW: 1, RETRY: 2, BLOCK: 3 };
+  return severity[first.outcome] > severity[second.outcome] ||
+    (first.outcome === second.outcome &&
+      severity[first.observedOutcome ?? "ALLOW"] >=
+        severity[second.observedOutcome ?? "ALLOW"])
     ? first
     : second;
 }
@@ -48,7 +64,7 @@ export class MediaModerationService {
     const partial = {
       ...this.base(input),
       outcome: "REVIEW" as const,
-      reasonCodes: ["MEDIA_REVIEW_REQUIRED"],
+      reasonCodes: ["MEDIA_FORMAT_UNSUPPORTED"],
     };
     try {
       const name = input.filename ?? "";
@@ -63,31 +79,57 @@ export class MediaModerationService {
         );
       if (input.mime === "application/pdf") {
         const pages = await this.extractor.pdfPageCount(input.bytes);
-        let last = filename;
-        for (let page = 1; page <= pages; page++) {
-          last = await this.image(
-            input,
-            await this.extractor.pdfPage(input.bytes, page),
-            last,
+        const text = await this.extractor.pdfText(input.bytes);
+        let last = combineAi(filename, await this.assessText(input, text));
+        for (let page = 1; page <= pages; page += 2) {
+          const indexes = page < pages ? [page, page + 1] : [page];
+          const assessed = await Promise.all(
+            indexes.map(async (index) =>
+              this.image(
+                input,
+                await this.extractor.pdfPage(input.bytes, index),
+              ),
+            ),
           );
+          last = assessed.reduce(combineAi, last);
           if (last.reasonCodes.some((code) => code.startsWith("PROFANITY:")))
             return last;
         }
         return last;
       }
+      if (input.mime === docxMime) {
+        const { text, images } = await this.extractor.docx(input.bytes);
+        let result = combineAi(filename, await this.assessText(input, text));
+        for (const bytes of images) {
+          if (result.reasonCodes?.some((code) => code.startsWith("PROFANITY:")))
+            break;
+          result = combineAi(
+            result,
+            await this.image(input, await this.extractor.canonicalImage(bytes)),
+          );
+        }
+        return result;
+      }
       if (input.mime === "text/plain") {
         const text = new TextDecoder("utf-8", { fatal: true }).decode(
           input.bytes,
         );
-        const local = await this.checkLocalText(input, text);
-        if (local) return local;
-        return filename.outcome === "ALLOW"
-          ? combineAi(filename, await this.checkAiText(input, text))
-          : filename;
+        return combineAi(filename, await this.assessText(input, text));
       }
     } catch (error) {
-      if (error instanceof ServiceUnavailableException) throw error;
-      // Extractor output and diagnostics can contain the file's content.
+      if (error instanceof ServiceUnavailableException)
+        return {
+          ...partial,
+          outcome: "RETRY",
+          reasonCodes: ["MEDIA_CONFIGURATION_UNAVAILABLE"],
+        };
+      if (error instanceof MediaExtractionError)
+        return {
+          ...partial,
+          outcome: error.retryable ? "RETRY" : "REVIEW",
+          reasonCodes: [error.code],
+        };
+      return { ...partial, reasonCodes: ["MEDIA_EXTRACTION_FAILED"] };
     }
     return partial;
   }
@@ -103,24 +145,24 @@ export class MediaModerationService {
   private async image(
     input: MediaModerationInput,
     bytes: Buffer,
-    previous: ModerationAssessment,
+    previous?: ModerationAssessment,
   ) {
-    const text = await this.extractor.ocr(bytes);
-    const local = await this.checkLocalText(input, text);
-    if (local) return local;
-    if (previous.outcome !== "ALLOW") return previous;
-    const visual = combineAi(
-      previous,
-      await this.moderation.evaluateAi({
+    const [text, image] = await Promise.all([
+      this.extractor.ocr(bytes),
+      this.moderation.evaluateAi({
         ...this.base(input),
         surface: input.surface,
         image: { mimeType: "image/png", bytes },
       }),
+    ]);
+    const visual = previous ? combineAi(previous, image) : image;
+    return combineAi(visual, await this.assessText(input, text));
+  }
+
+  private async assessText(input: MediaModerationInput, text: string) {
+    return (
+      (await this.checkLocalText(input, text)) ?? this.checkAiText(input, text)
     );
-    if (visual.outcome !== "ALLOW") return visual;
-    return text.trim()
-      ? combineAi(visual, await this.checkAiText(input, text))
-      : visual;
   }
 
   private async checkLocalText(input: MediaModerationInput, text: string) {

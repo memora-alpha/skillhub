@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { Readable } from "node:stream";
 import test from "node:test";
 import { FileFormatDetector } from "../dist/infrastructure/storage/file-format-detector.js";
+import { extractDocx } from "../dist/modules/content-moderation/infrastructure/docx-content.js";
 import CFB from "cfb";
 import { randomBytes } from "node:crypto";
 import { deflateRawSync } from "node:zlib";
@@ -67,6 +68,34 @@ const docxEntries = [
   ],
   ["word/document.xml", "<document/>"],
 ];
+
+test("extracts real DOCX archive text runs, header text, and image bytes", async () => {
+  const namespace =
+    "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+  const fixture = makeZip([
+    ...docxEntries.slice(0, 2),
+    [
+      "word/document.xml",
+      `<w:document xmlns:w="${namespace}"><w:body><w:p><w:r><w:t>Bài </w:t></w:r><w:r><w:t>tập</w:t></w:r></w:p></w:body></w:document>`,
+    ],
+    [
+      "word/header1.xml",
+      `<w:hdr xmlns:w="${namespace}"><w:p><w:r><w:t>Tiêu đề</w:t></w:r></w:p></w:hdr>`,
+    ],
+    ["word/media/image1.png", Buffer.from("test image")],
+  ]);
+  const result = await extractDocx(fixture);
+  assert.equal(result.text, "Bài tập\nTiêu đề");
+  assert.deepEqual(result.images, [Buffer.from("test image")]);
+  await assert.rejects(
+    extractDocx(
+      makeZip([
+        ...docxEntries.slice(0, 2),
+        ["word/document.xml", "<!DOCTYPE document><document/>"],
+      ]),
+    ),
+  );
+});
 
 test("detects a valid PDF and hashes the exact stream", async () => {
   const result = await detector.inspect({
