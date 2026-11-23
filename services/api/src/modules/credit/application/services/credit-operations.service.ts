@@ -5,7 +5,10 @@ import {
   fingerprintCommand,
 } from "../../../../infrastructure/idempotency/idempotency.service";
 import type { CreditWallet } from "../../../../generated/prisma/client";
-import { CreditProvenanceService } from "./credit-provenance.service";
+import {
+  CreditProvenanceService,
+  type SpentLots,
+} from "./credit-provenance.service";
 
 @Injectable()
 export class CreditOperationsService {
@@ -566,16 +569,16 @@ export class CreditOperationsService {
     return { operationId: operation.id };
   }
 
-  /** Spec 018: debit purchased Credit for a voucher; one operation per redemption ID. */
+  /** Spec 018: debit any Credit source, oldest lot first; one operation per redemption ID. */
   async redeemVoucher(
     tx: TransactionContext,
     input: { redemptionId: string; userId: string; amount: bigint },
-  ): Promise<{ operationId: string }> {
+  ): Promise<{ operationId: string; lots: SpentLots["lots"] }> {
     if (input.amount <= 0n)
       throw new ConflictException("INVALID_VOUCHER_PRICE");
     const wallet = await this.lockWallet(tx, input.userId);
     if (wallet.availableCredit < input.amount)
-      throw new ConflictException("INSUFFICIENT_PURCHASED_CREDIT");
+      throw new ConflictException("INSUFFICIENT_AVAILABLE_CREDIT");
     const key = `voucher-redeem:${input.redemptionId}`;
     const operation = await tx.creditOperation.create({
       data: {
@@ -586,13 +589,18 @@ export class CreditOperationsService {
         status: "SUCCESS",
       },
     });
-    await this.provenance.spendPurchased(tx, input.userId, input.amount);
+    const spent = await this.provenance.spendOldestFirst(
+      tx,
+      input.userId,
+      input.amount,
+    );
     const after = wallet.availableCredit - input.amount;
     await tx.creditWallet.update({
       where: { userId: input.userId },
       data: {
         availableCredit: after,
-        purchasedCredit: { decrement: input.amount },
+        purchasedCredit: { decrement: spent.purchased },
+        bonusCredit: { decrement: spent.bonus },
         walletVersion: { increment: 1 },
       },
     });
@@ -611,13 +619,22 @@ export class CreditOperationsService {
         idempotencyKey: `${key}:entry`,
       },
     });
-    return { operationId: operation.id };
+    return { operationId: operation.id, lots: spent.lots };
   }
 
-  /** Compensating entry restoring the purchased bucket; idempotent per redemption. */
+  /**
+   * Compensating entry; idempotent per redemption. `spentLots` are the lots the debit consumed,
+   * which get their Credit back with the original source. Redemptions without recorded lots
+   * predate mixed-source spending and were paid only from PURCHASED lots.
+   */
   async refundVoucher(
     tx: TransactionContext,
-    input: { redemptionId: string; userId: string; amount: bigint },
+    input: {
+      redemptionId: string;
+      userId: string;
+      amount: bigint;
+      spentLots: SpentLots["lots"];
+    },
   ): Promise<{ operationId: string }> {
     if (input.amount <= 0n)
       throw new ConflictException("INVALID_VOUCHER_PRICE");
@@ -636,21 +653,14 @@ export class CreditOperationsService {
         status: "SUCCESS",
       },
     });
-    await tx.creditLot.create({
-      data: {
-        userId: input.userId,
-        operationId: operation.id,
-        source: "PURCHASED",
-        available: input.amount,
-        granted: input.amount,
-      },
-    });
+    const restored = await this.restoreVoucherLots(tx, operation.id, input);
     const after = wallet.availableCredit + input.amount;
     await tx.creditWallet.update({
       where: { userId: input.userId },
       data: {
         availableCredit: after,
-        purchasedCredit: { increment: input.amount },
+        purchasedCredit: { increment: restored.purchased },
+        bonusCredit: { increment: restored.bonus },
         walletVersion: { increment: 1 },
       },
     });
@@ -670,5 +680,28 @@ export class CreditOperationsService {
       },
     });
     return { operationId: operation.id };
+  }
+
+  private async restoreVoucherLots(
+    tx: TransactionContext,
+    operationId: string,
+    input: { userId: string; amount: bigint; spentLots: SpentLots["lots"] },
+  ): Promise<{ purchased: bigint; bonus: bigint }> {
+    if (input.spentLots.length) {
+      const total = input.spentLots.reduce((sum, lot) => sum + lot.amount, 0n);
+      if (total !== input.amount)
+        throw new ConflictException("CREDIT_PROVENANCE_BALANCE_MISMATCH");
+      return this.provenance.restoreSpent(tx, input.userId, input.spentLots);
+    }
+    await tx.creditLot.create({
+      data: {
+        userId: input.userId,
+        operationId,
+        source: "PURCHASED",
+        available: input.amount,
+        granted: input.amount,
+      },
+    });
+    return { purchased: input.amount, bonus: 0n };
   }
 }

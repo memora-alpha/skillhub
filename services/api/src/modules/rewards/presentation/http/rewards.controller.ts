@@ -4,6 +4,7 @@ import {
   Get,
   Header,
   Headers,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Post,
@@ -60,6 +61,18 @@ export class RewardsController {
     // 201 once issued; 202 while the provider outcome is still being reconciled.
     response.status(redemption.status === "ISSUED" ? 201 : 202);
     return success(redemption, "Voucher redemption accepted.");
+  }
+
+  /** Settle an uncertain redeem: the redemption made with this key, or 404 if it never will be. */
+  @Post("rewards/redemptions/lookup")
+  @HttpCode(200)
+  @Header("Cache-Control", "no-store")
+  @ApiHeader({ name: "Idempotency-Key", required: true })
+  async lookup(
+    @CurrentIdentity() actor: Principal,
+    @Headers("idempotency-key") key: string | undefined,
+  ) {
+    return success(await this.redemptions.lookup(actor, key));
   }
 
   @Get("rewards/redemptions")

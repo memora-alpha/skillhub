@@ -82,6 +82,7 @@ model VoucherRedemption {
   debitOperation          CreditOperation         @relation("VoucherRedemption_debit", fields: [debitOperationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   refundOperation         CreditOperation?        @relation("VoucherRedemption_refund", fields: [refundOperationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   voucher                 IssuedVoucher?
+  lots                    VoucherRedemptionLot[]
 
   @@unique([userId, idempotencyKey])
   @@unique([debitOperationId])
@@ -89,6 +90,18 @@ model VoucherRedemption {
   @@index([status, nextCheckAt], map: "voucher_redemptions_reconcile_idx")
   @@index([createdAt], map: "voucher_redemptions_budget_idx")
   @@map("voucher_redemptions")
+}
+
+/// Credit lots consumed by one redemption, so a refund restores the same lots and sources.
+/// Redemptions created before this table existed have no rows and were paid from PURCHASED lots only.
+model VoucherRedemptionLot {
+  redemptionId String            @map("redemption_id") @db.Uuid
+  lotId        String            @map("lot_id") @db.Uuid
+  amount       BigInt
+  redemption   VoucherRedemption @relation(fields: [redemptionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([redemptionId, lotId])
+  @@map("voucher_redemption_lots")
 }
 
 model IssuedVoucher {

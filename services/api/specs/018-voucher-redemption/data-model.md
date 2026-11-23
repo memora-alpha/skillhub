@@ -67,6 +67,18 @@ Check: `status = ACTIVE ⇒ priceCredit > 0`.
 
 Indexes: `(userId, createdAt desc, id desc)`, `(status, nextCheckAt)`, `(createdAt)` for budget sums.
 
+## VoucherRedemptionLot — `voucher_redemption_lots`
+
+Credit lots consumed by one redemption (any source, oldest first). A refund returns each amount
+to its lot and source bucket. Redemptions created before this table have no rows; they were paid
+from `PURCHASED` lots only and refund into a new `PURCHASED` lot.
+
+| Field        | Type         | Notes                    |
+| ------------ | ------------ | ------------------------ |
+| redemptionId | uuid PK/FK   | `voucher_redemptions.id` |
+| lotId        | uuid PK/FK   | `credit_lots.id`         |
+| amount       | bigint (> 0) | hundredths of Credit     |
+
 ## IssuedVoucher — `issued_vouchers`
 
 | Field               | Type         | Notes                                                  |

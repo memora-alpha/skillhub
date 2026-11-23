@@ -20,7 +20,7 @@ mock provider is refused when `NODE_ENV=production`.
 
 ## Current-state findings
 
-- Credit wallet, lots (`purchased`/`bonus` provenance), ledger and idempotent operations
+- Credit wallet, lots (`purchased`/`earned`/`bonus` provenance), ledger and idempotent operations
   exist in `src/modules/credit`. `MaterialPurchaseService` is the closest precedent for
   spending Credit inside one transaction.
 - `PaymentGateway` (payOS) is the precedent for an external provider port + adapter.
@@ -33,7 +33,7 @@ mock provider is refused when `NODE_ENV=production`.
 | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | D1  | On-demand issuance only (model A). No pre-purchased voucher inventory.                                                                                                                                                                               |
 | D2  | One `VoucherProvider` port; adapters `mock` (this spec) and `gotit` (phase 2). Selected by `VOUCHER_PROVIDER`.                                                                                                                                       |
-| D3  | Only `purchasedCredit` lots can pay for a voucher (default for Q2).                                                                                                                                                                                  |
+| D3  | Any Credit lot source (`PURCHASED`, `EARNED`, `BONUS`) can pay for a voucher, oldest lot first (Q2 answered 2026-11-23). Consumed lots are recorded per redemption; a refund restores the same lots and source buckets.                              |
 | D4  | Synced products start inactive with no price; an admin sets `priceCredit` and activates. Provider price is never used as the Credit price.                                                                                                           |
 | D5  | Issued voucher keeps a snapshot (name, brand, image, face value, terms, expiry). Code/PIN/link are encrypted at rest (AES-256-GCM, `VOUCHER_SECRET_KEY`).                                                                                            |
 | D6  | Provider call runs outside the debit transaction. Definitive failure → compensating refund. Unknown outcome (timeout/5xx) → no refund; reconcile by `clientRef`; after N attempts → `MANUAL_REVIEW`.                                                 |
@@ -57,10 +57,10 @@ the response returns the redemption in `ISSUED` with voucher details.
 
 **Independent test**:
 
-- Balance decreases by exactly `priceCredit`, only from purchased lots.
+- Balance decreases by exactly `priceCredit`, from the oldest lots of any source.
 - Same key replayed → same redemption, single debit; same key with another product → `IDEMPOTENCY_KEY_REUSED`.
 - Stale price version → `REWARD_PRICE_CHANGED`, no debit.
-- Insufficient purchased Credit, inactive product, user/platform limit exceeded → rejected, no debit.
+- Insufficient available Credit, inactive product, user/platform limit exceeded → rejected, no debit.
 - Two concurrent redemptions exceeding balance → exactly one succeeds.
 
 ### US3 — Provider failures (P1)

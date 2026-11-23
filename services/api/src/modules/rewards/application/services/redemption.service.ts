@@ -50,6 +50,10 @@ const ISSUE_TIMEOUT_MS = 10_000;
 /** Statuses whose face value counts against budgets (refunded ones do not). */
 const COUNTED = ["ISSUING", "ISSUED", "MANUAL_REVIEW"] as const;
 
+type LockedRow = VoucherRedemption & {
+  product: RewardProduct & { brand: RewardBrand };
+};
+
 type RedemptionRow = VoucherRedemption & {
   product: RewardProduct & { brand: RewardBrand };
   voucher: IssuedVoucher | null;
@@ -64,6 +68,22 @@ function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
     );
   });
   return Promise.race([work, timeout]).finally(() => clearTimeout(timer));
+}
+
+function requireIdempotencyKey(value: string | undefined): string {
+  const key = value?.trim();
+  if (!key || key.length > 128 || !/^[\x21-\x7e]+$/u.test(key))
+    throw new BadRequestException("IDEMPOTENCY_KEY_REQUIRED");
+  return key;
+}
+
+/** Idempotency identity of a redeem request; the raw key is hashed before storage. */
+function redeemIdentity(principal: Principal, key: string) {
+  return {
+    scope: `voucher-redeem:${principal.userId}`,
+    operation: "redeem",
+    key: createHash("sha256").update(key).digest("hex"),
+  };
 }
 
 function errorCode(error: unknown): string {
@@ -104,14 +124,10 @@ export class RedemptionService {
   ) {
     this.assertEnabled();
     requireReward(principal, "reward:redeem");
-    const key = idempotencyKey?.trim();
-    if (!key || key.length > 128 || !/^[\x21-\x7e]+$/u.test(key))
-      throw new BadRequestException("IDEMPOTENCY_KEY_REQUIRED");
+    const key = requireIdempotencyKey(idempotencyKey);
     const result = await this.idempotency.execute(
       {
-        scope: `voucher-redeem:${principal.userId}`,
-        operation: "redeem",
-        key: createHash("sha256").update(key).digest("hex"),
+        ...redeemIdentity(principal, key),
         command: {
           productId: input.productId,
           expectedPriceVersion: input.expectedPriceVersion,
@@ -124,7 +140,37 @@ export class RedemptionService {
     return this.get(principal, result.value.id, { reveal: false });
   }
 
-  /** Tx1: validate, debit purchased Credit, record the ISSUING redemption. */
+  /**
+   * Status of a redeem request by its Idempotency-Key, owner only. Waits for a request still
+   * running with that key. If none committed, the key is retired so a delayed request with it
+   * can no longer debit; NOT_FOUND therefore means the request will never take effect.
+   */
+  async lookup(principal: Principal, idempotencyKey: string | undefined) {
+    this.assertEnabled();
+    requireReward(principal, "reward:redeem");
+    const key = requireIdempotencyKey(idempotencyKey);
+    const id = await this.transactions.run(
+      async (tx) => {
+        await this.idempotency.retire(tx, redeemIdentity(principal, key));
+        const row = await tx.voucherRedemption.findUnique({
+          where: {
+            userId_idempotencyKey: {
+              userId: principal.userId,
+              idempotencyKey: key,
+            },
+          },
+          select: { id: true },
+        });
+        return row?.id;
+      },
+      // Each statement sees rows committed while the INSERT waited on an in-flight request.
+      { isolationLevel: "ReadCommitted" },
+    );
+    if (!id) throw new NotFoundException("VOUCHER_REDEMPTION_NOT_FOUND");
+    return this.get(principal, id, { reveal: false });
+  }
+
+  /** Tx1: validate, debit Credit (any source, oldest lot first), record the ISSUING redemption. */
   private async debit(
     tx: TransactionContext,
     principal: Principal,
@@ -182,7 +228,7 @@ export class RedemptionService {
       platformIssuedVndToday: platform._sum.faceValueVnd ?? 0n,
     });
     const id = randomUUID();
-    const { operationId } = await this.credit.redeemVoucher(tx, {
+    const { operationId, lots } = await this.credit.redeemVoucher(tx, {
       redemptionId: id,
       userId: principal.userId,
       amount: product.priceCredit,
@@ -201,6 +247,13 @@ export class RedemptionService {
         debitOperationId: operationId,
         nextCheckAt: new Date(Date.now() + 60_000),
       },
+    });
+    await tx.voucherRedemptionLot.createMany({
+      data: lots.map((lot) => ({
+        redemptionId: id,
+        lotId: lot.lotId,
+        amount: lot.amount,
+      })),
     });
     await this.audit.append(tx, {
       actor: humanActor(principal),
@@ -246,40 +299,7 @@ export class RedemptionService {
     await this.transactions.run(async (tx) => {
       const row = await this.lockRow(tx, id);
       if (row.status !== "ISSUING" && row.status !== "MANUAL_REVIEW") return;
-      assertTransition(row.status, "ISSUED");
-      const sealed = this.cipher.seal(id, {
-        code: data.code,
-        pin: data.pin,
-        link: data.link,
-      });
-      await tx.issuedVoucher.create({
-        data: {
-          redemptionId: id,
-          snapshot: {
-            brandName: row.product.brand.nameVi,
-            brandLogoUrl: row.product.brand.logoUrl,
-            productName: row.product.displayNameOverride ?? row.product.nameVi,
-            imageUrl: row.product.imageOverride ?? row.product.imageUrl,
-            faceValueVnd: row.faceValueVnd.toString(),
-            terms: row.product.termsVi,
-          },
-          secretCiphertext: sealed.ciphertext,
-          secretIv: sealed.iv,
-          secretTag: sealed.tag,
-          keyVersion: sealed.keyVersion,
-          expiresAt: data.expiresAt,
-        },
-      });
-      await tx.voucherRedemption.update({
-        where: { id },
-        data: {
-          status: "ISSUED",
-          providerTransactionRef: data.providerTransactionRef,
-          lastErrorCode: null,
-          nextCheckAt: null,
-          resolvedAt: new Date(),
-        },
-      });
+      await this.applyIssued(tx, row, data);
     });
   }
 
@@ -288,22 +308,77 @@ export class RedemptionService {
     await this.transactions.run(async (tx) => {
       const row = await this.lockRow(tx, id);
       if (row.status !== "ISSUING") return;
-      assertTransition(row.status, "FAILED_REFUNDED");
-      const { operationId } = await this.credit.refundVoucher(tx, {
-        redemptionId: id,
-        userId: row.userId,
-        amount: row.priceCredit,
+      await this.applyRefund(tx, row, "FAILED_REFUNDED", {
+        lastErrorCode: code,
+        nextCheckAt: null,
       });
-      await tx.voucherRedemption.update({
-        where: { id },
-        data: {
-          status: "FAILED_REFUNDED",
-          refundOperationId: operationId,
-          lastErrorCode: code,
-          nextCheckAt: null,
-          resolvedAt: new Date(),
+    });
+  }
+
+  /** Store the sealed voucher and mark ISSUED. Caller holds the row lock. */
+  private async applyIssued(
+    tx: TransactionContext,
+    row: LockedRow,
+    data: IssuedVoucherData,
+  ) {
+    assertTransition(row.status, "ISSUED");
+    const sealed = this.cipher.seal(row.id, {
+      code: data.code,
+      pin: data.pin,
+      link: data.link,
+    });
+    await tx.issuedVoucher.create({
+      data: {
+        redemptionId: row.id,
+        snapshot: {
+          brandName: row.product.brand.nameVi,
+          brandLogoUrl: row.product.brand.logoUrl,
+          productName: row.product.displayNameOverride ?? row.product.nameVi,
+          imageUrl: row.product.imageOverride ?? row.product.imageUrl,
+          faceValueVnd: row.faceValueVnd.toString(),
+          terms: row.product.termsVi,
         },
-      });
+        secretCiphertext: sealed.ciphertext,
+        secretIv: sealed.iv,
+        secretTag: sealed.tag,
+        keyVersion: sealed.keyVersion,
+        expiresAt: data.expiresAt,
+      },
+    });
+    return tx.voucherRedemption.update({
+      where: { id: row.id },
+      data: {
+        status: "ISSUED",
+        providerTransactionRef: data.providerTransactionRef,
+        lastErrorCode: null,
+        nextCheckAt: null,
+        resolvedAt: new Date(),
+      },
+    });
+  }
+
+  /** Return the debited Credit to its lots and close the redemption. Caller holds the row lock. */
+  private async applyRefund(
+    tx: TransactionContext,
+    row: LockedRow,
+    status: "FAILED_REFUNDED" | "REFUNDED_MANUAL",
+    extra: { lastErrorCode?: string; nextCheckAt?: null } = {},
+  ) {
+    assertTransition(row.status, status);
+    const { operationId } = await this.credit.refundVoucher(tx, {
+      redemptionId: row.id,
+      userId: row.userId,
+      amount: row.priceCredit,
+      spentLots: await this.spentLots(tx, row.id),
+    });
+    return tx.voucherRedemption.update({
+      where: { id: row.id },
+      data: {
+        ...extra,
+        status,
+        refundOperationId: operationId,
+        resolvedAt: new Date(),
+      },
     });
   }
 
@@ -369,8 +444,19 @@ export class RedemptionService {
     }
   }
 
+  private spentLots(tx: TransactionContext, redemptionId: string) {
+    return tx.voucherRedemptionLot.findMany({
+      where: { redemptionId },
+      select: { lotId: true, amount: true },
+      orderBy: { lotId: "asc" },
+    });
+  }
+
   private async lockRow(tx: TransactionContext, id: string) {
-    await tx.$queryRaw`SELECT id FROM voucher_redemptions WHERE id = ${id}::uuid FOR UPDATE`;
+    const locked = await tx.$queryRaw<{ id: string }[]>`
+      SELECT id FROM voucher_redemptions WHERE id = ${id}::uuid FOR UPDATE`;
+    if (!locked.length)
+      throw new NotFoundException("VOUCHER_REDEMPTION_NOT_FOUND");
     return tx.voucherRedemption.findUniqueOrThrow({
       where: { id },
       include: { product: { include: { brand: true } } },
@@ -505,7 +591,11 @@ export class RedemptionService {
     };
   }
 
-  /** Resolve a MANUAL_REVIEW redemption: attach the voucher or refund. Reason and audit mandatory. */
+  /**
+   * Resolve a MANUAL_REVIEW redemption: attach the voucher or refund. The state change, any
+   * Credit refund and the mandatory audit commit together, so a failed audit leaves the
+   * redemption in MANUAL_REVIEW and the admin can retry.
+   */
   async resolve(
     principal: Principal,
     id: string,
@@ -523,63 +613,39 @@ export class RedemptionService {
     requireReward(principal, "reward:manage");
     const reason = input.reason.trim();
     if (!reason) throw new BadRequestException("REASON_REQUIRED");
-    const current = await this.db.voucherRedemption.findUnique({
-      where: { id },
-    });
-    if (!current) throw new NotFoundException("VOUCHER_REDEMPTION_NOT_FOUND");
-    if (current.status !== "MANUAL_REVIEW")
-      throw new ConflictException("VOUCHER_INVALID_TRANSITION");
     if (
       input.action === "ISSUED" &&
       !(input.voucher?.code || input.voucher?.link)
     )
       throw new BadRequestException("VOUCHER_DATA_REQUIRED");
-    if (input.action === "ISSUED") {
-      await this.finalizeIssued(id, {
-        providerTransactionRef: `manual-${id}`,
-        code: input.voucher?.code ?? null,
-        pin: input.voucher?.pin ?? null,
-        link: input.voucher?.link ?? null,
-        expiresAt: input.voucher?.expiresAt ?? null,
-      });
-    } else {
-      await this.transactions.run(async (tx) => {
-        const row = await this.lockRow(tx, id);
-        assertTransition(row.status, "REFUNDED_MANUAL");
-        const { operationId } = await this.credit.refundVoucher(tx, {
-          redemptionId: id,
-          userId: row.userId,
-          amount: row.priceCredit,
-        });
-        await tx.voucherRedemption.update({
-          where: { id },
-          data: {
-            status: "REFUNDED_MANUAL",
-            refundOperationId: operationId,
-            resolvedAt: new Date(),
-          },
-        });
-      });
-    }
     return this.transactions.run(async (tx) => {
       const row = await this.lockRow(tx, id);
-      const expected = input.action === "ISSUED" ? "ISSUED" : "REFUNDED_MANUAL";
-      if (row.status !== expected)
+      if (row.status !== "MANUAL_REVIEW")
         throw new ConflictException("VOUCHER_INVALID_TRANSITION");
+      const updated =
+        input.action === "ISSUED"
+          ? await this.applyIssued(tx, row, {
+              providerTransactionRef: `manual-${id}`,
+              code: input.voucher?.code ?? null,
+              pin: input.voucher?.pin ?? null,
+              link: input.voucher?.link ?? null,
+              expiresAt: input.voucher?.expiresAt ?? null,
+            })
+          : await this.applyRefund(tx, row, "REFUNDED_MANUAL");
       await this.audit.append(tx, {
         actor: humanActor(principal),
         action: "VOUCHER_RESOLVE",
         target: { type: "VOUCHER_REDEMPTION", id },
         after: {
-          productId: row.productId,
-          priceCredit: row.priceCredit.toString(),
-          status: row.status,
-          operationId: row.refundOperationId ?? row.debitOperationId,
+          productId: updated.productId,
+          priceCredit: updated.priceCredit.toString(),
+          status: updated.status,
+          operationId: updated.refundOperationId ?? updated.debitOperationId,
         },
         reason,
         context: auditContext(),
       });
-      return { id, status: row.status };
+      return { id, status: updated.status };
     });
   }
 

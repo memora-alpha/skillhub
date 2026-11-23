@@ -28,7 +28,8 @@ rewards.module.ts
 
 Credit module gains `CreditOperationsService.redeemVoucher()` and
 `refundVoucher()`, following `purchaseMaterial()`/`refundMaterial()`: lock wallet,
-spend purchased lots only, write operation + ledger, return operation ID.
+spend lots of any source oldest first, write operation + ledger, return operation ID and
+consumed lots (stored in `voucher_redemption_lots`; refund restores those lots).
 
 ## Provider port
 
@@ -72,6 +73,7 @@ Finalize is idempotent: it only transitions from `ISSUING`.
 | GET    | `/rewards/products`                      | active + priced; filters brand, category; locale                                      |
 | GET    | `/rewards/products/:id`                  |                                                                                       |
 | POST   | `/rewards/redemptions`                   | `Idempotency-Key`; body `{productId, expectedPriceVersion}`; 201 ISSUED / 202 ISSUING |
+| POST   | `/rewards/redemptions/lookup`            | `Idempotency-Key`; own; 200 redemption made with that key, or 404 (key retired)       |
 | GET    | `/rewards/redemptions`                   | own, cursor                                                                           |
 | GET    | `/rewards/redemptions/:id`               | own; includes decrypted secret when ISSUED; audited                                   |
 | GET    | `/admin/rewards/products`                | all statuses                                                                          |
@@ -82,8 +84,22 @@ Finalize is idempotent: it only transitions from `ISSUING`.
 | GET    | `/admin/rewards/budget`                  | today's issued face value vs budget                                                   |
 
 Error codes: `VOUCHER_REDEMPTION_DISABLED`, `REWARD_NOT_AVAILABLE`,
-`REWARD_PRICE_CHANGED`, `INSUFFICIENT_PURCHASED_CREDIT`, `VOUCHER_USER_LIMIT_EXCEEDED`,
+`REWARD_PRICE_CHANGED`, `INSUFFICIENT_AVAILABLE_CREDIT`, `VOUCHER_USER_LIMIT_EXCEEDED`,
 `VOUCHER_BUDGET_EXCEEDED`, `IDEMPOTENCY_KEY_REUSED`.
+
+Uncertain redeem outcome (client lost the response, or closed after storing the key):
+
+- Resend `POST /rewards/redemptions` with the same key and the same body. A committed request
+  replays its redemption; otherwise the request runs now, and a rejection (e.g.
+  `REWARD_PRICE_CHANGED`) means nothing was debited.
+- Or call `POST /rewards/redemptions/lookup` with the key. It waits for a request still
+  running with that key. 404 retires the key: a delayed request with it gets
+  `IDEMPOTENCY_KEY_REUSED` and never debits, so the client may start over with a new key.
+- Never reuse a key with a different body; that returns `IDEMPOTENCY_KEY_REUSED` without the
+  redemption ID.
+
+Admin resolve locks the redemption, changes its state (voucher or refund) and appends
+`VOUCHER_RESOLVE` in one transaction; a failed audit leaves it in `MANUAL_REVIEW`.
 
 Permissions: `reward:redeem` (USER), `reward:manage` (STAFF/ADMIN), added to the
 RBAC catalog and audit action catalog.

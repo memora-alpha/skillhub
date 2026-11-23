@@ -93,9 +93,43 @@ function completedReference<T>(record: {
   return record.resultReference as T;
 }
 
+/** Not valid canonical JSON, so no command fingerprint can equal it. */
+const RETIRED_FINGERPRINT = sha256("idempotency:retired");
+
 @Injectable()
 export class IdempotencyService {
   constructor(private readonly transactions: TransactionRunner) {}
+
+  /**
+   * Settle a key for a status lookup inside the caller's transaction. Waits for an in-flight
+   * command holding the key to commit or roll back. A key with no committed command is retired:
+   * a late request with that key is rejected as reused instead of executing.
+   * Returns true when a command had committed under the key.
+   */
+  async retire(
+    tx: Prisma.TransactionClient,
+    input: Pick<IdempotencyInput, "scope" | "operation" | "key">,
+  ): Promise<boolean> {
+    const keyDigest = sha256(input.key);
+    const inserted = await tx.$executeRaw`
+      INSERT INTO "idempotency_records" ("scope", "operation", "key_digest", "fingerprint")
+      VALUES (${input.scope}, ${input.operation}, ${keyDigest}, ${RETIRED_FINGERPRINT})
+      ON CONFLICT ("scope", "operation", "key_digest") DO NOTHING
+    `;
+    if (inserted) return false;
+    const record = await tx.idempotencyRecord.findUnique({
+      where: {
+        scope_operation_keyDigest: {
+          scope: input.scope,
+          operation: input.operation,
+          keyDigest,
+        },
+      },
+    });
+    if (!record)
+      throw new ServiceUnavailableException("Idempotency record unavailable");
+    return record.fingerprint !== RETIRED_FINGERPRINT;
+  }
 
   async execute<T extends ResultReference, Prepared = never>(
     input: IdempotencyInput,
