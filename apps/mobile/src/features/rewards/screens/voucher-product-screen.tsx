@@ -111,24 +111,7 @@ function ProductContent({ id }: Readonly<{ id: string }>) {
         error={query.error}
         retry={() => query.refetch()}
       />
-      {product && (
-        <>
-          <VoucherProductOverview product={product} />
-          <Panel title="Trước khi đổi">
-            <Copy>
-              Dùng Credit đã nạp để đổi voucher. Kiểm tra điều kiện sử dụng
-              trước khi xác nhận.
-            </Copy>
-            <Button
-              variant="paper"
-              leadingIcon="wallet"
-              onPress={() => router.push("/wallet")}
-            >
-              Xem ví Credit
-            </Button>
-          </Panel>
-        </>
-      )}
+      {product && <VoucherProductOverview product={product} />}
       <InfoModal
         titleStyle={s.heading}
         title={confirmation ? "Xác nhận đổi voucher?" : null}
@@ -164,8 +147,7 @@ function ProductContent({ id }: Readonly<{ id: string }>) {
             <Text style={s.heading}>{confirmation.name}</Text>
             <Text style={s.price}>{creditLabel(confirmation.priceCredit)}</Text>
             <Text style={s.body}>
-              Credit sẽ được trừ khi yêu cầu được tiếp nhận. Theo dõi voucher đã
-              đổi tại “Của tôi”.
+              Credit khả dụng sẽ được trừ khi yêu cầu được tiếp nhận.
             </Text>
             {stale && (
               <FormNotice tone="warning">
@@ -188,7 +170,9 @@ function VoucherProductOverview({
           <RewardLogo name={product.brand.name} uri={product.brand.logoUrl} />
           <View style={s.grow}>
             <Text style={s.heading}>{product.brand.name}</Text>
-            <Text style={s.muted}>{product.category ?? "Phiếu quà tặng"}</Text>
+            {!!product.category && (
+              <Text style={s.muted}>{product.category}</Text>
+            )}
           </View>
         </View>
         <Text style={s.detailAmount}>{vndLabel(product.faceValueVnd)}</Text>

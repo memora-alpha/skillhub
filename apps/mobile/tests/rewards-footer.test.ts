@@ -86,19 +86,20 @@ const intent = {
   expectedPriceVersion: 1,
 };
 
-test("insufficient purchased credit shows one notice and keeps only the redeem action", () =>
+test("insufficient available credit shows one notice and keeps only the redeem action", () =>
   withFooter((render) => {
     const tree = render({
       ...props({
         stage: "ready",
         intent,
-        error: new AppError("http", 409, "INSUFFICIENT_PURCHASED_CREDIT"),
+        error: new AppError("http", 409, "INSUFFICIENT_AVAILABLE_CREDIT"),
       }),
     });
     const elements = nodes(tree);
     const notices = elements.filter((item) => item.type === "Notice");
     assert.equal(notices.length, 1);
-    assert.match(text(notices[0]), /Số Credit đã nạp chưa đủ/);
+    assert.match(text(notices[0]), /Credit khả dụng chưa đủ/);
+    assert.doesNotMatch(text(notices[0]), /đã nạp|nạp thêm/);
     assert.doesNotMatch(text(tree), /Credit thưởng|kiếm được/);
     assert.match(text(tree), /Credit cần đổi50 Credit/);
     const buttons = elements.filter((item) => item.type === "Button");
@@ -114,7 +115,7 @@ test("a rejected request for another voucher cannot leave an error on the curren
           ...intent,
           productId: "44444444-4444-4444-8444-444444444444",
         },
-        error: new AppError("http", 409, "INSUFFICIENT_PURCHASED_CREDIT"),
+        error: new AppError("http", 409, "INSUFFICIENT_AVAILABLE_CREDIT"),
       }),
     );
     assert.equal(

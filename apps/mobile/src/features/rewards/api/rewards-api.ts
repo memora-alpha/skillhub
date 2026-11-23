@@ -71,6 +71,30 @@ export function createRewardsApi(
         throw new AppError("protocol");
       return row;
     },
+    async lookup(input: RedemptionIntent) {
+      const intent = parse(redemptionIntentSchema, input);
+      try {
+        const row = receipt(
+          await call("/rewards/redemptions/lookup", {
+            method: "POST",
+            idempotencyKey: intent.key,
+            replayAfterRenewal: false,
+          }),
+        );
+        if (row.product.id !== intent.productId) throw new AppError("protocol");
+        return row;
+      } catch (error) {
+        // Only this endpoint's exact response guarantees the old key can never debit.
+        if (
+          error instanceof AppError &&
+          error.kind === "http" &&
+          error.status === 404 &&
+          error.code === "VOUCHER_REDEMPTION_NOT_FOUND"
+        )
+          return null;
+        throw error;
+      }
+    },
     async redeem(input: RedemptionIntent) {
       const intent = parse(redemptionIntentSchema, input);
       const row = receipt(

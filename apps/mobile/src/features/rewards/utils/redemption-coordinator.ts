@@ -11,6 +11,7 @@ export type RedemptionState = Readonly<{
   stage: "loading" | "ready" | "pending" | "uncertain" | "unavailable";
   intent?: RedemptionIntent;
   error?: unknown;
+  notice?: "not-redeemed";
 }>;
 export class RedemptionCoordinator {
   private state: RedemptionState = { stage: "loading" };
@@ -21,6 +22,7 @@ export class RedemptionCoordinator {
     private readonly deps: {
       openStore: () => Promise<RedemptionStore>;
       send: (intent: RedemptionIntent) => Promise<Redemption>;
+      lookup: (intent: RedemptionIntent) => Promise<Redemption | null>;
       createKey: () => string;
       isCurrent: () => boolean;
       changed: () => void;
@@ -55,29 +57,45 @@ export class RedemptionCoordinator {
   async redeem(product: RewardProduct) {
     if (this.busy || this.state.stage !== "ready" || !this.deps.isCurrent())
       return;
-    return this.dispatch(
-      {
-        key: this.deps.createKey(),
-        productId: product.id,
-        expectedPriceVersion: product.priceVersion,
-      },
-      false,
-    );
+    return this.dispatch({
+      key: this.deps.createKey(),
+      productId: product.id,
+      expectedPriceVersion: product.priceVersion,
+    });
   }
-  retry() {
+  async recover() {
     if (
       this.busy ||
+      !this.store ||
       this.state.stage !== "uncertain" ||
       !this.state.intent ||
       !this.deps.isCurrent()
     )
-      return Promise.resolve(undefined);
-    return this.dispatch(this.state.intent, true);
+      return;
+    const intent = this.state.intent;
+    this.busy = true;
+    this.update({ stage: "pending", intent });
+    try {
+      const result = await this.deps.lookup(intent);
+      if (!this.deps.isCurrent()) return;
+      // Refresh current prices and wallet after either authoritative outcome.
+      this.deps.changed();
+      await this.store.remove(intent.key);
+      this.update({
+        stage: "ready",
+        notice: result ? undefined : "not-redeemed",
+      });
+      return this.deps.isCurrent() ? (result ?? undefined) : undefined;
+    } catch (error) {
+      this.update({ stage: "uncertain", intent, error });
+    } finally {
+      this.busy = false;
+    }
   }
-  private async dispatch(intent: RedemptionIntent, recovery: boolean) {
+  private async dispatch(intent: RedemptionIntent) {
     if (!this.store) return;
     this.busy = true;
-    let saved = recovery;
+    let saved = false;
     let completed = false;
     this.update({ stage: "pending", intent });
     try {
@@ -89,13 +107,13 @@ export class RedemptionCoordinator {
       if (!this.deps.isCurrent()) throw new AppError("session");
       completed = true;
       this.deps.changed();
-      // A failed cleanup preserves the key and requires an exact replay.
+      // A failed cleanup preserves the key for lookup recovery.
       await this.store.remove(intent.key);
       this.update({ stage: "ready" });
       return this.deps.isCurrent() ? result : undefined;
     } catch (error) {
       if (!this.deps.isCurrent()) return;
-      if (saved && !recovery && !completed && isRejectedCommand(error)) {
+      if (saved && !completed && isRejectedCommand(error)) {
         try {
           await this.store.remove(intent.key);
           this.update({ stage: "ready", intent, error });

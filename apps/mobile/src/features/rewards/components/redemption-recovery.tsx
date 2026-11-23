@@ -20,6 +20,12 @@ export function RedemptionRecovery({
       };
     }, []),
   );
+  if (state.stage === "ready" && state.notice === "not-redeemed")
+    return (
+      <FormNotice tone="info" compact>
+        Credit chưa bị trừ. Bạn có thể kiểm tra giá và đổi lại.
+      </FormNotice>
+    );
   if (state.stage === "unavailable" && showUnavailable)
     return (
       <FormNotice tone="warning" compact>
@@ -32,13 +38,18 @@ export function RedemptionRecovery({
       <FormNotice tone="warning" compact>
         {state.stage === "pending"
           ? "Đang xử lý yêu cầu đổi voucher…"
-          : "Có yêu cầu đổi chưa xác định kết quả. Kiểm tra yêu cầu này trước khi đổi tiếp; thao tác không tạo giao dịch mới."}
+          : "Có yêu cầu đổi chưa rõ kết quả. Kiểm tra trước khi đổi tiếp."}
       </FormNotice>
+      {state.stage === "uncertain" && !!state.error && (
+        <FormNotice tone="error" compact>
+          {rewardFailure(state.error)}
+        </FormNotice>
+      )}
       {state.stage === "uncertain" && (
         <Button
           variant="paper"
           onPress={() => {
-            void model.retry().then((row) => {
+            void model.recover().then((row) => {
               if (row && active.current)
                 router.push(`/vouchers/mine/${row.id}`);
             });

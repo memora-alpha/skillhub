@@ -1,7 +1,12 @@
 import { useIsFocused } from "expo-router";
-import { useConnectionList, useConnectionQuery } from "@/features/connections";
+import {
+  useConnectionList,
+  useConnectionQuery,
+  useConnections,
+} from "@/features/connections";
 import { uuid } from "@/lib/http/contracts";
 import { useRewards } from "../context/rewards-provider";
+import { useRedemptionRefresh } from "./use-redemption-refresh";
 
 export function useRewardProducts() {
   const { api } = useRewards();
@@ -34,10 +39,14 @@ export function useRedemptions() {
 export function useRedemption(id: string) {
   const { api } = useRewards();
   const focused = useIsFocused();
-  return useConnectionQuery(
+  const runtime = useConnections();
+  const valid = focused && uuid.safeParse(id).success;
+  const query = useConnectionQuery(
     ["rewards", "redemption", id],
     (signal) => api.receipt(id, signal),
-    focused && uuid.safeParse(id).success,
+    valid,
     { freshOnMount: true, cancelOnDisable: true },
   );
+  useRedemptionRefresh(query, valid && runtime.enabled, runtime.isCurrent);
+  return query;
 }

@@ -74,15 +74,6 @@ function Catalog() {
       }}
       ListHeaderComponent={
         <View style={s.header}>
-          <View style={s.hero}>
-            <View style={s.row}>
-              <Text style={s.heroTitle}>Đổi Credit, nhận quà</Text>
-              <Icon name="ticket" size={28} color={appColors.primary} />
-            </View>
-            <Text style={s.heroBody}>
-              Khám phá thương hiệu yêu thích và đổi voucher bằng Credit đã nạp.
-            </Text>
-          </View>
           <RedemptionRecovery />
           <Input
             label="Tìm voucher hoặc thương hiệu"
@@ -92,21 +83,19 @@ function Catalog() {
             onChangeText={setSearch}
             rightAccessory={<Icon name="search" color={appColors.muted} />}
           />
-          <FilterBar
-            label="Danh mục voucher"
-            role="radio"
-            value={category}
-            options={[
-              { value: "", label: "Tất cả" },
-              ...categories.map((value) => ({ value, label: value })),
-            ]}
-            onChange={setCategory}
-          />
-          {query.data && (
-            <Text style={s.muted}>
-              {items.length} voucher{category ? ` · ${category}` : ""}
-            </Text>
+          {categories.length > 0 && (
+            <FilterBar
+              label="Danh mục voucher"
+              role="radio"
+              value={category}
+              options={[
+                { value: "", label: "Tất cả" },
+                ...categories.map((value) => ({ value, label: value })),
+              ]}
+              onChange={setCategory}
+            />
           )}
+          {query.data && <Text style={s.muted}>{items.length} voucher</Text>}
           <ConnectionFeedback
             loading={query.isLoading}
             error={query.error}
@@ -180,9 +169,9 @@ function MyVouchers() {
             ]}
             onChange={setFilter}
           />
-          <Text style={s.muted}>
-            {items.length} kết quả đã tải · Mới nhất trước
-          </Text>
+          {query.data && (
+            <Text style={s.muted}>{items.length} voucher đã tải</Text>
+          )}
           <ConnectionFeedback
             loading={query.isLoading}
             error={query.error}
@@ -208,32 +197,24 @@ function MyVouchers() {
             title="Chưa có voucher phù hợp"
             description={
               query.hasNextPage
-                ? "Bộ lọc áp dụng cho các giao dịch đã tải. Xem thêm để tìm trong lịch sử."
+                ? "Xem thêm lịch sử để tìm voucher phù hợp."
                 : "Voucher đã đổi sẽ xuất hiện ở đây để bạn theo dõi và xem mã."
             }
           />
         ) : null
       }
       ListFooterComponent={
-        <View style={s.stack}>
-          {query.hasNextPage && (
-            <Button
-              variant="paper"
-              disabled={query.isFetching}
-              onPress={() => {
-                void query.fetchNextPage();
-              }}
-            >
-              {query.isFetchingNextPage ? "Đang tải…" : "Xem thêm"}
-            </Button>
-          )}
+        query.hasNextPage ? (
           <Button
-            variant="ghost"
-            onPress={() => router.setParams({ tab: "catalog" })}
+            variant="paper"
+            disabled={query.isFetching}
+            onPress={() => {
+              void query.fetchNextPage();
+            }}
           >
-            Khám phá voucher
+            {query.isFetchingNextPage ? "Đang tải…" : "Xem thêm"}
           </Button>
-        </View>
+        ) : null
       }
     />
   );

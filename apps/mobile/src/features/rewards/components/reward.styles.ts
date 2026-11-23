@@ -20,25 +20,6 @@ export const rewardStyles = StyleSheet.create({
   body: { fontFamily: fonts.body, ...typography.body, color: c.body },
   muted: { fontFamily: fonts.body, ...typography.secondary, color: c.muted },
   title: { fontFamily: fonts.bold, ...typography.title, color: c.ink },
-  hero: {
-    padding: 16,
-    gap: 8,
-    backgroundColor: c.primarySoft,
-    borderWidth: 1,
-    borderColor: c.primaryMuted,
-    borderRadius: appRadius.card,
-  },
-  heroTitle: {
-    fontFamily: fonts.bold,
-    ...typography.title,
-    color: c.ink,
-    flex: 1,
-  },
-  heroBody: {
-    fontFamily: fonts.body,
-    ...typography.secondary,
-    color: c.body,
-  },
   card: {
     flex: 1,
     minWidth: 0,

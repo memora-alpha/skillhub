@@ -80,30 +80,25 @@ function ReceiptContent({ id }: Readonly<{ id: string }>) {
             <Copy>
               Ngày đổi: {new Date(row.createdAt).toLocaleString("vi-VN")}
             </Copy>
-            <Copy>
-              Hạn sử dụng:{" "}
-              {row.expiresAt
-                ? new Date(row.expiresAt).toLocaleDateString("vi-VN")
-                : "Chưa có thông tin"}
-            </Copy>
+            {!!row.expiresAt && (
+              <Copy>
+                Hạn sử dụng:{" "}
+                {new Date(row.expiresAt).toLocaleDateString("vi-VN")}
+              </Copy>
+            )}
           </Panel>
           {row.status === "ISSUING" && (
             <FormNotice tone="info">
-              Yêu cầu đã được tiếp nhận, voucher đang được phát hành. Làm mới để
-              kiểm tra; không cần đổi lại.
+              Voucher đang được phát hành. Bạn không cần đổi lại.
             </FormNotice>
           )}
           {row.status === "MANUAL_REVIEW" && (
             <FormNotice tone="warning">
-              Yêu cầu đang được nhân sự kiểm tra. Credit chưa được hoàn; vui
-              lòng theo dõi tại đây.
+              Yêu cầu đang được kiểm tra. Credit chưa được hoàn.
             </FormNotice>
           )}
           {["FAILED_REFUNDED", "REFUNDED_MANUAL"].includes(row.status) && (
-            <FormNotice tone="info">
-              Giao dịch đã được hoàn Credit theo trạng thái từ hệ thống. Kiểm
-              tra số dư tại Ví Credit.
-            </FormNotice>
+            <FormNotice tone="info">Credit đã được hoàn vào ví.</FormNotice>
           )}
           {usable && (
             <Panel title="Mã voucher">
@@ -116,8 +111,7 @@ function ReceiptContent({ id }: Readonly<{ id: string }>) {
                   )}
                   {!!vault.secret.pin && <Copy>PIN: {vault.secret.pin}</Copy>}
                   <Copy muted>
-                    Chạm giữ mã để chọn và sao chép. Không chia sẻ mã hoặc PIN
-                    cho người khác.
+                    Chạm giữ để sao chép. Không chia sẻ mã hoặc PIN.
                   </Copy>
                   {!!url && (
                     <Button
@@ -142,18 +136,15 @@ function ReceiptContent({ id }: Readonly<{ id: string }>) {
                   </Button>
                 </>
               ) : (
-                <>
-                  <Copy muted>Nhấn bên dưới để xem mã voucher của bạn.</Copy>
-                  <Button
-                    variant="craft"
-                    disabled={vault.pending}
-                    onPress={() => {
-                      void vault.reveal();
-                    }}
-                  >
-                    {vault.pending ? "Đang lấy mã…" : "Hiện mã voucher"}
-                  </Button>
-                </>
+                <Button
+                  variant="craft"
+                  disabled={vault.pending}
+                  onPress={() => {
+                    void vault.reveal();
+                  }}
+                >
+                  {vault.pending ? "Đang lấy mã…" : "Hiện mã voucher"}
+                </Button>
               )}
               {!!vault.error && (
                 <FormNotice tone="error" compact>
@@ -162,21 +153,6 @@ function ReceiptContent({ id }: Readonly<{ id: string }>) {
               )}
             </Panel>
           )}
-          {expired && (
-            <FormNotice tone="warning">
-              Voucher đã hết hạn theo thông tin nhà cung cấp.
-            </FormNotice>
-          )}
-          <Button
-            variant="paper"
-            onPress={() => {
-              vault.hide();
-              void query.refetch();
-            }}
-            disabled={query.isFetching}
-          >
-            Làm mới trạng thái
-          </Button>
         </>
       )}
     </FeaturePage>

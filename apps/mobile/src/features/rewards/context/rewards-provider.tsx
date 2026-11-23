@@ -40,6 +40,7 @@ function ScopedProvider({ children }: Readonly<{ children: ReactNode }>) {
       new RedemptionCoordinator({
         openStore: () => openRedemptionStore(runtime.userId ?? "", getApiUrl()),
         send: api.redeem,
+        lookup: api.lookup,
         createKey: randomUUID,
         isCurrent: runtime.isCurrent,
         changed: () => {

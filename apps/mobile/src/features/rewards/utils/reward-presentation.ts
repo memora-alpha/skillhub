@@ -22,7 +22,7 @@ export function filterProducts(
     value
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
-      .replace(/đ/g, "d")
+      .replace(/[đĐ]/g, "d")
       .toLocaleLowerCase("vi");
   const term = normalize(search.trim());
   return products.filter(
@@ -69,8 +69,6 @@ const failures: Record<string, string> = {
     "Voucher hiện không còn khả dụng. Hãy chọn voucher khác.",
   REWARD_PRICE_CHANGED:
     "Giá voucher đã thay đổi. Tải lại và kiểm tra trước khi đổi.",
-  INSUFFICIENT_PURCHASED_CREDIT:
-    "Số Credit đã nạp chưa đủ để đổi voucher này. Vui lòng nạp thêm Credit.",
   INSUFFICIENT_AVAILABLE_CREDIT: "Credit khả dụng chưa đủ để đổi voucher.",
   VOUCHER_USER_LIMIT_EXCEEDED: "Bạn đã đạt hạn mức đổi voucher trong ngày.",
   VOUCHER_BUDGET_EXCEEDED:
