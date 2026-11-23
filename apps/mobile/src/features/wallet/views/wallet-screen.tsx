@@ -7,6 +7,7 @@ import { useWalletBack } from "../hooks/use-wallet-back";
 import { WalletOverviewContent } from "../components/wallet-overview-content";
 import { useOwnerPaymentCreate } from "../hooks/use-owner-payment-create";
 import { resumesPayment } from "../utils/payment-auto-read";
+import { Button } from "@/components/Button";
 
 export function WalletOverview() {
   const { state, refresh } = useWallet();
@@ -46,6 +47,13 @@ export function WalletOverview() {
             }}
             onHistory={() => router.push("/wallet/history")}
           />
+          <Button
+            variant="paper"
+            leadingIcon="ticket"
+            onPress={() => router.push("/vouchers")}
+          >
+            Khám phá voucher
+          </Button>
         </KeyboardFormScrollView>
       )}
     </AppScreenLayout>

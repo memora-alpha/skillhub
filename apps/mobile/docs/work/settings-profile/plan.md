@@ -14,6 +14,7 @@ Settings timezone/language/notification chỉ dùng context xem thử, không l�
 - [x] Lưu timezone IANA/locale bằng PATCH profile, đọc saved account; validate zone và không giả chuyển toàn bộ UI sang English.
 - [x] GET/PATCH notification preferences với đủ ba nhóm, loading/error/reload/draft/save và guard phiên/nhấn lặp.
 - [x] Privacy giải thích dữ liệu công khai/riêng tư, mở đúng self public-preview và quản lý kỹ năng.
+- [x] Đặt nút Cài đặt tài khoản cạnh nút Chỉnh sửa hồ sơ trên Profile; bỏ ô Cài đặt khỏi lưới shortcut.
 - [x] Parse/project/render completedLearningPathCount, phân biệt số buổi và unknown trên server cũ.
 - [x] Gắn generation cho callback updateProfile ngay khi render hook; chống read cũ ghi đè save và không cập nhật cache phiên khác.
 - [x] Focused regression, TypeScript/ESLint/structure/full mobile suite và kiểm diff; bằng chứng tại status.

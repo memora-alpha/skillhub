@@ -54,9 +54,11 @@ import PhoneOff from "lucide-react-native/icons/phone-off";
 import Maximize from "lucide-react-native/icons/maximize";
 import Minimize from "lucide-react-native/icons/minimize";
 import Pin from "lucide-react-native/icons/pin";
+import Ticket from "lucide-react-native/icons/ticket";
 
 // Keep semantic names stable for every screen. Per-icon imports avoid loading the catalog.
 export const iconComponents = {
+  ticket: Ticket,
   zap: Zap,
   compass: Compass,
   users: UsersRound,

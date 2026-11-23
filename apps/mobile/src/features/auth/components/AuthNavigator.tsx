@@ -75,6 +75,7 @@ export function AuthNavigator() {
         <Stack.Screen name="learning-sessions/[id]/reschedule" />
         <Stack.Screen name="learning-sessions/[id]/room" />
         <Stack.Screen name="wallet/index" />
+        <Stack.Screen name="vouchers" />
         <Stack.Screen name="wallet/topup" />
         <Stack.Screen name="wallet/payment" />
         <Stack.Screen name="wallet/payment-status" />
