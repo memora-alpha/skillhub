@@ -22,6 +22,11 @@ export const profileActions: {
     color: colors.sage,
   },
   {
+    label: "Voucher",
+    icon: "ticket",
+    color: colors.brand,
+  },
+  {
     label: "Thành tích",
     icon: "award",
     color: colors.gold,
@@ -30,10 +35,5 @@ export const profileActions: {
     label: "Uy tín",
     icon: "shield",
     color: colors.sage,
-  },
-  {
-    label: "Cài đặt",
-    icon: "settings",
-    color: colors.body,
   },
 ];

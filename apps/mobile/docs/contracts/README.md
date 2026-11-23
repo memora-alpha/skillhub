@@ -26,3 +26,7 @@ Mỗi domain ghi nguồn (working tree/commit nếu xác định được), endp
 Backend: Có trong source / Chưa có / Chưa xác minh deployment. Mobile: API đã nối trong source / Fixture / Chưa nối. Verification: source review / automated fixture / web / real API / Android / iOS / provider, ghi riêng. Backend source có route không chứng minh deployment; API adapter có source không chứng minh acceptance.
 
 Đổi API: đọc controller/DTO/schema hiện tại, so requirement, sửa domain contract và work liên quan, ghi breaking/gap có nguồn; không âm thầm sửa nghiệp vụ hoặc copy toàn bộ backend spec. Rule kỹ thuật chung nằm trong guides, task ở plan, kết quả/hiện trạng ở status. Snapshot baseline không tự cập nhật khi checkout đổi.
+
+## Voucher
+
+[Voucher/rewards](rewards.md): danh mục, đổi Credit, lịch sử, mã riêng tư và recovery theo owner/environment; hiện dùng provider demo của BE.

@@ -1,6 +1,11 @@
 # Settings và Profile — hiện trạng
 
-Cập nhật: 2026-11-10T00:32:44+07:00. Phạm vi theo [plan](plan.md).
+Cập nhật: 2026-11-23T01:57:02+07:00. Phạm vi theo [plan](plan.md).
+
+## Điểm vào Cài đặt trên Profile — 2026-11-23
+
+- Nút bánh răng Cài đặt tài khoản nằm cạnh nút Chỉnh sửa hồ sơ, mở `/account-settings`; tái sử dụng action 44×44 có sẵn trong ProfileHero. Bỏ ô Cài đặt khỏi lưới shortcut, giữ điểm vào trong account menu.
+- Focused ESLint, Prettier và 3 tests của `profile-moderation-ui.test.ts` / `product-shell-navigation.test.ts` đạt. Chưa kiểm tra lại giao diện trên thiết bị cho thay đổi vị trí nút này.
 
 ## Kiểm chứng source — 2026-11-10
 

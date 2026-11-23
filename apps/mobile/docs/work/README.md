@@ -38,3 +38,7 @@ Phase00 có hồ sơ chính tại [migration](../migration.md), không tạo pro
 | Materials                               | [feature matrix](../feature-matrix.md), [archive](../archive/README.md)                                 | Contract/thiết kế/implementation cần khảo sát khi chọn phase, không nhận “Done” từ UI           |
 
 Không tạo lại sáu bộ hồ sơ lịch sử. Task đang mở trong specs khác giữ nguyên ID/nội dung gốc; contract và liên kết trên giữ giới hạn để không thất lạc. Mẫu cho việc nhiều phiên tại [_template/plan](_template/plan.md) và [_template/status](_template/status.md); việc nhỏ có thể làm trực tiếp theo workflow.
+
+## Voucher
+
+[Plan Voucher](vouchers/plan.md) · [Trạng thái và kiểm chứng](vouchers/status.md).
