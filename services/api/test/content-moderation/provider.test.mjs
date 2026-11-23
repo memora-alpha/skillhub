@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ConfigService } from "@nestjs/config";
+import sharp from "sharp";
 import { OpenAiModerationClient } from "../../dist/modules/content-moderation/infrastructure/openai-moderation.client.js";
 import { moderationFlags } from "../../dist/modules/content-moderation/domain/moderation-policy.js";
 
@@ -36,6 +37,71 @@ test("sends only the classified input and model to the configured OpenAI endpoin
     model: "omni-moderation-latest",
     input,
   });
+});
+
+test("compresses large visual payloads and uses a separate deadline from text", async (t) => {
+  const width = 800;
+  const pixels = Buffer.alloc(width * width * 3);
+  let seed = 42;
+  for (let i = 0; i < pixels.length; i++) {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    pixels[i] = seed >>> 24;
+  }
+  const png = await sharp(pixels, {
+    raw: { width, height: width, channels: 3 },
+  })
+    .png()
+    .toBuffer();
+  const contexts = [];
+  t.mock.method(AbortSignal, "timeout", (ms) => {
+    contexts.push(ms);
+    return new AbortController().signal;
+  });
+  const fetch = t.mock.method(globalThis, "fetch", async () =>
+    response({ flagged: false, categories: flags, category_scores: scores }),
+  );
+  const client = new OpenAiModerationClient(settings);
+  await client.classify(input);
+  await client.classify({ image: { mimeType: "image/png", bytes: png } });
+  assert.deepEqual(contexts, [2000, 6000]);
+  const sent = JSON.parse(fetch.mock.calls[1].arguments[1].body).input[0]
+    .image_url.url;
+  assert.match(sent, /^data:image\/jpeg;base64,/u);
+  const jpeg = Buffer.from(sent.split(",")[1], "base64");
+  assert.ok(jpeg.length < png.length / 2);
+  assert.equal((await sharp(jpeg).metadata()).width, width);
+});
+
+test("distinguishes provider deadlines without leaking provider error details", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => {
+    throw new DOMException("upstream payload", "TimeoutError");
+  });
+  await assert.rejects(new OpenAiModerationClient(settings).classify(input), {
+    message: "MODERATION_PROVIDER_UNAVAILABLE",
+    reasonCode: "PROVIDER_TIMEOUT",
+  });
+});
+
+test("preserves small PNG payloads and honors the configured visual deadline", async (t) => {
+  const bytes = Buffer.from("fixture");
+  const timeout = t.mock.method(
+    AbortSignal,
+    "timeout",
+    () => new AbortController().signal,
+  );
+  const fetch = t.mock.method(globalThis, "fetch", async () =>
+    response({ flagged: false, categories: flags, category_scores: scores }),
+  );
+  await new OpenAiModerationClient(
+    new ConfigService({
+      OPENAI_API_KEY: "fixture-secret",
+      CONTENT_MODERATION_IMAGE_TIMEOUT_MS: 4000,
+    }),
+  ).classify({ image: { mimeType: "image/png", bytes } });
+  assert.equal(timeout.mock.calls[0].arguments[0], 4000);
+  const sent = JSON.parse(fetch.mock.calls[0].arguments[1].body).input[0]
+    .image_url.url;
+  assert.equal(sent, `data:image/png;base64,${bytes.toString("base64")}`);
 });
 
 test("rejects missing and out-of-range scores rather than allowing unassessed content", async (t) => {
