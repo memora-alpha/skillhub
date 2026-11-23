@@ -88,7 +88,7 @@ test(
         });
 
       await t.test(
-        "success debits purchased Credit and reveals an audited voucher",
+        "success debits Credit and reveals an audited voucher",
         async () => {
           const user = await f.account();
           await fund(user);
@@ -111,12 +111,11 @@ test(
         },
       );
 
-      await t.test("bonus Credit cannot pay for a voucher", async () => {
-        const user = await f.account();
-        await fund(user, 100n);
+      const addLot = async (account, source, amount, createdAt) => {
         const op = await f.db.creditOperation.create({
           data: {
-            operationType: "DAILY_BONUS",
+            operationType:
+              source === "BONUS" ? "DAILY_BONUS" : "ADMIN_ADJUSTMENT",
             referenceType: "SYSTEM",
             referenceId: randomUUID(),
             idempotencyKey: randomUUID(),
@@ -125,31 +124,104 @@ test(
         });
         await f.db.creditLot.create({
           data: {
-            userId: user.user.id,
+            userId: account.user.id,
             operationId: op.id,
-            source: "BONUS",
-            available: 10_000n,
-            granted: 10_000n,
+            source,
+            available: amount,
+            granted: amount,
+            createdAt,
           },
         });
         await f.db.creditWallet.update({
-          where: { userId: user.user.id },
+          where: { userId: account.user.id },
           data: {
-            availableCredit: { increment: 10_000n },
-            bonusCredit: { increment: 10_000n },
+            availableCredit: { increment: amount },
+            ...(source === "BONUS"
+              ? { bonusCredit: { increment: amount } }
+              : {}),
           },
         });
-        await assert.rejects(
-          redeem(user, "coffee-50k-ok"),
-          /INSUFFICIENT_PURCHASED_CREDIT/,
-        );
-        assert.equal(
-          await f.db.voucherRedemption.count({
-            where: { userId: user.user.id },
-          }),
-          0,
-        );
-      });
+      };
+      const lots = (account) =>
+        f.db.creditLot.findMany({
+          where: { userId: account.user.id },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        });
+      // Purchased (oldest) 1.00, bonus 20.00, earned 100.00: a 50.00 voucher spends 1 + 20 + 29.
+      const mixedWallet = async () => {
+        const user = await f.account();
+        await fund(user, 100n);
+        await addLot(user, "BONUS", 2_000n, new Date(Date.now() + 60_000));
+        await addLot(user, "EARNED", 10_000n, new Date(Date.now() + 120_000));
+        return user;
+      };
+
+      await t.test(
+        "any Credit source pays for a voucher, oldest lot first",
+        async () => {
+          const user = await mixedWallet();
+          const result = await redeem(user, "coffee-50k-ok");
+          assert.equal(result.status, "ISSUED");
+          const w = await wallet(user);
+          assert.equal(w.availableCredit, 12_100n - PRICE);
+          assert.equal(w.purchasedCredit, 0n);
+          assert.equal(w.bonusCredit, 0n);
+          assert.deepEqual(
+            (await lots(user)).map((lot) => [lot.source, lot.available]),
+            [
+              ["PURCHASED", 0n],
+              ["BONUS", 0n],
+              ["EARNED", 7_100n],
+            ],
+          );
+          const spent = await f.db.voucherRedemptionLot.findMany({
+            where: { redemptionId: result.id },
+          });
+          assert.equal(
+            spent.reduce((sum, row) => sum + row.amount, 0n),
+            PRICE,
+          );
+          assert.equal(spent.length, 3);
+        },
+      );
+
+      await t.test(
+        "a refund restores each consumed lot and its source bucket",
+        async () => {
+          const user = await mixedWallet();
+          const before = await lots(user);
+          const result = await redeem(user, "mart-oos");
+          assert.equal(result.status, "FAILED_REFUNDED");
+          const w = await wallet(user);
+          assert.equal(w.availableCredit, 12_100n);
+          assert.equal(w.purchasedCredit, 100n);
+          assert.equal(w.bonusCredit, 2_000n);
+          const after = await lots(user);
+          assert.deepEqual(
+            after.map((lot) => [lot.id, lot.available, lot.consumed]),
+            before.map((lot) => [lot.id, lot.available, 0n]),
+          );
+        },
+      );
+
+      await t.test(
+        "insufficient total Credit is rejected without a debit",
+        async () => {
+          const user = await f.account();
+          await fund(user, 100n);
+          await addLot(user, "EARNED", 1_000n, new Date());
+          await assert.rejects(
+            redeem(user, "coffee-50k-ok"),
+            /INSUFFICIENT_AVAILABLE_CREDIT/,
+          );
+          assert.equal(
+            await f.db.voucherRedemption.count({
+              where: { userId: user.user.id },
+            }),
+            0,
+          );
+        },
+      );
 
       await t.test(
         "idempotency replays without a second debit and rejects key reuse",
@@ -281,6 +353,140 @@ test(
             }),
             1,
           );
+        },
+      );
+
+      const manualReview = async (user) => {
+        const result = await redeem(user, "books-lost");
+        for (let i = 0; i < 6; i += 1) {
+          await makeDue();
+          await service.reconcileDue();
+        }
+        return result;
+      };
+
+      await t.test(
+        "a failed resolve audit rolls the refund back so the admin can retry",
+        async () => {
+          const user = await f.account();
+          const staff = await f.account("STAFF");
+          await fund(user);
+          const result = await manualReview(user);
+          let failNext = true;
+          const flakyAudit = {
+            append: (tx, entry) => {
+              if (failNext) {
+                failNext = false;
+                throw new Error("AUDIT_DOWN");
+              }
+              return f.audit.append(tx, entry);
+            },
+          };
+          const flaky = new RedemptionService(
+            f.db,
+            f.transactions,
+            f.commands,
+            credits,
+            flakyAudit,
+            provider,
+            new VoucherSecretCipher(config),
+            new SystemConfigurationService(configRepository, {
+              now: () => new Date(),
+            }),
+            config,
+          );
+          const input = { action: "REFUND", reason: "Provider has no record" };
+          await assert.rejects(
+            flaky.resolve(staff.principal, result.id, input),
+            /AUDIT_DOWN/,
+          );
+          const row = await f.db.voucherRedemption.findUniqueOrThrow({
+            where: { id: result.id },
+          });
+          assert.equal(row.status, "MANUAL_REVIEW");
+          assert.equal(row.refundOperationId, null);
+          assert.equal((await wallet(user)).availableCredit, 10_000n - PRICE);
+          const resolved = await flaky.resolve(
+            staff.principal,
+            result.id,
+            input,
+          );
+          assert.equal(resolved.status, "REFUNDED_MANUAL");
+          assert.equal((await wallet(user)).availableCredit, 10_000n);
+          assert.equal(
+            await f.db.auditLog.count({
+              where: { action: "VOUCHER_RESOLVE", targetId: result.id },
+            }),
+            1,
+          );
+        },
+      );
+
+      await t.test(
+        "lookup by Idempotency-Key returns the committed redemption",
+        async () => {
+          const user = await f.account();
+          await fund(user);
+          const key = randomUUID();
+          const first = await redeem(user, "coffee-50k-ok", key);
+          const found = await service.lookup(user.principal, key);
+          assert.equal(found.id, first.id);
+          assert.equal(found.voucher, null);
+          const other = await f.account();
+          await assert.rejects(
+            service.lookup(other.principal, key),
+            /VOUCHER_REDEMPTION_NOT_FOUND/,
+          );
+          assert.equal(
+            (await service.lookup(user.principal, key)).id,
+            first.id,
+          );
+        },
+      );
+
+      await t.test(
+        "lookup of an unused key retires it so a late request cannot debit",
+        async () => {
+          const user = await f.account();
+          await fund(user);
+          const key = randomUUID();
+          await assert.rejects(
+            service.lookup(user.principal, key),
+            /VOUCHER_REDEMPTION_NOT_FOUND/,
+          );
+          await assert.rejects(
+            redeem(user, "coffee-50k-ok", key),
+            /IDEMPOTENCY_KEY_REUSED/,
+          );
+          assert.equal((await wallet(user)).availableCredit, 10_000n);
+          await assert.rejects(
+            service.lookup(user.principal, key),
+            /VOUCHER_REDEMPTION_NOT_FOUND/,
+          );
+        },
+      );
+
+      await t.test(
+        "a lookup racing an in-flight redeem agrees with its outcome",
+        async () => {
+          const user = await f.account();
+          await fund(user);
+          const key = randomUUID();
+          const [redeemed, looked] = await Promise.allSettled([
+            redeem(user, "coffee-50k-ok", key),
+            service.lookup(user.principal, key),
+          ]);
+          const balance = (await wallet(user)).availableCredit;
+          if (looked.status === "fulfilled") {
+            assert.equal(redeemed.status, "fulfilled");
+            assert.equal(looked.value.id, redeemed.value.id);
+            assert.equal(balance, 10_000n - PRICE);
+          } else {
+            assert.match(String(looked.reason), /VOUCHER_REDEMPTION_NOT_FOUND/);
+            assert.equal(redeemed.status, "rejected");
+            assert.match(String(redeemed.reason), /IDEMPOTENCY_KEY_REUSED/);
+            assert.equal(balance, 10_000n);
+          }
         },
       );
 

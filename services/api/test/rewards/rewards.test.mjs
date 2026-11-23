@@ -145,9 +145,16 @@ test("environment refuses the mock provider in production and requires a key", (
 });
 
 /** In-memory fakes for the orchestration paths that never touch SQL operators. */
-function harness({ status = "ISSUING", attempts = 0, maxAttempts = 3 } = {}) {
+function harness({
+  status = "ISSUING",
+  attempts = 0,
+  maxAttempts = 3,
+  failAudit = false,
+} = {}) {
   const row = {
     id: "r1",
+    debitOperationId: "op-debit",
+    refundOperationId: null,
     userId: "u1",
     status,
     attempts,
@@ -163,16 +170,28 @@ function harness({ status = "ISSUING", attempts = 0, maxAttempts = 3 } = {}) {
       brand: { nameVi: "Demo Coffee", logoUrl: null },
     },
   };
-  const calls = { refunds: 0, vouchers: 0 };
+  const calls = { refunds: 0, vouchers: 0, runs: 0, audits: [] };
   const tx = {
-    $queryRaw: async () => [],
+    $queryRaw: async () => [{ id: row.id }],
     voucherRedemption: {
       findUniqueOrThrow: async () => row,
-      update: async ({ data }) => Object.assign(row, data),
+      update: async ({ data }) => Object.assign(row, data, { productId: "p1" }),
     },
     issuedVoucher: { create: async () => void (calls.vouchers += 1) },
+    voucherRedemptionLot: { findMany: async () => [] },
   };
-  const transactions = { run: (work) => work(tx) };
+  const transactions = {
+    run: (work) => {
+      calls.runs += 1;
+      return work(tx);
+    },
+  };
+  const audit = {
+    append: async (client, entry) => {
+      if (failAudit) throw new Error("AUDIT_DOWN");
+      calls.audits.push({ sameTx: client === tx, entry, status: row.status });
+    },
+  };
   const credit = {
     refundVoucher: async () => {
       calls.refunds += 1;
@@ -185,7 +204,7 @@ function harness({ status = "ISSUING", attempts = 0, maxAttempts = 3 } = {}) {
     transactions,
     {},
     credit,
-    {},
+    audit,
     provider,
     new VoucherSecretCipher(config({ VOUCHER_SECRET_KEY: key })),
     {
@@ -232,6 +251,64 @@ test("finalizeIssued stores one voucher and ignores repeats", async () => {
   await service.finalizeIssued("r1", data);
   assert.equal(row.status, "ISSUED");
   assert.equal(calls.vouchers, 1);
+});
+
+const staff = {
+  userId: "staff-1",
+  roles: ["STAFF"],
+  permissions: ["reward:manage"],
+};
+
+test("resolve commits the refund and its audit in one transaction", async () => {
+  const { row, calls, service } = harness({ status: "MANUAL_REVIEW" });
+  const result = await service.resolve(staff, "r1", {
+    action: "REFUND",
+    reason: "Provider has no record",
+  });
+  assert.deepEqual(result, { id: "r1", status: "REFUNDED_MANUAL" });
+  assert.equal(calls.runs, 1);
+  assert.equal(calls.refunds, 1);
+  assert.equal(calls.audits.length, 1);
+  assert.equal(calls.audits[0].sameTx, true);
+  assert.equal(calls.audits[0].status, "REFUNDED_MANUAL");
+  assert.equal(calls.audits[0].entry.after.operationId, "op-refund");
+  assert.equal(row.refundOperationId, "op-refund");
+});
+
+test("resolve ISSUED stores the voucher and audits in the same transaction", async () => {
+  const { calls, service } = harness({ status: "MANUAL_REVIEW" });
+  const result = await service.resolve(staff, "r1", {
+    action: "ISSUED",
+    reason: "Provider confirmed by phone",
+    voucher: { code: "MANUAL-1" },
+  });
+  assert.equal(result.status, "ISSUED");
+  assert.equal(calls.runs, 1);
+  assert.equal(calls.vouchers, 1);
+  assert.equal(calls.audits[0].sameTx, true);
+  assert.equal(calls.audits[0].entry.after.operationId, "op-debit");
+});
+
+test("resolve surfaces an audit failure from inside the state-change transaction", async () => {
+  const { calls, service } = harness({
+    status: "MANUAL_REVIEW",
+    failAudit: true,
+  });
+  await assert.rejects(
+    service.resolve(staff, "r1", { action: "REFUND", reason: "retry me" }),
+    /AUDIT_DOWN/,
+  );
+  // One transaction only: the real runner rolls the refund back with the audit.
+  assert.equal(calls.runs, 1);
+});
+
+test("resolve rejects redemptions that are not in MANUAL_REVIEW", async () => {
+  const { calls, service } = harness({ status: "ISSUED" });
+  await assert.rejects(
+    service.resolve(staff, "r1", { action: "REFUND", reason: "x" }),
+    /VOUCHER_INVALID_TRANSITION/,
+  );
+  assert.equal(calls.refunds, 0);
 });
 
 test("reconcile resolves a timed-out issuance without refunding", async () => {

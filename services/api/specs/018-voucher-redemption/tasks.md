@@ -11,9 +11,9 @@
 
 ## Phase 2 — Credit
 
-- [x] T010 `CreditOperationsService.redeemVoucher()` spending purchased lots only
+- [x] T010 `CreditOperationsService.redeemVoucher()` spending lots of any source, oldest first
 - [x] T011 `CreditOperationsService.refundVoucher()` compensating entries to the same lots
-- [x] T012 DB integration tests: purchased-only spend, refund nets to zero, concurrent debits (needs migration applied)
+- [x] T012 DB integration tests: mixed-source oldest-first spend, per-lot refund, refund nets to zero, concurrent debits (needs migration applied)
 
 ## Phase 3 — Rewards module core
 

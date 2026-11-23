@@ -2,6 +2,12 @@ import { ConflictException, Injectable } from "@nestjs/common";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
 import type { CreditWallet } from "../../../../generated/prisma/client";
 
+export interface SpentLots {
+  lots: { lotId: string; amount: bigint }[];
+  purchased: bigint;
+  bonus: bigint;
+}
+
 /** Stable partition: BONUS lots first, FIFO inside each group. */
 function bonusFirst<T extends { source: string }>(lots: T[]): T[] {
   return [
@@ -77,15 +83,20 @@ export class CreditProvenanceService {
     return { purchased, bonus };
   }
 
-  /** Voucher redemption may spend only PURCHASED lots (spec 018 D3). Caller holds the wallet lock. */
-  async spendPurchased(tx: TransactionContext, userId: string, amount: bigint) {
+  /**
+   * Voucher redemption spends any lot source, oldest first (spec 018 D3).
+   * Returns the per-lot consumption so a refund can restore the same lots. Caller holds the wallet lock.
+   */
+  async spendOldestFirst(
+    tx: TransactionContext,
+    userId: string,
+    amount: bigint,
+  ): Promise<SpentLots> {
     const lots = await tx.creditLot.findMany({
-      where: { userId, source: "PURCHASED", available: { gt: 0n } },
+      where: { userId, available: { gt: 0n } },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     });
-    const total = lots.reduce((sum, lot) => sum + lot.available, 0n);
-    if (total < amount)
-      throw new ConflictException("INSUFFICIENT_PURCHASED_CREDIT");
+    const result: SpentLots = { lots: [], purchased: 0n, bonus: 0n };
     let left = amount;
     for (const lot of lots) {
       if (left === 0n) break;
@@ -95,8 +106,40 @@ export class CreditProvenanceService {
         where: { id: lot.id },
         data: { available: { decrement: used }, consumed: { increment: used } },
       });
+      result.lots.push({ lotId: lot.id, amount: used });
+      if (lot.source === "PURCHASED") result.purchased += used;
+      if (lot.source === "BONUS") result.bonus += used;
       left -= used;
     }
+    if (left) throw new ConflictException("CREDIT_PROVENANCE_BALANCE_MISMATCH");
+    return result;
+  }
+
+  /** Reverse `spendOldestFirst`: return consumed Credit to the same lots. Caller holds the wallet lock. */
+  async restoreSpent(
+    tx: TransactionContext,
+    userId: string,
+    spent: { lotId: string; amount: bigint }[],
+  ): Promise<{ purchased: bigint; bonus: bigint }> {
+    const lots = await tx.creditLot.findMany({
+      where: { userId, id: { in: spent.map((item) => item.lotId) } },
+    });
+    const restored = { purchased: 0n, bonus: 0n };
+    for (const item of spent) {
+      const lot = lots.find((candidate) => candidate.id === item.lotId);
+      if (!lot || lot.consumed < item.amount)
+        throw new ConflictException("CREDIT_PROVENANCE_BALANCE_MISMATCH");
+      await tx.creditLot.update({
+        where: { id: lot.id },
+        data: {
+          available: { increment: item.amount },
+          consumed: { decrement: item.amount },
+        },
+      });
+      if (lot.source === "PURCHASED") restored.purchased += item.amount;
+      if (lot.source === "BONUS") restored.bonus += item.amount;
+    }
+    return restored;
   }
 
   async hold(
