@@ -7,6 +7,7 @@ import {
 
 export const defaultModerationModel = "omni-moderation-latest";
 export const defaultModerationTimeoutMs = 2000;
+export const defaultModerationImageTimeoutMs = 6000;
 
 const modeSchema = z.enum(["off", "observe", "enforce"]);
 const surfaceSchema = z.enum(moderationSurfaces);
@@ -21,6 +22,12 @@ const settingsSchema = z.object({
     .min(100)
     .max(30000)
     .default(defaultModerationTimeoutMs),
+  CONTENT_MODERATION_IMAGE_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(100)
+    .max(30000)
+    .optional(),
   CONTENT_MODERATION_MODES: z.string().trim().default(""),
   CONTENT_MODERATION_OCR_COMMAND: z.string().trim().min(1).optional(),
   CONTENT_MODERATION_PDFINFO_COMMAND: z.string().trim().min(1).optional(),
