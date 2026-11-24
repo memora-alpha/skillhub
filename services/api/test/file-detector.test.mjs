@@ -11,6 +11,31 @@ import sharp from "sharp";
 const detector = new FileFormatDetector();
 const pdf = Buffer.from("%PDF-1.7\n1 0 obj<</Type/Catalog>>endobj\n%%EOF\n");
 
+test("accepts bounded zero padding on valid JPG without accepting other trailers", async () => {
+  const jpeg = await sharp({
+    create: { width: 96, height: 64, channels: 3, background: "#2862a3" },
+  })
+    .jpeg()
+    .toBuffer();
+  const inspect = (bytes) =>
+    detector.inspect({
+      name: "sample.JPG",
+      purpose: "CHAT",
+      body: Readable.from([bytes]),
+    });
+  const padded = Buffer.concat([jpeg, Buffer.alloc(4)]);
+  const result = await inspect(padded);
+  assert.equal(result.detectedMime, "image/jpeg");
+  assert.equal(result.sizeBytes, padded.length);
+  for (const invalid of [
+    Buffer.concat([jpeg, Buffer.alloc(17)]),
+    Buffer.concat([jpeg, Buffer.from("unexpected")]),
+    Buffer.concat([jpeg.subarray(0, 8), Buffer.from([0xff, 0xd9, 0x00])]),
+  ]) {
+    await assert.rejects(inspect(invalid), { code: "FILE_FORMAT_UNSUPPORTED" });
+  }
+});
+
 function makeZip(entries, flags = 0) {
   const parts = [];
   const directory = [];

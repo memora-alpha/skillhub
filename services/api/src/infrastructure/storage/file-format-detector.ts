@@ -454,12 +454,27 @@ const isPdf = (head: Buffer, tail: Buffer) =>
 const isPng = (head: Buffer) =>
   head.subarray(0, 8).equals(PNG_SIGNATURE) && ascii(head, 12, 16) === "IHDR";
 
-const isJpeg = (head: Buffer, tail: Buffer) =>
-  head[0] === 0xff &&
-  head[1] === 0xd8 &&
-  head[2] === 0xff &&
-  tail[tail.length - 2] === 0xff &&
-  tail[tail.length - 1] === 0xd9;
+async function isJpeg(
+  path: string,
+  head: Buffer,
+  tail: Buffer,
+): Promise<boolean> {
+  if (head[0] !== 0xff || head[1] !== 0xd8 || head[2] !== 0xff) return false;
+  const maxPadding = 16;
+  let end = tail.length - 1;
+  while (tail[end] === 0 && tail.length - end <= maxPadding) end--;
+  if (tail[end - 1] !== 0xff || tail[end] !== 0xd9) return false;
+  if (end === tail.length - 1) return true;
+  // Some encoders zero-pad the JPEG. Require a strict decode for this fallback.
+  try {
+    await sharp(path, { failOn: "warning", limitInputPixels: 25_000_000 })
+      .resize({ width: 1, height: 1, fastShrinkOnLoad: false })
+      .toBuffer();
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 const isWebp = (head: Buffer, size: number) =>
   ascii(head, 0, 4) === "RIFF" &&
@@ -521,7 +536,7 @@ async function detect(
     return "application/pdf";
   }
   if (isPng(head)) return "image/png";
-  if (isJpeg(head, tail)) return "image/jpeg";
+  if (await isJpeg(path, head, tail)) return "image/jpeg";
   if (isWebp(head, size)) return "image/webp";
   if (head.subarray(0, 4).equals(ZIP_SIGNATURE)) return inspectZip(path, size);
   // OLE Office needs stream-level parsing. Never accept a generic CFB signature.
