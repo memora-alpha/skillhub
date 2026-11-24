@@ -1,8 +1,13 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../database/prisma.service";
 import type { TransactionContext } from "../database/transaction-context";
 import { FileStorageError } from "./file.types";
 import { FileContentModeration } from "./file-content-moderation";
+import {
+  chatAttachmentAvailability,
+  chatAttachmentOriginKey,
+} from "./chat-attachment-policy";
 type Binding = {
   type: string;
   id: string;
@@ -13,6 +18,7 @@ export class FileAttachmentService {
   constructor(
     private readonly db: PrismaService,
     private readonly moderation?: FileContentModeration,
+    @Optional() private readonly config?: ConfigService,
   ) {}
   async chatManifest(
     tx: TransactionContext,
@@ -22,21 +28,25 @@ export class FileAttachmentService {
     bind = false,
   ) {
     const result = [];
+    const postModeration = !!this.config?.get(chatAttachmentOriginKey);
     for (const id of [...ids].sort((a, b) => a.localeCompare(b))) {
       await tx.$queryRaw`SELECT id FROM stored_files WHERE id=${id}::uuid FOR UPDATE`;
       const row = await tx.storedFile.findUnique({ where: { id } });
       if (row?.uploadedBy !== userId || row.purpose !== "CHAT")
         throw new FileStorageError("FILE_NOT_FOUND", 404);
+      const availability = chatAttachmentAvailability(row);
+      if (availability === "REVOKED")
+        throw new FileStorageError("CONTENT_MODERATION_BLOCKED", 409);
       if (
-        row.state !== "READY" ||
-        row.scanVerdict !== "CLEAN" ||
+        (availability !== "AVAILABLE" &&
+          !(postModeration && availability === "PENDING_SCAN")) ||
         !row.detectedMime ||
         !row.sha256 ||
         !row.sizeBytes ||
         row.sizeBytes > 15_000_000
       )
         throw new FileStorageError("FILE_NOT_READY", 409);
-      await this.moderation?.assertShareable(row);
+      if (!postModeration) await this.moderation?.assertShareable(row);
       if (
         row.attachedAt &&
         (row.resourceType !== "CHAT_MESSAGE" || row.resourceId !== messageId)
@@ -79,6 +89,21 @@ export class FileAttachmentService {
     const row = await this.db.storedFile.findUnique({ where: { id } });
     if (row?.uploadedBy !== userId || row.purpose !== "CHAT")
       throw new FileStorageError("FILE_NOT_FOUND", 404);
+    if (this.config?.get(chatAttachmentOriginKey)) {
+      const availability = chatAttachmentAvailability(row);
+      const state =
+        availability === "AVAILABLE" || availability === "PENDING_SCAN"
+          ? "READY"
+          : availability === "REVOKED"
+            ? "REJECTED"
+            : row.state;
+      return {
+        fileId: row.id,
+        state,
+        generation: row.generation,
+        availability,
+      };
+    }
     return {
       fileId: row.id,
       ...((await this.moderation?.resolveStatusDetails(row)) ?? {
@@ -152,13 +177,21 @@ export class FileAttachmentService {
     tx: TransactionContext,
     id: string,
     resource: Binding,
+    requireChatApproval = false,
   ) {
     await tx.$queryRaw`SELECT id FROM stored_files WHERE id=${id}::uuid FOR UPDATE`;
     const row = await tx.storedFile.findUnique({ where: { id } });
     if (row?.resourceType !== resource.type || row.resourceId !== resource.id)
       throw new FileStorageError("FILE_NOT_FOUND", 404);
+    if (
+      resource.type === "CHAT_MESSAGE" &&
+      chatAttachmentAvailability(row) === "REVOKED"
+    )
+      throw new FileStorageError("CONTENT_MODERATION_BLOCKED", 409);
     if (row.state !== "READY" || row.scanVerdict !== "CLEAN")
       throw new FileStorageError("FILE_NOT_READY", 409);
+    if (requireChatApproval && resource.type === "CHAT_MESSAGE")
+      await this.moderation?.assertShareable(row);
     return row;
   }
 }

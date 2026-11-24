@@ -173,6 +173,29 @@ export class ApplicationEventsService implements OnModuleInit, OnModuleDestroy {
         return false;
       }
       if (!PUBLIC_EVENTS.has(type)) return false;
+      if (type === "chat.attachment.availability.updated") {
+        const published = await tx.chatPublication.findFirst({
+          where: {
+            id: refs.messageId,
+            conversationId: refs.conversationId,
+            status: "DELIVERED",
+          },
+          select: { id: true },
+        });
+        if (
+          !published ||
+          !(await tx.storedFile.findFirst({
+            where: {
+              id: refs.fileId,
+              purpose: "CHAT",
+              resourceType: "CHAT_MESSAGE",
+              resourceId: published.id,
+            },
+            select: { id: true },
+          }))
+        )
+          return false;
+      }
       if (refs.proposalId)
         return !!(await tx.proposal.findFirst({
           where: {

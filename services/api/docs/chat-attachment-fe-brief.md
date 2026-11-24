@@ -1,5 +1,24 @@
 # Bàn giao FE về tệp đính kèm trong chat
 
+## Hậu kiểm trong chat riêng
+
+Bật ở BE bằng `CHAT_ATTACHMENT_POST_MODERATION_ORIGIN` (origin công khai của API, ví dụ `https://skillhub.memora.cam`) và `media:enforce`. Sau khi POST upload trả `202`, gọi GET status như cũ. Khi state là `READY`, FE được phép gửi **thẻ tin nhắn**. Điều khiển mở/tải tệp bằng `availability`.
+
+| `availability` | Hiển thị |
+| --- | --- |
+| `PENDING_SCAN` | Đang kiểm tra an toàn, khóa nút tải. |
+| `AVAILABLE` | Cho tải qua endpoint download hiện có. |
+| `REVOKED` | Tệp đã bị thu hồi, ẩn nút tải và bản xem trước. |
+| `UNAVAILABLE` | Tệp không khả dụng. |
+
+API lịch sử và delivery bổ sung `attachments[].availability`. Người nhận có thể thấy thẻ trước khi tệp tải được. Khi nhận SSE `chat.attachment.availability.updated` với `{ conversationId, messageId, fileId }`, cả hai phía tải lại tin hoặc thread và cập nhật thẻ. Khi SSE nối lại, đọc lại dữ liệu REST. Event cũ `chat.attachment.updated` vẫn cập nhật màn chờ upload của người gửi.
+
+Endpoint download tiếp tục trả `{ url, expiresAt }`. Khi hậu kiểm bật, URL dẫn đến backend và hết hạn sau 60 giây. Mỗi lượt tải kiểm tra lại session, quyền tham gia, kết quả quét mã độc và thu hồi. Lượt tải mới sau khi thu hồi trả lỗi; dữ liệu đã tải về nằm trên thiết bị người nhận.
+
+Admin/Staff có quyền `chat-attachment:moderate` xem metadata kết quả tại `GET /api/v1/content-moderation/chat-attachments?before=<cursor>`. Kết quả `BLOCK` tự bị thu hồi. Admin/Staff có thể xác nhận thu hồi ca `REVIEW` hoặc `FAILED` qua `POST /api/v1/content-moderation/chat-attachments/{fileId}/revoke` với `{ reason }`. Quyết định được ghi audit. Đình chỉ tài khoản vẫn đi qua luồng quản trị hiện có.
+
+Triển khai migration `20261124010000_chat_attachment_post_moderation` và identity seed trong release. FE cần hỗ trợ trường và event mới trước khi bật mode trên môi trường dùng chung. Đo mốc 3 giây cho việc phát hành thẻ sau khi nhận đủ upload trên môi trường QA.
+
 ## Thay đổi
 
 - JPG/JPEG hợp lệ vẫn có thể upload nếu encoder thêm một ít byte 0 ở cuối. Backend vẫn kiểm tra định dạng thật và áp dụng luồng quét mã độc, OCR và kiểm duyệt trước khi cho gửi. `415 FILE_FORMAT_UNSUPPORTED` ở bước upload nghĩa là backend chưa nhận được định dạng tệp hợp lệ.

@@ -97,6 +97,7 @@ export function draftDigest(
 export function publicMessage(
   message: ChatMessage,
   oppositeRead?: ReadState | null,
+  availability?: ReadonlyMap<string, string>,
 ) {
   return {
     id: message._id,
@@ -110,6 +111,9 @@ export function publicMessage(
       filename: file.filename,
       mimeType: file.mimeType,
       fileSizeBytes: file.fileSizeBytes,
+      ...(availability && {
+        availability: availability.get(file.fileId) ?? "UNAVAILABLE",
+      }),
       downloadUrlEndpoint: `/api/v1/conversations/${message.conversationId}/messages/${message._id}/attachments/${file.attachmentId}/download`,
     })),
     ...(message.objectType

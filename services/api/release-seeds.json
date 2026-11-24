@@ -1,6 +1,11 @@
 {
   "requests": [
     {
+      "id": "chat-attachment-moderation-grants-20261124",
+      "seeds": ["identity"],
+      "reason": "Grant Admin and Staff access to confirmed, ambiguous and failed chat attachment moderation results."
+    },
+    {
       "id": "admin-staff-tag-material-grants",
       "seeds": ["identity"],
       "reason": "Synchronize existing role grants for tag administration, tag requests and material moderation after authenticated Admin requests were denied."

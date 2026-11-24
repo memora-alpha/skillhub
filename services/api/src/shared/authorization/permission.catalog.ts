@@ -105,6 +105,10 @@ export const PERMISSION_CATALOG = [
     description: "Configure global profanity rules",
   },
   {
+    code: "chat-attachment:moderate",
+    description: "Review flagged chat attachment results and revoke downloads",
+  },
+  {
     code: "learning-request:moderation:configure",
     description: "Configure learning request moderation rules",
   },

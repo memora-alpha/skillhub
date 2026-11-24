@@ -2,6 +2,7 @@ import { ForbiddenException } from "@nestjs/common";
 
 /** Only operational permissions may be overridden; participation rights remain baseline. */
 export const STAFF_DELEGABLE_PERMISSIONS = [
+  "chat-attachment:moderate",
   "learning-request:moderation:read",
   "learning-request:approve",
   "learning-request:reject",
