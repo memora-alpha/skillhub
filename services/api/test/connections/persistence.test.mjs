@@ -77,6 +77,58 @@ test(
           status: "ACTIVE",
         },
       });
+      const fileId = randomUUID();
+      await db.storedFile.create({
+        data: {
+          id: fileId,
+          purpose: "CHAT",
+          uploadedBy: ids[0],
+          objectKey: `private/${fileId}`,
+          originalName: "fixture.jpg",
+          state: "READY",
+          detectedMime: "image/jpeg",
+          sizeBytes: 100,
+          sha256: "a".repeat(64),
+          scanVerdict: "CLEAN",
+          scannerVersion: "fixture",
+          scannedAt: new Date(),
+        },
+      });
+      const assessment = {
+        outcome: "ALLOW",
+        sourceVersion: "1",
+        digest: "a".repeat(64),
+        profanityVersion: 1,
+        extractorRevision: 1,
+        enforced: true,
+      };
+      const applyAssessment = (moderationAssessment) =>
+        db.storedFile.update({
+          where: { id: fileId },
+          data: { moderationAssessment },
+        });
+      await applyAssessment(assessment);
+      await applyAssessment({
+        ...assessment,
+        reasonCodes: ["changed-metadata"],
+      });
+      await applyAssessment({
+        ...assessment,
+        outcome: "BLOCK",
+        profanityVersion: 2,
+      });
+      const fileEvents = await db.userEventDelivery.findMany({
+        where: { type: "chat.attachment.updated" },
+        orderBy: { sequence: "asc" },
+      });
+      assert.deepEqual(
+        fileEvents.map(({ userId, payload }) => ({ userId, payload })),
+        [
+          { userId: ids[0], payload: { fileId } },
+          { userId: ids[0], payload: { fileId } },
+        ],
+      );
+      assert.notEqual(fileEvents[0].eventId, fileEvents[1].eventId);
       const request = await db.learningRequest.create({
         data: {
           ownerId: ids[0],
