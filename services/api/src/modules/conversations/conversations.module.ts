@@ -21,6 +21,9 @@ import { ConversationsService } from "./application/services/conversations.servi
 import { ConversationsController } from "./presentation/http/conversations.controller";
 import { ConversationMembershipReader } from "./application/services/conversation-membership.reader";
 import { ContentModerationModule } from "../content-moderation/content-moderation.module";
+import { ChatDownloadTicketService } from "./application/services/chat-download-ticket.service";
+import { ChatAttachmentContentController } from "./presentation/http/chat-attachment-content.controller";
+import { ChatAttachmentModerationController } from "./presentation/http/chat-attachment-moderation.controller";
 @Module({
   imports: [
     LearningRequestInboxModule,
@@ -45,9 +48,14 @@ import { ContentModerationModule } from "../content-moderation/content-moderatio
     ChatPublicationService,
     SystemMessagePublisher,
     ConversationsService,
+    ChatDownloadTicketService,
     ConversationMembershipReader,
   ],
-  controllers: [ConversationsController],
+  controllers: [
+    ConversationsController,
+    ChatAttachmentContentController,
+    ChatAttachmentModerationController,
+  ],
   exports: [ConversationLifecycleService, ConversationMembershipReader],
 })
 export class ConversationsModule {}

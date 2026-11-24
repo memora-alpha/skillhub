@@ -16,6 +16,10 @@ export class MessageAttachmentResponse {
   @ApiProperty() mimeType!: string;
   @ApiProperty({ type: Number }) fileSizeBytes!: number;
   @ApiProperty() downloadUrlEndpoint!: string;
+  @ApiPropertyOptional({
+    enum: ["PENDING_SCAN", "AVAILABLE", "REVOKED", "UNAVAILABLE"],
+  })
+  availability?: string;
 }
 export class MessageResponse {
   @ApiProperty({ format: "uuid" }) id!: string;
@@ -58,6 +62,10 @@ export class ChatFileStatusResponse {
   @ApiProperty({ type: Number }) generation!: number;
   @ApiPropertyOptional({ enum: ["PENDING", "REVIEW_REQUIRED", "FAILED"] })
   moderationStatus?: string;
+  @ApiPropertyOptional({
+    enum: ["PENDING_SCAN", "AVAILABLE", "REVOKED", "UNAVAILABLE"],
+  })
+  availability?: string;
 }
 export class ChatDownloadResponse {
   @ApiProperty() url!: string;

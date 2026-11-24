@@ -4,6 +4,7 @@ import {
   HttpException,
   Injectable,
   NotFoundException,
+  Optional,
   ServiceUnavailableException,
   UnprocessableEntityException,
 } from "@nestjs/common";
@@ -35,6 +36,9 @@ import type { RequestContext } from "../../../../shared/http/request-context";
 import { conversationView } from "../../domain/conversation-view";
 import { assertNoContactInformation } from "../../domain/contact-information.policy";
 import type { ChatPublication } from "../../../../generated/prisma/client";
+import type { ChatMessage } from "../../infrastructure/persistence/chat.repository";
+import { ChatDownloadTicketService } from "./chat-download-ticket.service";
+import { chatAttachmentAvailability } from "../../../../infrastructure/storage/chat-attachment-policy";
 import {
   ContentModerationService,
   requireAllowed,
@@ -63,6 +67,7 @@ export class ConversationsService {
     private readonly storage: FileStorageService,
     private readonly outbox: OutboxWriter,
     private readonly moderation: ContentModerationService,
+    @Optional() private readonly tickets?: ChatDownloadTicketService,
   ) {}
   async get(principal: Principal, id: string) {
     return this.transactions.run(async (tx) =>
@@ -315,7 +320,11 @@ export class ConversationsService {
       );
       return {
         deliveryStatus: "DELIVERED" as const,
-        message: publicMessage(message),
+        message: publicMessage(
+          message,
+          undefined,
+          await this.attachmentAvailability([message]),
+        ),
       };
     }
     return {
@@ -434,10 +443,15 @@ export class ConversationsService {
       this.chat.readState(id, principal.userId),
       this.chat.readState(id, other),
     ]);
+    const availability = await this.attachmentAvailability(rows.rows);
     // Recheck authorization after external I/O before returning private content.
     await this.get(principal, id);
     const data = rows.rows.map((row) =>
-      publicMessage(row, row.senderId === principal.userId ? readB : readA),
+      publicMessage(
+        row,
+        row.senderId === principal.userId ? readB : readA,
+        availability,
+      ),
     );
     const next =
       rows.more && !query.afterSequence
@@ -519,42 +533,144 @@ export class ConversationsService {
         "message:attachment:read:participant",
       ),
     );
-    const message = await this.chat.get(messageId);
-    const attachment =
-      message?.status === "PUBLISHED" && message.conversationId === id
-        ? message.attachments.find((file) => file.attachmentId === attachmentId)
-        : null;
-    if (!attachment) throw new NotFoundException();
+    const attachment = await this.publishedAttachment(
+      id,
+      messageId,
+      attachmentId,
+    );
+    const assertRead = async () => {
+      await this.assertAttachmentRead(
+        principal,
+        id,
+        messageId,
+        attachment,
+        !this.tickets?.enabled,
+      );
+    };
+    if (this.tickets?.enabled) {
+      await assertRead();
+      return this.tickets.issue(principal, {
+        conversationId: id,
+        messageId,
+        attachmentId,
+      });
+    }
     return this.storage.issueDownload(
       {
         actor,
         fileId: attachment.fileId,
         resource: { type: "CHAT_MESSAGE", id: messageId },
       },
-      {
-        assertRead: async () => {
-          await this.transactions.run(async (tx) => {
-            await this.access.require(
-              tx,
-              principal,
-              id,
-              "message:attachment:read:participant",
-            );
-            const bound = await this.files.assertBoundReady(
-              tx,
-              attachment.fileId,
-              { type: "CHAT_MESSAGE", id: messageId },
-            );
-            if (
-              bound.generation !== attachment.generation ||
-              bound.sha256 !== attachment.checksum ||
-              bound.sizeBytes !== attachment.fileSizeBytes ||
-              bound.detectedMime !== attachment.mimeType
-            )
-              throw new NotFoundException();
-          });
-        },
+      { assertRead },
+    );
+  }
+
+  async downloadContent(
+    principal: Principal,
+    id: string,
+    messageId: string,
+    attachmentId: string,
+  ) {
+    await this.transactions.run((tx) =>
+      this.access.require(
+        tx,
+        principal,
+        id,
+        "message:attachment:read:participant",
+      ),
+    );
+    const attachment = await this.publishedAttachment(
+      id,
+      messageId,
+      attachmentId,
+    );
+    const bound = await this.assertAttachmentRead(
+      principal,
+      id,
+      messageId,
+      attachment,
+    );
+    const stream = await this.storage.readChatContent(
+      bound.objectKey,
+      attachment.fileSizeBytes,
+    );
+    try {
+      await this.assertAttachmentRead(principal, id, messageId, attachment);
+    } catch (error) {
+      stream.destroy();
+      throw error;
+    }
+    return {
+      stream,
+      filename: attachment.filename,
+      size: attachment.fileSizeBytes,
+    };
+  }
+
+  private async publishedAttachment(
+    id: string,
+    messageId: string,
+    attachmentId: string,
+  ) {
+    const message = await this.chat.get(messageId);
+    const attachment =
+      message?.status === "PUBLISHED" && message.conversationId === id
+        ? message.attachments.find((file) => file.attachmentId === attachmentId)
+        : null;
+    if (!attachment) throw new NotFoundException();
+    return attachment;
+  }
+
+  private assertAttachmentRead(
+    principal: Principal,
+    id: string,
+    messageId: string,
+    attachment: ChatMessage["attachments"][number],
+    requireApproval = false,
+  ) {
+    return this.transactions.run(async (tx) => {
+      await this.access.require(
+        tx,
+        principal,
+        id,
+        "message:attachment:read:participant",
+      );
+      const bound = await this.files.assertBoundReady(
+        tx,
+        attachment.fileId,
+        { type: "CHAT_MESSAGE", id: messageId },
+        requireApproval,
+      );
+      if (
+        bound.generation !== attachment.generation ||
+        bound.sha256 !== attachment.checksum ||
+        bound.sizeBytes !== attachment.fileSizeBytes ||
+        bound.detectedMime !== attachment.mimeType
+      )
+        throw new NotFoundException();
+      return bound;
+    });
+  }
+
+  private async attachmentAvailability(messages: readonly ChatMessage[]) {
+    if (!this.tickets?.enabled) return undefined;
+    const ids = messages.flatMap(({ attachments }) =>
+      attachments.map(({ fileId }) => fileId),
+    );
+    if (!ids.length) return new Map<string, string>();
+    const rows = await this.db.storedFile.findMany({
+      where: { id: { in: ids }, purpose: "CHAT" },
+      select: {
+        id: true,
+        state: true,
+        sha256: true,
+        generation: true,
+        scanVerdict: true,
+        moderationAssessment: true,
       },
+    });
+    return new Map(
+      rows.map((row) => [row.id, chatAttachmentAvailability(row)]),
     );
   }
 }

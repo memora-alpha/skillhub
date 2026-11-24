@@ -290,6 +290,7 @@ export class PrismaUsersRepository extends UsersRepository {
         "notification:update:self",
       ],
       STAFF: [
+        "chat-attachment:moderate",
         "notification:read:self",
         "notification:update:self",
         "event:read:self",
@@ -298,6 +299,7 @@ export class PrismaUsersRepository extends UsersRepository {
         "learning-request:reject",
       ],
       ADMIN: [
+        "chat-attachment:moderate",
         "notification:read:self",
         "notification:update:self",
         "event:read:self",
