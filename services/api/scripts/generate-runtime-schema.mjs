@@ -600,6 +600,23 @@ model("CreditOperation", (block) =>
 );
 schema += "\n" + readFileSync(new URL("voucher-support.prisma", root), "utf8");
 
+// Session whiteboard (spec 019): one persisted scene per Session.
+model("Session", (block) =>
+  fields(
+    block,
+    '  whiteboard SessionWhiteboard? @relation("SessionWhiteboard_session")',
+  ),
+);
+model("User", (block) =>
+  fields(
+    block,
+    '  sessionWhiteboardUpdates SessionWhiteboard[] @relation("SessionWhiteboard_updated_by")',
+  ),
+);
+schema +=
+  "\n" +
+  readFileSync(new URL("session-whiteboard-support.prisma", root), "utf8");
+
 schema = schema.replace(
   /^\/\/ Logical v3[^\r\n]*\r?\n(?:\/\/[^\r\n]*\r?\n)*\r?\n/,
   "// Runtime: v3 domain models plus implemented foundation support.\n" +

@@ -17,6 +17,8 @@ import { SessionCompletionHandler } from "./infrastructure/events/session-comple
 import { LearningRequestsModule } from "../learning-requests/learning-requests.module";
 import { LearningPathRequestStateModule } from "../learning-paths/learning-path-request-state.module";
 import { AuditModule } from "../audit/audit.module";
+import { SessionWhiteboardController } from "./presentation/http/session-whiteboard.controller";
+import { SessionWhiteboardService } from "./application/services/session-whiteboard.service";
 
 @Module({
   imports: [
@@ -32,13 +34,18 @@ import { AuditModule } from "../audit/audit.module";
     SystemConfigurationModule,
     OutboxModule,
   ],
-  controllers: [LearningSessionsController, LiveKitWebhookController],
+  controllers: [
+    LearningSessionsController,
+    LiveKitWebhookController,
+    SessionWhiteboardController,
+  ],
   providers: [
     LearningSessionsService,
     SessionOutcomeService,
     LiveKitService,
     SessionLifecycleWorker,
     SessionCompletionHandler,
+    SessionWhiteboardService,
   ],
   exports: [LearningSessionsService],
 })

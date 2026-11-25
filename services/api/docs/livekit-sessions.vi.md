@@ -126,6 +126,22 @@ Sau join grace + 10 phút chờ dữ liệu, outcome dùng union interval cắt 
 disabled/thiếu join window không dẫn tới phạt vắng. READY vẫn đổi lịch theo cutoff
 60 phút; MAKEUP_REQUIRED dùng hạn học bù. Không ghi âm/ghi hình.
 
+## Bảng trắng
+
+Nét vẽ được đồng bộ realtime giữa hai bên qua LiveKit DataChannel ở client.
+Backend chỉ lưu bản snapshot mới nhất của mỗi Session (bảng `session_whiteboards`,
+[spec 019](../specs/019-session-whiteboard/contracts.md)):
+
+- `GET /api/v1/sessions/:id/whiteboard`: trả `revision`, `sceneData`, `readOnly`, `readOnlyReason`.
+- `PUT /api/v1/sessions/:id/whiteboard`: body `{expectedRevision, sceneData}`. Nếu revision lệch,
+  API trả `409 WHITEBOARD_REVISION_CONFLICT` kèm `details.currentRevision`. Scene tối đa
+  2 MiB và 20.000 phần tử; riêng route này nhận body 2 MiB, các route khác giữ giới hạn 100 kB.
+
+Chỉ hai participant được đọc và ghi. Quyền ghi là `session-whiteboard:update:participant`,
+cần chạy `identity:seed` khi rollout. Bảng chỉ sửa được trong join window của phòng;
+ngoài window bảng ở chế độ chỉ đọc (`409 WHITEBOARD_READ_ONLY`). Quy tắc này đang chờ
+PO xác nhận. Không audit, không moderation, không lưu lịch sử revision.
+
 ## Completion và các giới hạn còn mở
 
 Mỗi Session COMPLETED chỉ tăng progress, không release Credit theo buổi. Khi

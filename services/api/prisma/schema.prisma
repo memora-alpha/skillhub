@@ -372,7 +372,8 @@ model User {
   profileModeration       Json?              @map("profile_moderation")
   createdFeePolicies      FeePolicyVersion[] @relation("FeePolicy_creator")
 
-  voucherRedemptions VoucherRedemption[] @relation("VoucherRedemption_user")
+  voucherRedemptions       VoucherRedemption[] @relation("VoucherRedemption_user")
+  sessionWhiteboardUpdates SessionWhiteboard[] @relation("SessionWhiteboard_updated_by")
 
   @@unique([id, avatarAssetId])
   @@index([roleId])
@@ -827,6 +828,8 @@ model Session {
   makeupCount     Int                     @default(0) @map("makeup_count")
   makeupUserIds   String[]                @default([]) @map("makeup_user_ids") @db.Uuid
   changeRequests  LearningChangeRequest[]
+
+  whiteboard SessionWhiteboard? @relation("SessionWhiteboard_session")
 
   @@unique([planId, planVersion, outlineSessionNo])
   @@unique([id, pathId])
@@ -2479,4 +2482,23 @@ model IssuedVoucher {
   redemption       VoucherRedemption @relation(fields: [redemptionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
   @@map("issued_vouchers")
+}
+
+// Session whiteboard fragments (spec 019).
+model SessionWhiteboard {
+  id              String   @id @default(uuid()) @db.Uuid
+  sessionId       String   @unique @map("session_id") @db.Uuid
+  revision        Int      @default(0)
+  // Excalidraw scene { elements, appState?, files? }; size is bounded by the service.
+  sceneData       Json     @map("scene_data")
+  sceneBytes      Int      @map("scene_bytes")
+  updatedByUserId String   @map("updated_by_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  session   Session @relation("SessionWhiteboard_session", fields: [sessionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  updatedBy User    @relation("SessionWhiteboard_updated_by", fields: [updatedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([updatedByUserId])
+  @@map("session_whiteboards")
 }

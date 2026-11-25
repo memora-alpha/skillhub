@@ -159,6 +159,10 @@ export const PERMISSION_CATALOG = [
     code: "livekit-token:issue:participant",
     description: "Issue participant token",
   },
+  {
+    code: "session-whiteboard:update:participant",
+    description: "Save the whiteboard of a participant session",
+  },
   { code: "credit:adjust", description: "Adjust credit with audit" },
   { code: "credit:adjust:qa", description: "Grant credit for internal QA" },
   {

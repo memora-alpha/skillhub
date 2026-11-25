@@ -269,6 +269,7 @@ export class PrismaUsersRepository extends UsersRepository {
       USER: [
         "session:read:participant",
         "livekit-token:issue:participant",
+        "session-whiteboard:update:participant",
         "proposal:create",
         "event:read:self",
         "proposal:read:party",

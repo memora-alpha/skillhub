@@ -9,6 +9,8 @@ import {
 } from "@nestjs/common";
 import { Logger } from "nestjs-pino";
 import helmet from "helmet";
+import { json } from "express";
+import { WHITEBOARD_BODY_LIMIT_BYTES } from "./modules/learning-sessions/domain/whiteboard.policy";
 import { setupSwagger } from "./configs/swagger.config";
 import { AppModule } from "./app.module";
 
@@ -18,6 +20,12 @@ async function bootstrap() {
     rawBody: true,
   });
   const config = app.get(ConfigService);
+  // Whiteboard scenes exceed the global JSON limit; only this route accepts them.
+  // Registered first, so the global parser below skips the already-parsed body.
+  app.use(
+    "/api/v1/sessions/:sessionId/whiteboard",
+    json({ limit: WHITEBOARD_BODY_LIMIT_BYTES }),
+  );
   app.useBodyParser("json", {
     type: ["application/json", "application/webhook+json"],
     limit: "100kb",
