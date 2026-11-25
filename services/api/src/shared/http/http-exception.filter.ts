@@ -204,9 +204,9 @@ function materialLifecycleDetails(
 }
 
 const whiteboardReadOnlyReasons = new Set([
-  "SESSION_NOT_JOINABLE",
-  "JOIN_WINDOW_NOT_OPEN",
-  "JOIN_WINDOW_CLOSED",
+  "SESSION_NOT_EDITABLE",
+  "EDIT_WINDOW_NOT_OPEN",
+  "EDIT_WINDOW_CLOSED",
 ]);
 
 function whiteboardDetails(status: number, text: string, detail: unknown) {

@@ -132,15 +132,24 @@ Nét vẽ được đồng bộ realtime giữa hai bên qua LiveKit DataChannel
 Backend chỉ lưu bản snapshot mới nhất của mỗi Session (bảng `session_whiteboards`,
 [spec 019](../specs/019-session-whiteboard/contracts.md)):
 
-- `GET /api/v1/sessions/:id/whiteboard`: trả `revision`, `sceneData`, `readOnly`, `readOnlyReason`.
+- `GET /api/v1/sessions/:id/whiteboard`: trả `revision`, `sceneData`, `readOnly`, `readOnlyReason`,
+  `editableFrom`, `editableUntil`.
 - `PUT /api/v1/sessions/:id/whiteboard`: body `{expectedRevision, sceneData}`. Nếu revision lệch,
   API trả `409 WHITEBOARD_REVISION_CONFLICT` kèm `details.currentRevision`. Scene tối đa
   2 MiB và 20.000 phần tử; riêng route này nhận body 2 MiB, các route khác giữ giới hạn 100 kB.
 
 Chỉ hai participant được đọc và ghi. Quyền ghi là `session-whiteboard:update:participant`,
-cần chạy `identity:seed` khi rollout. Bảng chỉ sửa được trong join window của phòng;
-ngoài window bảng ở chế độ chỉ đọc (`409 WHITEBOARD_READ_ONLY`). Quy tắc này đang chờ
-PO xác nhận. Không audit, không moderation, không lưu lịch sử revision.
+khi rollout cần chạy `identity:seed` (permission) và `db:seed-configuration` (config key `whiteboard.editWindow`).
+
+Thời gian sửa bảng (config `whiteboard.editWindow`, mặc định `teacherPrepare = true`,
+`afterEndMinutes = 1440`):
+
+- Giáo viên được soạn bảng ngay từ khi Session được xác nhận. Người học chỉ được sửa từ khi join window mở.
+- Cả hai được sửa đến `max(giờ đóng join window, endAt + afterEndMinutes)`. Sau đó bảng chỉ đọc vĩnh viễn.
+- Session ở trạng thái `CANCELLED`, `DISPUTED`, `NO_SHOW` hoặc `MAKEUP_REQUIRED` thì bảng bị khóa ngay.
+- Khi bị khóa, API trả `409 WHITEBOARD_READ_ONLY` kèm `details.reason`.
+
+Quy tắc này đang chờ PO duyệt. Không audit, không moderation, không lưu lịch sử revision.
 
 ## Completion và các giới hạn còn mở
 

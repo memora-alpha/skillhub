@@ -36,7 +36,7 @@ window check uses database time, so at most one save can land at the instant the
 - `main.ts`: a route-scoped `express.json` parser (2 MiB + 4 KiB) is registered before the global 100 kB parser.
 - `http-exception.filter.ts`: allowlist `currentRevision` and `reason` for the two whiteboard 409s.
 - `permission.catalog.ts` + USER grants: `session-whiteboard:update:participant`.
-  Run `pnpm --filter api identity:seed` on rollout.
+  Run `pnpm --filter api identity:seed` and `pnpm --filter api db:seed-configuration` (for `whiteboard.editWindow`) on rollout.
 - `package.json`: declare `express@5.2.1`; the lockfile only adds the specifier.
 
 ## Consumers

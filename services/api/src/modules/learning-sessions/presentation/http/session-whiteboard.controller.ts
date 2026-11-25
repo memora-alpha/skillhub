@@ -38,7 +38,7 @@ export class SessionWhiteboardController {
   @ApiOperation({
     summary: "Read the persisted whiteboard scene of a Session",
     description:
-      "Participants only. Returns revision 0 and sceneData null before the first save. readOnly follows the room join window.",
+      "Participants only. Returns revision 0 and sceneData null before the first save. readOnly follows whiteboard.editWindow: teacher preparation from confirmation, both participants from the join window until the post-session grace period ends.",
   })
   @ApiSuccessResponse(200, SessionWhiteboardResponse)
   @ApiErrorResponse(403)
@@ -58,7 +58,7 @@ export class SessionWhiteboardController {
   @ApiOperation({
     summary: "Replace the whiteboard scene with optimistic locking",
     description:
-      "Participants only, inside the room join window. 409 WHITEBOARD_REVISION_CONFLICT includes currentRevision; reload, merge and retry. 409 WHITEBOARD_READ_ONLY includes reason. 413 WHITEBOARD_SCENE_TOO_LARGE above 2 MiB.",
+      "Participants only, inside the caller's edit window. 409 WHITEBOARD_REVISION_CONFLICT includes currentRevision; reload, merge and retry. 409 WHITEBOARD_READ_ONLY includes reason. 413 WHITEBOARD_SCENE_TOO_LARGE above 2 MiB.",
   })
   @ApiSuccessResponse(200, SessionWhiteboardSaveResponse)
   @ApiErrorResponse(400)

@@ -19,6 +19,8 @@ import type { JoinWindowPolicy } from "../../domain/session.policy";
 import {
   checkWhiteboardScene,
   whiteboardAccess,
+  type WhiteboardEditPolicy,
+  type WhiteboardRole,
   type WhiteboardScene,
 } from "../../domain/whiteboard.policy";
 import { databaseNow } from "./session-tx";
@@ -36,6 +38,18 @@ const sessionSelect = {
   startAt: true,
   endAt: true,
 } as const;
+
+type WhiteboardPolicies = {
+  join: JoinWindowPolicy;
+  edit: WhiteboardEditPolicy;
+};
+
+function roleOf(
+  actor: Principal,
+  session: { teacherId: string },
+): WhiteboardRole {
+  return actor.userId === session.teacherId ? "TEACHER" : "LEARNER";
+}
 
 function revisionConflict(currentRevision: number) {
   return new ConflictException({
@@ -74,10 +88,13 @@ export class SessionWhiteboardService {
         updatedByUserId: true,
       },
     });
+    const policies = await this.policies();
     const access = whiteboardAccess(
       session,
+      roleOf(actor, session),
       this.clock.now(),
-      await this.joinPolicy(),
+      policies?.join ?? null,
+      policies?.edit ?? null,
     );
     return {
       revision: board?.revision ?? 0,
@@ -129,10 +146,16 @@ export class SessionWhiteboardService {
   ) {
     const session = await this.participantSession(tx, actor, sessionId);
     const now = await databaseNow(tx);
-    const policy = await this.joinPolicy(tx);
-    if (!policy)
-      throw new ServiceUnavailableException("LIVEKIT_POLICY_NOT_READY");
-    const access = whiteboardAccess(session, now, policy);
+    const policies = await this.policies(tx);
+    if (!policies)
+      throw new ServiceUnavailableException("WHITEBOARD_POLICY_NOT_READY");
+    const access = whiteboardAccess(
+      session,
+      roleOf(actor, session),
+      now,
+      policies.join,
+      policies.edit,
+    );
     if (access.readOnly)
       throw new ConflictException({
         message: "WHITEBOARD_READ_ONLY",
@@ -183,15 +206,17 @@ export class SessionWhiteboardService {
     return session;
   }
 
-  private async joinPolicy(
+  private async policies(
     tx?: TransactionContext,
-  ): Promise<JoinWindowPolicy | null> {
+  ): Promise<WhiteboardPolicies | null> {
     try {
-      const snapshot = await this.configuration.getSnapshot(
-        ["livekit.joinWindow"],
+      const { values } = await this.configuration.getSnapshot(
+        ["livekit.joinWindow", "whiteboard.editWindow"],
         tx,
       );
-      return snapshot.values["livekit.joinWindow"] ?? null;
+      const join = values["livekit.joinWindow"];
+      const edit = values["whiteboard.editWindow"];
+      return join && edit ? { join, edit } : null;
     } catch (error) {
       if (error instanceof ServiceUnavailableException) return null;
       throw error;

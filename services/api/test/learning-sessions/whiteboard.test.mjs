@@ -39,11 +39,16 @@ const scene = (...ids) => ({
   appState: { viewBackgroundColor: "#ffffff" },
 });
 
-// Session fixture: 2026-11-02 10:00-11:00 UTC, join window 09:50-11:10.
+// Session fixture: 2026-11-02 10:00-11:00 UTC, join window 09:50-11:10,
+// edit window closes 24 hours after endAt (2026-11-03 11:00). A teaches, B learns.
+const editWindow = { teacherPrepare: true, afterEndMinutes: 1440 };
 async function ready() {
   const ctx = setup({
     wallets: { [B]: 10000n },
-    config: { "livekit.joinWindow": { earlyMinutes: 10, lateMinutes: 10 } },
+    config: {
+      "livekit.joinWindow": { earlyMinutes: 10, lateMinutes: 10 },
+      "whiteboard.editWindow": editWindow,
+    },
   });
   const ids = await finalizedOneWay(ctx);
   ctx.clock.now = new Date("2026-11-02T10:05:00Z");
@@ -66,7 +71,11 @@ test("empty board reads as revision 0 and editable inside the join window", asyn
     updatedByUserId: null,
     readOnly: false,
     readOnlyReason: null,
+    editableFrom: null,
+    editableUntil: new Date("2026-11-03T11:00:00Z"),
   });
+  const learner = await ctx.whiteboards.read(participant(B), ctx.session.id);
+  assert.deepEqual(learner.editableFrom, new Date("2026-11-02T09:50:00Z"));
 });
 
 test("saves advance the revision and both participants read the latest scene", async () => {
@@ -192,58 +201,137 @@ test("outsiders, missing permissions and unknown sessions are denied", async () 
   assert.equal(ctx.db.rows("sessionWhiteboard").length, 0);
 });
 
-test("board becomes read-only after the join window and keeps its scene", async () => {
+test("board stays editable for the grace period, then freezes with its scene", async () => {
   const ctx = await ready();
   await ctx.whiteboards.save(participant(A), ctx.session.id, 0, scene("a"));
+  // After the join window closes, notes can still be finished.
   ctx.clock.now = new Date("2026-11-02T11:10:00Z");
+  await ctx.whiteboards.save(
+    participant(B),
+    ctx.session.id,
+    1,
+    scene("a", "b"),
+  );
+  ctx.clock.now = new Date("2026-11-03T10:59:59Z");
+  const open = await ctx.whiteboards.read(participant(B), ctx.session.id);
+  assert.equal(open.readOnly, false);
+  assert.deepEqual(open.editableUntil, new Date("2026-11-03T11:00:00Z"));
+  ctx.clock.now = new Date("2026-11-03T11:00:00Z");
   const board = await ctx.whiteboards.read(participant(B), ctx.session.id);
   assert.equal(board.readOnly, true);
-  assert.equal(board.readOnlyReason, "JOIN_WINDOW_CLOSED");
-  assert.equal(board.revision, 1);
+  assert.equal(board.readOnlyReason, "EDIT_WINDOW_CLOSED");
+  assert.equal(board.revision, 2);
   assert.deepEqual(
     board.sceneData.elements.map((e) => e.id),
-    ["a"],
+    ["a", "b"],
   );
   await assert.rejects(
-    () => ctx.whiteboards.save(participant(A), ctx.session.id, 1, scene("b")),
+    () => ctx.whiteboards.save(participant(A), ctx.session.id, 2, scene("c")),
     (error) => {
       assert.equal(error.getStatus(), 409);
       assert.deepEqual(error.getResponse(), {
         message: "WHITEBOARD_READ_ONLY",
-        reason: "JOIN_WINDOW_CLOSED",
+        reason: "EDIT_WINDOW_CLOSED",
       });
       return true;
     },
   );
 });
 
-test("board is read-only before the window and for non-joinable statuses", async () => {
+test("teacher may prepare before the join window; learner may not", async () => {
   const ctx = await ready();
+  ctx.clock.now = new Date("2026-11-01T08:00:00Z");
+  const learner = await ctx.whiteboards.read(participant(B), ctx.session.id);
+  assert.equal(learner.readOnlyReason, "EDIT_WINDOW_NOT_OPEN");
+  assert.deepEqual(learner.editableFrom, new Date("2026-11-02T09:50:00Z"));
+  await assert.rejects(
+    () => ctx.whiteboards.save(participant(B), ctx.session.id, 0, scene("a")),
+    (error) => {
+      assert.deepEqual(error.getResponse(), {
+        message: "WHITEBOARD_READ_ONLY",
+        reason: "EDIT_WINDOW_NOT_OPEN",
+      });
+      return true;
+    },
+  );
+  const teacher = await ctx.whiteboards.read(participant(A), ctx.session.id);
+  assert.equal(teacher.readOnly, false);
+  assert.equal(teacher.editableFrom, null);
+  const saved = await ctx.whiteboards.save(
+    participant(A),
+    ctx.session.id,
+    0,
+    scene("a"),
+  );
+  assert.equal(saved.revision, 1);
+});
+
+test("teacher preparation can be switched off", async () => {
+  const ctx = await ready();
+  ctx.configuration.values["whiteboard.editWindow"] = {
+    teacherPrepare: false,
+    afterEndMinutes: 0,
+  };
   ctx.clock.now = new Date("2026-11-02T09:49:59Z");
   await assert.rejects(
     () => ctx.whiteboards.save(participant(A), ctx.session.id, 0, scene("a")),
     { message: "WHITEBOARD_READ_ONLY" },
   );
-  ctx.clock.now = new Date("2026-11-02T10:05:00Z");
-  await ctx.db.session.update({
-    where: { id: ctx.session.id },
-    data: { status: "CANCELLED" },
-  });
+  // With no grace period the join window close still applies.
+  ctx.clock.now = new Date("2026-11-02T11:09:59Z");
+  await ctx.whiteboards.save(participant(A), ctx.session.id, 0, scene("a"));
+  ctx.clock.now = new Date("2026-11-02T11:10:00Z");
   const board = await ctx.whiteboards.read(participant(A), ctx.session.id);
-  assert.equal(board.readOnlyReason, "SESSION_NOT_JOINABLE");
+  assert.equal(board.readOnlyReason, "EDIT_WINDOW_CLOSED");
 });
 
-test("missing join policy blocks saves but keeps reads available", async () => {
+for (const status of ["CANCELLED", "DISPUTED", "NO_SHOW", "MAKEUP_REQUIRED"]) {
+  test("board is frozen for a " + status + " Session", async () => {
+    const ctx = await ready();
+    await ctx.db.session.update({
+      where: { id: ctx.session.id },
+      data: { status },
+    });
+    const board = await ctx.whiteboards.read(participant(A), ctx.session.id);
+    assert.equal(board.readOnlyReason, "SESSION_NOT_EDITABLE");
+    assert.equal(board.editableUntil, null);
+    await assert.rejects(
+      () => ctx.whiteboards.save(participant(A), ctx.session.id, 0, scene("a")),
+      { message: "WHITEBOARD_READ_ONLY" },
+    );
+  });
+}
+
+test("a COMPLETED Session stays editable during the grace period", async () => {
   const ctx = await ready();
+  await ctx.db.session.update({
+    where: { id: ctx.session.id },
+    data: { status: "COMPLETED" },
+  });
+  ctx.clock.now = new Date("2026-11-02T15:00:00Z");
+  const saved = await ctx.whiteboards.save(
+    participant(B),
+    ctx.session.id,
+    0,
+    scene("a"),
+  );
+  assert.equal(saved.revision, 1);
+});
+
+test("missing configuration blocks saves but keeps reads available", async () => {
+  const ctx = await ready();
+  delete ctx.configuration.values["whiteboard.editWindow"];
+  const partial = await ctx.whiteboards.read(participant(A), ctx.session.id);
+  assert.equal(partial.readOnlyReason, "WHITEBOARD_POLICY_NOT_READY");
   ctx.configuration.getSnapshot = async () => {
     throw new ServiceUnavailableException("Configuration not ready");
   };
   const board = await ctx.whiteboards.read(participant(A), ctx.session.id);
   assert.equal(board.readOnly, true);
-  assert.equal(board.readOnlyReason, "LIVEKIT_POLICY_NOT_READY");
+  assert.equal(board.readOnlyReason, "WHITEBOARD_POLICY_NOT_READY");
   await assert.rejects(
     () => ctx.whiteboards.save(participant(A), ctx.session.id, 0, scene("a")),
-    { message: "LIVEKIT_POLICY_NOT_READY" },
+    { message: "WHITEBOARD_POLICY_NOT_READY" },
   );
 });
 
@@ -304,23 +392,43 @@ test("scene check measures UTF-8 bytes and accepts the exact limit", () => {
   });
 });
 
-test("access mirrors the join window boundaries", () => {
+test("access boundaries per role", () => {
   const session = {
-    status: "ONGOING",
+    status: "CONFIRMED",
     startAt: new Date("2026-11-02T10:00:00Z"),
     endAt: new Date("2026-11-02T11:00:00Z"),
   };
-  const policy = { earlyMinutes: 10, lateMinutes: 10 };
-  const at = (iso) => whiteboardAccess(session, new Date(iso), policy);
-  assert.equal(at("2026-11-02T09:50:00Z").readOnly, false);
-  assert.equal(at("2026-11-02T11:09:59Z").readOnly, false);
-  assert.deepEqual(at("2026-11-02T11:10:00Z"), {
+  const join = { earlyMinutes: 10, lateMinutes: 10 };
+  const at = (role, iso, edit = editWindow) =>
+    whiteboardAccess(session, role, new Date(iso), join, edit);
+  assert.equal(at("LEARNER", "2026-11-02T09:49:59Z").readOnly, true);
+  assert.equal(at("LEARNER", "2026-11-02T09:50:00Z").readOnly, false);
+  assert.equal(at("TEACHER", "2026-10-01T00:00:00Z").readOnly, false);
+  assert.equal(at("LEARNER", "2026-11-03T10:59:59Z").readOnly, false);
+  assert.deepEqual(at("TEACHER", "2026-11-03T11:00:00Z"), {
     readOnly: true,
-    readOnlyReason: "JOIN_WINDOW_CLOSED",
+    readOnlyReason: "EDIT_WINDOW_CLOSED",
+    editableFrom: null,
+    editableUntil: new Date("2026-11-03T11:00:00Z"),
   });
+  // A grace period shorter than the join window never cuts the room short.
+  const short = { teacherPrepare: false, afterEndMinutes: 5 };
+  assert.equal(at("TEACHER", "2026-11-02T11:09:59Z", short).readOnly, false);
+  assert.equal(at("TEACHER", "2026-11-02T11:10:00Z", short).readOnly, true);
   assert.deepEqual(
-    whiteboardAccess(session, new Date("2026-11-02T10:30:00Z"), null),
-    { readOnly: true, readOnlyReason: "LIVEKIT_POLICY_NOT_READY" },
+    whiteboardAccess(
+      session,
+      "TEACHER",
+      new Date("2026-11-02T10:30:00Z"),
+      null,
+      editWindow,
+    ),
+    {
+      readOnly: true,
+      readOnlyReason: "WHITEBOARD_POLICY_NOT_READY",
+      editableFrom: null,
+      editableUntil: null,
+    },
   );
 });
 
@@ -351,7 +459,7 @@ test("error filter exposes only whitelisted whiteboard details", () => {
   filter.catch(
     new ConflictException({
       message: "WHITEBOARD_READ_ONLY",
-      reason: "JOIN_WINDOW_CLOSED",
+      reason: "EDIT_WINDOW_CLOSED",
     }),
     host,
   );
@@ -363,7 +471,7 @@ test("error filter exposes only whitelisted whiteboard details", () => {
     host,
   );
   assert.deepEqual(sent[0].body.details, { currentRevision: 4 });
-  assert.deepEqual(sent[1].body.details, { reason: "JOIN_WINDOW_CLOSED" });
+  assert.deepEqual(sent[1].body.details, { reason: "EDIT_WINDOW_CLOSED" });
   assert.equal(sent[2].body.details, undefined);
   assert.ok(sent.every(({ code }) => code === 409));
 });

@@ -12,7 +12,10 @@
 - [x] T008 Exception filter allowlist for `currentRevision` / `reason`
 - [x] T009 Unit tests `test/learning-sessions/whiteboard.test.mjs`
 - [ ] T010 DB integration test against PostgreSQL: migration applies, concurrent first saves → one wins, CHECK constraints (needs `test:learning-sessions:integration` env)
-- [ ] T011 PO answers Q1–Q3 in [spec.md](spec.md); adjust D3 if the editable window changes
+- [x] T012 P1 edit window: config key `whiteboard.editWindow` (teacher preparation, post-session grace), per-role access, frozen statuses, `editableFrom`/`editableUntil`
+- [ ] T011 PO approves P1–P4 in [spec.md](spec.md); adjust `whiteboard.editWindow` values if needed
+- [ ] T013 P3 retention job: delete scenes 30 days after `endAt`, skip Sessions with an open report
+- [ ] T014 P2 Staff read with `report:moderate` while a report is open, audited
 
 ## Out of scope (separate specs)
 

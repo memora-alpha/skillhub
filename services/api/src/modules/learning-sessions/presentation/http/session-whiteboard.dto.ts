@@ -41,7 +41,7 @@ export class SessionWhiteboardResponse {
 
   @ApiProperty({
     description:
-      "True outside the room join window or when the Session is not joinable",
+      "True outside the caller's edit window (whiteboard.editWindow) or when the Session is cancelled, disputed or otherwise frozen",
   })
   readOnly!: boolean;
 
@@ -49,13 +49,30 @@ export class SessionWhiteboardResponse {
     type: String,
     nullable: true,
     enum: [
-      "SESSION_NOT_JOINABLE",
-      "LIVEKIT_POLICY_NOT_READY",
-      "JOIN_WINDOW_NOT_OPEN",
-      "JOIN_WINDOW_CLOSED",
+      "SESSION_NOT_EDITABLE",
+      "WHITEBOARD_POLICY_NOT_READY",
+      "EDIT_WINDOW_NOT_OPEN",
+      "EDIT_WINDOW_CLOSED",
     ],
   })
   readOnlyReason!: string | null;
+
+  @ApiPropertyOptional({
+    type: String,
+    format: "date-time",
+    nullable: true,
+    description:
+      "When the caller may start editing; null for a teacher allowed to prepare from confirmation, or when no window applies",
+  })
+  editableFrom!: Date | null;
+
+  @ApiPropertyOptional({
+    type: String,
+    format: "date-time",
+    nullable: true,
+    description: "When the board becomes read-only for good",
+  })
+  editableUntil!: Date | null;
 }
 
 export class SessionWhiteboardSaveResponse {
