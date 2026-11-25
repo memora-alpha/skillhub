@@ -1,0 +1,108 @@
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { IsInt, IsObject, Max, Min } from "class-validator";
+
+export class SaveSessionWhiteboardDto {
+  @ApiProperty({
+    minimum: 0,
+    description:
+      "Revision the client last loaded; 0 creates the first snapshot. A stale value returns 409 WHITEBOARD_REVISION_CONFLICT with currentRevision.",
+  })
+  @IsInt()
+  @Min(0)
+  @Max(2_147_483_647)
+  expectedRevision!: number;
+
+  @ApiProperty({
+    type: "object",
+    additionalProperties: true,
+    description:
+      "Excalidraw scene { elements, appState?, files? }; at most 2 MiB of UTF-8 JSON and 20,000 elements with unique ids.",
+  })
+  @IsObject()
+  sceneData!: Record<string, unknown>;
+}
+
+export class SessionWhiteboardResponse {
+  @ApiProperty({ minimum: 0, description: "0 when nothing has been saved" })
+  revision!: number;
+
+  @ApiPropertyOptional({
+    type: "object",
+    additionalProperties: true,
+    nullable: true,
+  })
+  sceneData!: Record<string, unknown> | null;
+
+  @ApiPropertyOptional({ type: String, format: "date-time", nullable: true })
+  updatedAt!: Date | null;
+
+  @ApiPropertyOptional({ type: String, format: "uuid", nullable: true })
+  updatedByUserId!: string | null;
+
+  @ApiProperty({
+    description:
+      "True outside the caller's edit window (whiteboard.editWindow) or when the Session is cancelled, disputed or otherwise frozen",
+  })
+  readOnly!: boolean;
+
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    enum: [
+      "SESSION_NOT_EDITABLE",
+      "WHITEBOARD_POLICY_NOT_READY",
+      "EDIT_WINDOW_NOT_OPEN",
+      "EDIT_WINDOW_CLOSED",
+    ],
+  })
+  readOnlyReason!: string | null;
+
+  @ApiPropertyOptional({
+    type: String,
+    format: "date-time",
+    nullable: true,
+    description:
+      "When the caller may start editing; null for a teacher allowed to prepare from confirmation, or when no window applies",
+  })
+  editableFrom!: Date | null;
+
+  @ApiPropertyOptional({
+    type: String,
+    format: "date-time",
+    nullable: true,
+    description: "When the board becomes read-only for good",
+  })
+  editableUntil!: Date | null;
+}
+
+export class SessionWhiteboardSaveResponse {
+  @ApiProperty({ minimum: 1 })
+  revision!: number;
+
+  @ApiProperty({ type: String, format: "date-time" })
+  updatedAt!: Date;
+}
+
+export class StaffSessionWhiteboardResponse {
+  @ApiProperty({ type: String, format: "uuid" })
+  caseId!: string;
+
+  @ApiProperty({
+    minimum: 0,
+    description: "0 when nothing was saved or the scene was deleted",
+  })
+  revision!: number;
+
+  @ApiPropertyOptional({
+    type: "object",
+    additionalProperties: true,
+    nullable: true,
+  })
+  sceneData!: Record<string, unknown> | null;
+
+  @ApiPropertyOptional({ type: String, format: "date-time", nullable: true })
+  updatedAt!: Date | null;
+
+  @ApiPropertyOptional({ type: String, format: "uuid", nullable: true })
+  updatedByUserId!: string | null;
+}

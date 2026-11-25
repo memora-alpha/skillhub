@@ -126,6 +126,40 @@ Sau join grace + 10 phút chờ dữ liệu, outcome dùng union interval cắt 
 disabled/thiếu join window không dẫn tới phạt vắng. READY vẫn đổi lịch theo cutoff
 60 phút; MAKEUP_REQUIRED dùng hạn học bù. Không ghi âm/ghi hình.
 
+## Bảng trắng
+
+Nét vẽ được đồng bộ realtime giữa hai bên qua LiveKit DataChannel ở client.
+Backend chỉ lưu bản snapshot mới nhất của mỗi Session (bảng `session_whiteboards`,
+[spec 019](../specs/019-session-whiteboard/contracts.md)):
+
+- `GET /api/v1/sessions/:id/whiteboard`: trả `revision`, `sceneData`, `readOnly`, `readOnlyReason`,
+  `editableFrom`, `editableUntil`.
+- `PUT /api/v1/sessions/:id/whiteboard`: body `{expectedRevision, sceneData}`. Nếu revision lệch,
+  API trả `409 WHITEBOARD_REVISION_CONFLICT` kèm `details.currentRevision`. Scene tối đa
+  2 MiB và 20.000 phần tử; riêng route này nhận body 2 MiB, các route khác giữ giới hạn 100 kB.
+
+Chỉ hai participant được đọc và ghi. Quyền ghi là `session-whiteboard:update:participant`,
+khi rollout cần chạy `identity:seed` (permission) và `db:seed-configuration` (config key
+`whiteboard.editWindow` và `whiteboard.retentionDays`).
+
+Thời gian sửa bảng (config `whiteboard.editWindow`, mặc định `teacherPrepare = true`,
+`afterEndMinutes = 1440`):
+
+- Giáo viên được soạn bảng ngay từ khi Session được xác nhận. Người học chỉ được sửa từ khi join window mở.
+- Cả hai được sửa đến `max(giờ đóng join window, endAt + afterEndMinutes)`. Sau đó bảng chỉ đọc vĩnh viễn.
+- Session ở trạng thái `CANCELLED`, `DISPUTED`, `NO_SHOW` hoặc `MAKEUP_REQUIRED` thì bảng bị khóa ngay.
+- Khi bị khóa, API trả `409 WHITEBOARD_READ_ONLY` kèm `details.reason`.
+
+Staff xem bảng: Staff đang xử lý một report case còn mở về Session được đọc bảng (không sửa) qua
+`GET /api/v1/sessions/:id/whiteboard/staff-review?caseId=`. Report case đó phải nhắm vào Session hoặc có
+`relatedSessionId` là Session. Staff cần quyền `report:moderate`. Mỗi lần đọc ghi audit `REPORT_EVIDENCE_READ`.
+
+Lưu trữ: worker chạy mỗi giờ, xóa scene sau `whiteboard.retentionDays` ngày (mặc định 30) kể từ `endAt`.
+Session đang có report mở thì hoãn xóa cho đến khi report đóng.
+
+Các quy tắc trên đang chờ PO duyệt. Bảng không bị moderation. Lần lưu của người tham gia không ghi audit.
+Không lưu lịch sử revision.
+
 ## Completion và các giới hạn còn mở
 
 Mỗi Session COMPLETED chỉ tăng progress, không release Credit theo buổi. Khi

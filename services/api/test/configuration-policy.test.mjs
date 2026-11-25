@@ -52,7 +52,25 @@ test("approved defaults and mutability are explicit", () => {
     "voucher.platformDailyBudgetVnd",
     "voucher.reconcileMaxAttempts",
     "voucher.userDailyLimitCredit",
+    "whiteboard.editWindow",
+    "whiteboard.retentionDays",
   ]);
+  assert.equal(
+    CONFIGURATION_DEFINITIONS["whiteboard.retentionDays"].defaultValue,
+    30,
+  );
+  // Retention must outlast the longest edit window (7 days).
+  assert.throws(() => parseConfigurationValue("whiteboard.retentionDays", 7));
+  assert.deepEqual(
+    CONFIGURATION_DEFINITIONS["whiteboard.editWindow"].defaultValue,
+    { teacherPrepare: true, afterEndMinutes: 1440 },
+  );
+  assert.throws(() =>
+    parseConfigurationValue("whiteboard.editWindow", {
+      teacherPrepare: true,
+      afterEndMinutes: 10_081,
+    }),
+  );
   assert.deepEqual(
     CONFIGURATION_DEFINITIONS["learningPath.changeRequests"].defaultValue,
     { requestWindowHours: 72, terminationPolicyReference: null },

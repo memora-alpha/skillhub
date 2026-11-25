@@ -11,6 +11,9 @@ const relations = {
       true,
     ],
   },
+  sessionWhiteboard: {
+    session: ["session", [["sessionId", "id"]], false],
+  },
   conversation: {
     requestIdRecord: ["learningRequest", [["requestId", "id"]], false],
     proposalIdRecord: ["proposal", [["proposalId", "id"]], false],
@@ -387,6 +390,13 @@ export function createFakeDb({ now = () => new Date() } = {}) {
         const hits = rows(name).filter((row) => matches(name, row, where));
         hits.forEach((row) => apply(row, data));
         return { count: hits.length };
+      },
+      deleteMany: ({ where } = {}) => {
+        const list = rows(name);
+        const kept = list.filter((row) => !matches(name, row, where));
+        const count = list.length - kept.length;
+        list.splice(0, list.length, ...kept);
+        return { count };
       },
     };
   }

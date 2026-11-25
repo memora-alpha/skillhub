@@ -203,6 +203,31 @@ function materialLifecycleDetails(
   return { currentStatus, currentListingVersion };
 }
 
+const whiteboardReadOnlyReasons = new Set([
+  "SESSION_NOT_EDITABLE",
+  "EDIT_WINDOW_NOT_OPEN",
+  "EDIT_WINDOW_CLOSED",
+]);
+
+function whiteboardDetails(status: number, text: string, detail: unknown) {
+  if (status !== 409 || !isRecord(detail)) return undefined;
+  const { currentRevision, reason } = detail;
+  if (
+    text === "WHITEBOARD_REVISION_CONFLICT" &&
+    typeof currentRevision === "number" &&
+    Number.isSafeInteger(currentRevision) &&
+    currentRevision >= 0
+  )
+    return { currentRevision };
+  if (
+    text === "WHITEBOARD_READ_ONLY" &&
+    typeof reason === "string" &&
+    whiteboardReadOnlyReasons.has(reason)
+  )
+    return { reason };
+  return undefined;
+}
+
 function publicErrorDetails(status: number, text: string, detail: unknown) {
   if (
     status === 409 &&
@@ -226,6 +251,8 @@ function publicErrorDetails(status: number, text: string, detail: unknown) {
   if (schedule) return schedule;
   const material = materialLifecycleDetails(status, text, detail);
   if (material) return material;
+  const whiteboard = whiteboardDetails(status, text, detail);
+  if (whiteboard) return whiteboard;
   if (status === 409 && text === "INSUFFICIENT_AVAILABLE_CREDIT") {
     const userIds = (detail as { userIds?: unknown } | undefined)?.userIds;
     if (
