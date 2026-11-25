@@ -6,6 +6,7 @@ import {
   Param,
   ParseUUIDPipe,
   Put,
+  Query,
   UseGuards,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
@@ -24,6 +25,7 @@ import {
   SaveSessionWhiteboardDto,
   SessionWhiteboardResponse,
   SessionWhiteboardSaveResponse,
+  StaffSessionWhiteboardResponse,
 } from "./session-whiteboard.dto";
 
 @ApiTags("sessions")
@@ -50,6 +52,28 @@ export class SessionWhiteboardController {
     return success(
       await this.whiteboards.read(actor, sessionId),
       "Session whiteboard retrieved.",
+    );
+  }
+
+  @Get(":sessionId/whiteboard/staff-review")
+  @Header("Cache-Control", "no-store")
+  @ApiOperation({
+    summary: "Staff reads a Session whiteboard for an open report case",
+    description:
+      "Requires report:moderate, the STAFF or ADMIN role, and being the handler of an OPEN, UNDER_REVIEW or NEED_MORE_INFO case that targets or relates to this Session. Read-only; every read is audited as REPORT_EVIDENCE_READ.",
+  })
+  @ApiSuccessResponse(200, StaffSessionWhiteboardResponse)
+  @ApiErrorResponse(403)
+  @ApiErrorResponse(404)
+  @ApiErrorResponse(409)
+  async staffReview(
+    @CurrentIdentity() actor: Principal,
+    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+    @Query("caseId", ParseUUIDPipe) caseId: string,
+  ) {
+    return success(
+      await this.whiteboards.staffRead(actor, sessionId, caseId),
+      "Session whiteboard retrieved for review.",
     );
   }
 

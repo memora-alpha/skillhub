@@ -46,6 +46,13 @@ export const CONFIGURATION_DEFINITIONS = {
     mutable: true,
     defaultValue: { teacherPrepare: true, afterEndMinutes: 1440 },
   },
+  // Spec 019 P3: scenes are deleted this many days after endAt unless a report
+  // is open. The minimum outlasts the longest edit window (7 days).
+  "whiteboard.retentionDays": {
+    schema: z.number().int().min(8).max(3650),
+    mutable: true,
+    defaultValue: 30,
+  },
   "learningPath.minCreditPerUser": {
     schema: z.literal(20),
     mutable: false,

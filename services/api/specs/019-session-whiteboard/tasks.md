@@ -14,8 +14,10 @@
 - [ ] T010 DB integration test against PostgreSQL: migration applies, concurrent first saves → one wins, CHECK constraints (needs `test:learning-sessions:integration` env)
 - [x] T012 P1 edit window: config key `whiteboard.editWindow` (teacher preparation, post-session grace), per-role access, frozen statuses, `editableFrom`/`editableUntil`
 - [ ] T011 PO approves P1–P4 in [spec.md](spec.md); adjust `whiteboard.editWindow` values if needed
-- [ ] T013 P3 retention job: delete scenes 30 days after `endAt`, skip Sessions with an open report
-- [ ] T014 P2 Staff read with `report:moderate` while a report is open, audited
+- [x] T013 P3 retention: config key `whiteboard.retentionDays` (default 30, min 8), `purgeExpired` paging, hourly `SessionWhiteboardRetentionWorker`, open-report hold
+- [x] T014 P2 `GET /sessions/:id/whiteboard/staff-review?caseId=`: handler of an open case only, audited as `REPORT_EVIDENCE_READ`
+- [x] T015 P4: no moderation in the first release (documented)
+- [ ] T016 Integration check on PostgreSQL for `purgeExpired` (relation filter + `deleteMany`)
 
 ## Out of scope (separate specs)
 

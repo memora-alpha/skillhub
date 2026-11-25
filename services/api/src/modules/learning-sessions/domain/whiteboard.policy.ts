@@ -47,6 +47,24 @@ export function checkWhiteboardScene(input: unknown): WhiteboardSceneCheck {
   return { ok: true, scene: parsed.data, bytes };
 }
 
+/** Report statuses that let Staff read a board and that hold it from deletion. */
+export const WHITEBOARD_HOLD_REPORT_STATUSES = [
+  "OPEN",
+  "UNDER_REVIEW",
+  "NEED_MORE_INFO",
+] as const;
+
+/** Sessions a report case points at, either as its target or as related context. */
+export function reportedSessionIds(item: {
+  relatedSessionId: string | null;
+  targetType: string;
+  targetId: string;
+}): string[] {
+  const ids = item.relatedSessionId ? [item.relatedSessionId] : [];
+  if (item.targetType === "SESSION") ids.push(item.targetId);
+  return ids;
+}
+
 export type WhiteboardEditPolicy = {
   teacherPrepare: boolean;
   afterEndMinutes: number;

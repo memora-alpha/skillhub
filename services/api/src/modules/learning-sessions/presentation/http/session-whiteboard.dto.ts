@@ -82,3 +82,27 @@ export class SessionWhiteboardSaveResponse {
   @ApiProperty({ type: String, format: "date-time" })
   updatedAt!: Date;
 }
+
+export class StaffSessionWhiteboardResponse {
+  @ApiProperty({ type: String, format: "uuid" })
+  caseId!: string;
+
+  @ApiProperty({
+    minimum: 0,
+    description: "0 when nothing was saved or the scene was deleted",
+  })
+  revision!: number;
+
+  @ApiPropertyOptional({
+    type: "object",
+    additionalProperties: true,
+    nullable: true,
+  })
+  sceneData!: Record<string, unknown> | null;
+
+  @ApiPropertyOptional({ type: String, format: "date-time", nullable: true })
+  updatedAt!: Date | null;
+
+  @ApiPropertyOptional({ type: String, format: "uuid", nullable: true })
+  updatedByUserId!: string | null;
+}

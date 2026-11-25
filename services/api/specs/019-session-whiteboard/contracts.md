@@ -58,6 +58,36 @@ Body limit: 2 MiB + 4 KiB for this route only.
 | 413    | `WHITEBOARD_SCENE_TOO_LARGE` (scene) or a body-parser 413 (raw body) | —                                                                                   |
 | 503    | `WHITEBOARD_POLICY_NOT_READY`                                        | —                                                                                   |
 
+## `GET /api/v1/sessions/:sessionId/whiteboard/staff-review?caseId=<uuid>`
+
+The caller needs `report:moderate`, the STAFF or ADMIN role, and must be the case handler. The case must be
+`OPEN`, `UNDER_REVIEW` or `NEED_MORE_INFO`. It must target this Session or have it as `relatedSessionId`.
+The endpoint is read-only. Each successful read writes the audit entry `REPORT_EVIDENCE_READ`, with target
+`SESSION_WHITEBOARD` and the Session id.
+
+```json
+{
+  "caseId": "…",
+  "revision": 4,
+  "sceneData": { "elements": [] },
+  "updatedAt": "…",
+  "updatedByUserId": "…"
+}
+```
+
+Errors:
+
+- `403 STAFF_ACCESS_REQUIRED`
+- `403 REPORT_CASE_NOT_ASSIGNED_TO_CALLER`
+- `404 REPORT_CASE_NOT_FOUND`
+- `404 SESSION_NOT_IN_REPORT_CASE`
+- `409 REPORT_CASE_NOT_OPEN`
+
+## Retention
+
+The scene is deleted `whiteboard.retentionDays` days after `endAt` (default 30) unless a report on the Session is
+open. After deletion both reads return `revision 0` and `sceneData null`.
+
 ## Client flow
 
 1. Open the board: `GET` it, load `sceneData`, remember `revision`.

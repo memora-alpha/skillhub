@@ -19,6 +19,7 @@ import { LearningPathRequestStateModule } from "../learning-paths/learning-path-
 import { AuditModule } from "../audit/audit.module";
 import { SessionWhiteboardController } from "./presentation/http/session-whiteboard.controller";
 import { SessionWhiteboardService } from "./application/services/session-whiteboard.service";
+import { SessionWhiteboardRetentionWorker } from "./infrastructure/jobs/session-whiteboard-retention.worker";
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { SessionWhiteboardService } from "./application/services/session-whitebo
     SessionLifecycleWorker,
     SessionCompletionHandler,
     SessionWhiteboardService,
+    SessionWhiteboardRetentionWorker,
   ],
   exports: [LearningSessionsService],
 })

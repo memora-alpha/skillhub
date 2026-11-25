@@ -17,6 +17,8 @@ import {
   WHITEBOARD_MAX_SCENE_BYTES,
 } from "../../dist/modules/learning-sessions/domain/whiteboard.policy.js";
 import { HttpExceptionFilter } from "../../dist/shared/http/http-exception.filter.js";
+import { AuditWriter } from "../../dist/modules/audit/application/services/audit-writer.js";
+import { AuditRepository } from "../../dist/modules/audit/infrastructure/persistence/audit.repository.js";
 
 const participant = (userId) => ({
   userId,
@@ -57,6 +59,7 @@ async function ready() {
     runner(ctx.db),
     ctx.configuration,
     { now: () => ctx.clock.now },
+    new AuditWriter(new AuditRepository()),
   );
   return { ...ctx, ...ids, whiteboards };
 }
