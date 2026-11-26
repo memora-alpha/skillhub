@@ -36,7 +36,9 @@ window check uses database time, so at most one save can land at the instant the
 - `main.ts`: a route-scoped `express.json` parser (2 MiB + 4 KiB) is registered before the global 100 kB parser.
 - `http-exception.filter.ts`: allowlist `currentRevision` and `reason` for the two whiteboard 409s.
 - `permission.catalog.ts` + USER grants: `session-whiteboard:update:participant`.
-  Run `pnpm --filter api identity:seed` and `pnpm --filter api db:seed-configuration` (for `whiteboard.editWindow`) on rollout.
+  Release seed request `session-whiteboard-20261125` (`identity` + `configuration`) runs on the next Docker deploy.
+  Manual rollout: `pnpm --filter api identity:seed` and `pnpm --filter api db:seed-configuration`
+  (`db:seed-configuration:built` inside a prebuilt container, whose `/app` is read-only).
 - `package.json`: declare `express@5.2.1`; the lockfile only adds the specifier.
 
 ## Consumers

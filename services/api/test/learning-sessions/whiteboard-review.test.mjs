@@ -221,3 +221,62 @@ test("missing retention configuration deletes nothing", async () => {
   await assert.rejects(() => worker.sweep(), ServiceUnavailableException);
   assert.equal(ctx.db.rows("sessionWhiteboard").length, 1);
 });
+
+test("an open report freezes the board for both parties until it closes", async () => {
+  const ctx = await ready();
+  const caseId = seedCase(ctx, { status: "OPEN" });
+  for (const userId of [A, B]) {
+    const board = await ctx.whiteboards.read(
+      participant(userId),
+      ctx.session.id,
+    );
+    assert.equal(board.readOnly, true);
+    assert.equal(board.readOnlyReason, "SESSION_UNDER_REPORT");
+    assert.equal(board.editableUntil, null);
+    await assert.rejects(
+      () =>
+        ctx.whiteboards.save(
+          participant(userId),
+          ctx.session.id,
+          1,
+          scene("x"),
+        ),
+      (error) =>
+        error.getStatus() === 409 &&
+        error.getResponse().message === "WHITEBOARD_READ_ONLY" &&
+        error.getResponse().reason === "SESSION_UNDER_REPORT",
+    );
+  }
+  assert.equal(ctx.db.rows("sessionWhiteboard")[0].revision, 1);
+  await ctx.db.reportCase.update({
+    where: { id: caseId },
+    data: { status: "REJECTED" },
+  });
+  const saved = await ctx.whiteboards.save(
+    participant(A),
+    ctx.session.id,
+    1,
+    scene("a", "b"),
+  );
+  assert.equal(saved.revision, 2);
+});
+
+test("a report that only relates to the Session also freezes the board", async () => {
+  const ctx = await ready();
+  seedCase(ctx, {
+    targetType: "USER",
+    targetId: A,
+    relatedSessionId: ctx.session.id,
+    status: "NEED_MORE_INFO",
+  });
+  const board = await ctx.whiteboards.read(participant(A), ctx.session.id);
+  assert.equal(board.readOnlyReason, "SESSION_UNDER_REPORT");
+});
+
+test("a report on another Session leaves the board editable", async () => {
+  const ctx = await ready();
+  seedCase(ctx, { targetId: randomUUID() });
+  const board = await ctx.whiteboards.read(participant(A), ctx.session.id);
+  assert.equal(board.readOnly, false);
+  assert.equal(board.readOnlyReason, null);
+});

@@ -38,7 +38,10 @@ export const WHITEBOARD_STAFF_PERMISSION = "report:moderate";
 const DAY_MS = 86_400_000;
 const holdStatuses: string[] = [...WHITEBOARD_HOLD_REPORT_STATUSES];
 
-type Reader = Pick<TransactionContext, "session" | "sessionWhiteboard">;
+type Reader = Pick<
+  TransactionContext,
+  "session" | "sessionWhiteboard" | "reportCase"
+>;
 
 const sessionSelect = {
   teacherId: true,
@@ -105,6 +108,7 @@ export class SessionWhiteboardService {
       this.clock.now(),
       policies?.join ?? null,
       policies?.edit ?? null,
+      await this.underReport(this.db, sessionId),
     );
     return {
       revision: board?.revision ?? 0,
@@ -280,6 +284,8 @@ export class SessionWhiteboardService {
       now,
       policies.join,
       policies.edit,
+      // Serializable: a report filed concurrently either freezes this save or retries it.
+      await this.underReport(tx, sessionId),
     );
     if (access.readOnly)
       throw new ConflictException({
@@ -329,6 +335,21 @@ export class SessionWhiteboardService {
     )
       throw new ForbiddenException("SESSION_ACCESS_DENIED");
     return session;
+  }
+
+  /** An open report that targets or relates to the Session freezes its board. */
+  private async underReport(reader: Reader, sessionId: string) {
+    const open = await reader.reportCase.findFirst({
+      where: {
+        status: { in: [...WHITEBOARD_HOLD_REPORT_STATUSES] },
+        OR: [
+          { relatedSessionId: sessionId },
+          { targetType: "SESSION", targetId: sessionId },
+        ],
+      },
+      select: { id: true },
+    });
+    return open !== null;
   }
 
   private async policies(

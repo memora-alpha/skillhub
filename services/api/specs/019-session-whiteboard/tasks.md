@@ -17,6 +17,7 @@
 - [x] T013 P3 retention: config key `whiteboard.retentionDays` (default 30, min 8), `purgeExpired` paging, hourly `SessionWhiteboardRetentionWorker`, open-report hold
 - [x] T014 P2 `GET /sessions/:id/whiteboard/staff-review?caseId=`: handler of an open case only, audited as `REPORT_EVIDENCE_READ`
 - [x] T015 P4: no moderation in the first release (documented)
+- [x] T017 Freeze the board while an open report targets or relates to the Session (`SESSION_UNDER_REPORT`); add release seed request `session-whiteboard-20261125`
 - [ ] T016 Integration check on PostgreSQL for `purgeExpired` (relation filter + `deleteMany`)
 
 ## Out of scope (separate specs)

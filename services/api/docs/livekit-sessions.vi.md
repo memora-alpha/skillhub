@@ -139,8 +139,9 @@ Backend chỉ lưu bản snapshot mới nhất của mỗi Session (bảng `sess
   2 MiB và 20.000 phần tử; riêng route này nhận body 2 MiB, các route khác giữ giới hạn 100 kB.
 
 Chỉ hai participant được đọc và ghi. Quyền ghi là `session-whiteboard:update:participant`,
-khi rollout cần chạy `identity:seed` (permission) và `db:seed-configuration` (config key
-`whiteboard.editWindow` và `whiteboard.retentionDays`).
+request seed `session-whiteboard-20261125` trong `release-seeds.json` tự chạy `identity` và
+`configuration` ở lần deploy Docker đầu tiên. Khi chạy tay, dùng `identity:seed` và
+`db:seed-configuration` (trong container đã build sẵn thì dùng `db:seed-configuration:built`).
 
 Thời gian sửa bảng (config `whiteboard.editWindow`, mặc định `teacherPrepare = true`,
 `afterEndMinutes = 1440`):
@@ -148,6 +149,9 @@ Thời gian sửa bảng (config `whiteboard.editWindow`, mặc định `teacher
 - Giáo viên được soạn bảng ngay từ khi Session được xác nhận. Người học chỉ được sửa từ khi join window mở.
 - Cả hai được sửa đến `max(giờ đóng join window, endAt + afterEndMinutes)`. Sau đó bảng chỉ đọc vĩnh viễn.
 - Session ở trạng thái `CANCELLED`, `DISPUTED`, `NO_SHOW` hoặc `MAKEUP_REQUIRED` thì bảng bị khóa ngay.
+- Khi có report `OPEN`, `UNDER_REVIEW` hoặc `NEED_MORE_INFO` nhắm vào Session (hoặc có
+  `relatedSessionId` là Session), bảng bị khóa với lý do `SESSION_UNDER_REPORT` để bằng chứng
+  Staff xem không bị sửa. Report đóng thì bảng sửa được lại nếu còn trong khung thời gian.
 - Khi bị khóa, API trả `409 WHITEBOARD_READ_ONLY` kèm `details.reason`.
 
 Staff xem bảng: Staff đang xử lý một report case còn mở về Session được đọc bảng (không sửa) qua

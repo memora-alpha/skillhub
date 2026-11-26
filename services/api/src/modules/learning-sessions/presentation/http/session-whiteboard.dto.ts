@@ -50,6 +50,7 @@ export class SessionWhiteboardResponse {
     nullable: true,
     enum: [
       "SESSION_NOT_EDITABLE",
+      "SESSION_UNDER_REPORT",
       "WHITEBOARD_POLICY_NOT_READY",
       "EDIT_WINDOW_NOT_OPEN",
       "EDIT_WINDOW_CLOSED",

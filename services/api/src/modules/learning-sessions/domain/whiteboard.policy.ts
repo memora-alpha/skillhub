@@ -73,6 +73,7 @@ export type WhiteboardRole = "TEACHER" | "LEARNER";
 
 export type WhiteboardReadOnlyReason =
   | "SESSION_NOT_EDITABLE"
+  | "SESSION_UNDER_REPORT"
   | "WHITEBOARD_POLICY_NOT_READY"
   | "EDIT_WINDOW_NOT_OPEN"
   | "EDIT_WINDOW_CLOSED";
@@ -122,6 +123,8 @@ function editWindow(
  * Spec 019 P1: both participants edit from the room join window opening until
  * max(join window close, endAt + afterEndMinutes); with teacherPrepare the
  * teacher may also edit from confirmation. Afterwards the board is read-only.
+ * An open report on the Session freezes the board so the evidence Staff
+ * reviews cannot change (SESSION_UNDER_REPORT).
  */
 export function whiteboardAccess(
   session: SessionTiming,
@@ -129,6 +132,7 @@ export function whiteboardAccess(
   now: Date,
   joinPolicy: JoinWindowPolicy | null,
   editPolicy: WhiteboardEditPolicy | null,
+  underReport = false,
 ): WhiteboardAccess {
   const closed = (reason: WhiteboardReadOnlyReason): WhiteboardAccess => ({
     readOnly: true,
@@ -138,6 +142,7 @@ export function whiteboardAccess(
   });
   if (!editableStatuses.has(session.status))
     return closed("SESSION_NOT_EDITABLE");
+  if (underReport) return closed("SESSION_UNDER_REPORT");
   const window =
     joinPolicy && editPolicy
       ? editWindow(session, role, joinPolicy, editPolicy)
