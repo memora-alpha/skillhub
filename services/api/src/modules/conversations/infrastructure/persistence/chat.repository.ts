@@ -97,7 +97,14 @@ export function draftDigest(
 export function publicMessage(
   message: ChatMessage,
   oppositeRead?: ReadState | null,
-  availability?: ReadonlyMap<string, string>,
+  availability?: ReadonlyMap<
+    string,
+    {
+      accessStatus: string;
+      moderationStatus: string;
+      dimensions: { width: number; height: number } | null;
+    }
+  >,
 ) {
   return {
     id: message._id,
@@ -105,17 +112,31 @@ export function publicMessage(
     senderId: message.senderId,
     messageText: message.messageText,
     messageType: message.messageType,
-    attachments: message.attachments.map((file) => ({
-      attachmentId: file.attachmentId,
-      fileId: file.fileId,
-      filename: file.filename,
-      mimeType: file.mimeType,
-      fileSizeBytes: file.fileSizeBytes,
-      ...(availability && {
-        availability: availability.get(file.fileId) ?? "UNAVAILABLE",
-      }),
-      downloadUrlEndpoint: `/api/v1/conversations/${message.conversationId}/messages/${message._id}/attachments/${file.attachmentId}/download`,
-    })),
+    attachments: message.attachments.map((file) => {
+      const state = availability?.get(file.fileId);
+      const path = `/api/v1/conversations/${message.conversationId}/messages/${message._id}/attachments/${file.attachmentId}`;
+      return {
+        attachmentId: file.attachmentId,
+        fileId: file.fileId,
+        filename: file.filename,
+        mimeType: file.mimeType,
+        fileSizeBytes: file.fileSizeBytes,
+        attachmentType: file.mimeType.startsWith("image/")
+          ? "IMAGE"
+          : "DOCUMENT",
+        width: state?.dimensions?.width ?? null,
+        height: state?.dimensions?.height ?? null,
+        moderationStatus: state?.moderationStatus ?? "PENDING",
+        accessStatus: state?.accessStatus ?? "UNAVAILABLE",
+        availability: state?.accessStatus ?? "UNAVAILABLE",
+        downloadUrlEndpoint: `${path}/download`,
+        ...(state?.accessStatus === "AVAILABLE" &&
+          state.dimensions && {
+            previewUrlEndpoint: `${path}/preview`,
+            thumbnailUrlEndpoint: `${path}/thumbnail`,
+          }),
+      };
+    }),
     ...(message.objectType
       ? {
           objectType: message.objectType,

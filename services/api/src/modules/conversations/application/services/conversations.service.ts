@@ -38,7 +38,11 @@ import { assertNoContactInformation } from "../../domain/contact-information.pol
 import type { ChatPublication } from "../../../../generated/prisma/client";
 import type { ChatMessage } from "../../infrastructure/persistence/chat.repository";
 import { ChatDownloadTicketService } from "./chat-download-ticket.service";
-import { chatAttachmentAvailability } from "../../../../infrastructure/storage/chat-attachment-policy";
+import {
+  chatAttachmentAvailability,
+  chatAttachmentStatus,
+} from "../../../../infrastructure/storage/chat-attachment-policy";
+import { chatImageDimensions } from "../../../../infrastructure/storage/chat-image";
 import {
   ContentModerationService,
   requireAllowed,
@@ -525,43 +529,30 @@ export class ConversationsService {
     messageId: string,
     attachmentId: string,
   ) {
-    const { actor } = await this.transactions.run((tx) =>
+    await this.checkAttachmentPermission(principal, id);
+    const attachment = await this.publishedAttachment(
+      id,
+      messageId,
+      attachmentId,
+    );
+    await this.assertAttachmentRead(principal, id, messageId, attachment);
+    if (!this.tickets)
+      throw new ServiceUnavailableException("CHAT_DOWNLOAD_UNAVAILABLE");
+    return this.tickets.issue(principal, {
+      conversationId: id,
+      messageId,
+      attachmentId,
+    });
+  }
+
+  private checkAttachmentPermission(principal: Principal, id: string) {
+    return this.transactions.run((tx) =>
       this.access.require(
         tx,
         principal,
         id,
         "message:attachment:read:participant",
       ),
-    );
-    const attachment = await this.publishedAttachment(
-      id,
-      messageId,
-      attachmentId,
-    );
-    const assertRead = async () => {
-      await this.assertAttachmentRead(
-        principal,
-        id,
-        messageId,
-        attachment,
-        !this.tickets?.enabled,
-      );
-    };
-    if (this.tickets?.enabled) {
-      await assertRead();
-      return this.tickets.issue(principal, {
-        conversationId: id,
-        messageId,
-        attachmentId,
-      });
-    }
-    return this.storage.issueDownload(
-      {
-        actor,
-        fileId: attachment.fileId,
-        resource: { type: "CHAT_MESSAGE", id: messageId },
-      },
-      { assertRead },
     );
   }
 
@@ -570,15 +561,9 @@ export class ConversationsService {
     id: string,
     messageId: string,
     attachmentId: string,
+    variant?: "preview" | "thumbnail",
   ) {
-    await this.transactions.run((tx) =>
-      this.access.require(
-        tx,
-        principal,
-        id,
-        "message:attachment:read:participant",
-      ),
-    );
+    await this.checkAttachmentPermission(principal, id);
     const attachment = await this.publishedAttachment(
       id,
       messageId,
@@ -590,20 +575,25 @@ export class ConversationsService {
       messageId,
       attachment,
     );
-    const stream = await this.storage.readChatContent(
-      bound.objectKey,
-      attachment.fileSizeBytes,
-    );
+    const content = variant
+      ? await this.storage.readChatImage(bound, variant)
+      : {
+          stream: await this.storage.readChatContent(
+            bound.objectKey,
+            attachment.fileSizeBytes,
+          ),
+          size: attachment.fileSizeBytes,
+          mime: "application/octet-stream",
+        };
     try {
       await this.assertAttachmentRead(principal, id, messageId, attachment);
     } catch (error) {
-      stream.destroy();
+      content.stream.destroy();
       throw error;
     }
     return {
-      stream,
+      ...content,
       filename: attachment.filename,
-      size: attachment.fileSizeBytes,
     };
   }
 
@@ -626,7 +616,6 @@ export class ConversationsService {
     id: string,
     messageId: string,
     attachment: ChatMessage["attachments"][number],
-    requireApproval = false,
   ) {
     return this.transactions.run(async (tx) => {
       await this.access.require(
@@ -635,12 +624,10 @@ export class ConversationsService {
         id,
         "message:attachment:read:participant",
       );
-      const bound = await this.files.assertBoundReady(
-        tx,
-        attachment.fileId,
-        { type: "CHAT_MESSAGE", id: messageId },
-        requireApproval,
-      );
+      const bound = await this.files.assertBoundReady(tx, attachment.fileId, {
+        type: "CHAT_MESSAGE",
+        id: messageId,
+      });
       if (
         bound.generation !== attachment.generation ||
         bound.sha256 !== attachment.checksum ||
@@ -653,11 +640,10 @@ export class ConversationsService {
   }
 
   private async attachmentAvailability(messages: readonly ChatMessage[]) {
-    if (!this.tickets?.enabled) return undefined;
     const ids = messages.flatMap(({ attachments }) =>
       attachments.map(({ fileId }) => fileId),
     );
-    if (!ids.length) return new Map<string, string>();
+    if (!ids.length) return new Map();
     const rows = await this.db.storedFile.findMany({
       where: { id: { in: ids }, purpose: "CHAT" },
       select: {
@@ -669,8 +655,16 @@ export class ConversationsService {
         moderationAssessment: true,
       },
     });
+    const version = await this.files.chatProfanityVersion();
     return new Map(
-      rows.map((row) => [row.id, chatAttachmentAvailability(row)]),
+      rows.map((row) => [
+        row.id,
+        {
+          accessStatus: chatAttachmentAvailability(row, version),
+          moderationStatus: chatAttachmentStatus(row, version),
+          dimensions: chatImageDimensions(row.moderationAssessment),
+        },
+      ]),
     );
   }
 }

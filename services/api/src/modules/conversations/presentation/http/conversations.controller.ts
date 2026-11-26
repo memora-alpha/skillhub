@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   HttpCode,
   Param,
   ParseUUIDPipe,
@@ -10,6 +11,7 @@ import {
   Query,
   Req,
   Res,
+  StreamableFile,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -227,5 +229,27 @@ export class ConversationsController {
     return success(
       await this.conversations.download(actor, id, messageId, attachmentId),
     );
+  }
+
+  @Get(":id/messages/:messageId/attachments/:attachmentId/:variant")
+  @Header("Cache-Control", "private, no-store")
+  @Header("X-Content-Type-Options", "nosniff")
+  async image(
+    @CurrentIdentity() actor: Principal,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("messageId", ParseUUIDPipe) messageId: string,
+    @Param("attachmentId", ParseUUIDPipe) attachmentId: string,
+    @Param("variant") variant: string,
+  ) {
+    if (variant !== "preview" && variant !== "thumbnail")
+      throw new BadRequestException();
+    const { stream, mime, size } = await this.conversations.downloadContent(
+      actor,
+      id,
+      messageId,
+      attachmentId,
+      variant,
+    );
+    return new StreamableFile(stream, { type: mime, length: size });
   }
 }
