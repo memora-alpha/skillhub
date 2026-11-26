@@ -24,10 +24,19 @@ type Entry = {
   sourceId: string;
   createdAt: string;
 };
+type RestrictionReview = {
+  id: string;
+  scope: string;
+  endsAt: string;
+  decision: string | null;
+  reviewedAt: string | null;
+};
 type History = {
   reputationScore: number;
   level: string;
   activeRestrictions: { scope: string; reasonCode: string; endsAt: string }[];
+  policyNotice?: string[] | null;
+  restrictionReviews?: RestrictionReview[];
   items: Entry[];
   nextCursor: string | null;
 };
@@ -103,7 +112,7 @@ export function ReputationScreen() {
       <Back href="/learn/profile" />
       <PageHeading
         eyebrow="Thang điểm 0–100 · Khởi điểm 50"
-        title="Uy tín & phục hồi"
+        title="Điểm uy tín"
         description="Điểm uy tín phản ánh mức độ đáng tin cậy của bạn qua từng lộ trình hoàn tất, đánh giá 1–5 sao và tuân thủ lịch học."
       />
       <Feedback
@@ -178,8 +187,58 @@ export function ReputationScreen() {
       )}
       {!denied &&
         current &&
+        (current.policyNotice?.length ||
+          current.restrictionReviews?.length) && (
+          <div className="learner-stack">
+            {current.policyNotice && current.policyNotice.length > 0 && (
+              <Panel title="Thông báo chính sách cần xác nhận">
+                <ul className="learner-stack">
+                  {current.policyNotice.map((line, index) => (
+                    <li key={index}>{line}</li>
+                  ))}
+                </ul>
+              </Panel>
+            )}
+            {current.restrictionReviews &&
+              current.restrictionReviews.length > 0 && (
+                <Panel title="Kết quả xem xét hạn chế">
+                  <div className="learner-stack">
+                    {current.restrictionReviews.map((review) => (
+                      <div className="learner-notice" key={review.id}>
+                        <strong>
+                          {scopes[review.scope] ??
+                            systemCodeLabel(review.scope)}
+                        </strong>
+                        <p>
+                          Quyết định:{" "}
+                          <strong>
+                            {review.decision === null
+                              ? "Đang chờ xem xét"
+                              : review.decision === "APPROVED"
+                                ? "Đã chấp thuận"
+                                : review.decision === "FOLLOW_UP_REQUIRED"
+                                  ? "Cần theo dõi thêm"
+                                  : systemCodeLabel(review.decision)}
+                          </strong>
+                        </p>
+                        <small>
+                          {review.reviewedAt
+                            ? `Xem xét lúc ${formatTime(review.reviewedAt)} · `
+                            : "Chưa có thời điểm xét duyệt · "}
+                          Hạn chế đến {formatTime(review.endsAt)}
+                        </small>
+                      </div>
+                    ))}
+                  </div>
+                </Panel>
+              )}
+          </div>
+        )}
+      {!denied &&
+        current &&
         (current.reputationScore < 40 ||
-          current.activeRestrictions.length > 0) && (
+          current.activeRestrictions.length > 0 ||
+          (current.policyNotice?.length ?? 0) > 0) && (
           <ReputationRecovery onChanged={() => void query.refetch()} />
         )}
       <div className="learner-stack">

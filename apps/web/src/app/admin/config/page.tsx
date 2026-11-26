@@ -1,4 +1,5 @@
-import { RulesScreen } from "@/components/staff/rules";
+import { AdminConfigScreen } from "@/components/staff/rules";
+
 export default function Page() {
-  return <RulesScreen />;
+  return <AdminConfigScreen />;
 }
