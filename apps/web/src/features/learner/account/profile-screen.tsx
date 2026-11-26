@@ -3,7 +3,6 @@ import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useUserPagedList } from "../hooks/use-user-paged-list";
 import { achievementTitle } from "@/lib/i18n/system-copy";
-import { formText } from "../components/form-data";
 import Link from "next/link";
 import { useState } from "react";
 import type { SharingSkill } from "../types";
@@ -13,16 +12,20 @@ import { useUserSession } from "../auth/session";
 import { CommandFeedback, Feedback, Panel, Status } from "../components/common";
 import type { OwnIdentity } from "./account-types";
 import { ProfileAvatar } from "../components/profile-avatar";
+import { profileUpdate } from "./profile-update";
 import { AvatarEditor } from "./avatar-editor";
 import { AccountSecurity } from "./account-security";
 import { RatingSummary } from "./profile-reviews";
 import styles from "../components/learning-layout.module.css";
 export function ProfileScreen() {
   const skills = useUserPagedList<SharingSkill>("me/skills?limit=3");
-  const query = useUserResource<OwnIdentity>("me"),
+  const query = useUserResource<OwnIdentity>("me", {
+      refetchInterval: (data) => (data?.profile.avatarUrl ? 45000 : false),
+    }),
     command = useUserCommand(),
     { request, actor } = useUserSession(),
-    [saved, setSaved] = useState(false);
+    [saved, setSaved] = useState(false),
+    [profileError, setProfileError] = useState<string>();
   const me = query.data;
   return (
     <>
@@ -76,19 +79,32 @@ export function ProfileScreen() {
                     ":" +
                     me.profile.headline +
                     ":" +
-                    me.profile.bio
+                    me.profile.bio +
+                    ":" +
+                    (me.profile.timezone ?? "") +
+                    ":" +
+                    me.profile.locale
                   }
                   onSubmit={async (e) => {
                     e.preventDefault();
                     setSaved(false);
                     const data = new FormData(e.currentTarget);
-                    const body = {
-                      fullName: formText(data, "fullName").trim(),
-                      headline: formText(data, "headline").trim(),
-                      bio: formText(data, "bio").trim(),
-                      timezone: formText(data, "timezone"),
-                      locale: me.profile.locale,
-                    };
+                    setProfileError(undefined);
+                    let body: ReturnType<typeof profileUpdate>;
+                    try {
+                      body = profileUpdate(me.profile, data);
+                    } catch (cause) {
+                      setProfileError(
+                        cause instanceof Error
+                          ? cause.message
+                          : "Kiểm tra lại hồ sơ.",
+                      );
+                      return;
+                    }
+                    if (!Object.keys(body).length) {
+                      setSaved(true);
+                      return;
+                    }
                     const result = await command.run(JSON.stringify(body), () =>
                       request("me/profile", { method: "PATCH", body }),
                     );
@@ -138,6 +154,17 @@ export function ProfileScreen() {
                     />
                   </label>
                   <label>
+                    <span>Ngôn ngữ</span>
+                    <select
+                      name="locale"
+                      defaultValue={me.profile.locale}
+                      disabled={command.pending || command.uncertain}
+                    >
+                      <option value="vi">Tiếng Việt</option>
+                      <option value="en">English</option>
+                    </select>
+                  </label>
+                  <label>
                     <span>Giới thiệu bản thân</span>
                     <textarea
                       name="bio"
@@ -148,6 +175,7 @@ export function ProfileScreen() {
                     />
                   </label>
 
+                  <Feedback error={profileError} />
                   <CommandFeedback command={command} />
                   {saved && (
                     <p className="learner-notice">

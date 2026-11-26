@@ -1,4 +1,5 @@
 "use client";
+import { validFullName } from "@/lib/profile-name";
 import { LoadingButton } from "@/components/loading-button";
 import { formText } from "../learner/components/form-data";
 import Link from "next/link";
@@ -49,6 +50,10 @@ export function AccountScreen({
   };
   async function submitStart(fields: FormData) {
     const address = formText(fields, "email").trim();
+    if (registering && !validFullName(formText(fields, "fullName")))
+      throw new Error(
+        "Họ tên cần từ 2 đến 100 ký tự chữ, khoảng trắng, dấu nháy hoặc gạch nối.",
+      );
     if (registering && fields.get("password") !== fields.get("confirmPassword"))
       throw new Error("Hai mật khẩu chưa trùng khớp.");
     if (registering && !strongPassword(formText(fields, "password")))

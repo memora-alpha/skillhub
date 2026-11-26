@@ -156,6 +156,7 @@ export function LoginScreen() {
                 const destination = await signIn(
                   email,
                   formText(data, "password"),
+                  data.get("rememberEmail") === "on",
                 );
                 try {
                   if (data.get("rememberEmail"))
@@ -218,7 +219,7 @@ export function LoginScreen() {
                   }
                 }}
               />
-              <span>Ghi nhớ tài khoản cho lần sau</span>
+              <span>Ghi nhớ đăng nhập trên thiết bị này</span>
             </label>
             <div className="auth-feedback" aria-live="polite">
               {error && (
