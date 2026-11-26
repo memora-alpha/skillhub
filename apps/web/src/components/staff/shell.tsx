@@ -66,7 +66,7 @@ function roleDisplayLabel(roles: readonly string[]) {
 }
 
 function Frame({ children }: Readonly<{ children: ReactNode }>) {
-  const { actor, loading, logout, busy, portal } = useStaffSession();
+  const { actor, loading, logout, logoutAll, busy, portal } = useStaffSession();
   const portalName = portal === "admin" ? "Admin" : "Staff";
   const workspaceName =
     portal === "admin" ? "Quản trị hệ thống" : "Nhân viên vận hành";
@@ -156,7 +156,7 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
               Skill<em>Hub</em>
             </div>
             <div className="side-sub">
-              {portal === "admin" ? "Cổng quản trị" : "Bàn vận hành"}
+              {portal === "admin" ? "Cổng quản trị" : "Khu vực vận hành"}
             </div>
           </div>
           <button
@@ -228,6 +228,23 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
               <div className="who-role">{roleDisplayLabel(actor.roles)}</div>
             </div>
           </div>
+          <LoadingButton
+            type="button"
+            className="nav-link subtle"
+            disabled={busy}
+            loading={busy}
+            onClick={() => {
+              void logoutAll().catch((cause) =>
+                setError(
+                  cause instanceof Error
+                    ? cause.message
+                    : "Chưa thể đăng xuất mọi thiết bị.",
+                ),
+              );
+            }}
+          >
+            Đăng xuất mọi thiết bị
+          </LoadingButton>
           <LoadingButton
             type="button"
             className="nav-link subtle"

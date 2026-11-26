@@ -80,19 +80,28 @@ function DashboardScreen() {
     `dashboard/summary?${dashboardWindowQuery(query)}`,
   );
   const charts = useDashboardResource<DashboardData>(
-    `dashboard/overview?${query}&sections=userGrowth,learningActivity,pathStages`,
+    `dashboard/overview?${query}&sections=userGrowth`,
+  );
+  const learningDetail = useDashboardResource<DashboardData>(
+    `dashboard/learning?${query}`,
   );
   const finance = useDashboardResource<DashboardData>(
     `dashboard/finance?${query}`,
   );
+  // dashboard/trends only accepts day buckets; never forward month granularity.
   const trends = useDashboardResource<DashboardTrends>(
-    `dashboard/trends?${query}`,
+    `dashboard/trends?${dashboardWindowQuery(query)}`,
   );
   const loading =
-    summary.loading || charts.loading || finance.loading || trends.loading;
+    summary.loading ||
+    charts.loading ||
+    finance.loading ||
+    trends.loading ||
+    learningDetail.loading;
   const dates = [
     summary.data?.asOf,
     charts.data?.asOf,
+    learningDetail.data?.asOf,
     finance.data?.asOf,
     trends.data?.asOf,
   ].filter(
@@ -111,6 +120,7 @@ function DashboardScreen() {
   const resources = [
     { label: "Tổng hợp", ...summary },
     { label: "Biểu đồ", ...charts },
+    { label: "Học tập", ...learningDetail },
     { label: "Tài chính", ...finance },
     { label: "Xu hướng theo ngày", ...trends },
   ];
@@ -131,7 +141,14 @@ function DashboardScreen() {
   };
   const props: DataProps = {
     summary: summary.data,
-    data: charts.data,
+    data:
+      charts.data && learningDetail.data
+        ? {
+            ...charts.data,
+            ...learningDetail.data,
+            userGrowth: charts.data.userGrowth,
+          }
+        : (learningDetail.data ?? charts.data),
     finance: finance.data,
     trends: trends.data,
     loading,
