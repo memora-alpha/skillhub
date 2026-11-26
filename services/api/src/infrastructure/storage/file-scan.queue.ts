@@ -8,6 +8,7 @@ import {
   type OutboxPublisher,
 } from "../events/outbox.types";
 import { FileScanProcessor } from "./file-scan.processor";
+import { OutboxDispatcher } from "../events/outbox-dispatcher";
 import {
   FileContentModeration,
   fileScanBackoff,
@@ -21,6 +22,8 @@ export const FILE_SCAN_EVENT = "file.scan.requested";
 function scanPayload(event: OutboxMessage): {
   fileId: string;
   generation: number;
+  priority: number;
+  finalizedAt?: number;
 } {
   if (
     event.type !== FILE_SCAN_EVENT ||
@@ -40,6 +43,13 @@ function scanPayload(event: OutboxMessage): {
   return {
     fileId: event.payload.fileId,
     generation: Number(event.payload.generation),
+    priority:
+      "largeFile" in event.payload && event.payload.largeFile === true ? 10 : 5,
+    finalizedAt:
+      "finalizedAt" in event.payload &&
+      typeof event.payload.finalizedAt === "number"
+        ? event.payload.finalizedAt
+        : undefined,
   };
 }
 
@@ -58,22 +68,35 @@ export class FileScanPublisher implements OutboxPublisher, OnModuleInit {
 
   async publish(event: OutboxMessage): Promise<void> {
     const payload = scanPayload(event);
-    await this.queue.add("scan", payload, {
-      jobId: event.eventId,
-      attempts: 5,
-      backoff: fileScanBackoff,
-      removeOnComplete: 100,
-      removeOnFail: 1000,
-    });
+    await this.queue.add(
+      "scan",
+      {
+        fileId: payload.fileId,
+        generation: payload.generation,
+        finalizedAt: payload.finalizedAt,
+      },
+      {
+        jobId: event.eventId,
+        attempts: 5,
+        priority: payload.priority,
+        backoff: { ...fileScanBackoff, delay: 1_000, jitter: 0.25 },
+        removeOnComplete: 100,
+        removeOnFail: 1000,
+      },
+    );
   }
 }
 
 @Processor(FILE_SCAN_QUEUE, {
+  concurrency: 2,
   settings: {
-    backoffStrategy: (attempts, _type, error) =>
-      error?.message === moderationRetryCode
-        ? Math.min(2 ** attempts * 1_000, 15_000)
-        : 65_000,
+    backoffStrategy: (attempts, _type, error) => {
+      const delay =
+        error?.message === moderationRetryCode
+          ? Math.min(2 ** attempts * 1_000, 15_000)
+          : 65_000;
+      return Math.round(delay * (0.75 + Math.random() * 0.25));
+    },
   },
 })
 export class FileScanWorker extends WorkerHost {
@@ -81,12 +104,13 @@ export class FileScanWorker extends WorkerHost {
   constructor(
     private readonly scanner: FileScanProcessor,
     private readonly moderation?: FileContentModeration,
+    private readonly outbox?: OutboxDispatcher,
   ) {
     super();
   }
 
   async process(
-    job: Job<{ fileId: string; generation: number }>,
+    job: Job<{ fileId: string; generation: number; finalizedAt?: number }>,
   ): Promise<string> {
     if (
       !/^[0-9a-f-]{36}$/i.test(job.data.fileId) ||
@@ -97,24 +121,48 @@ export class FileScanWorker extends WorkerHost {
     }
     const { fileId, generation } = job.data;
     const started = performance.now();
+    const queueWait =
+      job.attemptsMade === 0 && job.data.finalizedAt
+        ? Math.max(0, Date.now() - job.data.finalizedAt)
+        : undefined;
     const sinceQueuedMs = job.timestamp
       ? Math.max(0, Date.now() - job.timestamp)
       : undefined;
-    const state = await this.scanner.process(fileId, generation);
-    this.logger.log({
-      fileId,
-      generation,
-      state,
-      attempt: job.attemptsMade + 1,
-      sinceQueuedMs,
-      scanMs: Math.round(performance.now() - started),
-    });
-    if (state === "READY")
-      await this.moderation?.process(
+    const signal = AbortSignal.timeout(120_000);
+    const softTimeout = setTimeout(
+      () =>
+        this.logger.warn({
+          fileId,
+          generation,
+          outcome: "SLOW_PROCESSING",
+          thresholdMs: 30_000,
+        }),
+      30_000,
+    );
+    softTimeout.unref();
+    try {
+      const state = await this.scanner.process(fileId, generation, signal);
+      this.logger.log({
         fileId,
         generation,
-        job.attemptsMade + 1 >= (job.opts?.attempts ?? 1),
-      );
-    return state;
+        state,
+        attempt: job.attemptsMade + 1,
+        queue_wait_duration_ms: queueWait,
+        bull_wait_duration_ms: sinceQueuedMs,
+        malware_scan_duration_ms: Math.round(performance.now() - started),
+      });
+      if (state === "READY")
+        await this.moderation?.process(
+          fileId,
+          generation,
+          job.attemptsMade + 1 >= (job.opts?.attempts ?? 1),
+          signal,
+          job.attemptsMade + 1,
+        );
+      return state;
+    } finally {
+      clearTimeout(softTimeout);
+      this.outbox?.wake();
+    }
   }
 }

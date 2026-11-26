@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 import { TransactionRunner } from "../database/transaction-runner";
 import { PrismaService } from "../database/prisma.service";
 import { OutboxWriter } from "../events/outbox-writer";
+import { OutboxDispatcher } from "../events/outbox-dispatcher";
 import {
   FileStorageError,
   type FilePurpose,
@@ -45,6 +46,7 @@ export class PrismaStoredFileRepository
     private readonly prisma: PrismaService,
     private readonly transactions: TransactionRunner,
     private readonly outbox: OutboxWriter,
+    @Optional() private readonly dispatcher?: OutboxDispatcher,
   ) {}
 
   async createUploading(row: Omit<StoredFileRecord, "state">): Promise<void> {
@@ -69,6 +71,7 @@ export class PrismaStoredFileRepository
     sha256: string;
     correlationId: string;
   }): Promise<void> {
+    const finalizedAt = new Date();
     await this.transactions.run(async (tx) => {
       const result = await tx.storedFile.updateMany({
         where: {
@@ -89,10 +92,17 @@ export class PrismaStoredFileRepository
         eventId: randomUUID(),
         type: "file.scan.requested",
         version: 1,
-        payload: { fileId: input.id, generation: input.generation },
+        payload: {
+          fileId: input.id,
+          generation: input.generation,
+          largeFile: input.sizeBytes > 5_000_000,
+          finalizedAt: finalizedAt.getTime(),
+        },
         correlationId: input.correlationId,
       });
+      await tx.$executeRaw`UPDATE stored_files SET upload_finalized_at = ${finalizedAt} WHERE id = ${input.id}::uuid`;
     });
+    this.dispatcher?.wake();
   }
 
   async failUpload(id: string): Promise<void> {

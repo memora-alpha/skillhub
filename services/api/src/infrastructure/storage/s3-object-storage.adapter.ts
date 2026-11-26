@@ -22,10 +22,20 @@ export class S3ObjectStorage implements ObjectStorage {
     if (!bucket) throw new Error("S3 bucket is required");
   }
 
-  async put(key: string, body: Readable, mime: string): Promise<void> {
+  async put(
+    key: string,
+    body: Readable,
+    mime: string,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const abortController = new AbortController();
+    const abort = () => abortController.abort();
     try {
+      signal?.throwIfAborted();
+      signal?.addEventListener("abort", abort, { once: true });
       await new Upload({
         client: this.client,
+        abortController,
         params: {
           Bucket: this.bucket,
           Key: key,
@@ -38,13 +48,16 @@ export class S3ObjectStorage implements ObjectStorage {
       }).done();
     } catch {
       throw unavailable();
+    } finally {
+      signal?.removeEventListener("abort", abort);
     }
   }
 
-  async read(key: string): Promise<Readable> {
+  async read(key: string, signal?: AbortSignal): Promise<Readable> {
     try {
       const response = await this.client.send(
         new GetObjectCommand({ Bucket: this.bucket, Key: key }),
+        { abortSignal: signal },
       );
       if (
         !response.Body ||
@@ -60,10 +73,12 @@ export class S3ObjectStorage implements ObjectStorage {
 
   async head(
     key: string,
+    signal?: AbortSignal,
   ): Promise<{ size: number; versionId?: string } | null> {
     try {
       const response = await this.client.send(
         new HeadObjectCommand({ Bucket: this.bucket, Key: key }),
+        { abortSignal: signal },
       );
       if (
         !Number.isSafeInteger(response.ContentLength) ||

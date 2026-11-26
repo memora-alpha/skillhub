@@ -9,7 +9,11 @@ export class FileScanProcessor {
     private readonly scanner: MalwareScanner,
   ) {}
 
-  async process(fileId: string, generation: number): Promise<string> {
+  async process(
+    fileId: string,
+    generation: number,
+    signal?: AbortSignal,
+  ): Promise<string> {
     const claim = await this.repository.claim(fileId, generation);
     if (!claim) {
       const state = await this.repository.currentState(fileId);
@@ -20,11 +24,12 @@ export class FileScanProcessor {
     let verdict: ScanVerdict = "UNKNOWN";
     let scannerVersion = "unavailable";
     try {
-      const head = await this.objects.head(claim.objectKey);
+      const head = await this.objects.head(claim.objectKey, signal);
       if (head?.size === claim.sizeBytes) {
         const result = await this.scanner.scan({
-          body: await this.objects.read(claim.objectKey),
+          body: await this.objects.read(claim.objectKey, signal),
           expectedSha256: claim.sha256,
+          signal,
         });
         verdict = result.verdict;
         scannerVersion = result.scannerVersion;
@@ -32,6 +37,7 @@ export class FileScanProcessor {
     } catch {
       // Provider or scanner failure is an UNKNOWN verdict, never a clean file.
     }
+    if (signal?.aborted) verdict = "UNKNOWN";
     const applied = await this.repository.complete({
       claim,
       verdict,

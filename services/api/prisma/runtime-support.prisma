@@ -170,6 +170,7 @@ model StoredFile {
   scanLeaseToken    String?               @map("scan_lease_token") @db.Uuid
   scanLeaseUntil    DateTime?             @map("scan_lease_until") @db.Timestamptz(3)
   providerVersionId String?               @map("provider_version_id")
+  uploadFinalizedAt DateTime?             @map("upload_finalized_at") @db.Timestamptz(3)
   failureCode       String?               @map("failure_code")
   createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -182,6 +183,16 @@ model StoredFile {
   @@index([state, createdAt])
   @@index([scanLeaseUntil])
   @@map("stored_files")
+}
+
+model ChatContentVerdictCache {
+  cacheKey   String   @id @map("cache_key")
+  leaseToken String?  @map("lease_token") @db.Uuid
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(6)
+  verdict    Json?
+
+  @@index([expiresAt], map: "chat_content_verdict_cache_expiry_idx")
+  @@map("chat_content_verdict_cache")
 }
 
 model StoredFileScanEvent {

@@ -1,7 +1,9 @@
 import "reflect-metadata";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { Readable } from "node:stream";
+import { setTimeout as delay } from "node:timers/promises";
 import { readFile, readdir } from "node:fs/promises";
 import pg from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -16,6 +18,7 @@ import { lockUsers } from "../../dist/shared/database/identity-transactions.js";
 import { ConversationLifecycleService } from "../../dist/modules/conversations/application/services/conversation-lifecycle.service.js";
 import { ConnectionNotificationService } from "../../dist/modules/notifications/application/services/connection-notification.service.js";
 import { ChatAttachmentModerationController } from "../../dist/modules/conversations/presentation/http/chat-attachment-moderation.controller.js";
+import { FileContentModeration } from "../../dist/infrastructure/storage/file-content-moderation.js";
 
 // No fallback to application configuration. All migrations run in a disposable schema.
 const url = process.env.TEST_DATABASE_URL;
@@ -78,6 +81,77 @@ test(
           status: "ACTIVE",
         },
       });
+      const body = Buffer.from(
+        "Synthetic duplicate attachment for PostgreSQL cache test.",
+      );
+      const digest = createHash("sha256").update(body).digest("hex");
+      const copies = ["allowed.txt", "rejected.txt"];
+      const cachedIds = await Promise.all(
+        copies.map(async (originalName) => {
+          const id = randomUUID();
+          await db.storedFile.create({
+            data: {
+              id,
+              originalName,
+              purpose: "CHAT",
+              uploadedBy: ids[0],
+              objectKey: `private/${id}`,
+              state: "READY",
+              detectedMime: "text/plain",
+              sizeBytes: body.length,
+              sha256: digest,
+              scanVerdict: "CLEAN",
+              scannerVersion: "ClamAV 1.4.3/27700/test",
+              scannedAt: new Date(),
+            },
+          });
+          return id;
+        }),
+      );
+      let checks = 0;
+      const allow = (input, outcome = "ALLOW") => ({
+        outcome,
+        digest: input.digest,
+        sourceVersion: input.version,
+        policyVersion: "skillhub-content-v2",
+        reasonCodes: [],
+      });
+      const makeWorker = () =>
+        new FileContentModeration(
+          db,
+          { read: async () => Readable.from([body]) },
+          {
+            mode: () => "enforce",
+            profanityVersion: async () => 1,
+            cacheModelVersion: () => "pinned-test-model",
+          },
+          {
+            assess: async (input) => {
+              checks++;
+              await delay(40);
+              return allow(input);
+            },
+            assessFilename: async (input) =>
+              allow(
+                input,
+                input.filename === "rejected.txt" ? "BLOCK" : "ALLOW",
+              ),
+            combine: (filename, content) =>
+              filename.outcome === "BLOCK" ? filename : content,
+          },
+        );
+      await Promise.all(cachedIds.map((id) => makeWorker().process(id, 1)));
+      assert.equal(checks, 1);
+      assert.equal(
+        (await db.storedFile.findUnique({ where: { id: cachedIds[0] } }))
+          .moderationAssessment.outcome,
+        "ALLOW",
+      );
+      assert.equal(
+        (await db.storedFile.findUnique({ where: { id: cachedIds[1] } }))
+          .moderationAssessment.outcome,
+        "BLOCK",
+      );
       const fileId = randomUUID();
       await db.storedFile.create({
         data: {
@@ -119,7 +193,10 @@ test(
         profanityVersion: 2,
       });
       const fileEvents = await db.userEventDelivery.findMany({
-        where: { type: "chat.attachment.updated" },
+        where: {
+          type: "chat.attachment.updated",
+          payload: { path: ["fileId"], equals: fileId },
+        },
         orderBy: { sequence: "asc" },
       });
       assert.deepEqual(
@@ -348,12 +425,15 @@ test(
           },
         });
         assert.equal(entries.length, 2);
-        for (const item of entries)
-          assert.deepEqual(item.payload, {
+        for (const item of entries) {
+          const { stateRevision, ...refs } = item.payload;
+          assert.match(stateRevision, /^\d+$/);
+          assert.deepEqual(refs, {
             conversationId: replay.conversation.id,
             messageId: publication.id,
             fileId: pendingId,
           });
+        }
       }
       assert.equal(
         await db.userEventDelivery.count({

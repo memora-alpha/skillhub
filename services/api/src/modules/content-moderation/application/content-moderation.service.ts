@@ -38,6 +38,7 @@ export type ModerationInput = {
   text?: string;
   profanityFields?: readonly string[];
   image?: Exclude<ModerationProviderInput, string>["image"];
+  signal?: AbortSignal;
 };
 
 export type ModerationAssessment = Pick<
@@ -78,7 +79,7 @@ export class ContentModerationService {
   private compiled?: typeof this.defaults;
 
   constructor(
-    config: ConfigService,
+    private readonly config: ConfigService,
     private readonly provider: OpenAiModerationClient,
     @Optional() private readonly db?: PrismaService,
   ) {
@@ -89,6 +90,15 @@ export class ContentModerationService {
 
   mode(surface: ModerationSurface): ModerationMode {
     return this.modes.get(surface) ?? "off";
+  }
+
+  cacheModelVersion(): string | undefined {
+    const model = this.config.get<string>("CONTENT_MODERATION_MODEL");
+    if (model === "omni-moderation-2024-09-26") return model;
+    const revision = this.config
+      .get<string>("CONTENT_MODERATION_MODEL_CACHE_REVISION")
+      ?.trim();
+    return revision ? `omni-moderation-latest:${revision}` : undefined;
   }
 
   evaluateText(
@@ -180,7 +190,7 @@ export class ContentModerationService {
       return { ...base, outcome: "ALLOW", reasonCodes: [] };
 
     const started = performance.now();
-    const assessment = await this.classify(providerInput(input));
+    const assessment = await this.classify(providerInput(input), input.signal);
     this.logger.log({
       surface: input.surface,
       mode,
@@ -188,6 +198,7 @@ export class ContentModerationService {
       reasonCodes: assessment.reasonCodes,
       policyVersion: base.policyVersion,
       elapsedMs: Math.round(performance.now() - started),
+      ai_moderation_duration_ms: Math.round(performance.now() - started),
     });
     if (mode === "observe")
       return {
@@ -199,9 +210,9 @@ export class ContentModerationService {
     return { ...base, ...assessment };
   }
 
-  private async classify(input: ModerationProviderInput) {
+  private async classify(input: ModerationProviderInput, signal?: AbortSignal) {
     try {
-      const result = await this.provider.classify(input);
+      const result = await this.provider.classify(input, signal);
       return {
         ...assessClassification(result),
         assessmentId: result.id,

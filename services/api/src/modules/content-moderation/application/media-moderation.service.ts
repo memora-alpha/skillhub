@@ -17,6 +17,8 @@ export type MediaModerationInput = {
   mime: string;
   bytes: Buffer;
   filename?: string;
+  maximumPdfPages?: number;
+  signal?: AbortSignal;
 };
 
 const imageTypes: ReadonlySet<string> = new Set([
@@ -58,6 +60,14 @@ export class MediaModerationService {
     return this.assessFile(input);
   }
 
+  async assessFilename(input: MediaModerationInput) {
+    return this.assessText(input, input.filename ?? "");
+  }
+
+  combine(first: ModerationAssessment, second: ModerationAssessment) {
+    return combineAi(first, second);
+  }
+
   private async assessFile(
     input: MediaModerationInput,
   ): Promise<ModerationAssessment> {
@@ -67,6 +77,7 @@ export class MediaModerationService {
       reasonCodes: ["MEDIA_FORMAT_UNSUPPORTED"],
     };
     try {
+      input.signal?.throwIfAborted();
       const name = input.filename ?? "";
       const local = await this.checkLocalText(input, name);
       if (local) return local;
@@ -78,16 +89,21 @@ export class MediaModerationService {
           filename,
         );
       if (input.mime === "application/pdf") {
-        const pages = await this.extractor.pdfPageCount(input.bytes);
-        const text = await this.extractor.pdfText(input.bytes);
+        const pages = await this.extractor.pdfPageCount(
+          input.bytes,
+          input.maximumPdfPages,
+          input.signal,
+        );
+        const text = await this.extractor.pdfText(input.bytes, input.signal);
         let last = combineAi(filename, await this.assessText(input, text));
         for (let page = 1; page <= pages; page += 2) {
+          input.signal?.throwIfAborted();
           const indexes = page < pages ? [page, page + 1] : [page];
           const assessed = await Promise.all(
             indexes.map(async (index) =>
               this.image(
                 input,
-                await this.extractor.pdfPage(input.bytes, index),
+                await this.extractor.pdfPage(input.bytes, index, input.signal),
               ),
             ),
           );
@@ -106,6 +122,7 @@ export class MediaModerationService {
         // Keep at most one embedded image in the OCR pipeline per document.
         return await images.reduce(async (previous, bytes) => {
           const result = await previous;
+          input.signal?.throwIfAborted();
           if (result.reasonCodes?.some((code) => code.startsWith("PROFANITY:")))
             return result;
           const image = await this.extractor.canonicalImage(bytes);
@@ -150,10 +167,11 @@ export class MediaModerationService {
     previous?: ModerationAssessment,
   ) {
     const [text, image] = await Promise.all([
-      this.extractor.ocr(bytes),
+      this.extractor.ocr(bytes, input.signal),
       this.moderation.evaluateAi({
         ...this.base(input),
         surface: input.surface,
+        signal: input.signal,
         image: { mimeType: "image/png", bytes },
       }),
     ]);
@@ -188,13 +206,18 @@ export class MediaModerationService {
     text: string,
   ): Promise<ModerationAssessment> {
     const base = this.base(input);
-    const body: ModerationInput = { ...base, surface: input.surface };
+    const body: ModerationInput = {
+      ...base,
+      surface: input.surface,
+      signal: input.signal,
+    };
     let last: ModerationAssessment = {
       ...base,
       outcome: "ALLOW",
       reasonCodes: [],
     };
     for (let start = 0; start < text.length; start += 3500) {
+      input.signal?.throwIfAborted();
       last = combineAi(
         last,
         await this.moderation.evaluateAi({

@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { spawn } from "node:child_process";
 import sharp from "sharp";
@@ -21,11 +21,13 @@ function parseWith(
   bytes: Buffer,
   maxOutput: number,
   stage: string,
+  signal?: AbortSignal,
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       windowsHide: true,
       timeout: 10_000,
+      signal,
       stdio: ["pipe", "pipe", "ignore"],
       env: {
         PATH: process.env.PATH,
@@ -64,6 +66,7 @@ function parseWith(
 
 @Injectable()
 export class MediaTextExtractor {
+  private readonly logger = new Logger(MediaTextExtractor.name);
   private languagesReady?: Promise<void>;
   private languageRetryAt = 0;
 
@@ -88,7 +91,8 @@ export class MediaTextExtractor {
     }
   }
 
-  async ocr(bytes: Buffer): Promise<string> {
+  async ocr(bytes: Buffer, signal?: AbortSignal): Promise<string> {
+    const started = performance.now();
     const executable = this.config
       .get("CONTENT_MODERATION_OCR_COMMAND", "tesseract")
       .trim();
@@ -111,7 +115,11 @@ export class MediaTextExtractor {
       bytes,
       128_000,
       "OCR",
+      signal,
     );
+    this.logger.log({
+      ocr_duration_ms: Math.round(performance.now() - started),
+    });
     return new TextDecoder("utf-8", { fatal: true }).decode(text);
   }
 
@@ -136,23 +144,32 @@ export class MediaTextExtractor {
       );
   }
 
-  async pdfPageCount(bytes: Buffer): Promise<number> {
+  async pdfPageCount(
+    bytes: Buffer,
+    maximumPages = maximumModeratedPdfPages,
+    signal?: AbortSignal,
+  ): Promise<number> {
     const output = await parseWith(
       this.config.get("CONTENT_MODERATION_PDFINFO_COMMAND", "pdfinfo").trim(),
       ["-"],
       bytes,
       32_000,
       "PDF_INFO",
+      signal,
     );
     const pages = Number(
       /^Pages:\s+([1-9]\d*)\s*$/mu.exec(output.toString("utf8"))?.[1],
     );
-    if (!Number.isSafeInteger(pages) || pages > maximumModeratedPdfPages)
+    if (!Number.isSafeInteger(pages) || pages > maximumPages)
       throw new MediaExtractionError("MODERATION_PDF_PAGE_LIMIT");
     return pages;
   }
 
-  async pdfPage(bytes: Buffer, page: number): Promise<Buffer> {
+  async pdfPage(
+    bytes: Buffer,
+    page: number,
+    signal?: AbortSignal,
+  ): Promise<Buffer> {
     const rendered = await parseWith(
       this.config.get("CONTENT_MODERATION_PDFTOPPM_COMMAND", "pdftoppm").trim(),
       [
@@ -169,26 +186,39 @@ export class MediaTextExtractor {
       bytes,
       10_000_000,
       "PDF_RENDER",
+      signal,
     );
     return this.canonicalImage(rendered).catch(() => {
       throw new MediaExtractionError("MEDIA_PDF_RENDER_FAILED");
     });
   }
 
-  async pdfText(bytes: Buffer): Promise<string> {
+  async pdfText(bytes: Buffer, signal?: AbortSignal): Promise<string> {
+    const started = performance.now();
     const output = await parseWith(
       "pdftotext",
       ["-enc", "UTF-8", "-", "-"],
       bytes,
       128_000,
       "PDF_TEXT",
+      signal,
     );
+    this.logger.log({
+      text_extraction_duration_ms: Math.round(performance.now() - started),
+      format: "pdf",
+    });
     return new TextDecoder("utf-8", { fatal: true }).decode(output);
   }
 
   async docx(bytes: Buffer) {
+    const started = performance.now();
     try {
-      return await extractDocx(bytes);
+      const result = await extractDocx(bytes);
+      this.logger.log({
+        text_extraction_duration_ms: Math.round(performance.now() - started),
+        format: "docx",
+      });
+      return result;
     } catch {
       throw new MediaExtractionError("MEDIA_DOCX_UNREADABLE");
     }
