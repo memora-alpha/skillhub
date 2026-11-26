@@ -3,6 +3,36 @@ import { Readable } from "node:stream";
 import test from "node:test";
 import { FileStorageService } from "../dist/infrastructure/storage/file-storage.service.js";
 
+test("a completed keyed chat upload replays the original file ID without a storage write", async () => {
+  let reserved = 0;
+  const service = new FileStorageService(
+    {
+      reserveChatUpload: async (_row, identity) => {
+        reserved++;
+        assert.equal(identity.commandDigest, "server-command-digest");
+        return "completed-chat-file";
+      },
+      createUploading: async () => assert.fail("replay must not create a file"),
+    },
+    { put: async () => assert.fail("replay must not write bytes") },
+    {},
+  );
+  const result = await service.upload({
+    actor: { userId: "owner" },
+    purpose: "CHAT",
+    name: "image.png",
+    claimedMime: "image/png",
+    body: Readable.from(Buffer.from("fixture")),
+    context: { correlationId: "correlation" },
+    chatUpload: { keyDigest: "key", commandDigest: "server-command-digest" },
+  });
+  assert.equal(reserved, 1);
+  assert.deepEqual(result, {
+    fileId: "completed-chat-file",
+    state: "QUARANTINED",
+  });
+});
+
 const payload = Buffer.from("%PDF-1.7\n%%EOF\n");
 const actor = { userId: "00000000-0000-4000-8000-000000000001" };
 

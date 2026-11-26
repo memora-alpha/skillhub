@@ -8,7 +8,7 @@ import {
   ServiceUnavailableException,
   UnprocessableEntityException,
 } from "@nestjs/common";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
 import { PrismaService } from "../../../../infrastructure/database/prisma.service";
 import { TransactionRunner } from "../../../../infrastructure/database/transaction-runner";
@@ -41,6 +41,7 @@ import { ChatDownloadTicketService } from "./chat-download-ticket.service";
 import {
   chatAttachmentAvailability,
   chatAttachmentStatus,
+  chatAttachmentRestriction,
 } from "../../../../infrastructure/storage/chat-attachment-policy";
 import { chatImageDimensions } from "../../../../infrastructure/storage/chat-image";
 import {
@@ -494,6 +495,7 @@ export class ConversationsService {
     id: string,
     file: Express.Multer.File,
     context: RequestContext,
+    idempotencyKey?: string,
   ) {
     const { actor } = await this.transactions.run((tx) =>
       this.access.require(
@@ -503,6 +505,28 @@ export class ConversationsService {
         "message:attachment:create:participant",
       ),
     );
+    if (
+      idempotencyKey !== undefined &&
+      !/^[\x21-\x7e]{1,128}$/u.test(idempotencyKey)
+    )
+      throw new BadRequestException("INVALID_IDEMPOTENCY_KEY");
+    const chatUpload =
+      idempotencyKey === undefined
+        ? undefined
+        : {
+            keyDigest: fingerprintCommand({
+              userId: actor.userId,
+              conversationId: id,
+              idempotencyKey,
+            }),
+            commandDigest: fingerprintCommand({
+              name: file.originalname,
+              mimeType: file.mimetype,
+              contentDigest: createHash("sha256")
+                .update(file.buffer)
+                .digest("hex"),
+            }),
+          };
     return this.storage.upload({
       actor,
       purpose: "CHAT",
@@ -510,6 +534,7 @@ export class ConversationsService {
       claimedMime: file.mimetype,
       body: Readable.from(file.buffer),
       context,
+      chatUpload,
     });
   }
   async attachmentStatus(principal: Principal, id: string, fileId: string) {
@@ -583,7 +608,9 @@ export class ConversationsService {
             attachment.fileSizeBytes,
           ),
           size: attachment.fileSizeBytes,
-          mime: "application/octet-stream",
+          mime: attachment.mimeType.startsWith("image/")
+            ? attachment.mimeType
+            : "application/octet-stream",
         };
     try {
       await this.assertAttachmentRead(principal, id, messageId, attachment);
@@ -657,14 +684,21 @@ export class ConversationsService {
     });
     const version = await this.files.chatProfanityVersion();
     return new Map(
-      rows.map((row) => [
-        row.id,
-        {
-          accessStatus: chatAttachmentAvailability(row, version),
-          moderationStatus: chatAttachmentStatus(row, version),
-          dimensions: chatImageDimensions(row.moderationAssessment),
-        },
-      ]),
+      rows.map((row) => {
+        const moderationStatus = chatAttachmentStatus(row, version);
+        return [
+          row.id,
+          {
+            accessStatus: chatAttachmentAvailability(row, version),
+            moderationStatus,
+            restrictionReason: chatAttachmentRestriction(
+              row.moderationAssessment,
+              moderationStatus,
+            ),
+            dimensions: chatImageDimensions(row.moderationAssessment),
+          },
+        ];
+      }),
     );
   }
 }

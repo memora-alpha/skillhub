@@ -1961,6 +1961,8 @@ model StoredFile {
   scanLeaseUntil           DateTime?             @map("scan_lease_until") @db.Timestamptz(3)
   providerVersionId        String?               @map("provider_version_id")
   uploadFinalizedAt        DateTime?             @map("upload_finalized_at") @db.Timestamptz(3)
+  chatUploadKeyDigest      String?               @unique(map: "stored_files_chat_upload_key_digest_key") @map("chat_upload_key_digest")
+  chatUploadCommandDigest  String?               @map("chat_upload_command_digest")
   failureCode              String?               @map("failure_code")
   createdAt                DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt                DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)

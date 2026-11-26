@@ -15,6 +15,11 @@ export type StoredFileRecord = {
 
 export interface StoredFileRepository {
   createUploading(row: Omit<StoredFileRecord, "state">): Promise<void>;
+  /** Returns the existing ID for a completed replay, or null for a new reservation. */
+  reserveChatUpload(
+    row: Omit<StoredFileRecord, "state">,
+    identity: ChatUploadIdentity,
+  ): Promise<string | null>;
   /** Must atomically CAS UPLOADING -> QUARANTINED and persist FILE_SCAN_REQUESTED outbox. */
   finalize(input: {
     id: string;
@@ -27,5 +32,7 @@ export interface StoredFileRepository {
   failUpload(id: string): Promise<void>;
   find(id: string): Promise<StoredFileRecord | null>;
 }
+
+export type ChatUploadIdentity = { keyDigest: string; commandDigest: string };
 
 export const STORED_FILE_REPOSITORY = Symbol("STORED_FILE_REPOSITORY");

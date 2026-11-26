@@ -7,6 +7,7 @@ import { chatImageDimensions } from "./chat-image";
 import {
   chatAttachmentAvailability,
   chatAttachmentStatus,
+  chatAttachmentRestriction,
 } from "./chat-attachment-policy";
 type Binding = {
   type: string;
@@ -114,6 +115,12 @@ export class FileAttachmentService {
       availability,
       accessStatus: availability,
       moderationStatus,
+      ...(moderationStatus === "BLOCKED" && {
+        restrictionReason: chatAttachmentRestriction(
+          row.moderationAssessment,
+          moderationStatus,
+        ),
+      }),
       canAttach,
       mimeType: row.detectedMime,
       fileSizeBytes: row.sizeBytes,

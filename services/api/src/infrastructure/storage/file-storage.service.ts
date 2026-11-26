@@ -12,7 +12,10 @@ import {
 } from "./file-policy";
 import { FileStorageError, type FilePurpose } from "./file.types";
 import type { ObjectStorage } from "./object-storage.port";
-import type { StoredFileRepository } from "./stored-file.repository";
+import type {
+  ChatUploadIdentity,
+  StoredFileRepository,
+} from "./stored-file.repository";
 import {
   chatImageDimensions,
   chatImageKey,
@@ -48,6 +51,7 @@ export class FileStorageService {
     claimedMime: string;
     body: Readable;
     context: { correlationId: string };
+    chatUpload?: ChatUploadIdentity;
   }): Promise<{ fileId: string; state: "QUARANTINED" }> {
     const uploadStarted = performance.now();
     const configuredCap = await this.configuredCapBytes(input.purpose);
@@ -74,14 +78,23 @@ export class FileStorageService {
     }
     const fileId = randomUUID();
     const objectKey = `private/${fileId}`;
-    await this.repository.createUploading({
+    const candidate = {
       id: fileId,
       purpose: input.purpose,
       uploadedBy: input.actor.userId,
       objectKey,
       generation: 1,
       originalName: input.name,
-    });
+    };
+    if (input.chatUpload) {
+      const replay = await this.repository.reserveChatUpload(
+        candidate,
+        input.chatUpload,
+      );
+      if (replay) return { fileId: replay, state: "QUARANTINED" };
+    } else {
+      await this.repository.createUploading(candidate);
+    }
     let uploadedSize = 0;
     const uploadHash = createHash("sha256");
     const meter = new Transform({

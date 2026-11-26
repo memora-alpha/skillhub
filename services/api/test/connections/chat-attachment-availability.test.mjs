@@ -10,6 +10,7 @@ import { FileStorageService } from "../../dist/infrastructure/storage/file-stora
 import { prepareChatImage } from "../../dist/infrastructure/storage/chat-image.js";
 import sharp from "sharp";
 import { FileContentModeration } from "../../dist/infrastructure/storage/file-content-moderation.js";
+import { publicMessage } from "../../dist/modules/conversations/infrastructure/persistence/chat.repository.js";
 
 const base = {
   id: "file",
@@ -34,6 +35,31 @@ const approved = {
   profanityVersion: 1,
   extractorRevision: 2,
 };
+
+test("message metadata provides an original URL only after approval and labels staff revocation", () => {
+  const message = {
+    _id: "message",
+    conversationId: "chat",
+    sequence: 1n,
+    attachments: [
+      { fileId: base.id, attachmentId: "image", mimeType: "image/jpeg" },
+    ],
+  };
+  const view = (state) =>
+    publicMessage(message, null, new Map([[base.id, state]])).attachments[0];
+  assert.equal(
+    view({ accessStatus: "PENDING_SCAN" }).contentUrlEndpoint,
+    undefined,
+  );
+  assert.equal(
+    view({ accessStatus: "REVOKED", restrictionReason: "REVOKED" })
+      .restrictionReason,
+    "REVOKED",
+  );
+  const available = view({ accessStatus: "AVAILABLE", dimensions: null });
+  assert.match(available.contentUrlEndpoint, /\/image\/content$/u);
+  assert.equal(available.thumbnailUrlEndpoint, undefined);
+});
 
 test("publishes the attachment card before scanning, but blocks reads until clean and after revocation", async () => {
   let row = base;

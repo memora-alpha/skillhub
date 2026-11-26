@@ -4,6 +4,7 @@ import {
   Controller,
   Get,
   Header,
+  Headers,
   HttpCode,
   Param,
   ParseUUIDPipe,
@@ -21,6 +22,8 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
+  ApiHeader,
+  ApiParam,
   ApiOperation,
   ApiTags,
 } from "@nestjs/swagger";
@@ -177,6 +180,13 @@ export class ConversationsController {
   @ApiErrorResponse(415)
   @HttpCode(202)
   @ApiConsumes("multipart/form-data")
+  @ApiHeader({
+    name: "Idempotency-Key",
+    required: false,
+    description:
+      "Reuse for retries with identical file bytes, name and MIME type.",
+  })
+  @ApiErrorResponse(409)
   @ApiBody({
     schema: {
       type: "object",
@@ -194,6 +204,7 @@ export class ConversationsController {
     @Param("id", ParseUUIDPipe) id: string,
     @UploadedFile() file: Express.Multer.File | undefined,
     @Req() req: IdentityRequest,
+    @Headers("idempotency-key") idempotencyKey?: string,
   ) {
     if (!file) throw new BadRequestException("FILE_REQUIRED");
     return success(
@@ -202,6 +213,7 @@ export class ConversationsController {
         id,
         file,
         getOrCreateRequestContext(req),
+        idempotencyKey,
       ),
     );
   }
@@ -232,6 +244,7 @@ export class ConversationsController {
   }
 
   @Get(":id/messages/:messageId/attachments/:attachmentId/:variant")
+  @ApiParam({ name: "variant", enum: ["content", "preview", "thumbnail"] })
   @Header("Cache-Control", "private, no-store")
   @Header("X-Content-Type-Options", "nosniff")
   async image(
@@ -241,15 +254,26 @@ export class ConversationsController {
     @Param("attachmentId", ParseUUIDPipe) attachmentId: string,
     @Param("variant") variant: string,
   ) {
-    if (variant !== "preview" && variant !== "thumbnail")
+    if (
+      variant !== "content" &&
+      variant !== "preview" &&
+      variant !== "thumbnail"
+    )
       throw new BadRequestException();
-    const { stream, mime, size } = await this.conversations.downloadContent(
-      actor,
-      id,
-      messageId,
-      attachmentId,
-      variant,
-    );
-    return new StreamableFile(stream, { type: mime, length: size });
+    const { stream, mime, size, filename } =
+      await this.conversations.downloadContent(
+        actor,
+        id,
+        messageId,
+        attachmentId,
+        variant === "content" ? undefined : variant,
+      );
+    return new StreamableFile(stream, {
+      type: mime,
+      length: size,
+      ...(variant === "content" && {
+        disposition: `${mime.startsWith("image/") ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(filename)}`,
+      }),
+    });
   }
 }

@@ -58,3 +58,19 @@ export function chatAttachmentAvailability(
 ) {
   return accessStatus[chatAttachmentStatus(row, profanityVersion)];
 }
+
+export function chatAttachmentRestriction(
+  assessment: unknown,
+  status: ReturnType<typeof chatAttachmentStatus>,
+) {
+  if (status !== "BLOCKED") return undefined;
+  if (
+    assessment &&
+    typeof assessment === "object" &&
+    "reasonCodes" in assessment &&
+    Array.isArray(assessment.reasonCodes) &&
+    assessment.reasonCodes.includes("STAFF_CONFIRMED")
+  )
+    return "REVOKED" as const;
+  return "BLOCKED" as const;
+}

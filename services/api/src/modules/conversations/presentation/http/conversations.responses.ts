@@ -21,6 +21,8 @@ export class ChatAttachmentMetadataResponse {
     enum: ["PENDING", "APPROVED", "REVIEW_REQUIRED", "BLOCKED", "FAILED"],
   })
   moderationStatus!: string;
+  @ApiPropertyOptional({ enum: ["BLOCKED", "REVOKED"] })
+  restrictionReason?: string;
 }
 export class MessageAttachmentResponse extends ChatAttachmentMetadataResponse {
   @ApiProperty({ format: "uuid" }) attachmentId!: string;
@@ -29,6 +31,7 @@ export class MessageAttachmentResponse extends ChatAttachmentMetadataResponse {
   @ApiProperty() mimeType!: string;
   @ApiProperty({ type: Number }) fileSizeBytes!: number;
   @ApiProperty() downloadUrlEndpoint!: string;
+  @ApiPropertyOptional() contentUrlEndpoint?: string;
   @ApiPropertyOptional() previewUrlEndpoint?: string;
   @ApiPropertyOptional() thumbnailUrlEndpoint?: string;
   @ApiPropertyOptional({
