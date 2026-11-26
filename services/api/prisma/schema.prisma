@@ -189,6 +189,7 @@ enum CreditTransactionType {
   PENALTY
   ADJUSTMENT
   VOUCHER_REDEMPTION
+  SUBSCRIPTION_PURCHASE
 }
 
 enum CreditReferenceType {
@@ -200,6 +201,7 @@ enum CreditReferenceType {
   MATERIAL_ORDER
   SYSTEM
   VOUCHER_REDEMPTION
+  SUBSCRIPTION_CHARGE
 }
 
 enum CreditTransactionStatus {
@@ -372,10 +374,14 @@ model User {
   profileModeration       Json?              @map("profile_moderation")
   createdFeePolicies      FeePolicyVersion[] @relation("FeePolicy_creator")
 
-  voucherRedemptions         VoucherRedemption[] @relation("VoucherRedemption_user")
-  sessionWhiteboardUpdates   SessionWhiteboard[] @relation("SessionWhiteboard_updated_by")
-  sessionRecordingsRequested SessionRecording[]  @relation("SessionRecording_requested_by")
-  sessionRecordingsAccepted  SessionRecording[]  @relation("SessionRecording_accepted_by")
+  voucherRedemptions         VoucherRedemption[]       @relation("VoucherRedemption_user")
+  sessionWhiteboardUpdates   SessionWhiteboard[]       @relation("SessionWhiteboard_updated_by")
+  sessionRecordingsRequested SessionRecording[]        @relation("SessionRecording_requested_by")
+  sessionRecordingsAccepted  SessionRecording[]        @relation("SessionRecording_accepted_by")
+  subscriptionPlansApproved  SubscriptionPlanVersion[] @relation("SubscriptionPlanVersion_approved_by")
+  subscriptionPlansCreated   SubscriptionPlanVersion[] @relation("SubscriptionPlanVersion_created_by")
+  subscriptions              UserSubscription[]        @relation("UserSubscription_user")
+  subscriptionCharges        SubscriptionCharge[]      @relation("SubscriptionCharge_user")
 
   @@unique([id, avatarAssetId])
   @@index([roleId])
@@ -1487,6 +1493,8 @@ model CreditOperation {
   voucherDebits  VoucherRedemption[] @relation("VoucherRedemption_debit")
   voucherRefunds VoucherRedemption[] @relation("VoucherRedemption_refund")
 
+  subscriptionCharge SubscriptionCharge? @relation("SubscriptionCharge_operation")
+
   @@map("credit_operations")
 }
 
@@ -2508,6 +2516,8 @@ model SessionWhiteboard {
   // Excalidraw scene { elements, appState?, files? }; size is bounded by the service.
   sceneData       Json     @map("scene_data")
   sceneBytes      Int      @map("scene_bytes")
+  // Spec 021 D10: raised on each save to the highest plan value of both participants; null = legacy row.
+  retentionDays   Int?     @map("retention_days")
   updatedByUserId String   @map("updated_by_user_id") @db.Uuid
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -2569,16 +2579,157 @@ model SessionRecording {
   failureCode       String?                     @map("failure_code") @db.VarChar(64)
   deletedAt         DateTime?                   @map("deleted_at") @db.Timestamptz(3)
   deletedByUserId   String?                     @map("deleted_by_user_id") @db.Uuid
+  // Spec 021 D11/D12: retention snapshot from the requester's plan at start (null = legacy row),
+  // the requester's subscription charged, and minutes charged once at egress_ended (null = not yet).
+  retentionDays     Int?                        @map("retention_days")
+  subscriptionId    String?                     @map("subscription_id") @db.Uuid
+  chargedMinutes    Int?                        @map("charged_minutes")
   createdAt         DateTime                    @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime                    @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  session     Session @relation("SessionRecording_session", fields: [sessionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  requestedBy User    @relation("SessionRecording_requested_by", fields: [requestedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  acceptedBy  User?   @relation("SessionRecording_accepted_by", fields: [acceptedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  session      Session           @relation("SessionRecording_session", fields: [sessionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  requestedBy  User              @relation("SessionRecording_requested_by", fields: [requestedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  acceptedBy   User?             @relation("SessionRecording_accepted_by", fields: [acceptedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  subscription UserSubscription? @relation("SessionRecording_subscription", fields: [subscriptionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
   @@index([sessionId, requestedAt])
   @@index([status, requestedAt])
   @@index([requestedByUserId])
   @@index([acceptedByUserId])
+  @@index([subscriptionId])
   @@map("session_recordings")
+}
+
+// Subscriptions (spec 021): Credit-paid plans and their entitlements.
+enum SubscriptionPlanCode {
+  CREATOR
+  PRO
+}
+
+enum SubscriptionInterval {
+  MONTH
+  YEAR
+}
+
+enum SubscriptionPlanStatus {
+  DRAFT
+  APPROVED
+  RETIRED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  GRACE
+  EXPIRED
+}
+
+enum SubscriptionChargeKind {
+  PURCHASE
+  RENEWAL
+  UPGRADE
+  RECORDING_ADDON
+}
+
+// An approved version is immutable; a price or entitlement change is a new version.
+model SubscriptionPlanVersion {
+  id               String                 @id @default(uuid()) @db.Uuid
+  planCode         SubscriptionPlanCode   @map("plan_code")
+  versionNo        Int                    @map("version_no")
+  monthPrice       BigInt                 @map("month_price")
+  yearPrice        BigInt                 @map("year_price")
+  // Validated by domain/plan-entitlements.ts.
+  entitlements     Json
+  status           SubscriptionPlanStatus @default(DRAFT)
+  effectiveAt      DateTime?              @map("effective_at") @db.Timestamptz(3)
+  approvedAt       DateTime?              @map("approved_at") @db.Timestamptz(3)
+  approvedByUserId String?                @map("approved_by_user_id") @db.Uuid
+  createdByUserId  String                 @map("created_by_user_id") @db.Uuid
+  createdAt        DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  approvedBy    User?                @relation("SubscriptionPlanVersion_approved_by", fields: [approvedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy     User                 @relation("SubscriptionPlanVersion_created_by", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  subscriptions UserSubscription[]   @relation("UserSubscription_plan_version")
+  charges       SubscriptionCharge[] @relation("SubscriptionCharge_plan_version")
+
+  @@unique([planCode, versionNo])
+  @@index([planCode, status, effectiveAt])
+  @@index([approvedByUserId])
+  @@index([createdByUserId])
+  @@map("subscription_plan_versions")
+}
+
+// A partial unique index in the migration allows one ACTIVE or GRACE row per user.
+// Expired rows stay as history; subscribing again creates a new row.
+model UserSubscription {
+  id                   String                @id @default(uuid()) @db.Uuid
+  userId               String                @map("user_id") @db.Uuid
+  planCode             SubscriptionPlanCode  @map("plan_code")
+  planVersionId        String                @map("plan_version_id") @db.Uuid
+  interval             SubscriptionInterval
+  status               SubscriptionStatus    @default(ACTIVE)
+  autoRenew            Boolean               @default(true) @map("auto_renew")
+  termStart            DateTime              @map("term_start") @db.Timestamptz(3)
+  termEnd              DateTime              @map("term_end") @db.Timestamptz(3)
+  graceUntil           DateTime?             @map("grace_until") @db.Timestamptz(3)
+  nextRenewalAttemptAt DateTime?             @map("next_renewal_attempt_at") @db.Timestamptz(3)
+  scheduledPlanCode    SubscriptionPlanCode? @map("scheduled_plan_code")
+  scheduledInterval    SubscriptionInterval? @map("scheduled_interval")
+  version              Int                   @default(1)
+  createdAt            DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+  endedAt              DateTime?             @map("ended_at") @db.Timestamptz(3)
+
+  user        User                    @relation("UserSubscription_user", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  planVersion SubscriptionPlanVersion @relation("UserSubscription_plan_version", fields: [planVersionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  charges     SubscriptionCharge[]    @relation("SubscriptionCharge_subscription")
+  usage       SubscriptionUsage[]     @relation("SubscriptionUsage_subscription")
+  recordings  SessionRecording[]      @relation("SessionRecording_subscription")
+
+  @@index([status, nextRenewalAttemptAt])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([planVersionId])
+  @@map("user_subscriptions")
+}
+
+model SubscriptionCharge {
+  id             String                 @id @default(uuid()) @db.Uuid
+  subscriptionId String                 @map("subscription_id") @db.Uuid
+  userId         String                 @map("user_id") @db.Uuid
+  kind           SubscriptionChargeKind
+  planVersionId  String                 @map("plan_version_id") @db.Uuid
+  amount         BigInt
+  quantity       Int                    @default(1)
+  operationId    String                 @unique @map("operation_id") @db.Uuid
+  // SHA-256 of the client key (user routes) or the job key `renewal:<subscriptionId>:<termEnd>`.
+  idempotencyKey String                 @map("idempotency_key") @db.Char(64)
+  // SHA-256 of the canonical request body, to detect key reuse with another body.
+  requestDigest  String                 @map("request_digest") @db.Char(64)
+  createdAt      DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  subscription UserSubscription        @relation("SubscriptionCharge_subscription", fields: [subscriptionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  user         User                    @relation("SubscriptionCharge_user", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  planVersion  SubscriptionPlanVersion @relation("SubscriptionCharge_plan_version", fields: [planVersionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  operation    CreditOperation         @relation("SubscriptionCharge_operation", fields: [operationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([subscriptionId])
+  @@index([planVersionId])
+  @@map("subscription_charges")
+}
+
+// One row per subscription and 30-day usage period.
+model SubscriptionUsage {
+  subscriptionId          String   @map("subscription_id") @db.Uuid
+  periodStart             DateTime @map("period_start") @db.Timestamptz(3)
+  recordingMinutesAllowed Int      @map("recording_minutes_allowed")
+  recordingMinutesUsed    Int      @default(0) @map("recording_minutes_used")
+  addonMinutesRemaining   Int      @default(0) @map("addon_minutes_remaining")
+  updatedAt               DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  subscription UserSubscription @relation("SubscriptionUsage_subscription", fields: [subscriptionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([subscriptionId, periodStart])
+  @@map("subscription_usage")
 }

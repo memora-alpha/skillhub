@@ -29,6 +29,11 @@
       "id": "session-recording-20261126",
       "seeds": ["identity", "configuration"],
       "reason": "Grant USER the session recording permission and initialize the recording defaults, with recording disabled."
+    },
+    {
+      "id": "subscriptions-20261127",
+      "seeds": ["identity", "configuration"],
+      "reason": "Grant subscription self-service, read and plan management permissions and initialize the subscription defaults, with subscriptions disabled."
     }
   ]
 }

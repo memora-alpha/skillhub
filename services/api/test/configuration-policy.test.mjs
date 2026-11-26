@@ -54,6 +54,11 @@ test("approved defaults and mutability are explicit", () => {
     "session.durationMinutes",
     "storage.downloadTtlSeconds",
     "storage.evidenceMaxBytes",
+    "subscription.enabled",
+    "subscription.freeEntitlements",
+    "subscription.graceDays",
+    "subscription.recordingAddon",
+    "subscription.renewalRetryHours",
     "voucher.platformDailyBudgetVnd",
     "voucher.reconcileMaxAttempts",
     "voucher.userDailyLimitCredit",
@@ -86,6 +91,46 @@ test("approved defaults and mutability are explicit", () => {
   assert.throws(() => parseConfigurationValue("recording.kind", "SCREEN"));
   assert.throws(() => parseConfigurationValue("recording.retentionDays", 0));
   assert.throws(() => parseConfigurationValue("recording.overrunMinutes", 61));
+  // Spec 021 ships dark; FREE keeps today's whiteboard retention and cannot record.
+  assert.equal(
+    CONFIGURATION_DEFINITIONS["subscription.enabled"].defaultValue,
+    false,
+  );
+  assert.equal(
+    CONFIGURATION_DEFINITIONS["subscription.graceDays"].defaultValue,
+    3,
+  );
+  assert.deepEqual(
+    CONFIGURATION_DEFINITIONS["subscription.recordingAddon"].defaultValue,
+    { minutes: 60, priceCredit: 30 },
+  );
+  assert.deepEqual(
+    CONFIGURATION_DEFINITIONS["subscription.freeEntitlements"].defaultValue,
+    {
+      feeTier: null,
+      materialStorageBytes: "1000000000",
+      whiteboardRetentionDays: 30,
+      recordingMinutesPerPeriod: 0,
+      recordingRetentionDays: 30,
+      recordingAddonAllowed: false,
+    },
+  );
+  assert.throws(() => parseConfigurationValue("subscription.graceDays", 15));
+  assert.throws(() =>
+    parseConfigurationValue("subscription.recordingAddon", {
+      minutes: 0,
+      priceCredit: 30,
+    }),
+  );
+  // FREE never gets a fee tier or add-on minutes.
+  for (const patch of [{ feeTier: "PRO" }, { recordingAddonAllowed: true }])
+    assert.throws(() =>
+      parseConfigurationValue("subscription.freeEntitlements", {
+        ...CONFIGURATION_DEFINITIONS["subscription.freeEntitlements"]
+          .defaultValue,
+        ...patch,
+      }),
+    );
   // Retention must outlast the longest edit window (7 days).
   assert.throws(() => parseConfigurationValue("whiteboard.retentionDays", 7));
   assert.deepEqual(

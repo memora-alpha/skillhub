@@ -222,6 +222,7 @@ test("bootstrap grants only the chosen per-role actions and preserves existing g
       "material:create:self",
       "material:access",
       "reward:redeem",
+      "subscription:manage:self",
     ],
   );
   assert.deepEqual(
@@ -249,6 +250,8 @@ test("bootstrap grants only the chosen per-role actions and preserves existing g
       "material:moderate",
       "reward:redeem",
       "reward:manage",
+      "subscription:manage:self",
+      "subscription:read",
     ],
   );
   for (const permission of [
@@ -264,6 +267,10 @@ test("bootstrap grants only the chosen per-role actions and preserves existing g
     );
   }
   assert.ok(calls.grants.every(({ skipDuplicates }) => skipDuplicates));
+  // Spec 021: only Admin manages plan versions; Staff only read subscriptions.
+  assert.ok(grants.get("ADMIN")?.has("subscription:manage"));
+  assert.equal(grants.get("STAFF").has("subscription:manage"), false);
+  assert.equal(grants.get("USER").has("subscription:read"), false);
   assert.equal(grants.get("USER").has("chat-attachment:moderate"), false);
   assert.equal(grants.get("USER").has("skill-catalog:create"), false);
   assert.equal(grants.get("USER").has("learning-path:terminate"), false);

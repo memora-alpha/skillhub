@@ -48,16 +48,23 @@ model SessionRecording {
   failureCode       String?                     @map("failure_code") @db.VarChar(64)
   deletedAt         DateTime?                   @map("deleted_at") @db.Timestamptz(3)
   deletedByUserId   String?                     @map("deleted_by_user_id") @db.Uuid
+  // Spec 021 D11/D12: retention snapshot from the requester's plan at start (null = legacy row),
+  // the requester's subscription charged, and minutes charged once at egress_ended (null = not yet).
+  retentionDays     Int?                        @map("retention_days")
+  subscriptionId    String?                     @map("subscription_id") @db.Uuid
+  chargedMinutes    Int?                        @map("charged_minutes")
   createdAt         DateTime                    @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime                    @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   session     Session @relation("SessionRecording_session", fields: [sessionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   requestedBy User    @relation("SessionRecording_requested_by", fields: [requestedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   acceptedBy  User?   @relation("SessionRecording_accepted_by", fields: [acceptedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  subscription UserSubscription? @relation("SessionRecording_subscription", fields: [subscriptionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
   @@index([sessionId, requestedAt])
   @@index([status, requestedAt])
   @@index([requestedByUserId])
   @@index([acceptedByUserId])
+  @@index([subscriptionId])
   @@map("session_recordings")
 }

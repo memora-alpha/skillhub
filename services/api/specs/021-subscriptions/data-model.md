@@ -105,7 +105,6 @@ Add-on minutes carry across periods inside a term: the next period row copies `a
 | --------------------- | ----------------- | -------- | ----------------------------------------------------------- |
 | `session_whiteboards` | `retention_days`  | int?     | D10 snapshot raised on each save; null = legacy, use config |
 | `session_recordings`  | `retention_days`  | int?     | D12 snapshot at start; null = legacy, use config            |
-| `session_recordings`  | `charged_user_id` | uuid?    | requester charged for minutes                               |
 | `session_recordings`  | `charged_minutes` | int?     | set once at `egress_ended`; non-null = already charged      |
 | `session_recordings`  | `subscription_id` | uuid? FK | subscription charged                                        |
 

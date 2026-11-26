@@ -6,6 +6,8 @@ model SessionWhiteboard {
   // Excalidraw scene { elements, appState?, files? }; size is bounded by the service.
   sceneData       Json     @map("scene_data")
   sceneBytes      Int      @map("scene_bytes")
+  // Spec 021 D10: raised on each save to the highest plan value of both participants; null = legacy row.
+  retentionDays   Int?     @map("retention_days")
   updatedByUserId String   @map("updated_by_user_id") @db.Uuid
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)

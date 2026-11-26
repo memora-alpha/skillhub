@@ -213,6 +213,18 @@ export const PERMISSION_CATALOG = [
     code: "learning-path:read:admin",
     description: "Read administrative learning path projections",
   },
+  {
+    code: "subscription:manage:self",
+    description: "Buy, change and cancel own subscription with Credit",
+  },
+  {
+    code: "subscription:read",
+    description: "Read subscriptions, usage and subscription charges",
+  },
+  {
+    code: "subscription:manage",
+    description: "Draft, approve and retire subscription plan versions",
+  },
 ] as const;
 
 export type PermissionCode = (typeof PERMISSION_CATALOG)[number]["code"];

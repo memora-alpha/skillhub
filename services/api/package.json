@@ -21,6 +21,7 @@
     "chat:backfill-activity": "nest build && node scripts/backfill-chat-activity.mjs",
     "test:inbox-groups": "nest build && node --test test/connections/inbox-groups*.test.mjs",
     "test:connections": "nest build && node --test test/connections/*.test.mjs",
+    "test:subscriptions": "nest build && node --test test/subscriptions/*.test.mjs",
     "test:rewards": "nest build && node --test test/rewards/rewards.test.mjs",
     "test:rewards:integration": "node test/require-integration-env.mjs && nest build && node --test --test-concurrency=1 test/rewards/rewards.integration.test.mjs test/rewards/seed.integration.test.mjs",
     "test:credit": "nest build && node --test test/credit/money.test.mjs test/credit/cursor.test.mjs test/credit/adjustment-service.test.mjs",

@@ -11,11 +11,11 @@
 
 ## Phase 1 — Foundation
 
-- [ ] T001 `prisma/subscription-support.prisma`, enum overlays and back-relations in `scripts/generate-runtime-schema.mjs`
-- [ ] T002 Migration: tables, CHECKs, partial unique index for ACTIVE/GRACE per user, new columns on `session_whiteboards` and `session_recordings`
-- [ ] T003 Config keys `subscription.enabled`, `.graceDays`, `.renewalRetryHours`, `.recordingAddon`, `.freeEntitlements` (+ configuration test)
-- [ ] T004 Permissions `subscription:manage:self`, `subscription:read`, `subscription:manage` and role maps (+ access test)
-- [ ] T005 `domain/plan-entitlements.ts` and `domain/subscription.policy.ts`: period start, proration, transitions, with unit tests
+- [x] T001 `prisma/subscription-support.prisma`, enum overlays and back-relations in `scripts/generate-runtime-schema.mjs`
+- [x] T002 Migration: tables, CHECKs, partial unique index for ACTIVE/GRACE per user, new columns on `session_whiteboards` and `session_recordings`
+- [x] T003 Config keys `subscription.enabled`, `.graceDays`, `.renewalRetryHours`, `.recordingAddon`, `.freeEntitlements` (+ configuration test)
+- [x] T004 Permissions `subscription:manage:self`, `subscription:read`, `subscription:manage` and role maps (+ access test)
+- [x] T005 `domain/plan-entitlements.ts` and `domain/subscription.policy.ts`: period start, proration, transitions, with unit tests
 
 ## Phase 2 — Core
 
