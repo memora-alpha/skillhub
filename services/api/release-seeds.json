@@ -19,6 +19,11 @@
       "id": "path-termination-plan-v2-20261106",
       "seeds": ["identity", "configuration"],
       "reason": "Grant formula-only path termination approval to Staff and initialize missing configuration defaults before operator activation of the agreed plan V2 policy."
+    },
+    {
+      "id": "session-whiteboard-20261125",
+      "seeds": ["identity", "configuration"],
+      "reason": "Grant USER the session whiteboard update permission and initialize the whiteboard edit window and retention defaults."
     }
   ]
 }

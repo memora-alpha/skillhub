@@ -20,7 +20,7 @@ Permission `session:read:participant` + Session membership.
 }
 ```
 
-`readOnlyReason` ∈ `SESSION_NOT_EDITABLE`, `WHITEBOARD_POLICY_NOT_READY`,
+`readOnlyReason` ∈ `SESSION_NOT_EDITABLE`, `SESSION_UNDER_REPORT`, `WHITEBOARD_POLICY_NOT_READY`,
 `EDIT_WINDOW_NOT_OPEN`, `EDIT_WINDOW_CLOSED`, or `null`. The edit window is computed for the
 caller (`whiteboard.editWindow`, see spec P1):
 
@@ -28,7 +28,8 @@ caller (`whiteboard.editWindow`, see spec P1):
   because the teacher may edit as soon as the Session is confirmed.
 - `editableUntil`: `max(join window close, endAt + afterEndMinutes)`. After it the board is frozen.
 - Both are `null` when the Session status freezes the board (`CANCELLED`, `DISPUTED`, `NO_SHOW`,
-  `MAKEUP_REQUIRED`) or the configuration is not ready.
+  `MAKEUP_REQUIRED`), when an `OPEN`, `UNDER_REVIEW` or `NEED_MORE_INFO` report targets or relates to
+  the Session (`SESSION_UNDER_REPORT`), or when the configuration is not ready.
 
 A read-only board still returns its last scene, so it can be reviewed after the Session.
 
@@ -48,15 +49,15 @@ Body limit: 2 MiB + 4 KiB for this route only.
 
 `200` → `{ "revision": 4, "updatedAt": "2026-11-02T10:05:00.000Z" }`
 
-| Status | message                                                              | details                                                                             |
-| ------ | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| 400    | validation message / `INVALID_WHITEBOARD_SCENE`                      | —                                                                                   |
-| 403    | `SESSION_ACCESS_DENIED`                                              | —                                                                                   |
-| 404    | `SESSION_NOT_FOUND`                                                  | —                                                                                   |
-| 409    | `WHITEBOARD_REVISION_CONFLICT`                                       | `{ currentRevision }`                                                               |
-| 409    | `WHITEBOARD_READ_ONLY`                                               | `{ reason }` (`SESSION_NOT_EDITABLE`, `EDIT_WINDOW_NOT_OPEN`, `EDIT_WINDOW_CLOSED`) |
-| 413    | `WHITEBOARD_SCENE_TOO_LARGE` (scene) or a body-parser 413 (raw body) | —                                                                                   |
-| 503    | `WHITEBOARD_POLICY_NOT_READY`                                        | —                                                                                   |
+| Status | message                                                              | details                                                                                                     |
+| ------ | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| 400    | validation message / `INVALID_WHITEBOARD_SCENE`                      | —                                                                                                           |
+| 403    | `SESSION_ACCESS_DENIED`                                              | —                                                                                                           |
+| 404    | `SESSION_NOT_FOUND`                                                  | —                                                                                                           |
+| 409    | `WHITEBOARD_REVISION_CONFLICT`                                       | `{ currentRevision }`                                                                                       |
+| 409    | `WHITEBOARD_READ_ONLY`                                               | `{ reason }` (`SESSION_NOT_EDITABLE`, `SESSION_UNDER_REPORT`, `EDIT_WINDOW_NOT_OPEN`, `EDIT_WINDOW_CLOSED`) |
+| 413    | `WHITEBOARD_SCENE_TOO_LARGE` (scene) or a body-parser 413 (raw body) | —                                                                                                           |
+| 503    | `WHITEBOARD_POLICY_NOT_READY`                                        | —                                                                                                           |
 
 ## `GET /api/v1/sessions/:sessionId/whiteboard/staff-review?caseId=<uuid>`
 

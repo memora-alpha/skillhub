@@ -205,6 +205,7 @@ function materialLifecycleDetails(
 
 const whiteboardReadOnlyReasons = new Set([
   "SESSION_NOT_EDITABLE",
+  "SESSION_UNDER_REPORT",
   "EDIT_WINDOW_NOT_OPEN",
   "EDIT_WINDOW_CLOSED",
 ]);

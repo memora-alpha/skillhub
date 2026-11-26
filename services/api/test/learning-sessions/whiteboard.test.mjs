@@ -473,8 +473,16 @@ test("error filter exposes only whitelisted whiteboard details", () => {
     }),
     host,
   );
+  filter.catch(
+    new ConflictException({
+      message: "WHITEBOARD_READ_ONLY",
+      reason: "SESSION_UNDER_REPORT",
+    }),
+    host,
+  );
   assert.deepEqual(sent[0].body.details, { currentRevision: 4 });
   assert.deepEqual(sent[1].body.details, { reason: "EDIT_WINDOW_CLOSED" });
   assert.equal(sent[2].body.details, undefined);
+  assert.deepEqual(sent[3].body.details, { reason: "SESSION_UNDER_REPORT" });
   assert.ok(sent.every(({ code }) => code === 409));
 });
