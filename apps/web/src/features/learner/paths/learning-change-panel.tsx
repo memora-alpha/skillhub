@@ -38,6 +38,7 @@ export function LearningChangePanel({
   const [reason, setReason] = useState("");
   const [composing, setComposing] = useState(false);
   const [note, setNote] = useState("");
+  const [escalateReason, setEscalateReason] = useState("");
   const submitted = useRef<{ reason: string; expectedStartAt?: string } | null>(
     null,
   );
@@ -86,11 +87,20 @@ export function LearningChangePanel({
     const body = {
       expectedVersion: row.version,
       ...(action === "response" ? { accept, note: note.trim() } : {}),
-      ...(action === "escalate" ? { reason: note.trim() } : {}),
+      ...(action === "escalate" ? { reason: escalateReason.trim() } : {}),
     };
-    await decision.run(JSON.stringify({ id: row.id, action, body }), () =>
-      request(endpoint + "/" + row.id + "/" + action, { method: "POST", body }),
+    const result = await decision.run(
+      JSON.stringify({ id: row.id, action, body }),
+      () =>
+        request(endpoint + "/" + row.id + "/" + action, {
+          method: "POST",
+          body,
+        }),
     );
+    if (result) {
+      if (action === "response") setNote("");
+      if (action === "escalate") setEscalateReason("");
+    }
     query.reload();
   }
   if (!canRequest && query.data?.length === 0 && !query.error) return null;
@@ -253,6 +263,7 @@ export function LearningChangePanel({
             </>
           )}
           {["ACCEPTED", "STAFF_REVIEW"].includes(row.status) &&
+            !row.approvedAt &&
             row.requesterId === actor.userId && (
               <LoadingButton
                 type="button"
@@ -266,30 +277,32 @@ export function LearningChangePanel({
                 Rút yêu cầu chưa thực thi
               </LoadingButton>
             )}
-          {!sessionId && ["PENDING", "ACCEPTED"].includes(row.status) && (
-            <div className="learner-form">
-              <label>
-                <span>Lý do cần nhân sự hỗ trợ</span>
-                <textarea
-                  value={note}
-                  maxLength={1000}
-                  disabled={disabled}
-                  onChange={(e) => setNote(e.target.value)}
-                />
-              </label>
-              <LoadingButton
-                type="button"
-                className="btn"
-                disabled={disabled || note.trim().length < 3}
-                onClick={() => void act(row, "escalate")}
-                loading={
-                  !!(query.loading || create.pending || decision.pending)
-                }
-              >
-                Chuyển nhân sự xem xét
-              </LoadingButton>
-            </div>
-          )}
+          {!sessionId &&
+            !row.approvedAt &&
+            ["PENDING", "ACCEPTED"].includes(row.status) && (
+              <div className="learner-form">
+                <label>
+                  <span>Lý do cần nhân sự hỗ trợ</span>
+                  <textarea
+                    value={escalateReason}
+                    maxLength={1000}
+                    disabled={disabled}
+                    onChange={(e) => setEscalateReason(e.target.value)}
+                  />
+                </label>
+                <LoadingButton
+                  type="button"
+                  className="btn"
+                  disabled={disabled || escalateReason.trim().length < 3}
+                  onClick={() => void act(row, "escalate")}
+                  loading={
+                    !!(query.loading || create.pending || decision.pending)
+                  }
+                >
+                  Chuyển nhân sự xem xét
+                </LoadingButton>
+              </div>
+            )}
         </article>
       ))}
       {decision.uncertain && (

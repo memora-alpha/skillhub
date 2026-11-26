@@ -67,6 +67,13 @@ export function TerminationPreview({ pathId }: Readonly<{ pathId: string }>) {
                 <dd>{row.refund} CR</dd>
                 <dt>Trả cho bên còn lại</dt>
                 <dd>{row.counterpartyPayment} CR</dd>
+                {row.compensationCredit &&
+                  !/^0(?:\.0+)?$/.test(row.compensationCredit) && (
+                    <>
+                      <dt>Bồi hoàn theo kết luận</dt>
+                      <dd>{row.compensationCredit} CR</dd>
+                    </>
+                  )}
                 <dt>Phí nền tảng</dt>
                 <dd>{row.platformFee} CR</dd>
               </dl>

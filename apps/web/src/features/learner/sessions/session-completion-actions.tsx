@@ -23,6 +23,8 @@ export function SessionCompletionActions({
   const { request } = useUserSession();
   const command = useUserCommand();
   const [confirm, setConfirm] = useState(false);
+  const [completionNote, setCompletionNote] = useState("");
+  const [decisionNote, setDecisionNote] = useState("");
   const allowed = session.allowedActions ?? [];
   const disabled = blocked || command.pending || command.uncertain;
   return (
@@ -33,22 +35,37 @@ export function SessionCompletionActions({
             event.preventDefault();
             if (!confirm) return;
             void command
-              .run("complete:" + session.id, async () => {
-                const fresh = (
-                  await request<LearningSession>("sessions/" + session.id)
-                ).data;
-                if (!fresh.allowedActions?.includes("CONFIRM_COMPLETION"))
-                  throw new UserApiError(409, "SESSION_CANNOT_BE_COMPLETED");
-                return request(
-                  "sessions/" + session.id + "/confirm-completion",
-                  { method: "POST", body: {} },
-                );
-              })
+              .run(
+                "complete:" + session.id + ":" + completionNote,
+                async () => {
+                  const fresh = (
+                    await request<LearningSession>("sessions/" + session.id)
+                  ).data;
+                  if (!fresh.allowedActions?.includes("CONFIRM_COMPLETION"))
+                    throw new UserApiError(409, "SESSION_CANNOT_BE_COMPLETED");
+                  return request(
+                    "sessions/" + session.id + "/confirm-completion",
+                    { method: "POST", body: { note: completionNote.trim() } },
+                  );
+                },
+              )
               .then((result) => {
-                if (result) setConfirm(false);
+                if (result) {
+                  setConfirm(false);
+                  setCompletionNote("");
+                }
               });
           }}
         >
+          <label>
+            Ghi chú hoàn thành (không bắt buộc)
+            <textarea
+              maxLength={1000}
+              value={completionNote}
+              disabled={disabled}
+              onChange={(event) => setCompletionNote(event.target.value)}
+            />
+          </label>
           <label className={styles.checkbox}>
             <input
               type="checkbox"
@@ -115,6 +132,15 @@ export function SessionCompletionActions({
       )}
       {allowed.includes("DECIDE_EXCUSE") && (
         <div className={styles.decisions}>
+          <label>
+            Ghi chú quyết định (không bắt buộc)
+            <textarea
+              maxLength={1000}
+              value={decisionNote}
+              disabled={disabled}
+              onChange={(event) => setDecisionNote(event.target.value)}
+            />
+          </label>
           {[true, false].map((accept) => (
             <LoadingButton
               type="button"
@@ -122,11 +148,16 @@ export function SessionCompletionActions({
               key={String(accept)}
               disabled={disabled}
               onClick={() => {
-                void command.run("decide:" + session.id + ":" + accept, () =>
-                  request(
-                    "sessions/" + session.id + "/absence-excuse/decision",
-                    { method: "POST", body: { accept } },
-                  ),
+                void command.run(
+                  "decide:" + session.id + ":" + accept + ":" + decisionNote,
+                  () =>
+                    request(
+                      "sessions/" + session.id + "/absence-excuse/decision",
+                      {
+                        method: "POST",
+                        body: { accept, note: decisionNote.trim() },
+                      },
+                    ),
                 );
               }}
               loading={!!command.pending}

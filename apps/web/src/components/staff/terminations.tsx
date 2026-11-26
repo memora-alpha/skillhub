@@ -414,10 +414,12 @@ function TerminationDetail({
   const canExecute =
     hasTerminatePermission &&
     review &&
-    !review.blockedByDispute &&
+    !review.approvedAt &&
     !review.awaitingPolicy &&
     !!review.execution.policyReference &&
-    review.execution.quote.status === "READY" &&
+    !review.execution.quote.reasonCodes.includes(
+      "TERMINATION_USE_FINAL_SETTLEMENT",
+    ) &&
     ["ACCEPTED", "STAFF_REVIEW"].includes(review.status);
   return (
     <TerminationFrame
@@ -497,7 +499,10 @@ function TerminationDetail({
             </AdminNotice>
           )}
           {review.blockedByDispute && (
-            <p className="staff-error">Tranh chấp đang chặn thực thi.</p>
+            <p className="muted">
+              Tranh chấp đang chặn phân bổ Credit. Có thể chấp thuận dừng trước;
+              máy chủ chỉ hoàn tất phân bổ khi đủ điều kiện.
+            </p>
           )}
           <form
             className="staff-termination-form"
@@ -676,7 +681,7 @@ function TerminationDetail({
           {intent && (
             <div className="staff-held">
               <h3>Xác nhận phương án đã kiểm tra</h3>
-              {intent.allocations.map((a) => (
+              {intent.allocations?.map((a) => (
                 <p className="staff-wrap" key={a.allocationId}>
                   {a.allocationId}: hoàn {a.refund} · trả{" "}
                   {a.counterpartyPayment} · phí {a.platformFee} CR
@@ -684,8 +689,9 @@ function TerminationDetail({
               ))}
               <p>Lý do: {intent.reason}</p>
               <p>
-                Quyết định sẽ cập nhật lộ trình và Credit. Máy chủ kiểm tra lại
-                quyền, chính sách, Held và tranh chấp.
+                {intent.allocations
+                  ? "Máy chủ sẽ kiểm tra lại quyền, chính sách, Held và tranh chấp trước khi cập nhật lộ trình và phân bổ Credit."
+                  : "Chấp thuận dừng lộ trình trước. Credit tiếp tục được giữ cho đến khi máy chủ xác nhận đủ điều kiện phân bổ."}
               </p>
               <LoadingButton
                 type="button"

@@ -20,7 +20,8 @@ export function SessionReschedule({
 }>) {
   const { request, actor } = useUserSession(),
     command = useUserCommand(),
-    [error, setError] = useState<string>();
+    [error, setError] = useState<string>(),
+    [revising, setRevising] = useState(false);
   const schedule = path.plans.find(
     (plan) => plan.id === session.planId,
   )?.schedule;
@@ -91,7 +92,7 @@ export function SessionReschedule({
   }
   return (
     <div className="learner-stack">
-      {pending ? (
+      {pending && !revising ? (
         <>
           <div className={styles.inset}>
             <strong>Lịch đề xuất đang chờ hai bên xác nhận</strong>
@@ -127,6 +128,14 @@ export function SessionReschedule({
             </div>
           </dl>
           <output className="muted">{confirmationMessage()}</output>
+          <button
+            type="button"
+            className="btn"
+            disabled={blocked}
+            onClick={() => setRevising(true)}
+          >
+            Đề xuất thời gian khác
+          </button>
           <LoadingButton
             type="button"
             className="btn btn-primary"
@@ -186,12 +195,16 @@ export function SessionReschedule({
                   Date.parse(startAt) + duration * 60000,
                 ).toISOString(),
               };
-              void command.run(JSON.stringify(body), () =>
-                request("sessions/" + session.id + "/reschedule-proposals", {
-                  method: "POST",
-                  body,
-                }),
-              );
+              void command
+                .run(JSON.stringify(body), () =>
+                  request("sessions/" + session.id + "/reschedule-proposals", {
+                    method: "POST",
+                    body,
+                  }),
+                )
+                .then((result) => {
+                  if (result) setRevising(false);
+                });
             } catch (cause) {
               setError(
                 cause instanceof Error ? cause.message : "Lịch chưa hợp lệ.",
@@ -199,6 +212,22 @@ export function SessionReschedule({
             }
           }}
         >
+          {pending && (
+            <>
+              <p className="learner-notice">
+                Gửi giờ khác sẽ tạo phiên bản mới thay đề xuất đang chờ. Cả hai
+                cần xác nhận lại.
+              </p>
+              <button
+                type="button"
+                className="btn"
+                disabled={blocked}
+                onClick={() => setRevising(false)}
+              >
+                Về đề xuất đang chờ
+              </button>
+            </>
+          )}
           <label>
             <span>{makeup ? "Giờ học bù" : "Giờ mới"} (giờ Việt Nam)</span>
             <input
@@ -215,7 +244,10 @@ export function SessionReschedule({
               type="number"
               min={60}
               max={180}
-              defaultValue={60}
+              defaultValue={Math.round(
+                (Date.parse(session.endAt) - Date.parse(session.startAt)) /
+                  60000,
+              )}
               required
               disabled={blocked}
             />

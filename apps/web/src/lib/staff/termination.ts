@@ -44,7 +44,7 @@ export type TerminationDecision = {
   expectedExecutionDigest: string;
   policyReference: string;
   reason: string;
-  allocations: AllocationDecision[];
+  allocations?: AllocationDecision[];
 };
 function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value))
@@ -190,15 +190,18 @@ export function terminationDecision(
 ): TerminationDecision {
   if (
     review.kind !== "PATH_TERMINATION" ||
-    !["ACCEPTED", "STAFF_REVIEW"].includes(review.status) ||
-    review.blockedByDispute
+    !["ACCEPTED", "STAFF_REVIEW"].includes(review.status)
   )
     throw new Error("Yêu cầu chưa thể thực thi hoặc đang có tranh chấp.");
   if (!review.execution.policyReference || review.awaitingPolicy)
     throw new Error("Chưa có chính sách dừng lộ trình được duyệt.");
-  if (review.execution.quote.status !== "READY")
+  if (
+    review.execution.quote.reasonCodes.includes(
+      "TERMINATION_USE_FINAL_SETTLEMENT",
+    )
+  )
     throw new Error(
-      "Cần xử lý điểm danh hoặc vụ việc còn mở trước khi phân bổ Credit.",
+      "Lộ trình đã hoàn tất; hãy sử dụng quy trình quyết toán cuối cùng.",
     );
   if (
     !/^[a-f0-9]{64}$/.test(review.execution.digest) ||
@@ -208,10 +211,18 @@ export function terminationDecision(
     throw new Error("Phiên bản xem xét không hợp lệ.");
   if (reason.trim().length < 3 || reason.trim().length > 1000)
     throw new Error("Lý do cần từ 3 đến 1.000 ký tự.");
+  if (review.execution.quote.status === "BLOCKED")
+    return {
+      expectedVersion: review.version,
+      expectedExecutionDigest: review.execution.digest,
+      policyReference: review.execution.policyReference,
+      reason: reason.trim(),
+    };
   if (
-    !allocations.length ||
     allocations.length > 2 ||
-    allocations.length !== review.execution.allocations.length ||
+    (review.execution.quote.status === "READY" &&
+      allocations.length !== review.execution.allocations.length) ||
+    allocations.length !== review.execution.quote.allocations.length ||
     new Set(allocations.map((a) => a.allocationId)).size !== allocations.length
   )
     throw new Error("Cần phân bổ đúng một lần cho mọi khoản Held.");
@@ -245,6 +256,8 @@ export function terminationDecision(
     expectedExecutionDigest: review.execution.digest,
     policyReference: review.execution.policyReference,
     reason: reason.trim(),
-    allocations: allocations.map((a) => ({ ...a })),
+    ...(allocations.length
+      ? { allocations: allocations.map((a) => ({ ...a })) }
+      : {}),
   };
 }

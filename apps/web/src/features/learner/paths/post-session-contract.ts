@@ -37,14 +37,17 @@ export function readSettlementStatus(
 export function readConsentReceipt(value: unknown, pathId: string) {
   const v = value as {
     pathId: string;
-    approvedAt: string;
+    approvedAt: string | null;
     bothApproved: boolean;
     settlement: { outcome: string };
   } | null;
+  const validApprovedAt =
+    v?.approvedAt === null ||
+    (typeof v?.approvedAt === "string" &&
+      Number.isFinite(Date.parse(v.approvedAt)));
   if (
     v?.pathId !== pathId ||
-    typeof v.approvedAt !== "string" ||
-    !Number.isFinite(Date.parse(v.approvedAt)) ||
+    !validApprovedAt ||
     typeof v.bothApproved !== "boolean" ||
     !["SETTLED", "WAITING", "RETRYING", "NEEDS_REVIEW"].includes(
       v.settlement?.outcome,
@@ -78,6 +81,7 @@ export type LearningChange = {
   expiresAt: string;
   occurrenceStartAt: string | null;
   responseNote: string | null;
+  approvedAt?: string | null;
   blockedByDispute: boolean;
   awaitingPolicy: boolean;
   resolution: { outcome?: string; creditPenalty?: string } | null;
@@ -116,6 +120,8 @@ export type PathReview = {
   revieweeId: string;
   rating: number;
   comment: string | null;
+  hiddenAt?: string | null;
+  publicationState?: "PENDING" | "REJECTED" | null;
   createdAt: string;
 };
 export function checkedReviews(

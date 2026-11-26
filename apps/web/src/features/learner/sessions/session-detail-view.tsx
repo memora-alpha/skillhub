@@ -234,6 +234,7 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
                                   ? "Hạn báo cáo kết quả điểm danh"
                                   : "Hạn giải trình / báo cáo vắng",
                               makeupBy: "Hạn chốt lịch học bù",
+                              reportBy: "Hạn gửi báo cáo buổi học",
                             }[key]
                           }
                         </dt>
