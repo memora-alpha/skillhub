@@ -16,7 +16,9 @@ export async function proxyEvents(
         headers: { "Cache-Control": "no-store" },
       },
     );
-  const cursor = request.headers.get("last-event-id");
+  const cursor =
+    request.headers.get("last-event-id") ??
+    new URL(request.url).searchParams.get("cursor");
   if (cursor && (cursor.length > 1024 || /[\r\n\0]/.test(cursor)))
     return failure(400, "INVALID_EVENT_CURSOR");
   const abort = new AbortController();

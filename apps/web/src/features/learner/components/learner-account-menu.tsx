@@ -9,8 +9,8 @@ import styles from "./learner-account-menu.module.css";
 
 const accountLinks = [
   ["/learn/profile", "Hồ sơ & cài đặt tài khoản", "user"],
-  ["/learn/skills", "Kỹ năng chia sẻ & xác minh", "check"],
-  ["/learn/reputation", "Uy tín & phục hồi", "shield"],
+  ["/learn/skills", "Kỹ năng & xác minh", "check"],
+  ["/learn/reputation", "Điểm uy tín", "shield"],
   ["/learn/achievements", "Thành tích & danh hiệu", "award"],
   ["/learn/tag-requests", "Đề xuất tag của tôi", "book"],
   ["/learn/materials/mine", "Tài liệu của tôi", "file"],

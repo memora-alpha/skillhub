@@ -14,6 +14,7 @@ import { findInPages } from "../api/find-page";
 import { vietnamDateKey } from "@/lib/vietnam-time";
 import { MessageComposer } from "./message-composer";
 import { ChatMessage } from "./chat-message";
+import { useMessageRecovery } from "./use-message-recovery";
 import { ChatAgreementDialog } from "./chat-agreement-dialog";
 import styles from "./chat.module.css";
 
@@ -29,6 +30,10 @@ function compareMessages(left: Message, right: Message) {
   return 0;
 }
 export function ChatScreen({ id }: Readonly<{ id: string }>) {
+  const { actor } = useUserSession();
+  return <ChatThread key={`${actor.userId}:${id}`} id={id} />;
+}
+function ChatThread({ id }: Readonly<{ id: string }>) {
   const cache = useQueryClient();
   const conversation = useUserResource<Conversation>("conversations/" + id),
     messages = useUserList<Message>(
@@ -42,9 +47,20 @@ export function ChatScreen({ id }: Readonly<{ id: string }>) {
   const [creating, setCreating] = useState(false),
     [opening, setOpening] = useState(false),
     [error, setError] = useState<string>();
+  const recovery = useMessageRecovery(id, messages.items);
   const rows = useMemo(
-      () => [...messages.items].sort(compareMessages),
-      [messages.items],
+      () =>
+        [
+          ...new Map(
+            [
+              ...(messages.error && !messages.items.length
+                ? []
+                : recovery.recovered),
+              ...messages.items,
+            ].map((row) => [row.id, row]),
+          ).values(),
+        ].sort(compareMessages),
+      [messages.items, messages.error, recovery.recovered],
     ),
     latest = rows.at(-1)?.id;
   useEffect(() => {
@@ -190,6 +206,7 @@ export function ChatScreen({ id }: Readonly<{ id: string }>) {
             </LoadingButton>
           </header>
           <Feedback error={error} />
+          <Feedback error={recovery.error} reload={recovery.retry} />
           <Feedback error={proposal.error} reload={proposal.reload} />
           <div
             ref={timeline}
@@ -249,6 +266,9 @@ export function ChatScreen({ id }: Readonly<{ id: string }>) {
                     partner={partner}
                     showAvatar={!sameNext}
                     showTime={!sameNext}
+                    onOpenAgreement={() => {
+                      void openAgreement();
+                    }}
                   />
                 </div>
               );

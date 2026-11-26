@@ -1,6 +1,7 @@
 export function eventAffectsResource(path: unknown, event: string) {
   if (typeof path !== "string") return false;
-  if (event === "resync-required") return true;
+  if (event === "stream.reset-required" || event === "resync-required")
+    return true;
   if (event.startsWith("report."))
     return ["reports", "learning-paths"].some((prefix) =>
       path.startsWith(prefix),
@@ -23,9 +24,12 @@ export function eventAffectsResource(path: unknown, event: string) {
       (prefix) => path.startsWith(prefix),
     );
   if (event.startsWith("proposal."))
-    return ["proposals", "conversations", "learning-requests"].some((prefix) =>
-      path.startsWith(prefix),
-    );
+    return [
+      "proposals",
+      "post-proposal",
+      "conversations",
+      "learning-requests",
+    ].some((prefix) => path.startsWith(prefix));
   if (event.startsWith("notification."))
     return [
       "notifications",

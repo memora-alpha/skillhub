@@ -94,10 +94,7 @@ function NotificationSession({ children }: Readonly<{ children: ReactNode }>) {
           hydration.reset();
         setLive("unavailable");
         failures++;
-        if (
-          failures <= 6 &&
-          !(error instanceof StaffApiError && error.status === 403)
-        )
+        if (!(error instanceof StaffApiError && error.status === 403))
           timer = setTimeout(() => {
             void connect();
           }, reconnectDelay(failures));

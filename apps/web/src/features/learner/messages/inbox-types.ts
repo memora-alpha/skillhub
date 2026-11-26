@@ -22,6 +22,9 @@ export function inboxGroupSummary(group: InboxGroup) {
   const chats = `${group.conversationCount} đoạn chat`;
   if (group.viewerRole === "OWNER" && group.receivedProposalCount !== null)
     return `${group.receivedProposalCount} đề nghị nhận được · ${chats}`;
-  if (group.viewerRole === "PROPOSER") return `Đã gửi đề nghị · ${chats}`;
+  if (group.viewerRole === "PROPOSER")
+    return group.sentProposalCount !== null && group.sentProposalCount > 0
+      ? `${group.sentProposalCount} đề nghị đã gửi · ${chats}`
+      : `Đã gửi đề nghị · ${chats}`;
   return chats;
 }

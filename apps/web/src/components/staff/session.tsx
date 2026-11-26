@@ -12,6 +12,8 @@ import {
 import { staffApi, StaffApiError, type PortalApi } from "@/lib/staff/client";
 import type { Portal } from "@/lib/staff/policy";
 import type { StaffIdentity } from "@/lib/staff/types";
+import { endAllLoginSessions } from "@/features/auth/session-client";
+import { disableWebPush } from "@/features/learner/notifications/web-push";
 import { announceSessionChange } from "@/features/auth/session-sync";
 type Session = {
   portal: Portal;
@@ -22,6 +24,7 @@ type Session = {
   busy: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  logoutAll: () => Promise<void>;
   refresh: () => void;
   expire: () => void;
 };
@@ -102,12 +105,22 @@ export function StaffSessionProvider({
   );
   const logout = useCallback(async () => {
     await perform(async () => {
+      await disableWebPush(actor?.userId, api).catch(() => undefined);
       await api<null>("session", { method: "DELETE" });
       announceSessionChange();
       setActor(null);
       setError(null);
     });
-  }, [api, perform]);
+  }, [api, perform, actor?.userId]);
+  const logoutAll = useCallback(async () => {
+    await perform(async () => {
+      await disableWebPush(actor?.userId, api).catch(() => undefined);
+      await endAllLoginSessions();
+      announceSessionChange();
+      setActor(null);
+      setError(null);
+    });
+  }, [api, perform, actor?.userId]);
   const refresh = useCallback(() => {
     setLoading(true);
     setRevision((v) => v + 1);
@@ -122,10 +135,23 @@ export function StaffSessionProvider({
       busy,
       login,
       logout,
+      logoutAll,
       expire,
       refresh,
     }),
-    [portal, api, actor, loading, error, busy, login, logout, expire, refresh],
+    [
+      portal,
+      api,
+      actor,
+      loading,
+      error,
+      busy,
+      login,
+      logout,
+      logoutAll,
+      expire,
+      refresh,
+    ],
   );
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

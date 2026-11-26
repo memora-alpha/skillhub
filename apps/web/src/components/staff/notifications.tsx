@@ -1,4 +1,5 @@
 "use client";
+import { StaffNotificationTools } from "./notification-tools";
 import { LoadingButton } from "@/components/loading-button";
 import { LoadingSkeleton } from "@/components/loading-skeleton";
 import { useState } from "react";
@@ -50,6 +51,7 @@ export function NotificationsScreen() {
           </LoadingButton>
         }
       />
+      <StaffNotificationTools />
       <div className="ops-tabbar">
         <Segmented
           label="Lọc thông báo"
