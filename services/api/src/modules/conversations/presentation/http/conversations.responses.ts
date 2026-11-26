@@ -9,13 +9,28 @@ export class ConversationResponse {
   @ApiProperty({ type: String, format: "date-time" }) createdAt!: Date;
   @ApiProperty({ type: String, format: "date-time" }) lastActivityAt!: Date;
 }
-export class MessageAttachmentResponse {
+export class ChatAttachmentMetadataResponse {
+  @ApiProperty({ enum: ["IMAGE", "DOCUMENT"] }) attachmentType!: string;
+  @ApiProperty({ type: Number, nullable: true }) width!: number | null;
+  @ApiProperty({ type: Number, nullable: true }) height!: number | null;
+  @ApiProperty({
+    enum: ["PENDING_SCAN", "AVAILABLE", "REVOKED", "UNAVAILABLE"],
+  })
+  accessStatus!: string;
+  @ApiProperty({
+    enum: ["PENDING", "APPROVED", "REVIEW_REQUIRED", "BLOCKED", "FAILED"],
+  })
+  moderationStatus!: string;
+}
+export class MessageAttachmentResponse extends ChatAttachmentMetadataResponse {
   @ApiProperty({ format: "uuid" }) attachmentId!: string;
   @ApiProperty({ format: "uuid" }) fileId!: string;
   @ApiProperty() filename!: string;
   @ApiProperty() mimeType!: string;
   @ApiProperty({ type: Number }) fileSizeBytes!: number;
   @ApiProperty() downloadUrlEndpoint!: string;
+  @ApiPropertyOptional() previewUrlEndpoint?: string;
+  @ApiPropertyOptional() thumbnailUrlEndpoint?: string;
   @ApiPropertyOptional({
     enum: ["PENDING_SCAN", "AVAILABLE", "REVOKED", "UNAVAILABLE"],
   })
@@ -56,12 +71,13 @@ export class ChatFileUploadResponse {
   @ApiProperty({ format: "uuid" }) fileId!: string;
   @ApiProperty({ enum: ["QUARANTINED"] }) state!: string;
 }
-export class ChatFileStatusResponse {
+export class ChatFileStatusResponse extends ChatAttachmentMetadataResponse {
   @ApiProperty({ format: "uuid" }) fileId!: string;
   @ApiProperty() state!: string;
   @ApiProperty({ type: Number }) generation!: number;
-  @ApiPropertyOptional({ enum: ["PENDING", "REVIEW_REQUIRED", "FAILED"] })
-  moderationStatus?: string;
+  @ApiProperty() canAttach!: boolean;
+  @ApiProperty({ type: String, nullable: true }) mimeType!: string | null;
+  @ApiProperty({ type: Number, nullable: true }) fileSizeBytes!: number | null;
   @ApiPropertyOptional({
     enum: ["PENDING_SCAN", "AVAILABLE", "REVOKED", "UNAVAILABLE"],
   })

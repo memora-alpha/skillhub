@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Controller,
   Get,
+  Logger,
   OnModuleDestroy,
   Req,
   Res,
@@ -33,6 +34,7 @@ import { decodeCursor, encodeCursor } from "../../domain/event-cursor";
 @UseGuards(IdentityGuard)
 @Controller({ path: "events", version: "1" })
 export class EventsController implements OnModuleDestroy {
+  private readonly logger = new Logger(EventsController.name);
   private readonly active = new Set<() => void>();
   private readonly secret: string;
   constructor(
@@ -129,6 +131,19 @@ export class EventsController implements OnModuleDestroy {
             ? `id: ${id()}\nevent: ${row.type}\ndata: ${JSON.stringify({ eventId: row.eventId, version: row.version, occurredAt: row.occurredAt, data: row.payload })}\n\n`
             : `id: ${id()}\nevent: stream.checkpoint\ndata: {}\n\n`,
         );
+        if (
+          visible &&
+          ready &&
+          !closed &&
+          row.type === "chat.attachment.availability.updated"
+        ) {
+          this.logger.log({
+            realtime_event_dispatch_duration_ms: Math.max(
+              0,
+              Date.now() - row.occurredAt.getTime(),
+            ),
+          });
+        }
       }
     };
     const pump = async () => {

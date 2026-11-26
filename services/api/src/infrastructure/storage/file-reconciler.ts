@@ -3,6 +3,7 @@ import {
   Logger,
   OnModuleDestroy,
   OnModuleInit,
+  Optional,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { ObjectStorage } from "./object-storage.port";
@@ -10,6 +11,7 @@ import type {
   CleanupCandidate,
   ReconciliationRepository,
 } from "./reconciliation-repository.port";
+import { FileContentModeration } from "./file-content-moderation";
 
 const UPLOAD_GRACE_MS = 24 * 60 * 60 * 1_000;
 
@@ -23,6 +25,7 @@ export class FileReconciler implements OnModuleInit, OnModuleDestroy {
     private readonly repository: ReconciliationRepository,
     private readonly objects: Pick<ObjectStorage, "remove">,
     private readonly config: ConfigService,
+    @Optional() private readonly moderation?: FileContentModeration,
   ) {}
 
   onModuleInit(): void {
@@ -30,6 +33,7 @@ export class FileReconciler implements OnModuleInit, OnModuleDestroy {
     this.timer = setInterval(() => {
       if (this.active) return;
       this.active = this.runOnce()
+        .then(() => this.moderation?.recheckLegacyChatFiles())
         .then(() => undefined)
         .catch(() => this.logger.error("File reconciliation failed"))
         .finally(() => {

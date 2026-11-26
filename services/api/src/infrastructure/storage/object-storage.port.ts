@@ -1,9 +1,17 @@
 import type { Readable } from "node:stream";
 
 export interface ObjectStorage {
-  put(key: string, body: Readable, mime: string): Promise<void>;
-  read(key: string): Promise<Readable>;
-  head(key: string): Promise<{ size: number; versionId?: string } | null>;
+  put(
+    key: string,
+    body: Readable,
+    mime: string,
+    signal?: AbortSignal,
+  ): Promise<void>;
+  read(key: string, signal?: AbortSignal): Promise<Readable>;
+  head(
+    key: string,
+    signal?: AbortSignal,
+  ): Promise<{ size: number; versionId?: string } | null>;
   remove(key: string): Promise<void>;
   signGet(
     key: string,

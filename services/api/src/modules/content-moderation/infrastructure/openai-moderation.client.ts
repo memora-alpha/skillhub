@@ -76,6 +76,7 @@ export class OpenAiModerationClient {
 
   async classify(
     input: ModerationProviderInput,
+    signal?: AbortSignal,
   ): Promise<ProviderClassification> {
     try {
       const apiKey = this.config.get<string>("OPENAI_API_KEY")?.trim();
@@ -103,7 +104,9 @@ export class OpenAiModerationClient {
             "content-type": "application/json",
           },
           redirect: "error",
-          signal: AbortSignal.timeout(requestTimeout),
+          signal: signal
+            ? AbortSignal.any([signal, AbortSignal.timeout(requestTimeout)])
+            : AbortSignal.timeout(requestTimeout),
           body: JSON.stringify({
             model: this.config.get(
               "CONTENT_MODERATION_MODEL",

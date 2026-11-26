@@ -105,12 +105,18 @@ import { FileContentModeration } from "./file-content-moderation";
     FileScanWorker,
     {
       provide: FileReconciler,
-      inject: [PrismaStoredFileRepository, OBJECT_STORAGE, ConfigService],
+      inject: [
+        PrismaStoredFileRepository,
+        OBJECT_STORAGE,
+        ConfigService,
+        FileContentModeration,
+      ],
       useFactory: (
         repository: PrismaStoredFileRepository,
         objects: ObjectStorage,
         config: ConfigService,
-      ) => new FileReconciler(repository, objects, config),
+        moderation: FileContentModeration,
+      ) => new FileReconciler(repository, objects, config, moderation),
     },
   ],
   exports: [

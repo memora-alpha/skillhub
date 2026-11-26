@@ -48,6 +48,7 @@ const schemas: Record<string, z.ZodType> = {
     fileId: id,
     conversationId: id,
     messageId: id,
+    stateRevision: sequence.optional(),
   }),
   "notification.created": notification,
   "notification.read": notification,

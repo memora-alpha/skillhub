@@ -1,4 +1,5 @@
 import { randomUUID, createHash } from "node:crypto";
+import { Logger } from "@nestjs/common";
 import { Readable, Transform } from "node:stream";
 import { supportsMediaModeration } from "../../modules/content-moderation/application/media-moderation.service";
 import type { Actor } from "../../shared/authorization/authorization.types";
@@ -12,6 +13,12 @@ import {
 import { FileStorageError, type FilePurpose } from "./file.types";
 import type { ObjectStorage } from "./object-storage.port";
 import type { StoredFileRepository } from "./stored-file.repository";
+import {
+  chatImageDimensions,
+  chatImageKey,
+  chatImageMime,
+  type ChatImageVariant,
+} from "./chat-image";
 
 export interface FileAccessPolicy {
   assertRead(input: {
@@ -22,6 +29,7 @@ export interface FileAccessPolicy {
 }
 
 export class FileStorageService {
+  private readonly logger = new Logger(FileStorageService.name);
   constructor(
     private readonly repository: StoredFileRepository,
     private readonly objects: ObjectStorage,
@@ -41,6 +49,7 @@ export class FileStorageService {
     body: Readable;
     context: { correlationId: string };
   }): Promise<{ fileId: string; state: "QUARANTINED" }> {
+    const uploadStarted = performance.now();
     const configuredCap = await this.configuredCapBytes(input.purpose);
     const cap =
       input.purpose === "EVIDENCE" && configuredCap
@@ -125,6 +134,10 @@ export class FileStorageService {
         sha256: inspected.sha256,
         correlationId: input.context.correlationId,
       });
+      this.logger.log({
+        upload_duration_ms: Math.round(performance.now() - uploadStarted),
+        purpose: input.purpose,
+      });
       return { fileId, state: "QUARANTINED" };
     } catch (error) {
       await this.repository.failUpload(fileId).catch(() => undefined);
@@ -147,6 +160,8 @@ export class FileStorageService {
     }
     const row = await this.repository.find(input.fileId);
     if (!row) throw new FileStorageError("FILE_NOT_FOUND", 404);
+    if (row.purpose === "CHAT")
+      throw new FileStorageError("FILE_NOT_FOUND", 404);
     if (row.state !== "READY")
       throw new FileStorageError("FILE_NOT_READY", 409);
     if (!row.detectedMime || !row.sizeBytes)
@@ -177,6 +192,29 @@ export class FileStorageService {
     if (object?.size !== size)
       throw new FileStorageError("FILE_OBJECT_MISMATCH", 503);
     return this.objects.read(key);
+  }
+
+  async readChatImage(
+    row: {
+      objectKey: string;
+      detectedMime: string | null;
+      moderationAssessment?: unknown;
+    },
+    variant: ChatImageVariant,
+  ) {
+    if (
+      !row.detectedMime?.startsWith("image/") ||
+      !chatImageDimensions(row.moderationAssessment)
+    )
+      throw new FileStorageError("FILE_NOT_FOUND", 404);
+    const key = chatImageKey(row.objectKey, variant);
+    const object = await this.objects.head(key);
+    if (!object?.size) throw new FileStorageError("FILE_NOT_FOUND", 404);
+    return {
+      stream: await this.objects.read(key),
+      size: object.size,
+      mime: chatImageMime,
+    };
   }
 
   private async configuredCapBytes(purpose: FilePurpose) {

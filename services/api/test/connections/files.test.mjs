@@ -31,7 +31,7 @@ function fixture(patch = {}) {
   };
   return { row, tx, service: new FileAttachmentService(tx) };
 }
-test("binding accepts only own READY/CLEAN CHAT and the same immutable message binding", async () => {
+test("binding accepts a finalized pending CHAT attachment and preserves immutable message binding", async () => {
   const f = fixture();
   await f.service.chatManifest(f.tx, owner, [f.row.id], messageId, true);
   assert.equal(f.row.resourceId, messageId);
@@ -47,7 +47,7 @@ test("binding accepts only own READY/CLEAN CHAT and the same immutable message b
   for (const patch of [
     { uploadedBy: randomUUID() },
     { purpose: "EVIDENCE" },
-    { state: "SCANNING" },
+    { state: "UPLOADING" },
     { scanVerdict: "INFECTED" },
     { sizeBytes: 15_000_001 },
   ]) {

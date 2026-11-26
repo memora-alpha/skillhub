@@ -78,6 +78,13 @@ export class OutboxDispatcher implements OnModuleInit, OnModuleDestroy {
     this.timer.unref();
   }
 
+  wake() {
+    if (this.stopping || !this.publishers.hasPublishers) return;
+    void this.dispatchBatch().catch(() =>
+      this.logger.error("Outbox dispatch failed"),
+    );
+  }
+
   async onModuleDestroy(): Promise<void> {
     this.stopping = true;
     if (this.timer) clearInterval(this.timer);

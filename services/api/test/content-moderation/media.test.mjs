@@ -311,6 +311,8 @@ test("a new policy version queues one recheck identity for the same file and gen
       sourceVersion: "3",
       digest: "checksum",
       profanityVersion: 2,
+      policyVersion: "skillhub-content-v2",
+      extractorRevision: 2,
     },
   };
   assert.equal(await service.resolveStatus(row), "READY");
