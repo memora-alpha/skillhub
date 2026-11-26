@@ -50,7 +50,7 @@ export function ChatSendFeedback({
         </Button>
       )}
       {sender.offline && (
-        <Copy muted>Đang ngoại tuyến · Tin nhắn sẽ gửi khi có mạng.</Copy>
+        <Copy muted>Mất kết nối mạng. Kết nối lại để tiếp tục trò chuyện.</Copy>
       )}
     </>
   );

@@ -1,7 +1,19 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Icon } from "@/components/Icon";
-import { appRadius, fonts, typography } from "@/constants/theme";
+import {
+  appRadius,
+  fonts,
+  typography,
+  colors as palette,
+} from "@/constants/theme";
 import { messageColors as colors } from "../constants/theme";
+import type { AttachmentAvailability } from "../api/message-contracts";
+import type { ChatFileStatus } from "../api/chat-attachment-contracts";
+import { chatAttachmentNoun, isChatImage } from "../utils/chat-attachment-kind";
+import {
+  canDownloadAttachment,
+  attachmentAvailabilityLabel,
+} from "../utils/attachment-availability";
 
 export function fileSizeLabel(bytes: number) {
   if (bytes < 1000) return `${bytes} B`;
@@ -11,27 +23,42 @@ export function fileSizeLabel(bytes: number) {
 
 export function ChatFileCard({
   filename,
+  mimeType,
   bytes,
   mine = false,
   pending = false,
   disabled = false,
+  availability,
+  moderationStatus,
   onPress,
 }: Readonly<{
   filename: string;
+  mimeType?: string;
   bytes: number;
   mine?: boolean;
   pending?: boolean;
   disabled?: boolean;
+  availability?: AttachmentAvailability;
+  moderationStatus?: ChatFileStatus["moderationStatus"];
   onPress?: () => void;
 }>) {
   const extension =
     /\.([a-z0-9]{1,10})$/i.exec(filename)?.[1]?.toUpperCase() ?? "TỆP";
-  const image = /^(JPG|JPEG|PNG|WEBP)$/.test(extension);
+  const image = isChatImage(mimeType);
+  const noun = chatAttachmentNoun(mimeType);
+  const available =
+    canDownloadAttachment(availability) &&
+    moderationStatus !== "REVIEW_REQUIRED";
+  const status =
+    availability === "PENDING_SCAN" && moderationStatus !== "REVIEW_REQUIRED"
+      ? undefined
+      : attachmentAvailabilityLabel(availability, mimeType, moderationStatus);
+  const canOpen = available && !!onPress;
   const content = (
     <>
       <View style={[styles.icon, mine && styles.myIcon]}>
         <Icon
-          name={image ? "image" : "file"}
+          name={image && availability !== "REVOKED" ? "image" : "file"}
           size={22}
           color={mine ? colors.brand : colors.sage}
         />
@@ -40,23 +67,41 @@ export function ChatFileCard({
         <Text numberOfLines={2} ellipsizeMode="middle" style={styles.name}>
           {filename}
         </Text>
-        <Text style={styles.meta}>
-          {pending ? "Đang mở tệp…" : `${extension} · ${fileSizeLabel(bytes)}`}
+        <Text
+          style={[
+            styles.meta,
+            !!status && styles.status,
+            (availability === "REVOKED" || availability === "UNAVAILABLE") &&
+              styles.unavailable,
+          ]}
+        >
+          {status ??
+            (pending
+              ? `Đang tải ${noun}…`
+              : `${extension} · ${fileSizeLabel(bytes)}`)}
         </Text>
       </View>
-      {!!onPress && <Icon name="download" size={18} color={colors.muted} />}
+      {canOpen && <Icon name="download" size={18} color={colors.muted} />}
     </>
   );
-  if (!onPress)
-    return <View style={[styles.card, mine && styles.mine]}>{content}</View>;
+  if (!canOpen)
+    return (
+      <View
+        accessible
+        accessibilityLabel={`${filename}${status ? `. ${status}` : ""}`}
+        style={[styles.card, mine && styles.mine]}
+      >
+        {content}
+      </View>
+    );
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Mở tệp ${filename}, ${fileSizeLabel(bytes)}`}
+      accessibilityLabel={`Tải ${noun} ${filename}, ${fileSizeLabel(bytes)}`}
       accessibilityState={{ disabled: disabled || pending, busy: pending }}
       disabled={disabled || pending}
       onPress={() => {
-        if (!disabled && !pending) onPress();
+        if (!disabled && !pending && available) onPress?.();
       }}
       style={({ pressed }) => [
         styles.card,
@@ -102,5 +147,7 @@ const styles = StyleSheet.create({
     color: colors.inkSoft,
   },
   pressed: { opacity: 0.75 },
+  status: { ...typography.secondary, fontFamily: fonts.semibold },
+  unavailable: { color: palette.error },
   disabled: { opacity: 0.65 },
 });

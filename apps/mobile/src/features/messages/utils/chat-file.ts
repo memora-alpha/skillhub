@@ -16,6 +16,8 @@ export type ChatFile = {
   mimeType?: string;
   size?: number;
   file?: File;
+  previewUri?: string;
+  cleanup?: () => void;
 };
 export function validateChatFile(file: ChatFile) {
   const parts = file.name.toLowerCase().split(".");

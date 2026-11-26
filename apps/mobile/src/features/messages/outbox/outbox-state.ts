@@ -3,6 +3,8 @@ import { parse } from "@/lib/http/contracts";
 import type { ApiMessage } from "../api/messages-api";
 import type { OutboxApi } from "./outbox-delivery";
 import { isContentRejection } from "../utils/chat-send-notice";
+import { isFinalAttachmentFailure } from "./attachment-errors";
+import { validateChatFile, type ChatFile } from "../utils/chat-file";
 import {
   queuedTextSchema,
   savedOutboxSchema,
@@ -31,6 +33,9 @@ export abstract class OutboxState {
     this.now = options.now ?? Date.now;
   }
   abstract wake(): void;
+  protected canRetry() {
+    return true;
+  }
   getSnapshot = () => this.snapshot;
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
@@ -74,20 +79,32 @@ export abstract class OutboxState {
       throw new AppError("storage");
     return (saved?.items ?? []).map((item): QueuedText => ({
       ...item,
-      state: item.state === "failed" ? "failed" : "queued",
+      state: item.attachment || item.state === "failed" ? "failed" : "queued",
+      ...(item.attachment && item.state !== "failed"
+        ? {
+            failure: "Lần gửi tệp bị gián đoạn. Bấm Thử lại để tiếp tục.",
+            failureCode: "CHAT_ATTACHMENT_INTERRUPTED",
+          }
+        : {}),
       retryAt: item.rateLimitedUntil ?? 0,
     }));
   }
-  enqueue(conversationId: string, messageText: string) {
+  enqueue(conversationId: string, messageText: string, file?: ChatFile) {
     if (!this.snapshot.ready || !this.options.current() || this.stopped)
       return false;
+    let attachment: QueuedText["attachment"];
+    if (file) {
+      const { mime, size } = validateChatFile(file);
+      attachment = { name: file.name, uri: file.uri, mimeType: mime, size };
+    }
     const body = queuedTextSchema.safeParse({
       clientMessageId: this.options.createId(),
       conversationId,
       messageText: messageText.trim(),
       createdAt: new Date(this.now()).toISOString(),
       state: "queued",
-      phase: "send",
+      phase: attachment ? "prepare" : "send",
+      ...(attachment ? { attachment } : {}),
       attempts: 0,
       retryAt: 0,
     });
@@ -110,7 +127,9 @@ export abstract class OutboxState {
     );
     if (
       item?.state !== "failed" ||
+      !this.canRetry() ||
       isContentRejection(item.failureCode) ||
+      isFinalAttachmentFailure(item.failureCode) ||
       !this.options.current() ||
       this.stopped
     )

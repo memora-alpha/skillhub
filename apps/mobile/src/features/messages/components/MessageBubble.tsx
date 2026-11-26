@@ -25,6 +25,7 @@ export function MessageBubble({
   showTime = false,
   showAvatar = true,
   failed = false,
+  attachmentNotice,
   children,
 }: {
   message: MessageBubbleModel;
@@ -34,10 +35,12 @@ export function MessageBubble({
   showTime?: boolean;
   showAvatar?: boolean;
   failed?: boolean;
+  attachmentNotice?: string;
   children?: ReactNode;
 }) {
   const { width } = useWindowDimensions();
   const mine = message.from === "me";
+  const noticeOnly = !!attachmentNotice && !message.text.trim() && !children;
   let bubbleWidth: ViewStyle["maxWidth"] = mine ? "82%" : "70%";
   if (width >= 768) bubbleWidth = "62%";
   return (
@@ -68,6 +71,7 @@ export function MessageBubble({
             !!children && styles.withFile,
             !!children && { minWidth: Math.min(240, Math.max(0, width - 80)) },
             !!children && !message.text.trim() && styles.fileOnly,
+            noticeOnly && styles.withdrawn,
           ]}
         >
           {!!message.text.trim() && (
@@ -80,13 +84,18 @@ export function MessageBubble({
             </Text>
           )}
           {children}
+          {!!attachmentNotice && (
+            <Text accessibilityLiveRegion="polite" style={styles.withdrawnText}>
+              {attachmentNotice}
+            </Text>
+          )}
         </View>
-        {mine && failed && (
+        {failed && (
           <View
             accessible={false}
             accessibilityElementsHidden
             pointerEvents="none"
-            style={styles.failure}
+            style={mine ? styles.failure : styles.receivedFailure}
           >
             <Icon name="alert-circle" size={16} color={palette.error} />
           </View>
@@ -114,6 +123,7 @@ const styles = StyleSheet.create({
   mineRow: { justifyContent: "flex-end" },
   failedSpacing: { paddingRight: 22 },
   failure: { position: "absolute", right: 0, bottom: 6 },
+  receivedFailure: { marginBottom: 6 },
   metadata: { flexDirection: "row", alignItems: "center", gap: 5 },
   myMetadata: { justifyContent: "flex-end" },
   theirMetadata: { marginLeft: avatarSizes.inline + 8 },
@@ -130,6 +140,18 @@ const styles = StyleSheet.create({
     boxShadow: messageCardShadow,
   },
   withFile: { gap: 8 },
+  withdrawn: {
+    backgroundColor: "transparent",
+    boxShadow: "none",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.mutedLight,
+  },
+  withdrawnText: {
+    ...typography.secondary,
+    fontFamily: fonts.body,
+    fontStyle: "italic",
+    color: colors.muted,
+  },
   fileOnly: {
     paddingHorizontal: 0,
     paddingVertical: 0,

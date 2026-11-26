@@ -1,14 +1,19 @@
-import { Pressable, StyleSheet, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { useState, type ReactNode } from "react";
 import { Icon } from "@/components/Icon";
 import { iconSizes, typography, fonts } from "@/constants/theme";
 import { messageColors as colors } from "../constants/theme";
+import { ChatAttachmentMenu } from "./ChatAttachmentMenu";
+import type { ChatAttachmentSource } from "../utils/pick-chat-attachment";
+import { ChatPasteInput } from "./ChatPasteInput";
+import type { ChatImagePaste } from "../utils/import-pasted-chat-image";
 
 export function ChatComposer({
   value,
   onChange,
   onSend,
   onAttach,
+  onPasteImage,
   pending = false,
   hasAttachment = false,
   sendDisabled = false,
@@ -18,7 +23,8 @@ export function ChatComposer({
   value: string;
   onChange: (text: string) => void;
   onSend: (text: string) => void;
-  onAttach: () => void;
+  onAttach: (source: ChatAttachmentSource) => void;
+  onPasteImage?: (image: ChatImagePaste) => void;
   pending?: boolean;
   hasAttachment?: boolean;
   sendDisabled?: boolean;
@@ -32,20 +38,13 @@ export function ChatComposer({
       <View style={styles.content}>
         {attachmentPreview}
         <View style={styles.row}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Đính kèm tệp"
-            onPress={onAttach}
+          <ChatAttachmentMenu
+            onSelect={onAttach}
             disabled={pending || attachmentDisabled}
-            style={styles.attach}
-          >
-            <Icon
-              name="paperclip"
-              size={iconSizes.control}
-              color={colors.muted}
-            />
-          </Pressable>
-          <TextInput
+          />
+          <ChatPasteInput
+            onPasteImage={onPasteImage}
+            pasteDisabled={pending || attachmentDisabled}
             accessibilityLabel="Nhập tin nhắn"
             value={value}
             maxLength={2000}
@@ -96,12 +95,6 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   content: { width: "100%", maxWidth: 768, alignSelf: "center", gap: 8 },
-  attach: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   input: {
     flex: 1,
     minWidth: 0,

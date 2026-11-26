@@ -24,10 +24,11 @@ export function chatTimeline(
       deliveryKeys?.set(entry.messageId, entry.clientMessageId);
   }
   const published = mergeMessages(
-    messages,
     queued.flatMap((entry) =>
       entry.state === "sent" && entry.message ? [entry.message] : [],
     ),
+    // The delivery receipt can predate revocation. Fresh thread data wins.
+    messages,
   );
   const known = new Set(published.map((item) => item.id));
   const local = queued.filter(

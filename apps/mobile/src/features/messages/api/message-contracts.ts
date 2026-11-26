@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { uuid, version, timestamp, sequence } from "@/lib/http/contracts";
+import {
+  chatAttachmentMetadata,
+  attachmentAvailabilitySchema,
+} from "./chat-attachment-contracts";
+export { attachmentAvailabilitySchema } from "./chat-attachment-contracts";
 
 export const conversationSchema = z.object({
   id: uuid,
@@ -46,14 +51,25 @@ export const inboxGroupSchema = z
       : group.id === `conversation:${group.conversationId}`,
   );
 export type ApiInboxGroup = z.infer<typeof inboxGroupSchema>;
-export const attachmentSchema = z.object({
-  attachmentId: uuid,
-  fileId: uuid,
-  filename: z.string(),
-  mimeType: z.string(),
-  fileSizeBytes: z.number().int().nonnegative(),
-  downloadUrlEndpoint: z.string(),
-});
+export type AttachmentAvailability = z.infer<
+  typeof attachmentAvailabilitySchema
+>;
+export const attachmentSchema = z
+  .object({
+    ...chatAttachmentMetadata,
+    attachmentId: uuid,
+    fileId: uuid,
+    filename: z.string(),
+    mimeType: z.string(),
+    fileSizeBytes: z.number().int().nonnegative(),
+    downloadUrlEndpoint: z.string(),
+    contentUrlEndpoint: z.string().optional(),
+    previewUrlEndpoint: z.string().optional(),
+    thumbnailUrlEndpoint: z.string().optional(),
+  })
+  .transform((file) =>
+    file.accessStatus ? { ...file, availability: file.accessStatus } : file,
+  );
 export const messageSchema = z.object({
   id: uuid,
   conversationId: uuid,

@@ -6,8 +6,10 @@ const preview = new Map<string, string>();
 export function createOutboxStorage(
   ownerId: string,
   scope: string,
+  kind: "text" | "attachments" = "text",
 ): OutboxStorage {
-  const key = `${scope}:${ownerId}`;
+  const namespace = kind === "text" ? scope : `${scope}:attachments`;
+  const key = `${namespace}:${ownerId}`;
   // Web preview follows the app's memory-only session policy.
   if (Platform.OS === "web")
     return {
@@ -19,7 +21,7 @@ export function createOutboxStorage(
     };
   let hash = 0;
   // Keep the existing UTF-16 hash so saved outbox filenames remain stable.
-  for (const char of scope)
+  for (const char of namespace)
     hash = (Math.imul(hash, 31) + char.slice(0, 1).codePointAt(0)!) | 0;
   const directory = new Directory(Paths.document, "chat-outbox");
   const file = new File(directory, `${hash >>> 0}-${ownerId}.json`);

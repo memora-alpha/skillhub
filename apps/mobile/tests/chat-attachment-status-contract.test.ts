@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createMessagesApi } from "../src/features/messages/api/messages-api";
+import { attachmentSchema } from "../src/features/messages/api/message-contracts";
 import {
   chatFormats,
   validateChatFile,
@@ -53,4 +54,53 @@ test("chat only accepts formats supported by the current media pipeline", () => 
         }),
       FileSelectionError,
     );
+});
+
+test("chat preserves availability on message attachments and upload status while accepting legacy responses", async () => {
+  const file = {
+    attachmentId: fixtureId(41),
+    fileId: fixtureId(40),
+    filename: "lesson.pdf",
+    mimeType: "application/pdf",
+    fileSizeBytes: 100,
+    downloadUrlEndpoint: "/fixture",
+  };
+  assert.deepEqual(attachmentSchema.parse(file), file);
+  for (const availability of [
+    "PENDING_SCAN",
+    "AVAILABLE",
+    "REVOKED",
+    "UNAVAILABLE",
+  ]) {
+    assert.deepEqual(attachmentSchema.parse({ ...file, availability }), {
+      ...file,
+      availability,
+    });
+    const status = {
+      fileId: file.fileId,
+      state: "READY",
+      generation: 1,
+      availability,
+    };
+    const api = createMessagesApi(async () => status, fixtureId(1));
+    assert.deepEqual(await api.fileStatus(fixtureId(10), file.fileId), status);
+  }
+  for (const availability of [null, "READY", 1]) {
+    assert.equal(
+      attachmentSchema.safeParse({ ...file, availability }).success,
+      false,
+    );
+    const api = createMessagesApi(
+      async () => ({
+        fileId: file.fileId,
+        state: "READY",
+        generation: 1,
+        availability,
+      }),
+      fixtureId(1),
+    );
+    await assert.rejects(api.fileStatus(fixtureId(10), file.fileId), {
+      kind: "protocol",
+    });
+  }
 });

@@ -1,5 +1,6 @@
 import type { QueuedText } from "../outbox/outbox-types";
 import { AppError } from "@/lib/http/errors";
+import { chatFailureCopy } from "./chat-failure-copy";
 
 // Chat checks the file manifest before committing publication. This 409 proves
 // that the attachment was rejected, even when an earlier response was lost.
@@ -26,20 +27,25 @@ export function chatSendNotice(entry: QueuedText, offline: boolean) {
       title: "Không gửi được tin nhắn",
       detail:
         entry.failureCode === "CONTACT_INFORMATION_NOT_ALLOWED"
-          ? "Tin nhắn này chứa số điện thoại, email hoặc đường dẫn liên hệ cá nhân."
-          : "Tin nhắn này có thể chứa ngôn từ nhạy cảm hoặc nội dung không phù hợp nên không thể gửi!",
+          ? "Không được gửi thông tin cá nhân."
+          : entry.attachment
+            ? chatFailureCopy("CHAT_FILE_REJECTED", entry.attachment.mimeType)!
+            : "Nội dung tin nhắn không phù hợp.",
     };
   if (entry.state === "failed")
     return {
       tone: "failed" as const,
-      title: entry.failure ?? "Chưa gửi được tin nhắn",
+      title: "Không gửi được tin nhắn",
+      detail:
+        chatFailureCopy(entry.failureCode, entry.attachment?.mimeType) ??
+        "Không gửi được.",
     };
   if (entry.state === "sent") return undefined;
   if (offline) return { tone: "pending" as const, title: "Chờ kết nối để gửi" };
   if (entry.failureCode === "CHAT_RATE_LIMIT")
     return {
       tone: "pending" as const,
-      title: "Gửi quá nhanh · Đang chờ gửi lại",
+      title: "Bạn gửi hơi nhanh. Đang chờ để gửi tiếp…",
     };
   return {
     tone: "pending" as const,

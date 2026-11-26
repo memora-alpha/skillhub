@@ -12,7 +12,7 @@ function elements(tree: unknown): Element[] {
   return [element, ...elements(element.props.children)];
 }
 
-test("composer sends an attachment without requiring a caption and blocks send while the file is not ready", () => {
+test("composer sends a selected attachment without a caption and only locks for explicit controller work", () => {
   const local = createRequire(
     new URL(
       "../src/features/messages/components/ChatComposer.tsx",
@@ -32,6 +32,8 @@ test("composer sends an attachment without requiring a caption and blocks send w
       StyleSheet: { create: (value: unknown) => value },
     },
     "@/components/Icon": { Icon: "Icon" },
+    "./ChatAttachmentMenu": { ChatAttachmentMenu: "AttachmentMenu" },
+    "./ChatPasteInput": { ChatPasteInput: "Input" },
   };
   const contexts = Object.entries(mocks).map(([name, namedExports]) =>
     mock.module(pathToFileURL(local.resolve(name)), { namedExports }),
@@ -42,7 +44,7 @@ test("composer sends an attachment without requiring a caption and blocks send w
       filename,
     ) as typeof import("../src/features/messages/components/ChatComposer");
     const sent: string[] = [];
-    let picked = 0;
+    const picked: string[] = [];
     const render = (
       hasAttachment: boolean,
       sendDisabled = false,
@@ -53,9 +55,10 @@ test("composer sends an attachment without requiring a caption and blocks send w
           value: "",
           onChange: () => {},
           onSend: (text) => sent.push(text),
-          onAttach: () => {
-            picked++;
+          onAttach: (source) => {
+            picked.push(source);
           },
+          onPasteImage: (image) => picked.push(JSON.stringify(image)),
           hasAttachment,
           sendDisabled,
           attachmentDisabled,
@@ -75,16 +78,30 @@ test("composer sends an attachment without requiring a caption and blocks send w
     assert.equal(button(ready, "Gửi tin nhắn").props.disabled, false);
     (button(ready, "Gửi tin nhắn").props.onPress as () => void)();
     assert.deepEqual(sent, [""]);
-    (button(ready, "Đính kèm tệp").props.onPress as () => void)();
-    assert.equal(picked, 1);
+    const menu = (tree: Element[]) =>
+      tree.find((item) => item.type === "AttachmentMenu")!;
+    (menu(ready).props.onSelect as (source: string) => void)("photos");
+    (menu(ready).props.onSelect as (source: string) => void)("files");
+    assert.deepEqual(picked, ["photos", "files"]);
+    const input = ready.find((item) => item.type === "Input")!;
+    (input.props.onPasteImage as (image: unknown) => void)({
+      uris: ["file:///paste.png"],
+    });
+    assert.equal(
+      picked.at(-1),
+      JSON.stringify({ uris: ["file:///paste.png"] }),
+    );
+    assert.equal(input.props.pasteDisabled, false);
+    assert.equal(
+      render(true, false, true).find((item) => item.type === "Input")!.props
+        .pasteDisabled,
+      true,
+    );
     assert.equal(
       button(render(true, true), "Gửi tin nhắn").props.disabled,
       true,
     );
-    assert.equal(
-      button(render(true, false, true), "Đính kèm tệp").props.disabled,
-      true,
-    );
+    assert.equal(menu(render(true, false, true)).props.disabled, true);
   } finally {
     delete local.cache[filename];
     for (const context of contexts.reverse()) context.restore();

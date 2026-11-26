@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { RequestOptions } from "@/lib/http/client";
 import { AppError } from "@/lib/http/errors";
-import { fileModerationStatusSchema } from "@/lib/http/file-upload";
+import { chatFileStatusSchema } from "./chat-attachment-contracts";
 import {
   parse,
   parsePage,
@@ -168,7 +168,12 @@ export function createMessagesApi(
         }),
       );
     },
-    async upload(id: string, body: FormData) {
+    async upload(
+      id: string,
+      body: FormData,
+      signal?: AbortSignal,
+      uploadKey?: string,
+    ) {
       return parse(
         z.object({ fileId: uuid, state: z.literal("QUARANTINED") }),
         await call(`${root(id)}/attachments`, {
@@ -176,18 +181,15 @@ export function createMessagesApi(
           body,
           multipart: true,
           replayAfterRenewal: false,
+          ...(uploadKey ? { idempotencyKey: uploadKey } : {}),
+          ...(signal ? { signal } : {}),
         }),
       );
     },
     async fileStatus(id: string, fileId: string, signal?: AbortSignal) {
       parse(uuid, fileId);
       const result = parse(
-        z.object({
-          fileId: uuid,
-          state: z.string(),
-          generation: z.number().int(),
-          moderationStatus: fileModerationStatusSchema.optional(),
-        }),
+        chatFileStatusSchema,
         await call(
           `${root(id)}/attachments/${fileId}/status`,
           ...(signal ? [{ signal }] : []),
@@ -196,18 +198,26 @@ export function createMessagesApi(
       if (result.fileId !== fileId) throw new AppError("protocol");
       return result;
     },
-    async download(id: string, messageId: string, attachmentId: string) {
+    async content(
+      id: string,
+      messageId: string,
+      attachmentId: string,
+      variant: "content" | "preview" | "thumbnail" = "content",
+      signal?: AbortSignal,
+    ) {
       parse(uuid, messageId);
       parse(uuid, attachmentId);
-      return parse(
-        z.object({
-          url: z.url().refine((value) => /^https?:\/\//.test(value)),
-          expiresAt: timestamp,
-        }),
-        await call(
-          `${root(id)}/messages/${messageId}/attachments/${attachmentId}/download`,
-        ),
+      const result = await call(
+        `${root(id)}/messages/${messageId}/attachments/${attachmentId}/${variant}`,
+        { responseType: "arraybuffer", signal },
       );
+      if (
+        !(result instanceof Uint8Array) ||
+        !result.byteLength ||
+        result.byteLength > 15_000_000
+      )
+        throw new AppError("protocol");
+      return result;
     },
   };
 }

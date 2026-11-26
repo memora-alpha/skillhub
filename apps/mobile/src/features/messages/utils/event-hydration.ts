@@ -1,7 +1,6 @@
-import { z } from "zod";
+import { chatEventReference } from "./event-reference";
 import type { QueryClient } from "@tanstack/react-query";
 import { AppError } from "@/lib/http/errors";
-import { parse, uuid, sequence } from "@/lib/http/contracts";
 import type { SseFrame } from "./sse-parser";
 import { cancelMessageTail } from "./message-tail";
 
@@ -17,96 +16,13 @@ const recoveryPrefixes: Prefix[] = [
   ["proposal"],
   ["notifications"],
 ];
-const envelope = z.object({
-  eventId: uuid,
-  version: z.literal(1),
-  data: z.unknown(),
-});
-const message = z.object({
-  conversationId: uuid,
-  messageId: uuid,
-  messageSequence: sequence,
-});
-const read = z.object({
-  conversationId: uuid,
-  readerId: uuid,
-  lastReadSequence: sequence,
-});
-const proposalEvents = new Set([
-  "proposal.created",
-  "proposal.updated",
-  "proposal.accepted",
-  "proposal.rejected",
-  "proposal.withdrawn",
-  "proposal.expired",
-]);
-
-function reference(
-  frame: SseFrame,
-): { eventId: string; prefixes: Prefix[]; receiptsFor?: string } | undefined {
-  const known =
-    proposalEvents.has(frame.event) ||
-    [
-      "chat.message.created",
-      "chat.delivery.updated",
-      "chat.read.updated",
-      "chat.attachment.updated",
-      "notification.created",
-      "notification.read",
-    ].includes(frame.event);
-  if (!known) return;
-  let json: unknown;
-  try {
-    json = JSON.parse(frame.data);
-  } catch {
-    throw new AppError("protocol");
-  }
-  const value = parse(envelope, json);
-  let prefixes: Prefix[];
-  let receiptsFor: string | undefined;
-  if (
-    frame.event === "notification.created" ||
-    frame.event === "notification.read"
-  ) {
-    parse(z.object({ notificationId: uuid }), value.data);
-    prefixes = [["notifications"]];
-  } else if (proposalEvents.has(frame.event)) {
-    const { proposalId } = parse(z.object({ proposalId: uuid }), value.data);
-    prefixes = [
-      ["proposals"],
-      ["proposal", proposalId],
-      ["conversations", "inbox"],
-    ];
-    if (frame.event === "proposal.accepted") prefixes.push(["conversations"]);
-  } else if (frame.event === "chat.attachment.updated") {
-    parse(z.object({ fileId: uuid }), value.data);
-    prefixes = [["chat-file"]];
-  } else if (frame.event === "chat.read.updated") {
-    const { conversationId } = parse(read, value.data);
-    prefixes = [
-      ["thread", conversationId],
-      ["conversations", "preview", conversationId],
-    ];
-    receiptsFor = conversationId;
-  } else {
-    const { conversationId } = parse(message, value.data);
-    prefixes = [
-      ["thread", conversationId],
-      ["conversations", "preview", conversationId],
-      ["conversations", "inbox"],
-    ];
-    if (frame.event === "chat.delivery.updated")
-      prefixes.push(["delivery", conversationId]);
-  }
-  return { eventId: value.eventId, prefixes, receiptsFor };
-}
-
 export async function reloadChatEventQueries(
   cache: QueryClient,
   base: Prefix,
   prefixes: readonly Prefix[],
   receiptsFor?: string,
   assertCurrent: () => void = () => {},
+  attachmentsFor?: string,
 ) {
   assertCurrent();
   // A request started before this event cannot confirm its new state.
@@ -124,6 +40,12 @@ export async function reloadChatEventQueries(
       (revision = 0) => revision + 1,
     );
   if (receiptsFor) markReceipts(receiptsFor);
+  const markAttachments = (id: string) =>
+    cache.setQueryData<number>(
+      [...base, "thread-attachments", id],
+      (revision = 0) => revision + 1,
+    );
+  if (attachmentsFor) markAttachments(attachmentsFor);
   // A fresh stream starts at the server head. Refresh read receipts missed offline,
   // including messages in already loaded older pages.
   if (
@@ -134,7 +56,10 @@ export async function reloadChatEventQueries(
       .findAll({ queryKey: [...base, "thread"] })
       .forEach((query) => {
         const id = query.queryKey[base.length + 1];
-        if (typeof id === "string") markReceipts(id);
+        if (typeof id === "string") {
+          markReceipts(id);
+          markAttachments(id);
+        }
       });
   }
   return Promise.all(
@@ -156,7 +81,11 @@ export async function reloadChatEventQueries(
 // Cursor acknowledgment follows a successful snapshot reload. A checkpoint only
 // skips an event the server has explicitly hidden; it must not trigger reads.
 export function createChatEventHydrator(options: {
-  reload: (prefixes: Prefix[], receiptsFor?: string) => Promise<unknown>;
+  reload: (
+    prefixes: Prefix[],
+    receiptsFor?: string,
+    attachmentsFor?: string,
+  ) => Promise<unknown>;
   assertCurrent: () => void;
   renew: () => Promise<unknown>;
   ready: () => void;
@@ -171,16 +100,26 @@ export function createChatEventHydrator(options: {
     processed.clear();
   };
   const reloadReady = async (signal: AbortSignal) => {
-    if (!snapshotReady || !cursor) await options.reload(recoveryPrefixes);
+    // Polling may have stopped while moderation was still pending. A resumed
+    // stream must catch up file status even when no update frame is replayed.
+    await options.reload(
+      !snapshotReady || !cursor
+        ? recoveryPrefixes
+        : [["chat-file"], ["thread"]],
+    );
     if (signal.aborted) return;
     options.assertCurrent();
     snapshotReady = true;
     options.ready();
   };
   const reloadEvent = async (frame: SseFrame, signal: AbortSignal) => {
-    const event = reference(frame);
+    const event = chatEventReference(frame);
     if (!event || processed.has(event.eventId)) return;
-    await options.reload(event.prefixes, event.receiptsFor);
+    await options.reload(
+      event.prefixes,
+      event.receiptsFor,
+      event.attachmentsFor,
+    );
     if (signal.aborted) return;
     options.assertCurrent();
     processed.add(event.eventId);

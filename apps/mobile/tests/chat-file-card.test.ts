@@ -2,122 +2,9 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { mock, test } from "node:test";
 import { pathToFileURL } from "node:url";
-
-test("attachment preview explains terminal storage failures instead of waiting for another scan", () => {
-  const local = createRequire(
-    new URL(
-      "../src/features/messages/components/ChatAttachmentPreview.tsx",
-      import.meta.url,
-    ),
-  );
-  const filename = local.resolve("./ChatAttachmentPreview.tsx");
-  const jsx = (type: unknown, props: unknown) => ({ type, props });
-  const mocks = {
-    react: { useState: () => [undefined, () => {}] },
-    "react/jsx-runtime": { jsx, jsxs: jsx },
-    "react-native": {
-      View: "View",
-      StyleSheet: { create: (value: unknown) => value },
-    },
-    "@/components/Button": { Button: "Button" },
-    "@/components/FormNotice": { FormNotice: "Notice" },
-    "@/components/automatic-file-status": {
-      AutomaticFileStatus: "AutomaticFileStatus",
-    },
-    "@/features/connections": { ConnectionFeedback: "Feedback" },
-    "./ChatAttachmentTile": { ChatAttachmentTile: "Tile" },
-  };
-  const contexts = Object.entries(mocks).map(([name, namedExports]) =>
-    mock.module(pathToFileURL(local.resolve(name)), { namedExports }),
-  );
-  try {
-    delete local.cache[filename];
-    const { ChatAttachmentPreview } = local(
-      filename,
-    ) as typeof import("../src/features/messages/components/ChatAttachmentPreview");
-    const remove = () => {};
-    const render = (state: string, processing = false) =>
-      elements(
-        ChatAttachmentPreview({
-          attachment: {
-            file: { name: "lesson.pdf", uri: "file:///lesson.pdf", size: 100 },
-            status: { data: { fileId: "file", state }, isFetching: false },
-            uploaded: true,
-            ready: false,
-            locked: processing,
-            processing,
-            remove,
-          } as unknown as Parameters<
-            typeof ChatAttachmentPreview
-          >[0]["attachment"],
-          onRecovered() {},
-        }),
-      );
-    for (const state of [
-      "REJECTED",
-      "SCAN_FAILED",
-      "UPLOAD_FAILED",
-      "CLEANUP_PENDING",
-      "DELETED",
-    ]) {
-      const tree = render(state);
-      const tile = tree.find((el) => el.type === "Tile")!;
-      assert.notEqual(tile.props.status, "Đang xử lý…", state);
-      assert.equal(
-        tile.props.onRemove,
-        remove,
-        "the user can discard the failed file",
-      );
-      assert.ok(
-        tree.some((el) => el.type === "Notice" && el.props.tone === "error"),
-        state,
-      );
-      assert.equal(
-        tree.some((el) => el.type === "Button"),
-        false,
-        "reading status cannot restart a failed scan",
-      );
-    }
-    for (const state of ["QUARANTINED", "SCANNING"]) {
-      const tree = render(state);
-      assert.equal(
-        tree.find((el) => el.type === "Tile")!.props.status,
-        "Đang xử lý…",
-      );
-      assert.equal(
-        tree.some((el) => el.type === "Button"),
-        false,
-      );
-      assert.ok(
-        tree.some(
-          (el) => el.type === "AutomaticFileStatus" && el.props.enabled,
-        ),
-        "pending scans use the automatic monitor",
-      );
-      assert.equal(
-        tree.some((el) => el.type === "Notice"),
-        false,
-      );
-    }
-    const delivery = render("DELETED", true);
-    assert.equal(
-      delivery.find((el) => el.type === "Tile")!.props.status,
-      "Đang gửi…",
-    );
-    assert.equal(
-      delivery.some((el) => el.type === "Notice" && el.props.tone === "error"),
-      false,
-      "an accepted message keeps delivery recovery instead of suggesting a new upload",
-    );
-    assert.equal(
-      delivery.some((el) => el.type === "Button"),
-      false,
-    );
-  } finally {
-    delete local.cache[filename];
-    contexts.reverse().forEach((context) => context.restore());
-  }
-});
+import type { AttachmentAvailability } from "../src/features/messages/api/message-contracts";
+import { AppError } from "../src/lib/http/errors";
+import type { ApiMessage } from "../src/features/messages/api/messages-api";
 
 type Element = { type: unknown; props: Record<string, unknown> };
 function elements(tree: unknown): Element[] {
@@ -138,13 +25,32 @@ test("file messages stay in the message row and only open the authorized current
   let cursor = 0,
     current = true;
   const slots: unknown[] = [];
+  const cleanups: (() => void)[] = [];
   const calls: string[][] = [],
     opened: string[] = [];
-  let finish!: (result: { url: string; expiresAt: string }) => void;
+  let finish!: (result: Uint8Array) => void;
+  let rejectDownload!: (error: unknown) => void;
+  const invalidated: unknown[] = [];
   const jsx = (type: unknown, props: unknown) => ({ type, props });
   const mocks = {
+    "@tanstack/react-query": {
+      useQueryClient: () => ({
+        cancelQueries: async () => {},
+        setQueryData() {},
+        invalidateQueries: async (filter: { queryKey: unknown[] }) => {
+          invalidated.push(filter.queryKey);
+        },
+      }),
+    },
     "react/jsx-runtime": { jsx, jsxs: jsx },
     react: {
+      useLayoutEffect: (effect: () => () => void) => {
+        const index = cursor++;
+        if (!(index in slots)) {
+          slots[index] = true;
+          cleanups.push(effect());
+        }
+      },
       useState: (initial: unknown) => {
         const index = cursor++;
         if (!(index in slots)) slots[index] = initial;
@@ -168,16 +74,24 @@ test("file messages stay in the message row and only open the authorized current
       useWindowDimensions: () => ({ width: 320 }),
     },
     "expo-router": { useRouter: () => ({ push() {} }) },
-    "expo-linking": {
-      openURL: async (url: string) => {
-        opened.push(url);
+    "../utils/chat-media-file": {
+      prepareChatDownload: async () => async (bytes: Uint8Array) => {
+        opened.push(new TextDecoder().decode(bytes));
       },
     },
     "@/components/Avatar": { Avatar: "Avatar" },
     "@/components/Icon": { Icon: "Icon" },
+    "expo-image": { Image: "Image" },
     "@/components/FormNotice": { FormNotice: "Notice" },
     "@/features/connections": {
-      useConnections: () => ({ userId: "me", isCurrent: () => current }),
+      useConnections: () => ({
+        userId: "me",
+        key: ["owner"],
+        assertCurrent: () => {
+          if (!current) throw new Error("session");
+        },
+        isCurrent: () => current,
+      }),
       connectionError: () => "Không mở được tệp",
       ConnectionFeedback: () => null,
     },
@@ -191,15 +105,17 @@ test("file messages stay in the message row and only open the authorized current
     },
     "../hooks/use-messages-api": {
       useMessagesApi: () => ({
-        download: (...args: string[]) => {
-          calls.push(args);
-          return new Promise<{ url: string; expiresAt: string }>((resolve) => {
+        content: (...args: unknown[]) => {
+          calls.push(args.slice(0, 3) as string[]);
+          return new Promise<Uint8Array>((resolve, reject) => {
             finish = resolve;
+            rejectDownload = reject;
           });
         },
       }),
     },
     "./ChatWorkflowCard": { ChatWorkflowCard: "Workflow" },
+    "./ChatImageMessage": { ChatImageMessage: "ImageMessage" },
   };
   const contexts = Object.entries(mocks).map(([name, namedExports]) =>
     mock.module(pathToFileURL(local.resolve(name)), { namedExports }),
@@ -224,6 +140,9 @@ test("file messages stay in the message row and only open the authorized current
           mimeType: "application/pdf",
           fileSizeBytes: 1_200_000,
           downloadUrlEndpoint: "/ignored",
+          availability: undefined as AttachmentAvailability | undefined,
+          moderationStatus:
+            undefined as ApiMessage["attachments"][number]["moderationStatus"],
         },
       ],
       sentAt: new Date().toISOString(),
@@ -245,9 +164,32 @@ test("file messages stay in the message row and only open the authorized current
     const card = (tree: Element[]) =>
       tree.find((el) => el.type === "Pressable")!;
     const mine = render();
+    message.attachments[0]!.mimeType = "image/jpeg";
+    assert.ok(
+      render().some((node) => node.type === "ImageMessage"),
+      "published photos use the image presentation",
+    );
+    message.attachments[0]!.mimeType = "application/pdf";
+    message.attachments[0]!.availability = "PENDING_SCAN";
+    message.attachments[0]!.moderationStatus = "REVIEW_REQUIRED";
+    const review = render();
+    assert.ok(
+      review.some(
+        (node) =>
+          node.type === "Text" &&
+          node.props.children === "Tệp cần kiểm tra thêm.",
+      ),
+    );
+    assert.ok(!review.some((node) => node.props.children === "Đang tải lên…"));
+    assert.ok(
+      !review.some((node) => node.type === "Pressable"),
+      "manual review cannot expose a download action",
+    );
+    message.attachments[0]!.availability = undefined;
+    message.attachments[0]!.moderationStatus = undefined;
     assert.match(
       String(card(mine).props.accessibilityLabel),
-      /Mở tệp .*1\.2 MB/,
+      /Tải tệp .*1\.2 MB/,
     );
     assert.ok(
       !mine.some((el) => el.type === "Text" && el.props.children === ""),
@@ -266,37 +208,239 @@ test("file messages stay in the message row and only open the authorized current
     const press = card(render()).props.onPress as () => void;
     press();
     press();
+    await new Promise((resolve) => setImmediate(resolve));
     assert.deepEqual(calls, [["chat", "msg", "attachment"]]);
     assert.deepEqual(card(render()).props.accessibilityState, {
       busy: true,
       disabled: true,
     });
-    finish({
-      url: "https://files.example/document",
-      expiresAt: new Date(Date.now() + 60_000).toISOString(),
-    });
+    finish(new TextEncoder().encode("https://files.example/document"));
     await new Promise((resolve) => setImmediate(resolve));
     assert.deepEqual(opened, ["https://files.example/document"]);
+    for (const [availability, label] of [
+      ["PENDING_SCAN", "Đang tải lên…"],
+      ["REVOKED", "Tệp không còn khả dụng."],
+      ["UNAVAILABLE", "Không thể mở tệp này"],
+    ] as const) {
+      message.attachments[0]!.availability = availability;
+      for (const sender of ["me", "them"]) {
+        const revokedNotice = "Tệp chứa nội dung không phù hợp.";
+        const tree = render(sender);
+        if (availability === "REVOKED" && sender === "them") {
+          assert.ok(
+            tree.some(
+              (node) => node.type === "Text" && node.props.children === label,
+            ),
+          );
+          assert.equal(
+            tree.some(
+              (node) =>
+                node.type === "Text" &&
+                node.props.children === message.attachments[0]!.filename,
+            ),
+            false,
+          );
+          assert.equal(
+            tree.some((node) => node.type === "Pressable"),
+            false,
+          );
+          assert.equal(
+            tree.some((node) => node.type === "Icon"),
+            false,
+          );
+          assert.equal(
+            tree.some((node) => node.props.accessibilityRole === "alert"),
+            false,
+          );
+          const notice = tree.find(
+            (node) => node.type === "Text" && node.props.children === label,
+          )!;
+          assert.equal(
+            (notice.props.style as { fontStyle: string }).fontStyle,
+            "italic",
+          );
+          const caption = render(sender, "Nội dung vẫn giữ");
+          assert.ok(
+            caption.some(
+              (node) =>
+                node.type === "Text" &&
+                node.props.children === "Nội dung vẫn giữ",
+            ),
+          );
+          assert.equal(
+            caption.some(
+              (node) =>
+                node.type === "Icon" && node.props.name === "alert-circle",
+            ),
+            false,
+          );
+          assert.equal(
+            caption.some((node) => node.props.accessibilityRole === "alert"),
+            false,
+          );
+          assert.equal(
+            caption.some((node) =>
+              String(node.props.accessibilityLabel).includes(
+                "Tệp không còn khả dụng.",
+              ),
+            ),
+            false,
+          );
+          continue;
+        }
+        assert.equal(
+          tree.filter(
+            (node) =>
+              node.type === "Icon" && node.props.name === "alert-circle",
+          ).length,
+          availability === "REVOKED" || availability === "UNAVAILABLE" ? 1 : 0,
+          "only visible problem files show an error icon",
+        );
+        assert.equal(
+          tree.some((node) => node.type === "Pressable"),
+          false,
+          "blocked availability hides the download action for both sides",
+        );
+        assert.ok(
+          tree.some(
+            (node) => node.type === "Text" && node.props.children === label,
+          ),
+        );
+        if (availability === "PENDING_SCAN") {
+          const fileCard = tree.find((node) => node.props.accessible === true)!;
+          assert.ok(fileCard);
+          const cardContents = elements(fileCard.props.children);
+          assert.equal(
+            cardContents.some(
+              (node) => node.type === "Text" && node.props.children === label,
+            ),
+            false,
+            "scan status is below the message instead of inside the file card",
+          );
+          assert.ok(
+            cardContents.some(
+              (node) =>
+                node.type === "Text" && node.props.children === "PDF · 1.2 MB",
+            ),
+            "pending cards keep their file type and size",
+          );
+        }
+        assert.equal(
+          tree.some(
+            (node) =>
+              node.type === "Text" && node.props.children === revokedNotice,
+          ),
+          availability === "REVOKED",
+          "only sender revoked files show the default content note",
+        );
+        if (availability === "REVOKED") {
+          assert.ok(
+            tree.some(
+              (node) =>
+                node.props.accessibilityRole === "alert" &&
+                node.props.accessibilityLabel === revokedNotice,
+            ),
+          );
+          const fileCard = tree.find(
+            (node) =>
+              node.props.accessible === true &&
+              String(node.props.accessibilityLabel).includes(
+                "Tệp không còn khả dụng.",
+              ),
+          )!;
+          assert.ok(fileCard);
+          assert.equal(
+            elements(fileCard.props.children).some(
+              (node) =>
+                node.type === "Text" && node.props.children === revokedNotice,
+            ),
+            false,
+            "revocation note stays below the message, outside the file card",
+          );
+        }
+      }
+    }
+    message.attachments[0]!.availability = "AVAILABLE";
+    assert.equal(
+      render().filter(
+        (node) => node.type === "Icon" && node.props.name === "alert-circle",
+      ).length,
+      0,
+      "normal file messages do not reserve an error indicator",
+    );
     (card(render()).props.onPress as () => void)();
-    finish({
-      url: "https://files.example/expired",
-      expiresAt: new Date(Date.now() - 1).toISOString(),
-    });
+    await new Promise((resolve) => setImmediate(resolve));
+    message.attachments[0]!.availability = "REVOKED";
+    render();
+    const before = calls.length;
+    press();
+    assert.equal(
+      calls.length,
+      before,
+      "a stale press callback cannot download a revoked file",
+    );
+    finish(new TextEncoder().encode("https://files.example/stale-ticket"));
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(
+      opened.length,
+      1,
+      "a download ticket returned after revocation must never open",
+    );
+    message.attachments[0]!.availability = "AVAILABLE";
+    (card(render()).props.onPress as () => void)();
+    await new Promise((resolve) => setImmediate(resolve));
+    rejectDownload(new AppError("http", 409, "CONTENT_MODERATION_BLOCKED"));
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.ok(
+      render().some(
+        (node) =>
+          node.type === "Notice" &&
+          String(node.props.children).includes(
+            "Tệp chứa nội dung không phù hợp.",
+          ),
+      ),
+    );
+    assert.deepEqual(invalidated, [["owner", "thread", "chat"]]);
+    message.attachments[0]!.mimeType = "image/jpeg";
+    const imageFailure = render().find((node) => node.type === "ImageMessage")!;
+    assert.match(
+      String(imageFailure.props.downloadError),
+      /Ảnh chứa nội dung không phù hợp/,
+    );
+    message.attachments[0]!.mimeType = "application/pdf";
+    (card(render()).props.onPress as () => void)();
+    await new Promise((resolve) => setImmediate(resolve));
+    rejectDownload(new AppError("http", 401, "INVALID_TOKEN"));
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal(opened.length, 1);
     assert.ok(
       render().some(
         (el) =>
-          el.type === "Notice" && String(el.props.children).includes("hết hạn"),
+          el.type === "Notice" &&
+          String(el.props.children).includes("Không mở được tệp"),
       ),
-      "expired links explain why the tap did not open a file",
+      "failed authenticated reads explain why the file was not saved",
     );
+    (card(render("them", "Caption remains")).props.onPress as () => void)();
+    await new Promise((resolve) => setImmediate(resolve));
+    rejectDownload(new AppError("http", 409, "CONTENT_MODERATION_BLOCKED"));
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(
+      render("them", "Caption remains").some((node) => node.type === "Notice"),
+      false,
+      "the recipient never sees a download-revocation error banner",
+    );
+    message.attachments[0]!.availability = "REVOKED";
+    assert.equal(
+      render("them", "Caption remains").some((node) => node.type === "Notice"),
+      false,
+      "feedback from a hidden file does not remain under the caption",
+    );
+    message.attachments[0]!.availability = "AVAILABLE";
     (card(render()).props.onPress as () => void)();
+    await new Promise((resolve) => setImmediate(resolve));
     current = false;
-    finish({
-      url: "https://files.example/stale-account",
-      expiresAt: new Date(Date.now() + 60_000).toISOString(),
-    });
+    finish(new TextEncoder().encode("https://files.example/stale-account"));
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal(
       opened.length,
@@ -335,43 +479,43 @@ test("file messages stay in the message row and only open the authorized current
     assert.equal(tile(false).props.accessibilityLabel, "Bỏ tệp tai-lieu.pdf");
     (tile(false).props.onPress as () => void)();
     assert.equal(removed, 1);
+    assert.ok(
+      elements(
+        ChatAttachmentTile({
+          file: { ...file, name: "photo.jpg", previewUri: "file:///photo.jpg" },
+          locked: false,
+          onRemove() {},
+        }),
+      ).some(
+        (node) =>
+          node.type === "Image" &&
+          (node.props.source as { uri: string }).uri === "file:///photo.jpg",
+      ),
+    );
     const { ChatAttachmentPreview } = local(
       "./ChatAttachmentPreview.tsx",
     ) as typeof import("../src/features/messages/components/ChatAttachmentPreview");
     const draft = {
       file,
-      status: { isFetching: false },
       locked: false,
       ready: true,
+      pending: false,
+      preparing: false,
+      error: undefined,
+      errorSource: undefined,
       remove() {},
-      retry: async () => "caption gốc",
-    } as unknown as Parameters<typeof ChatAttachmentPreview>[0]["attachment"];
-    const readyPreview = elements(
-      ChatAttachmentPreview({ attachment: draft, onRecovered() {} }),
-    );
+      choose: async () => {},
+      paste: async () => {},
+      send: () => false,
+    } satisfies Parameters<typeof ChatAttachmentPreview>[0]["attachment"];
+    const readyPreview = elements(ChatAttachmentPreview({ attachment: draft }));
     assert.equal(
       readyPreview.filter((el) => el.type === "Pressable").length,
       1,
       "ready preview only has the remove action, sending belongs to the composer",
     );
-    const recovered: string[] = [];
-    const uncertain = elements(
-      ChatAttachmentPreview({
-        attachment: { ...draft, ready: false, uncertain: true, locked: true },
-        onRecovered: (text) => {
-          recovered.push(text);
-        },
-      }),
-    );
-    const retry = uncertain.filter((el) => el.type === "Pressable").at(-1)!;
-    (retry.props.onPress as () => void)();
-    await new Promise((resolve) => setImmediate(resolve));
-    assert.deepEqual(
-      recovered,
-      ["caption gốc"],
-      "delivery recovery keeps the existing intent and caption",
-    );
   } finally {
+    cleanups.reverse().forEach((cleanup) => cleanup());
     delete local.cache[filename];
     contexts.reverse().forEach((ctx) => ctx.restore());
   }

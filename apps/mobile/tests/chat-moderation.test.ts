@@ -20,6 +20,7 @@ function harness() {
   let current = true;
   const sent: MessageDraft[] = [];
   const checked: string[] = [];
+  const confirmed: ApiMessage[] = [];
   const message: ApiMessage = {
     id: fixtureId(50),
     conversationId: fixtureId(40),
@@ -60,12 +61,15 @@ function harness() {
         };
       },
     },
-    delivered() {},
+    delivered(message: ApiMessage) {
+      confirmed.push(message);
+    },
   };
   return {
     options,
     sent,
     checked,
+    confirmed,
     saved: () => saved,
     fail: (value: unknown) => {
       failure = value;
@@ -104,6 +108,11 @@ test("blocked text keeps its code across restart and cannot retry the rejected i
     const entry = first.getSnapshot().items[0]!;
     assert.equal(entry.state, "failed");
     assert.equal(entry.failureCode, "CONTENT_MODERATION_BLOCKED");
+    assert.deepEqual(
+      h.confirmed,
+      [],
+      "blocked text never updates published history",
+    );
     first.retry(entry.clientMessageId);
     await flush();
     assert.equal(h.sent.length, 1);
@@ -118,10 +127,20 @@ test("blocked text keeps its code across restart and cannot retry the rejected i
     restored.retry(entry.clientMessageId);
     await flush();
     assert.equal(h.checked.length, 0);
+    assert.deepEqual(
+      h.confirmed,
+      [],
+      "restoring a failure cannot publish it for the receiver",
+    );
     h.fail(undefined);
     assert.equal(restored.enqueue(fixtureId(40), "Tin mới"), true);
     await flush();
     assert.equal(h.sent.length, 2);
+    assert.equal(
+      h.confirmed.length,
+      1,
+      "only the new accepted message is published",
+    );
     assert.notEqual(h.sent[1]!.clientMessageId, entry.clientMessageId);
     assert.equal(
       restored.getSnapshot().items[0]!.clientMessageId,

@@ -131,3 +131,84 @@ test("expired session cannot return the newly fetched tail", async () => {
     /session expired/,
   );
 });
+
+test("an attachment revision refreshes files in older loaded messages without changing history pagination", async () => {
+  const attachment = {
+    attachmentId: fixtureId(60),
+    fileId: fixtureId(50),
+    filename: "lesson.pdf",
+    mimeType: "application/pdf",
+    fileSizeBytes: 100,
+    downloadUrlEndpoint: "/fixture",
+    availability: "AVAILABLE" as const,
+  };
+  const old = {
+    ...message(1),
+    messageType: "FILE" as const,
+    attachments: [attachment],
+  };
+  const previous: ThreadSnapshot = {
+    messages: [old, message(20), message(21)],
+    nextCursor: "older-1",
+  };
+  const calls: unknown[] = [];
+  const result = await readThreadSnapshot(
+    {
+      history: async (_id, opts) => {
+        calls.push(opts);
+        return opts?.afterSequence
+          ? {
+              ...page([]),
+              items: [
+                {
+                  ...old,
+                  attachments: [
+                    { ...attachment, availability: "REVOKED" as const },
+                  ],
+                },
+                message(2),
+              ],
+            }
+          : page([20, 21], "older-20");
+      },
+    },
+    fixtureId(40),
+    { ...options(previous), attachmentRevision: 1 },
+  );
+  assert.equal(calls.length, 2);
+  assert.deepEqual(
+    result.messages.map((item) => item.sequence),
+    ["1", "20", "21"],
+  );
+  assert.equal(result.messages[0]?.attachments[0]?.availability, "REVOKED");
+  assert.equal(result.nextCursor, "older-1");
+});
+
+test("an aborted older-file refresh cannot return stale download permissions", async () => {
+  const control = new AbortController();
+  const attachment = {
+    attachmentId: fixtureId(60),
+    fileId: fixtureId(50),
+    filename: "lesson.pdf",
+    mimeType: "application/pdf",
+    fileSizeBytes: 100,
+    downloadUrlEndpoint: "/fixture",
+    availability: "AVAILABLE" as const,
+  };
+  const old = { ...message(1), attachments: [attachment] };
+  const previous = { messages: [old, message(20)], nextCursor: null };
+  await assert.rejects(
+    readThreadSnapshot(
+      {
+        history: async (_id, opts) => {
+          if (!opts?.afterSequence) return page([20]);
+          control.abort();
+          return { ...page([]), items: [old] };
+        },
+      },
+      fixtureId(40),
+      { ...options(previous), signal: control.signal, attachmentRevision: 1 },
+    ),
+    { kind: "network" },
+  );
+});

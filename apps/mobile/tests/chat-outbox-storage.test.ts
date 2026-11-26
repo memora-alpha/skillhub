@@ -8,6 +8,10 @@ test("native outbox persists the temporary file before replacing saved messages"
     create() {}
   }
   class File {
+    constructor(
+      readonly parent: unknown,
+      readonly name: string,
+    ) {}
     write() {
       return write();
     }
@@ -49,6 +53,27 @@ test("native outbox persists the temporary file before replacing saved messages"
         const storage = createOutboxStorage("owner", "scope");
         await assert.rejects(storage.write("saved messages"), failure);
         assert.equal(moves.length, 0);
+      },
+    );
+    await t.test(
+      "attachments have a separate file and cannot replace text messages",
+      async () => {
+        moves.length = 0;
+        write = () => Promise.resolve();
+        await createOutboxStorage("owner", "scope").write("text");
+        await createOutboxStorage("owner", "scope", "attachments").write(
+          "files",
+        );
+        const first = moves[0]?.destination as File,
+          second = moves[1]?.destination as File;
+        assert.notEqual(first.name, second.name);
+        moves.length = 0;
+        await createOutboxStorage("owner", "scope").write("text again");
+        assert.equal(
+          (moves[0]?.destination as File).name,
+          first.name,
+          "the existing text filename stays compatible",
+        );
       },
     );
   } finally {

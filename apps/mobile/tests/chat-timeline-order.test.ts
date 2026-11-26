@@ -35,6 +35,30 @@ const queued = (
   ...(state === "failed" ? { failureCode: "CONTENT_MODERATION_BLOCKED" } : {}),
 });
 
+test("fresh revoked availability wins over an older local delivery receipt", () => {
+  const attachment = {
+    attachmentId: fixtureId(60),
+    fileId: fixtureId(50),
+    filename: "lesson.pdf",
+    mimeType: "application/pdf",
+    fileSizeBytes: 100,
+    downloadUrlEndpoint: "/fixture",
+    availability: "AVAILABLE" as const,
+  };
+  const receipt = { ...message(2), attachments: [attachment] };
+  const refreshed = {
+    ...receipt,
+    attachments: [{ ...attachment, availability: "REVOKED" as const }],
+  };
+  const result = chatTimeline(
+    [refreshed],
+    [{ ...queued(80, 1, "sent"), messageId: receipt.id, message: receipt }],
+  );
+  assert.equal(result[0]?.kind, "message");
+  if (result[0]?.kind === "message")
+    assert.equal(result[0].message.attachments[0]?.availability, "REVOKED");
+});
+
 test("old failed messages cannot push a newly delivered message above them when reconciliation removes its local copy", () => {
   const old = message(1, 0);
   const failed = queued(80, 1);

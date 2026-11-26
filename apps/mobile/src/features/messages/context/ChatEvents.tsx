@@ -112,13 +112,14 @@ export function ChatEventsProvider({
       },
       assertCurrent: runtime.assertCurrent,
       renew: () => runtime.controller.renew(),
-      reload: (prefixes, receiptsFor) =>
+      reload: (prefixes, receiptsFor, attachmentsFor) =>
         reloadChatEventQueries(
           cache,
           runtime.key,
           prefixes,
           receiptsFor,
           runtime.assertCurrent,
+          attachmentsFor,
         ),
       ready: () => {
         if (disposed) return;

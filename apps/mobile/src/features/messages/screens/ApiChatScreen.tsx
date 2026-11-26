@@ -368,29 +368,21 @@ function ApiChatConversation({
         </View>
         <ChatComposer
           attachmentPreview={
-            <ChatAttachmentPreview
-              inComposer
-              attachment={attachment}
-              onRecovered={(text) => {
-                if (draftRef.current === text && runtime.isCurrent())
-                  updateDraft("");
-              }}
-            />
+            <ChatAttachmentPreview inComposer attachment={attachment} />
           }
           value={draft}
           onChange={updateDraft}
           onSend={(text) => {
             void send(text);
           }}
-          pending={
-            !sender.ready || attachment.uncertain || attachment.processing
-          }
+          pending={!sender.ready}
           hasAttachment={!!attachment.file}
           sendDisabled={
             attachment.pending || (!!attachment.file && !attachment.ready)
           }
           attachmentDisabled={attachment.locked}
-          onAttach={() => void attachment.choose()}
+          onAttach={(source) => void attachment.choose(source)}
+          onPasteImage={(image) => void attachment.paste(image)}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>

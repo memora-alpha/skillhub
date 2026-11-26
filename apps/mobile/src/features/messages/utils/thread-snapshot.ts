@@ -5,11 +5,13 @@ import {
   type createMessagesApi,
 } from "../api/messages-api";
 import { refreshLoadedReadReceipts } from "./read-receipts";
+import { refreshLoadedAttachments } from "./refresh-loaded-attachments";
 
 export type ThreadSnapshot = {
   messages: ApiMessage[];
   nextCursor: string | null;
   receiptRevision?: number;
+  attachmentRevision?: number;
 };
 
 async function readMissingMessages(
@@ -43,12 +45,13 @@ export async function readThreadSnapshot(
     latestOnly: boolean;
     previous?: ThreadSnapshot;
     receiptRevision: number;
+    attachmentRevision?: number;
     userId?: string;
     current: () => ThreadSnapshot | undefined;
     assertCurrent: () => void;
   },
 ): Promise<ThreadSnapshot> {
-  const { signal, previous, receiptRevision } = options;
+  const { signal, previous, receiptRevision, attachmentRevision = 0 } = options;
   // Always read the tail first. Entering Chat never walks an old offline gap.
   const tail = await api.history(id, { signal });
   options.assertCurrent();
@@ -58,6 +61,7 @@ export async function readThreadSnapshot(
       messages: mergeMessages(tail.items),
       nextCursor: tail.nextCursor,
       receiptRevision,
+      attachmentRevision,
     };
   let messages = previous!.messages;
   const firstTail = tail.items[0]?.sequence;
@@ -82,11 +86,20 @@ export async function readThreadSnapshot(
       tail,
     );
   }
+  if ((previous?.attachmentRevision ?? 0) !== attachmentRevision)
+    messages = await refreshLoadedAttachments(
+      api,
+      id,
+      messages,
+      tail.items,
+      signal,
+    );
   options.assertCurrent();
   const current = options.current();
   return {
     messages: mergeMessages(current?.messages ?? [], messages),
     nextCursor: current ? current.nextCursor : previous!.nextCursor,
     receiptRevision,
+    attachmentRevision,
   };
 }
