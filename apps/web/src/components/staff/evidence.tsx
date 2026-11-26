@@ -95,6 +95,14 @@ function VerificationDetail({
               </dd>
               <dt>Gửi lúc</dt>
               <dd>{fmtDateTime(item.submittedAt)}</dd>
+              {item.reviewerId && (
+                <>
+                  <dt>Người xét duyệt</dt>
+                  <dd>
+                    <RecordId id={item.reviewerId} label="người xét duyệt" />
+                  </dd>
+                </>
+              )}
               {item.reviewedAt && (
                 <>
                   <dt>Đã xem xét</dt>
@@ -133,6 +141,36 @@ function VerificationDetail({
                 {file.rejectReason && <p>Lý do từ chối: {file.rejectReason}</p>}
                 {file.revokedReason && (
                   <p>Lý do thu hồi: {file.revokedReason}</p>
+                )}
+                {file.reviewedAt && (
+                  <p>
+                    Đã xét duyệt: {fmtDateTime(file.reviewedAt)}
+                    {file.reviewerId && (
+                      <>
+                        {" "}
+                        · Người xét duyệt:{" "}
+                        <RecordId
+                          id={file.reviewerId}
+                          label="người xét duyệt"
+                        />
+                      </>
+                    )}
+                  </p>
+                )}
+                {file.revokedAt && (
+                  <p>
+                    Thu hồi: {fmtDateTime(file.revokedAt)}
+                    {file.revokedByUserId && (
+                      <>
+                        {" "}
+                        · Người thu hồi:{" "}
+                        <RecordId
+                          id={file.revokedByUserId}
+                          label="người thu hồi"
+                        />
+                      </>
+                    )}
+                  </p>
                 )}
                 <div className="row">
                   <DownloadButton
@@ -252,7 +290,7 @@ export function EvidenceScreen({
   return (
     <>
       <PageHeader
-        title="Bằng chứng kỹ năng"
+        title="Xác minh kỹ năng"
         desc="Xem xét các tệp người dùng gửi và ghi nhận kết quả xác minh."
         actions={
           <LoadingButton

@@ -71,7 +71,11 @@ export function SkillManagementCard({
         <Status value={skill.verificationStatus ?? "UNVERIFIED"} />
       </p>
       <p className="muted">
-        Trình độ: {skill.level} · {stateLabel}
+        Trình độ: {skill.skillLevel?.name ?? skill.level}
+        {skill.experienceYears
+          ? ` · ${skill.experienceYears} năm kinh nghiệm`
+          : ""}{" "}
+        · {stateLabel}
       </p>
       <Link
         className="learner-card-link"
@@ -128,17 +132,30 @@ export function SkillManagementCard({
             event.preventDefault();
             if (disabled || stale || !levels.data || levels.error) return;
             const fields = new FormData(event.currentTarget);
+            const nextLevelId = formText(fields, "levelId");
+            const nextDescription = formText(fields, "description").trim();
+            const nextExperience =
+              formText(fields, "experienceYears").trim() || null;
+            const nextVisible = fields.get("isVisible") === "on";
+            const patch: Record<string, unknown> = {
+              expectedVersion: editing.version,
+            };
+            if (nextLevelId && nextLevelId !== (editing.levelId ?? ""))
+              patch.levelId = nextLevelId;
+            if (nextDescription !== editing.description)
+              patch.description = nextDescription;
+            if (nextExperience !== (editing.experienceYears ?? null))
+              patch.experienceYears = nextExperience;
+            if (nextVisible !== editing.isVisible)
+              patch.isVisible = nextVisible;
+            if (Object.keys(patch).length <= 1) {
+              setEditing(undefined);
+              return;
+            }
             void send({
               path: "me/skills/" + skill.id,
               method: "PATCH",
-              body: {
-                expectedVersion: editing.version,
-                levelId: formText(fields, "levelId"),
-                description: formText(fields, "description").trim(),
-                experienceYears:
-                  formText(fields, "experienceYears").trim() || null,
-                isVisible: fields.get("isVisible") === "on",
-              },
+              body: patch,
             });
           }}
         >
@@ -163,7 +180,7 @@ export function SkillManagementCard({
                 name="levelId"
                 value={levelId}
                 onChange={(event) => setLevelId(event.target.value)}
-                required
+                required={!editing.levelId}
               >
                 <option value="">Chọn trình độ</option>
                 {levels.data

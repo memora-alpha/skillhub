@@ -21,8 +21,11 @@ export function SkillPicker({
     normalized && Array.from(normalized).length < 2
       ? "Nhập ít nhất 2 ký tự để tìm kỹ năng, hoặc để trống để xem tất cả."
       : undefined;
+  const [categoryId, setCategoryId] = useState("");
   const query = useUserList<Skill>(
-    "skills?limit=20" + (term ? "&q=" + encodeURIComponent(term) : ""),
+    "skills?limit=20" +
+      (term ? "&q=" + encodeURIComponent(term) : "") +
+      (categoryId ? "&categoryId=" + encodeURIComponent(categoryId) : ""),
   );
   const selected = useUserResource<Skill>(value ? "skills/" + value : null);
   return (
@@ -57,6 +60,20 @@ export function SkillPicker({
           minimumLength={2}
         />
       </div>
+      <details>
+        <summary>Lọc theo danh mục</summary>
+        <label>
+          Mã danh mục
+          <input
+            placeholder="UUID danh mục"
+            onBlur={(event) => {
+              if (event.currentTarget.validity.valid)
+                setCategoryId(event.currentTarget.value.trim());
+            }}
+            pattern="[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}"
+          />
+        </label>
+      </details>
       <Feedback error={searchError} />
       <Feedback
         loading={query.initialLoading}

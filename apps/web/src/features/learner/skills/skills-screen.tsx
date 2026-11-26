@@ -29,26 +29,37 @@ type Level = {
   sortOrder: number;
 };
 export function SkillsScreen() {
-  const [tab, setTab] = useState<"ALL" | "ARCHIVED">("ALL");
+  const [tab, setTab] = useState<"ALL" | "ACTIVE" | "ARCHIVED">("ALL");
+  const [verification, setVerification] = useState("");
   const list = useUserList<SharingSkill>(
     "me/skills?limit=20&includeArchived=true",
   );
   const { cursor, loading, error, more } = list;
   const archivedOnly = tab === "ARCHIVED";
-  const loadingArchived = archivedOnly && !!cursor && !error;
+  const filtered = tab !== "ALL" || !!verification;
+  const loadingArchived = filtered && !!cursor && !error;
   // The API exposes inclusion, not an archived-only filter. Read the remaining
   // pages before reporting an empty archive or its final page count.
   useEffect(() => {
-    if (archivedOnly && cursor && !loading && !error) void more();
-  }, [archivedOnly, cursor, loading, error, more]);
+    if (filtered && cursor && !loading && !error) void more();
+  }, [filtered, cursor, loading, error, more]);
   const pagination = useListPages({
     ...list,
-    scope: `${list.scope}:${tab}`,
-    chunks: archivedOnly
-      ? splitPages(list.items.filter((skill) => skill.archivedAt !== null))
+    scope: `${list.scope}:${tab}:${verification}`,
+    chunks: filtered
+      ? splitPages(
+          list.items.filter(
+            (skill) =>
+              (tab === "ALL" ||
+                (archivedOnly
+                  ? skill.archivedAt !== null
+                  : skill.archivedAt === null)) &&
+              (!verification || skill.verificationStatus === verification),
+          ),
+        )
       : list.chunks,
     loading: list.loading || loadingArchived,
-    hasMore: !archivedOnly && !!list.cursor,
+    hasMore: !filtered && !!list.cursor,
   });
   const query = { ...list, ...pagination },
     { request } = useUserSession(),
@@ -80,7 +91,27 @@ export function SkillsScreen() {
         >
           Đã lưu trữ
         </button>
+        <button
+          type="button"
+          aria-pressed={tab === "ACTIVE"}
+          onClick={() => setTab("ACTIVE")}
+        >
+          Đang hoạt động
+        </button>
       </fieldset>
+      <label>
+        Xác minh
+        <select
+          value={verification}
+          onChange={(event) => setVerification(event.target.value)}
+        >
+          <option value="">Tất cả</option>
+          <option value="UNVERIFIED">Chưa xác minh</option>
+          <option value="PENDING">Đang chờ</option>
+          <option value="VERIFIED">Đã xác minh</option>
+          <option value="REJECTED">Bị từ chối</option>
+        </select>
+      </label>
       <div className="learner-two-columns">
         <div className="learner-stack">
           <Feedback
@@ -121,20 +152,27 @@ export function SkillsScreen() {
             className="learner-form"
             onSubmit={async (event) => {
               event.preventDefault();
-              const data = new FormData(event.currentTarget);
+              const form = event.currentTarget;
+              const data = new FormData(form);
+              const experienceYears = formText(data, "experienceYears").trim();
               const body = {
                 skillId,
                 levelId: formText(data, "levelId"),
                 description: formText(data, "description").trim(),
-                isVisible: true,
+                ...(experienceYears ? { experienceYears } : {}),
+                isVisible: data.get("isVisible") === "on",
               };
               const result = await command.run(JSON.stringify(body), (key) =>
                 request("me/skills", { method: "POST", key, body }),
               );
-              if (result)
+              if (result) {
+                form.reset();
+                setSkillId("");
                 setMessage(
                   "Đã thêm kỹ năng. Bạn có thể gửi đề xuất cho bài học phù hợp.",
                 );
+                query.reload();
+              }
             }}
           >
             <SkillPicker
@@ -182,6 +220,25 @@ export function SkillsScreen() {
                 required
                 disabled={command.pending}
               />
+            </label>
+            <label>
+              <span>Số năm kinh nghiệm (không bắt buộc)</span>
+              <input
+                name="experienceYears"
+                inputMode="decimal"
+                pattern="^(?:[0-5]?\d(?:\.\d)?|60(?:\.0)?)$"
+                placeholder="Ví dụ: 2.5"
+                disabled={command.pending}
+              />
+            </label>
+            <label className="learner-check">
+              <input
+                type="checkbox"
+                name="isVisible"
+                defaultChecked
+                disabled={command.pending}
+              />
+              <span>Hiển thị công khai trên hồ sơ và tìm kiếm</span>
             </label>
             <CommandFeedback command={command} />
             {message && <p className="learner-notice">{message}</p>}
