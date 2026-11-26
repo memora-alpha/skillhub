@@ -1,4 +1,11 @@
-import { userFetch, UserApiError } from "../api/client";
+import { userFetch } from "../api/client";
+export type PushRequest = <T>(
+  path: string,
+  options?: {
+    method?: "GET" | "POST" | "DELETE";
+    body?: Record<string, unknown>;
+  },
+) => Promise<{ data: T }>;
 const storageKey = "skillhub-web-push-v1",
   ownerCache = "skillhub-push-owner-v1",
   ownerUrl = "/__skillhub_push_owner__";
@@ -72,7 +79,10 @@ async function serial(work: () => Promise<void>) {
     if (running === result) running = null;
   }
 }
-export async function disableWebPush(userId?: string) {
+export async function disableWebPush(
+  userId?: string,
+  request: PushRequest = userFetch,
+) {
   return serial(async () => {
     // Clear the worker's owner before any network call, including an offline logout.
     await clearOwner();
@@ -80,11 +90,16 @@ export async function disableWebPush(userId?: string) {
     let failure: unknown;
     if (binding && (!userId || binding.userId === userId)) {
       try {
-        await userFetch("notifications/push-tokens/" + binding.tokenId, {
+        await request("notifications/push-tokens/" + binding.tokenId, {
           method: "DELETE",
         });
       } catch (cause) {
-        if (!(cause instanceof UserApiError && cause.status === 404))
+        if (!(
+          cause &&
+          typeof cause === "object" &&
+          "status" in cause &&
+          cause.status === 404
+        ))
           failure = cause;
       }
     }
@@ -107,6 +122,7 @@ export async function disableWebPush(userId?: string) {
 export async function enableWebPush(
   userId: string,
   permissionAlreadyGranted = false,
+  request: PushRequest = userFetch,
 ) {
   // Permission is requested synchronously from the user's click, before SDK imports.
   if (!pushConfigured)
@@ -144,13 +160,13 @@ export async function enableWebPush(
     });
     if (!token)
       throw new Error("Chưa lấy được token thông báo. Vui lòng thử lại.");
-    const identity = (await userFetch<{ userId: string }>("session")).data;
+    const identity = (await request<{ userId: string }>("session")).data;
     if (identity.userId !== userId)
       throw new Error(
         "Phiên đăng nhập đã thay đổi. Tải lại trang trước khi bật push.",
       );
     const old = pushBinding();
-    const { data } = await userFetch<{ id: string }>(
+    const { data } = await request<{ id: string }>(
       "notifications/push-tokens",
       { method: "POST", body: { token } },
     );
@@ -158,10 +174,10 @@ export async function enableWebPush(
       throw new Error("Máy chủ chưa xác nhận token thông báo.");
     // A rotated token is registered first; revoke only this user's old registration.
     if (old?.userId === userId && old.tokenId !== data.id)
-      await userFetch("notifications/push-tokens/" + old.tokenId, {
+      await request("notifications/push-tokens/" + old.tokenId, {
         method: "DELETE",
       }).catch(() => undefined);
-    const check = (await userFetch<{ userId: string }>("session")).data;
+    const check = (await request<{ userId: string }>("session")).data;
     if (check.userId !== userId) {
       await sdk.deleteToken(instance);
       throw new Error("Phiên đã đổi trong khi bật thông báo.");

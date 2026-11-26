@@ -42,6 +42,7 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
     }
   }
   const own = rows?.find((r) => r.reviewerId === actor.userId);
+  const ownBlocked = !!own && own.publicationState !== "REJECTED";
   const opened = path.status === "COMPLETED" && !!path.settledAt;
   async function reconcile() {
     if (checking || command.pending) return;
@@ -53,7 +54,13 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
         path.id,
         [path.participantAId, path.participantBId],
       );
-      if (latest.some((row) => row.reviewerId === actor.userId))
+      if (
+        latest.some(
+          (row) =>
+            row.reviewerId === actor.userId &&
+            row.publicationState !== "REJECTED",
+        )
+      )
         setSubmitted(true);
       // The server's unique path/reviewer constraint also protects a later resubmission.
       command.resetAfterRead();
@@ -78,7 +85,13 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
           path.id,
           [path.participantAId, path.participantBId],
         );
-        if (latest.some((r) => r.reviewerId === actor.userId))
+        if (
+          latest.some(
+            (r) =>
+              r.reviewerId === actor.userId &&
+              r.publicationState !== "REJECTED",
+          )
+        )
           throw new UserApiError(409, "REVIEW_ALREADY_SUBMITTED");
         return request<PathReview>("learning-paths/" + path.id + "/reviews", {
           method: "POST",
@@ -105,6 +118,20 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
                 ? "Đánh giá bạn đã gửi"
                 : "Đánh giá từ đối tác"}
             </h3>
+            {r.reviewerId === actor.userId &&
+              r.publicationState === "PENDING" && (
+                <p className="learner-notice">
+                  Đánh giá đang chờ kiểm duyệt nội dung trước khi hiển thị công
+                  khai.
+                </p>
+              )}
+            {r.reviewerId === actor.userId &&
+              r.publicationState === "REJECTED" && (
+                <p className="learner-notice">
+                  Đánh giá trước chưa đạt yêu cầu kiểm duyệt. Bạn có thể chỉnh
+                  sửa và gửi lại bên dưới.
+                </p>
+              )}
             <ReviewStars rating={r.rating} />
             <p className={styles.comment}>
               {r.comment || "Không có nhận xét thêm."}
@@ -114,11 +141,15 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
         ))}
       </div>
       {!opened && <p className="muted">Mở đánh giá sau khi quyết toán.</p>}
-      {own ||
+      {ownBlocked ||
       submitted ||
       command.failure?.code === "REVIEW_ALREADY_SUBMITTED" ? (
         <p className={styles.success}>
-          <output>Bạn đã gửi đánh giá cho lộ trình này.</output>
+          <output>
+            {own?.publicationState === "PENDING"
+              ? "Đánh giá của bạn đã được ghi nhận và đang chờ kiểm duyệt."
+              : "Bạn đã gửi đánh giá cho lộ trình này."}
+          </output>
         </p>
       ) : (
         opened && (
@@ -172,8 +203,8 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
           </form>
         )
       )}
-      {!own && !submitted && <CommandFeedback command={command} />}
-      {command.uncertain && !own && !submitted && (
+      {!ownBlocked && !submitted && <CommandFeedback command={command} />}
+      {command.uncertain && !ownBlocked && !submitted && (
         <LoadingButton
           type="button"
           className="btn"
@@ -184,7 +215,7 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
           {checking ? "Đang kiểm tra…" : "Kiểm tra lại kết quả"}
         </LoadingButton>
       )}
-      {command.uncertain && !own && !submitted && (
+      {command.uncertain && !ownBlocked && !submitted && (
         <p>
           Chưa rõ kết quả. Tải lại danh sách trước khi thao tác tiếp; không tự
           gửi trùng đánh giá.

@@ -291,11 +291,12 @@ export function SessionDistribution({
 }: Readonly<{ completed?: number; scheduled?: number }>) {
   const rows: [string, number | undefined][] = [
     ["Hoàn thành", completed],
-    ["Đang diễn ra", undefined],
-    ["Đã hủy", undefined],
-    ["Vắng học", undefined],
-    ["Cần học bù", undefined],
-    ["Chờ xác nhận", undefined],
+    [
+      "Chưa ghi nhận hoàn thành",
+      scheduled !== undefined && completed !== undefined
+        ? Math.max(0, scheduled - completed)
+        : undefined,
+    ],
   ];
   return (
     <DashboardPanel
@@ -306,7 +307,7 @@ export function SessionDistribution({
           {dashboardNumber(scheduled)} buổi
         </span>
       }
-      footer="Một số trạng thái chưa có số liệu chi tiết. Không xem tỷ lệ này là kết quả cuối cùng của lộ trình."
+      footer="Tính trên các buổi có lịch trong khoảng đã chọn; chưa ghi nhận hoàn thành có thể bao gồm buổi chưa diễn ra hoặc đã hủy."
     >
       <div className={styles.horizontalBars}>
         {rows.map(([label, value]) => (
@@ -366,7 +367,6 @@ export function PathsToWatch() {
                 {[
                   "Lộ trình",
                   "Người tham gia",
-                  "Tiến độ",
                   "Học tập",
                   "Quyết toán",
                   "Việc tiếp theo",
@@ -387,9 +387,6 @@ export function PathsToWatch() {
                   <td>
                     {row.participantA.fullName}
                     <small>và {row.participantB.fullName}</small>
-                  </td>
-                  <td>
-                    <span title="Chưa có số liệu tiến độ tổng hợp">—</span>
                   </td>
                   <td>
                     {systemCodeLabel(

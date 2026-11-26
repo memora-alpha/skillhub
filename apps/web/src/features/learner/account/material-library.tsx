@@ -1,4 +1,6 @@
 "use client";
+import { MaterialFilters } from "@/components/material-filters";
+
 import { LoadingButton } from "@/components/loading-button";
 import Link from "next/link";
 import { useState } from "react";
@@ -143,9 +145,13 @@ export function MaterialLibrary() {
 }
 function LibraryList({ free }: Readonly<{ free: boolean }>) {
   const { actor, request } = useUserSession();
-  const path = free
-    ? "me/material-library/free?limit=20"
-    : "me/material-favorites?limit=20";
+  const [filters, setFilters] = useState("");
+  const path =
+    (free
+      ? "me/material-library/free?limit=20"
+      : "me/material-favorites?limit=20") +
+    "&" +
+    filters;
   const query = useInfiniteQuery({
     queryKey: ["learner", actor.userId, path],
     initialPageParam: undefined as string | undefined,
@@ -190,6 +196,7 @@ function LibraryList({ free }: Readonly<{ free: boolean }>) {
   });
   return (
     <>
+      <MaterialFilters value={filters} onApply={setFilters} />
       <Feedback
         loading={query.isPending}
         error={query.error?.message}

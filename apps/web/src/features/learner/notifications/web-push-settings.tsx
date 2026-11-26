@@ -7,13 +7,20 @@ import {
   disableWebPush,
   pushBinding,
   pushConfigured,
+  type PushRequest,
 } from "./web-push";
 export function WebPushSettings() {
   const { actor } = useUserSession();
+  return <WebPushSettingsForUser userId={actor.userId} />;
+}
+export function WebPushSettingsForUser({
+  userId,
+  request,
+}: Readonly<{ userId: string; request?: PushRequest }>) {
   const enabled = useSyncExternalStore(
     subscribePush,
     () =>
-      pushBinding()?.userId === actor.userId &&
+      pushBinding()?.userId === userId &&
       "Notification" in window &&
       Notification.permission === "granted",
     () => false,
@@ -42,8 +49,8 @@ export function WebPushSettings() {
           setBusy(true);
           setError(undefined);
           try {
-            if (enabled) await disableWebPush(actor.userId);
-            else await enableWebPush(actor.userId);
+            if (enabled) await disableWebPush(userId, request);
+            else await enableWebPush(userId, false, request);
             window.dispatchEvent(new Event("skillhub-push-changed"));
           } catch (cause) {
             setError(

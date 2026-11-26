@@ -104,8 +104,12 @@ export function restoreLoginSession() {
   });
   return restoration;
 }
-export async function signIn(email: string, password: string) {
-  const result = await requestSession("POST", { email, password });
+export async function signIn(
+  email: string,
+  password: string,
+  rememberMe = false,
+) {
+  const result = await requestSession("POST", { email, password, rememberMe });
   if (!result.data)
     throw new LoginSessionError(502, "Phản hồi đăng nhập không hợp lệ.");
   return result.data;

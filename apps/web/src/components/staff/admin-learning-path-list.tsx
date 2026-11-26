@@ -9,6 +9,7 @@ import { ListPagination } from "@/components/pagination/list-pagination";
 import { SearchInput } from "@/components/search-input";
 import { fmtDate, fmtDateTime } from "@/lib/console/format";
 import { QueueState } from "./common";
+import { AdminFilterPanel, filterPanelStyles } from "./admin-filter-panel";
 import { useStaffListPages } from "./use-staff-list-pages";
 import styles from "./admin-learning-paths.module.css";
 
@@ -181,24 +182,28 @@ function PathError({
 
 export function AdminLearningPaths({
   initialStatus = "",
-}: Readonly<{ initialStatus?: string }>) {
+  initialParticipantId = "",
+}: Readonly<{ initialStatus?: string; initialParticipantId?: string }>) {
   const router = useRouter();
   const statusId = useId();
   const [status, setStatus] = useState(
     Object.hasOwn(statuses, initialStatus) ? initialStatus : "",
   );
+  const [participantId, setParticipantId] = useState(initialParticipantId);
   const [draft, setDraft] = useState("");
   const [term, setTerm] = useState("");
   const [copyFailure, setCopyFailure] = useState(0);
   const params = new URLSearchParams({ limit: "20" });
   if (status) params.set("status", status);
   if (term) params.set("q", term);
+  if (participantId) params.set("participantId", participantId);
   const list = useStaffListPages<Path>(`learning-paths?${params}`);
-  const filtered = !!(draft || status);
+  const activeFilterCount = [status, participantId].filter(Boolean).length;
   function clearFilters() {
     setDraft("");
     setTerm("");
     setStatus("");
+    setParticipantId("");
   }
   const failedCopy = () => setCopyFailure((value) => value + 1);
 
@@ -222,76 +227,113 @@ export function AdminLearningPaths({
         </LoadingButton>
       </header>
       <section className={styles.panel} aria-label="Tra cứu lộ trình học">
-        <div className={styles.toolbar}>
-          <div className={styles.search}>
-            <Icon name="search" size={19} />
-            <SearchInput
-              value={draft}
-              onChange={setDraft}
-              maxLength={200}
-              aria-label="Tìm kiếm lộ trình"
-              aria-describedby={`${statusId}-hint`}
-              placeholder="Tìm theo tên người tham gia hoặc mã lộ trình đầy đủ"
-              onSearch={(value) => {
-                if (
-                  /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(value)
-                )
-                  router.push(`/admin/learning-paths/${value}`);
-                else setTerm(value);
-              }}
-            />
-            {draft && (
-              <button
-                type="button"
-                className={styles.clearSearch}
-                aria-label="Xóa từ khóa"
-                onClick={() => {
-                  setDraft("");
-                  setTerm("");
+        <AdminFilterPanel
+          flush
+          activeCount={activeFilterCount}
+          onClear={clearFilters}
+          lead={
+            <div className={styles.search}>
+              <Icon name="search" size={19} />
+              <SearchInput
+                value={draft}
+                onChange={setDraft}
+                maxLength={200}
+                aria-label="Tìm kiếm lộ trình"
+                aria-describedby={`${statusId}-hint`}
+                placeholder="Tìm theo tên người tham gia hoặc mã lộ trình đầy đủ…"
+                onSearch={(value) => {
+                  if (
+                    /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(value)
+                  )
+                    router.push(`/admin/learning-paths/${value}`);
+                  else setTerm(value);
                 }}
+              />
+              {draft && (
+                <button
+                  type="button"
+                  className={styles.clearSearch}
+                  aria-label="Xóa từ khóa"
+                  onClick={() => {
+                    setDraft("");
+                    setTerm("");
+                  }}
+                >
+                  <Icon name="x" size={17} />
+                </button>
+              )}
+            </div>
+          }
+        >
+          <form
+            className={filterPanelStyles.grid}
+            onSubmit={(event) => {
+              event.preventDefault();
+              setParticipantId(
+                String(
+                  new FormData(event.currentTarget).get("participantId") ?? "",
+                ).trim(),
+              );
+            }}
+          >
+            <label className={filterPanelStyles.field} htmlFor={statusId}>
+              <span>Trạng thái lộ trình</span>
+              <select
+                id={statusId}
+                value={status}
+                onChange={(event) => setStatus(event.target.value)}
               >
-                <Icon name="x" size={17} />
-              </button>
-            )}
-          </div>
-          <div className={styles.select}>
-            <label htmlFor={statusId}>Trạng thái</label>
-            <select
-              id={statusId}
-              value={status}
-              onChange={(event) => setStatus(event.target.value)}
-            >
-              <option value="">Tất cả trạng thái</option>
-              {Object.entries(statuses).map(([value, item]) => (
-                <option key={value} value={value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          {filtered && (
-            <button
-              type="button"
-              className={styles.clearFilters}
-              onClick={clearFilters}
-            >
-              Xóa bộ lọc
-            </button>
-          )}
-        </div>
-        <p className={styles.hint} id={`${statusId}-hint`}>
-          Tự tìm khi nhập tên. Mã lộ trình đầy đủ sẽ mở thẳng trang chi tiết.
-        </p>
+                <option value="">Tất cả trạng thái</option>
+                {Object.entries(statuses).map(([value, item]) => (
+                  <option key={value} value={value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={filterPanelStyles.field}>
+              <span>Mã người tham gia (UUID)</span>
+              <input
+                key={participantId}
+                name="participantId"
+                defaultValue={participantId}
+                placeholder="Nhập mã UUID người tham gia…"
+                pattern="[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}"
+              />
+            </label>
+            <div className={filterPanelStyles.footer}>
+              <p className={filterPanelStyles.note} id={`${statusId}-hint`}>
+                Dán mã UUID lộ trình vào ô tìm kiếm để mở chi tiết ngay.
+              </p>
+              <div className={filterPanelStyles.footerActions}>
+                <button type="submit" className="btn btn-primary btn-sm">
+                  Áp dụng
+                </button>
+                {activeFilterCount > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    onClick={clearFilters}
+                  >
+                    Xóa lọc
+                  </button>
+                )}
+              </div>
+            </div>
+          </form>
+        </AdminFilterPanel>
         <QueueState
           loading={list.loading}
           error={list.error}
           reload={list.reload}
           empty={!list.items.length}
           emptyTitle={
-            filtered ? "Không tìm thấy lộ trình" : "Chưa có lộ trình học"
+            draft || activeFilterCount > 0
+              ? "Không tìm thấy lộ trình"
+              : "Chưa có lộ trình học"
           }
           emptyDescription={
-            filtered
+            draft || activeFilterCount > 0
               ? "Thử đổi tên người tham gia hoặc xóa bộ lọc trạng thái."
               : "Các thỏa thuận học tập sẽ xuất hiện tại đây khi được tạo."
           }
@@ -405,15 +447,18 @@ export function AdminLearningPaths({
           </div>
         )}
       </section>
-      {filtered && !list.loading && !list.items.length && !list.error && (
-        <button
-          type="button"
-          className={`btn ${styles.emptyReset}`}
-          onClick={clearFilters}
-        >
-          Xóa bộ lọc
-        </button>
-      )}
+      {(draft || activeFilterCount > 0) &&
+        !list.loading &&
+        !list.items.length &&
+        !list.error && (
+          <button
+            type="button"
+            className={`btn ${styles.emptyReset}`}
+            onClick={clearFilters}
+          >
+            Xóa bộ lọc
+          </button>
+        )}
       {list.error && (
         <PathError
           key={`${list.scope}:${list.error}`}

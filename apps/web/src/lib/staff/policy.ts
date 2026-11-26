@@ -1,5 +1,19 @@
 const uuid = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const routes: [string, RegExp, (path: string) => string][] = [
+  ["GET", /^me\/notification-preferences$/, (p) => p],
+  ["PATCH", /^me\/notification-preferences$/, (p) => p],
+  ["POST", /^notifications\/push-tokens$/, (p) => p],
+  ["DELETE", new RegExp(`^notifications/push-tokens/${uuid}$`, "i"), (p) => p],
+  ["GET", /^reputation\/users\/[0-9a-f-]{36}\/restriction-reviews$/i, (p) => p],
+  ["POST", /^reputation\/restrictions\/[0-9a-f-]{36}\/review$/i, (p) => p],
+  ["GET", /^rewards\/(products|redemptions|budget)$/, (p) => `admin/${p}`],
+  ["PATCH", new RegExp(`^rewards/products/${uuid}$`, "i"), (p) => `admin/${p}`],
+  ["POST", /^rewards\/catalog\/sync$/, (p) => `admin/${p}`],
+  [
+    "POST",
+    new RegExp(`^rewards/redemptions/${uuid}/resolve$`, "i"),
+    (p) => `admin/${p}`,
+  ],
   ["GET", /^material-reviews$/, (p) => `staff/${p}`],
   [
     "POST",
@@ -163,8 +177,18 @@ const routes: [string, RegExp, (path: string) => string][] = [
   ["PATCH", new RegExp(`^notifications/${uuid}/read$`, "i"), (p) => p],
 ];
 const adminRoutes: [string, RegExp, (path: string) => string][] = [
+  [
+    "GET",
+    /^profanity-rules(\/revisions)?$/,
+    (p) => `admin/content-moderation/${p}`,
+  ],
+  ["PUT", /^profanity-rules$/, (p) => `admin/content-moderation/${p}`],
+  [
+    "POST",
+    /^profanity-rules\/(preview|rollback)$/,
+    (p) => `admin/content-moderation/${p}`,
+  ],
   ["GET", /^audit-logs$/, (p) => `admin/${p}`],
-  ["GET", new RegExp(`^reputation/users/${uuid}/history$`, "i"), (p) => p],
   ["GET", /^dashboard\/trends$/, (p) => `admin/${p}`],
   ["GET", /^dashboard\/summary$/, (p) => `admin/${p}`],
   ["GET", /^dashboard\/work-items$/, (p) => `admin/${p}`],

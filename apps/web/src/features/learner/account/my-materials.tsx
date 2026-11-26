@@ -1,4 +1,5 @@
 "use client";
+import { MaterialFilters } from "@/components/material-filters";
 import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useUserPagedList } from "../hooks/use-user-paged-list";
@@ -45,9 +46,10 @@ const explanations: Record<MaterialAction, string> = {
 export function MyMaterials() {
   const { actor } = useUserSession();
   const [status, setStatus] = useState("");
+  const [filters, setFilters] = useState("");
   const statusQuery = status ? "&status=" + status : "";
   const query = useUserPagedList<OwnedMaterial>(
-    `me/materials?limit=20${statusQuery}`,
+    `me/materials?limit=20${statusQuery}&${filters}`,
   );
   return (
     <>
@@ -70,9 +72,11 @@ export function MyMaterials() {
           <option value="PENDING_REVIEW">Chờ duyệt</option>
           <option value="REJECTED">Cần chỉnh sửa</option>
           <option value="PUBLISHED">Đang chia sẻ</option>
+          <option value="HIDDEN">Đang bị ẩn</option>
           <option value="ARCHIVED">Đã lưu trữ</option>
         </select>
       </label>
+      <MaterialFilters value={filters} onApply={setFilters} owner={false} />
       <Feedback
         loading={query.initialLoading}
         error={query.error}

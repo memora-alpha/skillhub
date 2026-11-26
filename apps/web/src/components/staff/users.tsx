@@ -26,6 +26,7 @@ import {
 import { useStaffResource } from "./hooks";
 import { useStaffSession } from "./session";
 import { AdminDrawer, AdminField, AdminNotice, RecordId } from "./admin-ui";
+import { AdminFilterPanel, filterPanelStyles } from "./admin-filter-panel";
 import { StaffUserProfile } from "./user-profile";
 import { QueueState } from "./common";
 import { Icon } from "@/components/console/icon";
@@ -57,11 +58,21 @@ export function UsersScreen({
   const selected = queue.allItems.find((u) => u.userId === selectedId);
   const dateError = userCreatedDateError(createdFrom, createdTo);
   const rows = filterLoadedUsers(queue.items, q, createdFrom, createdTo);
-  const hasFilters = Boolean(q || role || status || createdFrom || createdTo);
+  const activeFilterCount = [role, status, createdFrom, createdTo].filter(
+    Boolean,
+  ).length;
   const reset = () => {
     setSelectedId(null);
     setInitialAction(undefined);
     setSuccess(null);
+  };
+  const clearFilters = () => {
+    reset();
+    setQ("");
+    setRole("");
+    setStatus("");
+    setCreatedFrom("");
+    setCreatedTo("");
   };
   const reload = async () => {
     setSelectedId(null);
@@ -99,18 +110,22 @@ export function UsersScreen({
           </div>
         }
       />
-      <section className="user-list-filters" aria-label="Lọc người dùng">
-        <div className="toolbar user-list-main-filters">
+      <AdminFilterPanel
+        activeCount={activeFilterCount}
+        onClear={clearFilters}
+        lead={
           <SearchBox
             label="Tìm trong trang người dùng hiện tại"
-            placeholder="Tên, email đã che hoặc mã…"
+            placeholder="Tìm theo tên, email đã che hoặc mã…"
             value={q}
             onChange={setQ}
           />
-          <label>
+        }
+      >
+        <div className={filterPanelStyles.grid}>
+          <label className={filterPanelStyles.field}>
             <span>Vai trò</span>
             <select
-              className="select"
               value={role}
               onChange={(e) => {
                 reset();
@@ -125,10 +140,9 @@ export function UsersScreen({
               ))}
             </select>
           </label>
-          <label>
+          <label className={filterPanelStyles.field}>
             <span>Trạng thái</span>
             <select
-              className="select"
               value={status}
               onChange={(e) => {
                 reset();
@@ -143,71 +157,47 @@ export function UsersScreen({
               ))}
             </select>
           </label>
-        </div>
-        <div className="user-list-date-row">
-          <fieldset
-            className="user-list-date-range"
-            aria-describedby="user-filter-scope"
-          >
-            <legend>Ngày tạo tài khoản · GMT+7</legend>
-            <label>
-              <span>Từ ngày</span>
-              <input
-                className="input"
-                type="date"
-                value={createdFrom}
-                max={createdTo || undefined}
-                aria-invalid={!!dateError}
-                aria-describedby={dateError ? "user-date-error" : undefined}
-                onChange={(event) => {
-                  reset();
-                  setCreatedFrom(event.target.value);
-                }}
-              />
-            </label>
-            <label>
-              <span>Đến ngày</span>
-              <input
-                className="input"
-                type="date"
-                value={createdTo}
-                min={createdFrom || undefined}
-                aria-invalid={!!dateError}
-                aria-describedby={dateError ? "user-date-error" : undefined}
-                onChange={(event) => {
-                  reset();
-                  setCreatedTo(event.target.value);
-                }}
-              />
-            </label>
-          </fieldset>
-          {hasFilters && (
-            <button
-              type="button"
-              className="btn"
-              onClick={() => {
+          <label className={filterPanelStyles.field}>
+            <span>Tạo từ ngày (GMT+7)</span>
+            <input
+              type="date"
+              value={createdFrom}
+              max={createdTo || undefined}
+              aria-invalid={!!dateError}
+              aria-describedby={dateError ? "user-date-error" : undefined}
+              onChange={(event) => {
                 reset();
-                setQ("");
-                setRole("");
-                setStatus("");
-                setCreatedFrom("");
-                setCreatedTo("");
+                setCreatedFrom(event.target.value);
               }}
-            >
-              Bỏ bộ lọc
-            </button>
-          )}
+            />
+          </label>
+          <label className={filterPanelStyles.field}>
+            <span>Tạo đến ngày (GMT+7)</span>
+            <input
+              type="date"
+              value={createdTo}
+              min={createdFrom || undefined}
+              aria-invalid={!!dateError}
+              aria-describedby={dateError ? "user-date-error" : undefined}
+              onChange={(event) => {
+                reset();
+                setCreatedTo(event.target.value);
+              }}
+            />
+          </label>
+          <div className={filterPanelStyles.footer}>
+            <p className={filterPanelStyles.note} id="user-filter-scope">
+              Vai trò & trạng thái lọc toàn hệ thống; tìm kiếm & ngày tạo áp
+              dụng cho trang hiện tại.
+            </p>
+          </div>
         </div>
-        <p className="user-filter-scope" id="user-filter-scope">
-          Tìm kiếm và ngày tạo áp dụng cho trang hiện tại. Vai trò và trạng thái
-          lọc toàn bộ danh sách.
+      </AdminFilterPanel>
+      {dateError && (
+        <p className="staff-error" id="user-date-error" role="alert">
+          {dateError}
         </p>
-        {dateError && (
-          <p className="staff-error" id="user-date-error" role="alert">
-            {dateError}
-          </p>
-        )}
-      </section>
+      )}
       {success && <output className="staff-success">{success}</output>}
       <Card flush>
         <QueueState

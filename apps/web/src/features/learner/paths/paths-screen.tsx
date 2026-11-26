@@ -1,7 +1,12 @@
 "use client";
 import { ListPagination } from "@/components/pagination/list-pagination";
-import { useUserPagedList } from "../hooks/use-user-paged-list";
+import {
+  splitPages,
+  useListPages,
+} from "@/components/pagination/use-list-pages";
+import { useUserList } from "../hooks/use-user-resource";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import type { PathSummary } from "../types";
 
 import {
@@ -15,10 +20,38 @@ import {
 import { ProfileName } from "../components/profile-name";
 import { PathProgress, type PathOverview } from "./path-overview";
 import { learningStageLabel, pathActionLabel } from "./path-navigation";
+
+const statusOptions: readonly [string, string][] = [
+  ["PROPOSED", "Đang đề xuất"],
+  ["PARTIALLY_CONFIRMED", "Chờ bên còn lại xác nhận"],
+  ["CONFIRMED", "Đã xác nhận thỏa thuận"],
+  ["SCHEDULED", "Đã chốt lịch học"],
+  ["ACTIVE", "Đang diễn ra"],
+  ["DISPUTED", "Đang tranh chấp"],
+  ["COMPLETED", "Đã hoàn thành"],
+  ["CANCELLED", "Đã hủy / dừng"],
+];
+
 export function PathsScreen() {
-  const query = useUserPagedList<PathSummary & Partial<PathOverview>>(
+  const [status, setStatus] = useState("");
+  const list = useUserList<PathSummary & Partial<PathOverview>>(
     "learning-paths/mine?limit=20",
   );
+  const { cursor, loading, error, more } = list;
+  const filtered = !!status;
+  useEffect(() => {
+    if (filtered && cursor && !loading && !error) void more();
+  }, [filtered, cursor, loading, error, more]);
+  const pagination = useListPages({
+    ...list,
+    scope: `${list.scope}:${status}`,
+    chunks: filtered
+      ? splitPages(list.items.filter((row) => row.status === status))
+      : list.chunks,
+    loading: loading || (filtered && !!cursor && !error),
+    hasMore: !filtered && !!cursor,
+  });
+  const query = { ...list, ...pagination, allItems: list.items };
   return (
     <>
       <PageHeading
@@ -31,6 +64,20 @@ export function PathsScreen() {
           </Link>
         }
       />
+      <label>
+        Trạng thái lộ trình
+        <select
+          value={status}
+          onChange={(event) => setStatus(event.target.value)}
+        >
+          <option value="">Tất cả</option>
+          {statusOptions.map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </label>
       <Feedback
         loading={query.initialLoading}
         error={query.error}

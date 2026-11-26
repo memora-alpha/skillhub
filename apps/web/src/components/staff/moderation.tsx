@@ -16,6 +16,7 @@ import { fmtDateTime } from "@/lib/console/format";
 import type { LearningRequest } from "@/lib/staff/types";
 import { hasPermission } from "@/lib/staff/permissions";
 import { AdminNotice, RecordId } from "./admin-ui";
+import { AdminFilterPanel, filterPanelStyles } from "./admin-filter-panel";
 import { UserProfileReference } from "./user-profile-reference";
 import { useStaffSession } from "./session";
 
@@ -130,19 +131,19 @@ export function ModerationScreen() {
   const canApprove = hasPermission(actor, "learning-request:approve");
   const canReject = hasPermission(actor, "learning-request:reject");
   const [q, setQ] = useState("");
+  const [filters, setFilters] = useState("");
   const queue = useStaffListPages<LearningRequest>(
-    "learning-requests?limit=20",
+    "learning-requests?limit=20&" +
+      filters +
+      "&keyword=" +
+      encodeURIComponent(q),
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<LearningRequest | null>(null);
   const [decision, setDecision] = useState<"approve" | "reject" | null>(null);
   const selected = selectedRequest(queue.items, selectedId, receipt);
   const proposedTags = selected?.proposedTags ?? [];
-  const visible = queue.items.filter((item) =>
-    `${item.title} ${item.description} ${item.id} ${(item.proposedTags ?? []).join(" ")}`
-      .toLocaleLowerCase("vi")
-      .includes(q.trim().toLocaleLowerCase("vi")),
-  );
+  const visible = queue.items;
   return (
     <>
       <PageHeader
@@ -163,14 +164,77 @@ export function ModerationScreen() {
           </LoadingButton>
         }
       />
-      <div className="toolbar">
-        <SearchBox
-          value={q}
-          onChange={setQ}
-          label="Tìm trong các yêu cầu trên trang này"
-          placeholder="Tìm trong trang hiện tại…"
-        />
-      </div>
+      <AdminFilterPanel
+        activeCount={
+          new URLSearchParams(filters).getAll("skillId").length +
+          (new URLSearchParams(filters).getAll("tagIds").length ? 1 : 0)
+        }
+        onClear={() => setFilters("")}
+        lead={
+          <SearchBox
+            value={q}
+            onChange={setQ}
+            label="Tìm trên toàn bộ yêu cầu"
+            placeholder="Tìm theo tiêu đề hoặc nội dung…"
+          />
+        }
+      >
+        <form
+          key={filters}
+          className={filterPanelStyles.grid}
+          onSubmit={(event) => {
+            event.preventDefault();
+            const data = new FormData(event.currentTarget),
+              params = new URLSearchParams();
+            for (const name of ["skillId", "tagIds"]) {
+              const value = String(data.get(name) ?? "").trim();
+              if (value)
+                for (const id of value.split(/[,\s]+/)) params.append(name, id);
+            }
+            setFilters(params.toString());
+          }}
+        >
+          <label className={filterPanelStyles.field}>
+            <span>Mã kỹ năng (UUID)</span>
+            <input
+              name="skillId"
+              defaultValue={new URLSearchParams(filters)
+                .getAll("skillId")
+                .join(", ")}
+              placeholder="Nhập mã kỹ năng…"
+            />
+          </label>
+          <label className={filterPanelStyles.field}>
+            <span>Mã tag (phân cách dấu phẩy)</span>
+            <input
+              name="tagIds"
+              defaultValue={new URLSearchParams(filters)
+                .getAll("tagIds")
+                .join(", ")}
+              placeholder="tag-id-1, tag-id-2…"
+            />
+          </label>
+          <div className={filterPanelStyles.footer}>
+            <p className={filterPanelStyles.note}>
+              Lọc yêu cầu học theo kỹ năng hoặc danh sách tag cụ thể.
+            </p>
+            <div className={filterPanelStyles.footerActions}>
+              <button type="submit" className="btn btn-primary btn-sm">
+                Áp dụng
+              </button>
+              {filters && (
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  onClick={() => setFilters("")}
+                >
+                  Xóa lọc
+                </button>
+              )}
+            </div>
+          </div>
+        </form>
+      </AdminFilterPanel>
       <div className="split" data-selected={selected !== null}>
         <Card className="split-list" flush>
           <QueueState

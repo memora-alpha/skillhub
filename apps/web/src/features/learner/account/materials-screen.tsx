@@ -1,4 +1,6 @@
 "use client";
+import { MaterialFilters } from "@/components/material-filters";
+
 import { LoadingButton } from "@/components/loading-button";
 import { MaterialThumbnail } from "./material-cover";
 import { MaterialRating } from "./material-reviews";
@@ -13,6 +15,7 @@ import { MaterialsSubnav } from "./materials-subnav";
 import { PageNavigation } from "@/components/pagination/page-navigation";
 export function MaterialsScreen() {
   const skills = useUserList<Skill>("skills?limit=50");
+  const [filters, setFilters] = useState("");
   const [skillId, setSkillId] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1),
@@ -25,6 +28,8 @@ export function MaterialsScreen() {
     ...(access ? { accessType: access } : {}),
     ...(skillId ? { skillId } : {}),
   });
+  for (const [key, value] of new URLSearchParams(filters))
+    params.set(key, value);
   const query = useUserResource<Material[]>("materials?" + params);
   const total = query.pagination?.total;
   return (
@@ -39,6 +44,14 @@ export function MaterialsScreen() {
             + Chia sẻ tài liệu
           </Link>
         }
+      />
+      <MaterialFilters
+        showQuery={false}
+        value={filters}
+        onApply={(value) => {
+          setFilters(value);
+          setPage(1);
+        }}
       />
       <div className="product-material-filters">
         <div className="learner-search">

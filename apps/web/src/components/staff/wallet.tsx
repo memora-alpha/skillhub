@@ -21,6 +21,7 @@ import { useStaffSession } from "./session";
 
 const types: Record<string, string> = {
   TOP_UP: "Nạp Credit",
+  VOUCHER_REDEMPTION: "Đổi voucher",
   DAILY_BONUS: "Thưởng hằng ngày",
   FEEDBACK_BONUS: "Thưởng đánh giá",
   HOLD: "Tạm giữ",
@@ -116,10 +117,12 @@ export function WalletScreen() {
   const { portal } = useStaffSession();
   const wallet = useStaffResource<Wallet>("wallet");
   const [type, setType] = useState("");
+  const [referenceType, setReferenceType] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const detailTrigger = useRef<HTMLButtonElement | null>(null);
   const params = new URLSearchParams({ limit: "20" });
   if (type) params.set("type", type);
+  if (referenceType) params.set("referenceType", referenceType);
   const ledger = useStaffListPages<CreditEntry>(
     `wallet/transactions?${params}`,
   );
@@ -284,6 +287,32 @@ export function WalletScreen() {
         {ledgerContent()}
         <ListPagination query={ledger} />
       </Card>
+      <label>
+        Loại tham chiếu
+        <select
+          value={referenceType}
+          onChange={(event) => {
+            setReferenceType(event.target.value);
+            setSelected(null);
+          }}
+        >
+          <option value="">Tất cả</option>
+          {[
+            "PAYMENT",
+            "LEARNING_PATH",
+            "SESSION",
+            "REVIEW",
+            "DISPUTE",
+            "MATERIAL_ORDER",
+            "VOUCHER_REDEMPTION",
+            "SYSTEM",
+          ].map((value) => (
+            <option key={value} value={value}>
+              {types[value] ?? systemCodeLabel(value, value)}
+            </option>
+          ))}
+        </select>
+      </label>
       {selected && (
         <EntryDetail
           key={selected}

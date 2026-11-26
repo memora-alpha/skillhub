@@ -1,0 +1,313 @@
+.workspace {
+  display: grid;
+  gap: 18px;
+}
+
+.metaBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line, #e2e8f0);
+  background: var(--surface, #ffffff);
+}
+
+.metaLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--muted, #64748b);
+}
+
+.metaActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dirtyBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 18px;
+  border-radius: 10px;
+  border: 1px solid #fde68a;
+  background: var(--warn-soft, #fffbeb);
+  color: var(--warn, #92400e);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.dirtyBannerInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.quickAdd {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.9fr) minmax(200px, 1.3fr) auto;
+  gap: 10px;
+  align-items: end;
+  padding: 14px 20px;
+  background: var(--surface-2, #f1f5f9);
+  border-bottom: 1px solid var(--line, #e2e8f0);
+}
+
+.quickField {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.quickField span {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted, #64748b);
+}
+
+.quickField input {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong, #cbd5e1);
+  border-radius: 8px;
+  background: var(--surface, #ffffff);
+  color: var(--ink, #0f172a);
+  font-size: 13px;
+}
+
+.compactInput {
+  width: 100%;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink, #0f172a);
+  font-size: 13px;
+  transition:
+    border-color 0.14s ease,
+    background-color 0.14s ease;
+}
+
+.compactInput:hover {
+  border-color: var(--line, #e2e8f0);
+  background: var(--surface, #ffffff);
+}
+
+.compactInput:focus {
+  border-color: var(--brand, #0f766e);
+  background: var(--surface, #ffffff);
+  outline: none;
+}
+
+.indexCell {
+  width: 48px;
+  color: var(--muted, #64748b);
+  font-family: var(--font-code);
+  font-size: 12px;
+}
+
+.actionCell {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.rowActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chipList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--surface-2, #f1f5f9);
+  border: 1px solid var(--line, #e2e8f0);
+  color: var(--ink-2, #475569);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.chipMore {
+  font-size: 11.5px;
+  color: var(--muted, #64748b);
+  font-weight: 600;
+}
+
+.statusToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.statusOn {
+  background: var(--ok-soft, #f0fdf4);
+  color: var(--ok, #166534);
+  border-color: #bbf7d0;
+}
+
+.statusOff {
+  background: var(--surface-2, #f1f5f9);
+  color: var(--muted, #64748b);
+  border-color: var(--line, #e2e8f0);
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.tableFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 20px;
+  border-top: 1px solid var(--line, #e2e8f0);
+  font-size: 12.5px;
+  color: var(--muted, #64748b);
+}
+
+.drawerForm {
+  display: grid;
+  gap: 16px;
+}
+
+.drawerField {
+  display: grid;
+  gap: 6px;
+}
+
+.drawerField > span {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-2, #475569);
+}
+
+.drawerField input,
+.drawerField textarea {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--line-strong, #cbd5e1);
+  border-radius: 8px;
+  background: var(--surface, #ffffff);
+  color: var(--ink, #0f172a);
+  font-size: 13.5px;
+}
+
+.drawerField textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.drawerField small {
+  font-size: 12px;
+  color: var(--muted, #64748b);
+}
+
+.previewBox {
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line, #e2e8f0);
+  display: grid;
+  gap: 6px;
+  font-size: 13.5px;
+}
+
+.previewBlock {
+  background: var(--bad-soft, #fef2f2);
+  border-color: #fecaca;
+  color: var(--bad, #b91c1c);
+}
+
+.previewAllow {
+  background: var(--ok-soft, #f0fdf4);
+  border-color: #bbf7d0;
+  color: var(--ok, #166534);
+}
+
+.standardsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.standardCard {
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid var(--line, #e2e8f0);
+  background: var(--surface, #ffffff);
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.standardTag {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--brand, #0f766e);
+}
+
+.standardCard strong {
+  font-size: 17px;
+  color: var(--ink, #0f172a);
+  line-height: 1.3;
+}
+
+.standardCard p {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--ink-2, #475569);
+  line-height: 1.6;
+}
+
+.inlineHint {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--line, #e2e8f0);
+  background: var(--surface-2, #f8fafc);
+  font-size: 12.5px;
+  color: var(--muted, #64748b);
+}
+
+@media (max-width: 960px) {
+  .standardsGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .quickAdd {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

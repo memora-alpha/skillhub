@@ -8,7 +8,7 @@ type AvatarStatus = {
   assetId: string;
   status: "QUARANTINED" | "CLEAN" | "REJECTED" | "DELETED";
 };
-import { avatarFileError } from "./avatar-policy";
+import { avatarFileError, validateAvatarPixels } from "./avatar-policy";
 function checkedStatus(value: AvatarStatus, expectedId?: string) {
   if (
     !value ||
@@ -132,6 +132,7 @@ export function AvatarEditor({ onSaved }: Readonly<{ onSaved: () => void }>) {
             setUploading(true);
             setError(undefined);
             try {
+              await validateAvatarPixels(file);
               const body = new FormData();
               body.set("image", file);
               const value = checkedStatus(

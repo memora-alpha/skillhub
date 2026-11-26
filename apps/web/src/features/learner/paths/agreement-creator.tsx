@@ -40,8 +40,9 @@ export function AgreementCreator({
     proposal?.sourceType === "LEARNING_REQUEST"
       ? proposal.proposerId
       : proposal?.recipientId;
-  const teacherId =
-    path?.agreement.teacherId ?? proposedTeacher ?? actor.userId;
+  const [teacherId, setTeacherId] = useState(
+    path?.agreement.teacherId ?? proposedTeacher ?? actor.userId,
+  );
   const learnerId = teacherId === actor.userId ? counterpart : actor.userId;
   const oneWayRole =
     teacherId === actor.userId
@@ -98,6 +99,19 @@ export function AgreementCreator({
             <option value="TWO_WAY">Hai chiều · cùng trao đổi kỹ năng</option>
           </select>
         </label>
+        {exchangeType === "ONE_WAY" && (
+          <label>
+            <span>Vai trò trong lộ trình một chiều</span>
+            <select
+              value={teacherId}
+              onChange={(event) => setTeacherId(event.target.value)}
+              disabled={command.pending || command.uncertain}
+            >
+              <option value={actor.userId}>Bạn hướng dẫn, đối tác học</option>
+              <option value={counterpart}>Đối tác hướng dẫn, bạn học</option>
+            </select>
+          </label>
+        )}
         <p>{roleDescription}</p>
         <AgreementSummary
           exchangeType={exchangeType}

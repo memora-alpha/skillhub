@@ -10,6 +10,8 @@ import {
   StatusBadge,
 } from "@/components/console/ui";
 import { useStaffResource } from "./hooks";
+import { useStaffSession } from "./session";
+import { hasPermission } from "@/lib/staff/permissions";
 import { QueueState } from "./common";
 import { useStaffPagedList } from "./use-staff-paged-list";
 import { PageNavigation, type PageNavigationProps } from "./page-navigation";
@@ -25,6 +27,11 @@ import { systemCodeLabel } from "@/lib/system-text";
 import { UserProfileReference } from "./user-profile-reference";
 import styles from "./operations.module.css";
 import { AdminLedgerScreen } from "./admin-ledger";
+import {
+  AdminFilterPanel,
+  AdminFilterTrigger,
+  filterPanelStyles,
+} from "./admin-filter-panel";
 import type { LedgerFilters } from "@/lib/staff/ledger-query";
 import {
   emptyPaymentFilters,
@@ -43,9 +50,9 @@ type Payment = {
 };
 type CurrentFeePolicy = {
   id: string;
-  policyCode: "ONE_WAY" | "TWO_WAY";
+  policyCode: "ONE_WAY" | "TWO_WAY" | "MATERIAL_PAID";
   versionNo: number;
-  calculationRule: { returnedBps: number; feeBps: number };
+  calculationRule: { returnedBps?: number; feeBps: number };
   effectiveAt: string;
 };
 type CurrentCreditPolicy = {
@@ -149,12 +156,26 @@ function FinanceDetails({ value }: Readonly<{ value: unknown }>) {
   return <span>—</span>;
 }
 function FinancePolicyBanner() {
+  const { actor } = useStaffSession();
+  const canReadFeePolicies = hasPermission(actor, "fee-policy:manage");
   const resource = useStaffResource<CurrentCreditPolicy>("credit-policy");
+  const currentFees = useStaffResource<CurrentFeePolicy[]>(
+    "fee-policies/current",
+    { enabled: canReadFeePolicies },
+  );
   const policy = resource.data;
+  const allPolicies = currentFees.data ?? policy?.policies ?? [];
   const feeLabel = (code: CurrentFeePolicy["policyCode"]) => {
-    const row = policy?.policies.find((item) => item.policyCode === code);
+    const row = allPolicies.find((item) => item.policyCode === code);
     if (!row) return "Chưa có policy hiệu lực";
-    return `hoàn/trả ${row.calculationRule.returnedBps / 100}% · phí ${row.calculationRule.feeBps / 100}% · v${row.versionNo}`;
+    const feePct = row.calculationRule.feeBps / 100;
+    if (code === "MATERIAL_PAID") {
+      return `phí ${feePct}% · tác giả nhận ${(10000 - row.calculationRule.feeBps) / 100}% · v${row.versionNo}`;
+    }
+    const returnedPct =
+      (row.calculationRule.returnedBps ?? 10000 - row.calculationRule.feeBps) /
+      100;
+    return `hoàn/trả ${returnedPct}% · phí ${feePct}% · v${row.versionNo}`;
   };
   const policySummary = () => {
     if (resource.loading) return "Đang tải từ máy chủ…";
@@ -176,6 +197,11 @@ function FinancePolicyBanner() {
             {feeLabel("TWO_WAY")}
           </Badge>
           <Badge tone="info">ONE_WAY: {feeLabel("ONE_WAY")}</Badge>
+          {canReadFeePolicies && !currentFees.loading && !currentFees.error && (
+            <Badge tone="neutral">
+              Tài liệu trả phí: {feeLabel("MATERIAL_PAID")}
+            </Badge>
+          )}
         </div>
       )}
     </div>
@@ -282,14 +308,34 @@ function PaymentsScreen({
       ? `payments/${initialPaymentId}`
       : undefined,
   );
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const filterPanelId = useId();
   const params = paymentQuery(filters);
   if (status) params.set("status", status);
   const list = useStaffPagedList<Payment>("payments?" + params);
+  const activeFilterCount =
+    (status ? 1 : 0) +
+    Object.values(filters).filter((value) => value.trim()).length;
+  function clearFilters() {
+    setDraftFilters(emptyPaymentFilters);
+    setFilters(emptyPaymentFilters);
+    setFilterError("");
+    setStatus("");
+    setSelected(undefined);
+    window.history.replaceState(null, "", "/admin/credits?tab=payments");
+  }
   return (
     <Card
       title="Thanh toán nạp Credit"
       actions={
         <div className={styles.actions}>
+          <AdminFilterTrigger
+            activeCount={activeFilterCount}
+            open={filtersOpen}
+            onToggle={() => setFiltersOpen((previous) => !previous)}
+            onClear={clearFilters}
+            panelId={filterPanelId}
+          />
           <LoadingButton
             type="button"
             className="btn"
@@ -302,136 +348,124 @@ function PaymentsScreen({
         </div>
       }
     >
-      <p className={styles.hint}>
-        Tra cứu đơn nạp và đối chiếu với dữ liệu thanh toán đã ghi nhận.
-      </p>
-      <div className={styles.filters}>
-        <label>
-          <span>Trạng thái</span>
-          <select
-            className="select"
-            value={status}
-            onChange={(e) => {
-              setStatus(e.target.value);
+      <AdminFilterPanel
+        hideBar
+        open={filtersOpen}
+        onOpenChange={setFiltersOpen}
+        panelId={filterPanelId}
+      >
+        <form
+          className={filterPanelStyles.grid}
+          onSubmit={(event) => {
+            event.preventDefault();
+            try {
+              const next = Object.fromEntries(
+                Object.entries(draftFilters).map(([key, value]) => [
+                  key,
+                  value.trim(),
+                ]),
+              ) as PaymentFilters;
+              const query = paymentQuery(next);
+              setFilters(next);
+              setFilterError("");
               setSelected(undefined);
-              const query = paymentQuery(filters);
               query.delete("limit");
               query.delete("includeTotal");
               query.set("tab", "payments");
-              if (e.target.value) query.set("status", e.target.value);
+              if (status) query.set("status", status);
               window.history.replaceState(null, "", "/admin/credits?" + query);
-            }}
-          >
-            <option value="">Tất cả</option>
-            {[
-              "CREATED",
-              "PENDING",
-              "PAID",
-              "REVIEW",
-              "CANCELLED",
-              "EXPIRED",
-              "FAILED",
-              "REFUNDED",
-            ].map((s) => (
-              <option key={s} value={s}>
-                {paymentStatuses[s] || s}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <form
-        className={styles.filters}
-        onSubmit={(event) => {
-          event.preventDefault();
-          try {
-            const next = Object.fromEntries(
-              Object.entries(draftFilters).map(([key, value]) => [
-                key,
-                value.trim(),
-              ]),
-            ) as PaymentFilters;
-            const query = paymentQuery(next);
-            setFilters(next);
-            setFilterError("");
-            setSelected(undefined);
-            query.delete("limit");
-            query.delete("includeTotal");
-            query.set("tab", "payments");
-            if (status) query.set("status", status);
-            window.history.replaceState(null, "", "/admin/credits?" + query);
-          } catch (cause) {
-            setFilterError(
-              cause instanceof Error ? cause.message : "Bộ lọc chưa hợp lệ.",
-            );
-          }
-        }}
-      >
-        <details className="admin-advanced-filter">
-          <summary className="btn">Tra cứu thanh toán nâng cao</summary>
-          <div className="row">
-            {(
-              [
-                ["userId", "Mã người dùng", "text"],
-                ["orderCode", "Mã đơn payOS", "text"],
-                [
-                  "gatewayTransactionId",
-                  "Mã giao dịch cổng thanh toán",
-                  "text",
-                ],
-                ["from", "Tạo từ (UTC)", "datetime-local"],
-                ["before", "Tạo trước (UTC)", "datetime-local"],
-                ["paidFrom", "Thanh toán từ (UTC)", "datetime-local"],
-                ["paidBefore", "Thanh toán trước (UTC)", "datetime-local"],
-              ] as const
-            ).map(([key, label, type]) => (
-              <label key={key}>
-                {label}
-                <input
-                  className="input"
-                  type={type}
-                  value={draftFilters[key]}
-                  maxLength={key === "userId" ? 36 : 255}
-                  onChange={(event) =>
-                    setDraftFilters((previous) => ({
-                      ...previous,
-                      [key]: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-            ))}
-          </div>
-        </details>
-        <button type="submit" className="btn">
-          Áp dụng tra cứu
-        </button>
-        <button
-          type="button"
-          className="btn"
-          onClick={() => {
-            setDraftFilters(emptyPaymentFilters);
-            setFilters(emptyPaymentFilters);
-            setFilterError("");
-            setStatus("");
-            setSelected(undefined);
-            window.history.replaceState(
-              null,
-              "",
-              "/admin/credits?tab=payments",
-            );
+            } catch (cause) {
+              setFilterError(
+                cause instanceof Error ? cause.message : "Bộ lọc chưa hợp lệ.",
+              );
+            }
           }}
         >
-          Bỏ lọc
-        </button>
-      </form>
+          <label className={filterPanelStyles.field}>
+            <span>Trạng thái thanh toán</span>
+            <select
+              value={status}
+              onChange={(e) => {
+                setStatus(e.target.value);
+                setSelected(undefined);
+                const query = paymentQuery(filters);
+                query.delete("limit");
+                query.delete("includeTotal");
+                query.set("tab", "payments");
+                if (e.target.value) query.set("status", e.target.value);
+                window.history.replaceState(
+                  null,
+                  "",
+                  "/admin/credits?" + query,
+                );
+              }}
+            >
+              <option value="">Tất cả trạng thái</option>
+              {[
+                "CREATED",
+                "PENDING",
+                "PAID",
+                "REVIEW",
+                "CANCELLED",
+                "EXPIRED",
+                "FAILED",
+                "REFUNDED",
+              ].map((s) => (
+                <option key={s} value={s}>
+                  {paymentStatuses[s] || s}
+                </option>
+              ))}
+            </select>
+          </label>
+          {(
+            [
+              ["userId", "Mã người dùng", "text"],
+              ["orderCode", "Mã đơn payOS", "text"],
+              ["gatewayTransactionId", "Mã giao dịch cổng thanh toán", "text"],
+              ["from", "Tạo từ (UTC)", "datetime-local"],
+              ["before", "Tạo trước (UTC)", "datetime-local"],
+              ["paidFrom", "Thanh toán từ (UTC)", "datetime-local"],
+              ["paidBefore", "Thanh toán trước (UTC)", "datetime-local"],
+            ] as const
+          ).map(([key, label, type]) => (
+            <label key={key} className={filterPanelStyles.field}>
+              <span>{label}</span>
+              <input
+                type={type}
+                value={draftFilters[key]}
+                maxLength={key === "userId" ? 36 : 255}
+                onChange={(event) =>
+                  setDraftFilters((previous) => ({
+                    ...previous,
+                    [key]: event.target.value,
+                  }))
+                }
+              />
+            </label>
+          ))}
+          <div className={filterPanelStyles.footer}>
+            <p className={filterPanelStyles.note}>
+              Tra cứu đơn nạp và đối chiếu với dữ liệu thanh toán đã ghi nhận.
+            </p>
+            <div className={filterPanelStyles.footerActions}>
+              <button type="submit" className="btn btn-primary btn-sm">
+                Áp dụng tra cứu
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm"
+                onClick={clearFilters}
+              >
+                Xóa lọc
+              </button>
+            </div>
+          </div>
+        </form>
+      </AdminFilterPanel>
       {filterError && (
         <p className="staff-error" role="alert">
           {filterError}
         </p>
-      )}
-      {list.page?.total !== undefined && (
-        <p className={styles.hint}>{list.page.total} thanh toán phù hợp</p>
       )}
       <QueueState
         loading={list.loading}

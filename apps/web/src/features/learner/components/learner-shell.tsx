@@ -32,7 +32,7 @@ const navSections = [
     items: [
       ["/learn", "Tổng quan", "home"],
       ["/learn/explore", "Khám phá", "search"],
-      ["/learn/connections", "Đề nghị kết nối", "users"],
+      ["/learn/connections", "Đề nghị học tập", "users"],
       ["/learn/messages", "Tin nhắn", "chat"],
     ],
   },
@@ -45,17 +45,18 @@ const navSections = [
     ],
   },
   {
-    title: "Năng lực & Uy tín",
+    title: "Hồ sơ & Uy tín",
     items: [
-      ["/learn/skills", "Kỹ năng chia sẻ", "check"],
-      ["/learn/reputation", "Uy tín & phục hồi", "shield"],
+      ["/learn/skills", "Kỹ năng của tôi", "check"],
+      ["/learn/reputation", "Điểm uy tín", "shield"],
       ["/learn/achievements", "Thành tích", "award"],
     ],
   },
   {
-    title: "Tài chính & Hỗ trợ",
+    title: "Ví & Hỗ trợ",
     items: [
       ["/learn/wallet", "Ví Credit", "wallet"],
+      ["/learn/vouchers", "Voucher & phần thưởng", "award"],
       ["/learn/reviews", "Đánh giá của tôi", "star"],
       ["/learn/reports", "Báo cáo & hỗ trợ", "filter"],
     ],
@@ -70,7 +71,9 @@ export function LearnerShell({
     router = useRouter();
   const cache = useQueryClient();
   const [search, setSearch] = useState("");
-  const identity = useUserResource<OwnIdentity>("me");
+  const identity = useUserResource<OwnIdentity>("me", {
+    refetchInterval: (data) => (data?.profile.avatarUrl ? 45000 : false),
+  });
   const fullName = identity.data?.profile.fullName ?? actor.profile.fullName;
   const reputationScore = identity.data?.profile.reputationScore;
   const wallet = useUserResource<{
@@ -102,13 +105,14 @@ export function LearnerShell({
     };
     const connection = createLearnerEventConnection({
       prepare: () => request("session"),
-      // Recover updates missed while the non-replaying connection was down.
+      // Refresh snapshots as well as replaying events missed while disconnected.
       ready: refresh,
       changed,
       eventTypes: [
         "chat.message.created",
         "chat.delivery.updated",
         "chat.read.updated",
+        "chat.attachment.updated",
         "proposal.created",
         "proposal.updated",
         "proposal.accepted",
@@ -118,7 +122,8 @@ export function LearnerShell({
         "wallet.updated",
         "payment.updated",
         "notification.created",
-        "resync-required",
+        "notification.read",
+        "stream.reset-required",
       ],
     });
     const focus = () => {

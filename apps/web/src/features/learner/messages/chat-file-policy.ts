@@ -4,8 +4,7 @@ export type ChatUpload = {
   size: number;
   state: string;
 };
-export const chatExtensions =
-  ".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,.xls,.xlsx,.ppt,.pptx,.txt";
+export const chatExtensions = ".pdf,.docx,.jpg,.jpeg,.png,.webp,.txt";
 export function validateChatFiles(
   files: { name: string; size: number }[],
   existing: { size: number }[] = [],
@@ -23,12 +22,9 @@ export function validateChatFiles(
   )
     throw new Error("Tổng dung lượng một tin nhắn không quá 50 MB.");
   if (
-    files.some(
-      (file) =>
-        !/\.(pdf|docx?|jpe?g|png|webp|xlsx?|pptx?|txt)$/i.test(file.name),
-    )
+    files.some((file) => !/\.(pdf|docx|jpe?g|png|webp|txt)$/i.test(file.name))
   )
     throw new Error(
-      "Chỉ chọn ảnh, PDF, tài liệu Office hoặc tệp TXT được hỗ trợ.",
+      "Chỉ chọn ảnh (JPG, PNG, WebP), PDF, DOCX hoặc TXT được hỗ trợ.",
     );
 }

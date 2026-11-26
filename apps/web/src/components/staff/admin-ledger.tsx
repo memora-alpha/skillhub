@@ -15,6 +15,7 @@ import {
   type LedgerOperation,
 } from "@/lib/staff/ledger-view";
 import { AdminDrawer, AdminField, AdminNotice, RecordId } from "./admin-ui";
+import { AdminFilterPanel, filterPanelStyles } from "./admin-filter-panel";
 import { QueueState } from "./common";
 import { useStaffResource } from "./hooks";
 import { useStaffPagedList } from "./use-staff-paged-list";
@@ -30,6 +31,7 @@ import {
 
 const transactionTypes = [
   "TOP_UP",
+  "VOUCHER_REDEMPTION",
   "DAILY_BONUS",
   "FEEDBACK_BONUS",
   "HOLD",
@@ -117,162 +119,159 @@ export function AdminLedgerScreen({
       );
     }
   }
+  const activeFilterCount = Object.values(filters).filter((value) =>
+    value.trim(),
+  ).length;
   return (
     <div className="admin-ledger">
-      <form
-        className="toolbar"
-        onSubmit={(event) => {
-          event.preventDefault();
-          apply();
-        }}
+      <AdminFilterPanel
+        activeCount={activeFilterCount}
+        onClear={clear}
+        actions={
+          <LoadingButton
+            type="button"
+            className="btn"
+            disabled={list.loading}
+            onClick={() => {
+              setSelected(undefined);
+              void list.reload();
+            }}
+            loading={!!list.loading}
+          >
+            <Icon name="refresh" size={16} />
+            Làm mới
+          </LoadingButton>
+        }
       >
-        <label>
-          <span>Mã người dùng</span>
-          <input
-            className="input"
-            value={draft.userId}
-            maxLength={36}
-            onChange={(event) => update("userId", event.target.value)}
-          />
-        </label>
-        <details className="admin-advanced-filter">
-          <summary className="btn">Bộ lọc nâng cao</summary>
-          <div className="row">
-            <label>
-              <span>Loại giao dịch</span>
-              <select
-                className="select"
-                value={draft.type}
-                onChange={(event) => {
-                  update("type", event.target.value);
-                }}
-              >
-                <option value="">Tất cả loại</option>
-                {transactionTypes.map((value) => (
-                  <option key={value} value={value}>
-                    {financeLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>Trạng thái</span>
-              <select
-                className="select"
-                value={draft.status}
-                onChange={(event) => {
-                  update("status", event.target.value);
-                }}
-              >
-                <option value="">Tất cả trạng thái</option>
-                {["PENDING", "SUCCESS", "FAILED", "REVERSED"].map((value) => (
-                  <option key={value} value={value}>
-                    {
-                      (
-                        {
-                          PENDING: "Đang xử lý",
-                          SUCCESS: "Thành công",
-                          FAILED: "Thất bại",
-                          REVERSED: "Đã đảo",
-                        } as Record<string, string>
-                      )[value]
-                    }
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>Từ thời điểm (UTC)</span>
-              <input
-                className="input"
-                type="datetime-local"
-                value={draft.from}
-                onChange={(event) => update("from", event.target.value)}
-              />
-            </label>
-            <label>
-              <span>Trước thời điểm (UTC)</span>
-              <input
-                className="input"
-                type="datetime-local"
-                value={draft.before}
-                onChange={(event) => update("before", event.target.value)}
-              />
-            </label>
-            <label>
-              <span>Mã nghiệp vụ</span>
-              <input
-                className="input"
-                maxLength={36}
-                value={draft.operationId}
-                onChange={(event) => update("operationId", event.target.value)}
-              />
-            </label>
-            <label>
-              <span>Nguồn tham chiếu</span>
-              <select
-                className="select"
-                value={draft.referenceType}
-                onChange={(event) =>
-                  update("referenceType", event.target.value)
-                }
-              >
-                <option value="">Tất cả nguồn</option>
-                {ledgerReferenceTypes.map((value) => (
-                  <option key={value} value={value}>
-                    {financeLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>Mã tham chiếu</span>
-              <input
-                className="input"
-                maxLength={255}
-                value={draft.referenceId}
-                onChange={(event) => update("referenceId", event.target.value)}
-              />
-            </label>
-            <label>
-              <span>Mở giao dịch theo mã</span>
-              <input
-                className="input"
-                maxLength={36}
-                value={draft.transactionId}
-                onChange={(event) =>
-                  update("transactionId", event.target.value)
-                }
-              />
-            </label>
-          </div>
-        </details>
-        <button type="submit" className="btn btn-primary">
-          Áp dụng / Tra cứu
-        </button>
-        {Object.values(draft).some(Boolean) && (
-          <button type="button" className="btn" onClick={clear}>
-            Bỏ lọc
-          </button>
-        )}
-        <LoadingButton
-          type="button"
-          className="btn"
-          disabled={list.loading}
-          onClick={() => {
-            setSelected(undefined);
-            void list.reload();
+        <form
+          className={filterPanelStyles.grid}
+          onSubmit={(event) => {
+            event.preventDefault();
+            apply();
           }}
-          loading={!!list.loading}
         >
-          <Icon name="refresh" size={16} />
-          Làm mới
-        </LoadingButton>
-      </form>
-      <p className="admin-scope-note">
-        Các số dư được ghi nhận tại thời điểm giao dịch. Tra cứu mã giao dịch mở
-        chi tiết trực tiếp, không lọc danh sách.
-      </p>
+          <label className={filterPanelStyles.field}>
+            <span>Mã người dùng</span>
+            <input
+              value={draft.userId}
+              maxLength={36}
+              placeholder="Nhập mã UUID người dùng…"
+              onChange={(event) => update("userId", event.target.value)}
+            />
+          </label>
+          <label className={filterPanelStyles.field}>
+            <span>Loại giao dịch</span>
+            <select
+              value={draft.type}
+              onChange={(event) => {
+                update("type", event.target.value);
+              }}
+            >
+              <option value="">Tất cả loại</option>
+              {transactionTypes.map((value) => (
+                <option key={value} value={value}>
+                  {financeLabel(value)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={filterPanelStyles.field}>
+            <span>Trạng thái</span>
+            <select
+              value={draft.status}
+              onChange={(event) => {
+                update("status", event.target.value);
+              }}
+            >
+              <option value="">Tất cả trạng thái</option>
+              {["PENDING", "SUCCESS", "FAILED", "REVERSED"].map((value) => (
+                <option key={value} value={value}>
+                  {
+                    (
+                      {
+                        PENDING: "Đang xử lý",
+                        SUCCESS: "Thành công",
+                        FAILED: "Thất bại",
+                        REVERSED: "Đã đảo",
+                      } as Record<string, string>
+                    )[value]
+                  }
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={filterPanelStyles.field}>
+            <span>Từ thời điểm (UTC)</span>
+            <input
+              type="datetime-local"
+              value={draft.from}
+              onChange={(event) => update("from", event.target.value)}
+            />
+          </label>
+          <label className={filterPanelStyles.field}>
+            <span>Trước thời điểm (UTC)</span>
+            <input
+              type="datetime-local"
+              value={draft.before}
+              onChange={(event) => update("before", event.target.value)}
+            />
+          </label>
+          <label className={filterPanelStyles.field}>
+            <span>Mã nghiệp vụ</span>
+            <input
+              maxLength={36}
+              value={draft.operationId}
+              onChange={(event) => update("operationId", event.target.value)}
+            />
+          </label>
+          <label className={filterPanelStyles.field}>
+            <span>Nguồn tham chiếu</span>
+            <select
+              value={draft.referenceType}
+              onChange={(event) => update("referenceType", event.target.value)}
+            >
+              <option value="">Tất cả nguồn</option>
+              {ledgerReferenceTypes.map((value) => (
+                <option key={value} value={value}>
+                  {financeLabel(value)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={filterPanelStyles.field}>
+            <span>Mã tham chiếu</span>
+            <input
+              maxLength={255}
+              value={draft.referenceId}
+              onChange={(event) => update("referenceId", event.target.value)}
+            />
+          </label>
+          <label className={filterPanelStyles.field}>
+            <span>Mở giao dịch theo mã</span>
+            <input
+              maxLength={36}
+              value={draft.transactionId}
+              onChange={(event) => update("transactionId", event.target.value)}
+            />
+          </label>
+          <div className={filterPanelStyles.footer}>
+            <p className={filterPanelStyles.note}>
+              Số dư được ghi nhận tại thời điểm giao dịch. Nhập mã giao dịch để
+              mở chi tiết trực tiếp.
+            </p>
+            <div className={filterPanelStyles.footerActions}>
+              <button type="submit" className="btn btn-primary btn-sm">
+                Áp dụng / Tra cứu
+              </button>
+              {Object.values(draft).some(Boolean) && (
+                <button type="button" className="btn btn-sm" onClick={clear}>
+                  Xóa lọc
+                </button>
+              )}
+            </div>
+          </div>
+        </form>
+      </AdminFilterPanel>
       {filterError && (
         <p role="alert" className="staff-error">
           {filterError}

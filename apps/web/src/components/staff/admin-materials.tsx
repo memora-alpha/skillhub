@@ -1,4 +1,5 @@
 "use client";
+
 import { UserProfileReference } from "./user-profile-reference";
 import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
@@ -21,8 +22,8 @@ import {
   type ModeratedMaterial,
 } from "@/lib/staff/account-types";
 import { AdminDrawer, AdminField, AdminNotice, RecordId } from "./admin-ui";
+import { AdminFilterPanel, filterPanelStyles } from "./admin-filter-panel";
 import { DecisionDialog, DownloadButton, QueueState } from "./common";
-import { useStaffList } from "./hooks";
 import { useStaffSession } from "./session";
 
 type MaterialModerationHistoryItem = {
@@ -52,7 +53,7 @@ const historyActions: Record<string, string> = {
 function MaterialModerationHistory({
   materialId,
 }: Readonly<{ materialId: string }>) {
-  const history = useStaffList<MaterialModerationHistoryItem>(
+  const history = useStaffListPages<MaterialModerationHistoryItem>(
     `materials/${materialId}/moderation-history?limit=10`,
   );
   return (
@@ -93,6 +94,7 @@ function MaterialModerationHistory({
             </li>
           ))}
         </ol>
+        <ListPagination query={history} />
       </QueueState>
     </section>
   );
@@ -164,28 +166,46 @@ function fileSize(item: ModeratedMaterial) {
 
 export function AdminMaterialsScreen() {
   const { api, actor } = useStaffSession();
-  const [status, setStatus] = useState<MaterialState>("PENDING_REVIEW");
+  const [status, setStatus] = useState<MaterialState | "ALL">("PENDING_REVIEW");
   const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState("");
   const [selectedId, setSelectedId] = useState<string>();
   const [decision, setDecision] = useState<{
     item: ModeratedMaterial;
     action: Action;
   }>();
   const [success, setSuccess] = useState("");
-  const queue = useStaffListPages<ModeratedMaterial>(
-    `materials?status=${status}&limit=20`,
-  );
-  const visible = queue.items.filter((item) =>
-    `${item.title} ${item.description}`
-      .toLocaleLowerCase("vi")
-      .includes(search.trim().toLocaleLowerCase("vi")),
-  );
+  const params = new URLSearchParams({ status, limit: "20" });
+  for (const [key, value] of new URLSearchParams(filters))
+    params.set(key, value);
+  if (search.trim()) params.set("q", search.trim());
+  const queue = useStaffListPages<ModeratedMaterial>(`materials?${params}`);
+  const visible = queue.items;
   const selected = queue.items.find((item) => item.id === selectedId);
   function reload() {
     setDecision(undefined);
     setSelectedId(undefined);
     void queue.reload();
   }
+  const filterQuery = new URLSearchParams(filters);
+  const materialDay = (value: string | null) =>
+    value
+      ? new Date(Date.parse(value) + 7 * 3600000).toISOString().slice(0, 10)
+      : "";
+  const activeFilterCount =
+    (status !== "PENDING_REVIEW" ? 1 : 0) +
+    ["skillId", "accessType", "ownerId", "from", "to"].filter((key) =>
+      filterQuery.get(key),
+    ).length;
+
+  function clearAllFilters() {
+    setStatus("PENDING_REVIEW");
+    setFilters("");
+    setSelectedId(undefined);
+    setDecision(undefined);
+    setSuccess("");
+  }
+
   return (
     <>
       <PageHeader
@@ -204,35 +224,131 @@ export function AdminMaterialsScreen() {
           </LoadingButton>
         }
       />
-      <div className="toolbar">
-        <SearchBox
-          label="Tìm trong tài liệu trên trang này"
-          placeholder="Tìm tiêu đề hoặc mô tả"
-          value={search}
-          onChange={setSearch}
-        />
-        <select
-          className="select"
-          aria-label="Trạng thái tài liệu"
-          value={status}
-          onChange={(event) => {
-            setStatus(event.target.value as MaterialState);
-            setSelectedId(undefined);
-            setDecision(undefined);
-            setSuccess("");
+      <AdminFilterPanel
+        activeCount={activeFilterCount}
+        onClear={clearAllFilters}
+        lead={
+          <SearchBox
+            label="Tìm tài liệu"
+            placeholder="Tìm theo tiêu đề hoặc mô tả…"
+            value={search}
+            onChange={setSearch}
+          />
+        }
+      >
+        <form
+          key={`${status}:${filters}`}
+          className={filterPanelStyles.grid}
+          onSubmit={(event) => {
+            event.preventDefault();
+            const data = new FormData(event.currentTarget),
+              next = new URLSearchParams();
+            for (const name of ["skillId", "accessType", "ownerId"]) {
+              const entry = String(data.get(name) ?? "").trim();
+              if (entry) next.set(name, entry);
+            }
+            for (const name of ["from", "to"]) {
+              const entry = String(data.get(name) ?? "");
+              if (entry)
+                next.set(
+                  name,
+                  new Date(
+                    entry +
+                      (name === "from"
+                        ? "T00:00:00+07:00"
+                        : "T23:59:59.999+07:00"),
+                  ).toISOString(),
+                );
+            }
+            setFilters(next.toString());
           }}
         >
-          {Object.entries(states).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </div>
-      <p className="admin-scope-note">
-        Tìm kiếm trong các tài liệu trên trang này. Chuyển trang để xem các tài
-        liệu tiếp theo.
-      </p>
+          <label className={filterPanelStyles.field}>
+            <span>Trạng thái tài liệu</span>
+            <select
+              aria-label="Trạng thái tài liệu"
+              value={status}
+              onChange={(event) => {
+                setStatus(event.target.value as MaterialState | "ALL");
+                setSelectedId(undefined);
+                setDecision(undefined);
+                setSuccess("");
+              }}
+            >
+              <option value="ALL">Tất cả trạng thái</option>
+              {Object.entries(states).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={filterPanelStyles.field}>
+            <span>Loại truy cập</span>
+            <select
+              name="accessType"
+              defaultValue={filterQuery.get("accessType") ?? ""}
+            >
+              <option value="">Tất cả</option>
+              <option value="FREE">Miễn phí</option>
+              <option value="PAID">Có phí</option>
+            </select>
+          </label>
+          <label className={filterPanelStyles.field}>
+            <span>Mã kỹ năng (UUID)</span>
+            <input
+              name="skillId"
+              pattern="[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}"
+              placeholder="Nhập mã UUID kỹ năng…"
+              defaultValue={filterQuery.get("skillId") ?? ""}
+            />
+          </label>
+          <label className={filterPanelStyles.field}>
+            <span>Mã tác giả (UUID)</span>
+            <input
+              name="ownerId"
+              pattern="[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}"
+              placeholder="Nhập mã UUID người đăng…"
+              defaultValue={filterQuery.get("ownerId") ?? ""}
+            />
+          </label>
+          <label className={filterPanelStyles.field}>
+            <span>Từ ngày (GMT+7)</span>
+            <input
+              type="date"
+              name="from"
+              defaultValue={materialDay(filterQuery.get("from"))}
+            />
+          </label>
+          <label className={filterPanelStyles.field}>
+            <span>Đến ngày (GMT+7)</span>
+            <input
+              type="date"
+              name="to"
+              defaultValue={materialDay(filterQuery.get("to"))}
+            />
+          </label>
+          <div className={filterPanelStyles.footer}>
+            <p className={filterPanelStyles.note}>
+              Tìm kiếm và bộ lọc áp dụng cho toàn bộ danh sách tài liệu.
+            </p>
+            <div className={filterPanelStyles.footerActions}>
+              <button type="submit" className="btn btn-primary btn-sm">
+                Áp dụng
+              </button>
+              {activeFilterCount > 0 && (
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  onClick={clearAllFilters}
+                >
+                  Đặt lại
+                </button>
+              )}
+            </div>
+          </div>
+        </form>
+      </AdminFilterPanel>
       {success && (
         <p className="staff-success">
           <output>{success}</output>

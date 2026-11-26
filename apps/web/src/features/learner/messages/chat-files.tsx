@@ -166,25 +166,39 @@ function ChatFileRow({
   onRemove: () => void;
   locked: boolean;
 }>) {
-  const query = useUserResource<{ fileId: string; state: string }>(
+  const query = useUserResource<{
+    fileId: string;
+    state: string;
+    moderationStatus?: string;
+  }>(
     "conversations/" + conversationId + "/attachments/" + file.id + "/status",
     {
       refetchInterval: (data) =>
-        data && ["QUARANTINED", "SCANNING", "UPLOADED"].includes(data.state)
+        data &&
+        ["UPLOADING", "QUARANTINED", "SCANNING"].includes(data.state) &&
+        !["REVIEW_REQUIRED", "FAILED"].includes(data.moderationStatus ?? "")
           ? 2500
           : false,
     },
   );
-  const state = query.error ? "UNAVAILABLE" : (query.data?.state ?? "CHECKING");
+  const state = query.error
+    ? "UNAVAILABLE"
+    : query.data?.moderationStatus === "REVIEW_REQUIRED"
+      ? "REVIEW_REQUIRED"
+      : (query.data?.state ?? "CHECKING");
   useEffect(() => {
     onState(file.id, state);
   }, [file.id, state, onState]);
   const labels: Record<string, string> = {
-    CLEAN: "Đã kiểm tra sạch, sẵn sàng gửi",
+    READY: "Đã kiểm tra sạch, sẵn sàng gửi",
     CHECKING: "Đang đọc trạng thái",
+    UPLOADING: "Đang tải lên",
     QUARANTINED: "Đang chờ quét",
     SCANNING: "Đang quét",
+    REVIEW_REQUIRED: "Cần kiểm duyệt thêm, chưa thể gửi tệp này",
     REJECTED: "Bị từ chối",
+    SCAN_FAILED: "Quét tệp thất bại, hãy bỏ tệp và thử lại",
+    UPLOAD_FAILED: "Tải lên thất bại, hãy bỏ tệp và thử lại",
     DELETED: "Đã xóa",
     EXPIRED: "Đã hết hạn",
     UNAVAILABLE: "Chưa kiểm tra được hoặc đã mất quyền",

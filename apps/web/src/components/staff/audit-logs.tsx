@@ -325,6 +325,17 @@ export function AuditLogsScreen() {
   );
 }
 
+const auditLinkLabels: Readonly<Record<string, string>> = {
+  REPORT_CASE: "Xem báo cáo",
+  REPORT_INCIDENT: "Xem sự cố",
+  LEARNING_PATH: "Xem lộ trình",
+  SKILL_VERIFICATION: "Xem xác minh kỹ năng",
+  TAG_REQUEST: "Xem đề xuất thẻ",
+  PAYMENT: "Xem thanh toán",
+  PAYMENT_REVIEW: "Xem thanh toán",
+  CREDIT_TRANSACTION: "Xem giao dịch Credit",
+};
+
 function AuditTarget({ type, id }: Readonly<{ type: string; id: string }>) {
   const code = normalizeAuditCode(type);
   const href = auditTargetHref(type, id);
@@ -337,7 +348,7 @@ function AuditTarget({ type, id }: Readonly<{ type: string; id: string }>) {
         <>
           {href && (
             <Link className="link" href={href} prefetch={false}>
-              {code === "REPORT_CASE" ? "Xem báo cáo" : "Xem lộ trình"}
+              {auditLinkLabels[code] ?? "Xem chi tiết"}
             </Link>
           )}
           {code === "REPORT_EVIDENCE" &&

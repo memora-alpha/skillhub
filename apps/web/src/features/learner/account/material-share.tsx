@@ -27,9 +27,18 @@ export function MaterialShare() {
   const { request } = useUserSession(),
     command = useUserCommand(),
     submit = useUserCommand();
-  const file = useUserResource<{ fileId: string; state: string }>(
-    fileId ? "me/materials/files/" + fileId : null,
-  );
+  const file = useUserResource<{
+    fileId: string;
+    state: string;
+    moderationStatus?: string;
+  }>(fileId ? "me/materials/files/" + fileId : null, {
+    refetchInterval: (data) =>
+      data &&
+      ["UPLOADING", "QUARANTINED", "SCANNING"].includes(data.state) &&
+      !["REVIEW_REQUIRED", "FAILED"].includes(data.moderationStatus ?? "")
+        ? 3000
+        : false,
+  });
   return (
     <>
       <Back href="/learn/materials" />
@@ -96,7 +105,7 @@ export function MaterialShare() {
                   priceCredit:
                     access === "FREE" ? "0" : formText(data, "priceCredit"),
                   distributionRightsConfirmed: data.get("rights") === "on",
-                  fileId,
+                  ...(fileId ? { fileId } : {}),
                   ...(cover.coverFileId
                     ? { coverFileId: cover.coverFileId }
                     : {}),
@@ -178,9 +187,17 @@ export function MaterialShare() {
                     Trạng thái tệp:{" "}
                     {file.data ? (
                       <Status
-                        value={file.data.state}
+                        value={
+                          file.data.moderationStatus === "REVIEW_REQUIRED"
+                            ? "REVIEW_REQUIRED"
+                            : file.data.state
+                        }
                         label={
-                          file.data.state === "READY" ? "Sẵn sàng" : undefined
+                          file.data.moderationStatus === "REVIEW_REQUIRED"
+                            ? "Cần kiểm duyệt thêm, chưa thể lưu tệp này"
+                            : file.data.state === "READY"
+                              ? "Sẵn sàng"
+                              : undefined
                         }
                       />
                     ) : (
@@ -218,7 +235,7 @@ export function MaterialShare() {
                 disabled={
                   !skillId ||
                   cover.blocked ||
-                  file.data?.state !== "READY" ||
+                  (!!fileId && file.data?.state !== "READY") ||
                   command.pending ||
                   command.uncertain
                 }

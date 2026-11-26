@@ -14,6 +14,7 @@ export function ChatMessage({
   partner,
   showAvatar = true,
   showTime = true,
+  onOpenAgreement,
 }: Readonly<{
   message: Message;
   conversationId: string;
@@ -21,11 +22,51 @@ export function ChatMessage({
   partner: { fullName: string; avatarUrl: string | null };
   showAvatar?: boolean;
   showTime?: boolean;
+  onOpenAgreement?: () => void;
 }>) {
+  const workflowCard =
+    message.objectType === "LEARNING_PATH" && message.objectId ? (
+      <Link
+        className={styles.workflow}
+        href={"/learn/paths/" + message.objectId}
+      >
+        <ProductIcon name="book" size={22} />
+        <span>
+          <small>THỎA THUẬN HỌC TẬP</small>
+          <strong>Xem lộ trình được chia sẻ</strong>
+        </span>
+        <ProductIcon name="arrow" size={16} />
+      </Link>
+    ) : message.objectType === "SCHEDULE_PROPOSAL" && message.objectId ? (
+      onOpenAgreement ? (
+        <button
+          type="button"
+          className={styles.workflow}
+          onClick={onOpenAgreement}
+        >
+          <ProductIcon name="calendar" size={22} />
+          <span>
+            <small>ĐỀ XUẤT LỊCH HỌC</small>
+            <strong>Mở thỏa thuận & lịch học</strong>
+          </span>
+          <ProductIcon name="arrow" size={16} />
+        </button>
+      ) : (
+        <Link className={styles.workflow} href="/learn/paths">
+          <ProductIcon name="calendar" size={22} />
+          <span>
+            <small>ĐỀ XUẤT LỊCH HỌC</small>
+            <strong>Xem lộ trình & lịch học</strong>
+          </span>
+          <ProductIcon name="arrow" size={16} />
+        </Link>
+      )
+    ) : null;
   if (message.messageType === "SYSTEM")
     return (
       <article className={styles.system}>
-        {message.messageText || "Cập nhật từ hệ thống"}
+        <p>{message.messageText || "Cập nhật từ hệ thống"}</p>
+        {workflowCard}
       </article>
     );
   return (
@@ -54,21 +95,14 @@ export function ChatMessage({
               />
             </div>
           ))}
-          {message.objectType === "LEARNING_PATH" && message.objectId && (
-            <Link
-              className={styles.workflow}
-              href={"/learn/paths/" + message.objectId}
-            >
-              <ProductIcon name="book" size={22} />
-              <span>
-                <small>THỎA THUẬN HỌC TẬP</small>
-                <strong>Xem lộ trình được chia sẻ</strong>
-              </span>
-              <ProductIcon name="arrow" size={16} />
-            </Link>
-          )}
+          {workflowCard}
         </article>
       </div>
+      {mine && message.readAt && (
+        <small className={styles.messageTime}>
+          Đã xem · {formatVietnamTime(message.readAt)}
+        </small>
+      )}
       {showTime && (
         <time dateTime={message.sentAt} className={styles.messageTime}>
           {formatVietnamTime(message.sentAt)}

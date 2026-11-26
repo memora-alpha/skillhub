@@ -14,6 +14,7 @@ import { fmtDateTime } from "@/lib/console/format";
 import type { AdminTag, TagRequest } from "@/lib/staff/admin-types";
 import { useStaffCommand, useStaffResource } from "./hooks";
 import { AdminDrawer, AdminField, RecordId } from "./admin-ui";
+import { AdminFilterPanel, filterPanelStyles } from "./admin-filter-panel";
 import { UserProfileReference } from "./user-profile-reference";
 import { DecisionDialog, QueueState } from "./common";
 
@@ -62,28 +63,31 @@ export function TagsScreen() {
           </div>
         }
       />
-      <div className="toolbar">
-        <SearchBox
-          label="Tìm tag"
-          placeholder="Tên tag…"
-          value={q}
-          onChange={setQ}
-          onSearch={setSearch}
-        />
-        <label>
-          <span className="sr-only">Trạng thái tag</span>
-          <select
-            className="select"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-          >
-            <option value="">Mọi trạng thái</option>
-            <option value="ACTIVE">Hoạt động</option>
-            <option value="INACTIVE">Tạm ngưng</option>
-            <option value="ARCHIVED">Đã lưu trữ</option>
-          </select>
-        </label>
-      </div>
+      <AdminFilterPanel
+        activeCount={status ? 1 : 0}
+        onClear={() => setStatus("")}
+        lead={
+          <SearchBox
+            label="Tìm tag"
+            placeholder="Tìm theo tên tag…"
+            value={q}
+            onChange={setQ}
+            onSearch={setSearch}
+          />
+        }
+      >
+        <div className={filterPanelStyles.grid}>
+          <label className={filterPanelStyles.field}>
+            <span>Trạng thái tag</span>
+            <select value={status} onChange={(e) => setStatus(e.target.value)}>
+              <option value="">Mọi trạng thái</option>
+              <option value="ACTIVE">Hoạt động</option>
+              <option value="INACTIVE">Tạm ngưng</option>
+              <option value="ARCHIVED">Đã lưu trữ</option>
+            </select>
+          </label>
+        </div>
+      </AdminFilterPanel>
       {success && <output className="staff-success">{success}</output>}
       <Card flush className="ops-tag-table">
         <QueueState

@@ -115,7 +115,9 @@ export function SettlementStatusPanel({
     if (result) {
       setReviewing(false);
       setNotice(
-        "Đã ghi nhận đồng ý giải ngân. Máy chủ tự xử lý khi đủ ý kiến hai bên và đủ điều kiện.",
+        result.settlement.outcome === "SETTLED"
+          ? "Thỏa thuận đã được quyết toán."
+          : "Đã ghi nhận đồng ý giải ngân. Máy chủ tự xử lý khi đủ ý kiến hai bên và đủ điều kiện.",
       );
     }
     query.reload();
@@ -215,31 +217,32 @@ export function SettlementStatusPanel({
               Cần nhân sự đối soát. Gửi mã lộ trình khi liên hệ hỗ trợ: {pathId}
             </p>
           )}
-          {status.retryable && status.status === "RETRYING" && (
-            <LoadingButton
-              type="button"
-              className="btn"
-              disabled={
-                retry.pending ||
-                checking ||
-                retry.uncertain ||
-                query.loading ||
-                !!query.error
-              }
-              onClick={() =>
-                void retry
-                  .run("settlement:" + pathId, () =>
-                    request("sessions/paths/" + pathId + "/settlement", {
-                      method: "POST",
-                    }),
-                  )
-                  .then(() => query.reload())
-              }
-              loading={!!(retry.pending || checking || query.loading)}
-            >
-              Thử lại quyết toán
-            </LoadingButton>
-          )}
+          {status.retryable &&
+            ["RETRYING", "READY"].includes(status.status) && (
+              <LoadingButton
+                type="button"
+                className="btn"
+                disabled={
+                  retry.pending ||
+                  checking ||
+                  retry.uncertain ||
+                  query.loading ||
+                  !!query.error
+                }
+                onClick={() =>
+                  void retry
+                    .run("settlement:" + pathId, () =>
+                      request("sessions/paths/" + pathId + "/settlement", {
+                        method: "POST",
+                      }),
+                    )
+                    .then(() => query.reload())
+                }
+                loading={!!(retry.pending || checking || query.loading)}
+              >
+                Thử lại quyết toán
+              </LoadingButton>
+            )}
         </>
       )}
       {notice && (

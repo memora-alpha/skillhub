@@ -1,4 +1,8 @@
 "use client";
+import {
+  detectContactInformation,
+  contactPolicyMessage,
+} from "@/lib/chat/contact-policy";
 import { LoadingButton } from "@/components/loading-button";
 import { useEffect, useId, useRef, useState } from "react";
 import { ProductIcon } from "../components/product-icon";
@@ -39,7 +43,8 @@ export function MessageComposer({
       saved?.messageText ?? editing?.messageText ?? "",
     ),
     [notice, setNotice] = useState<string>(),
-    [checking, setChecking] = useState(false);
+    [checking, setChecking] = useState(false),
+    [draftRejected, setDraftRejected] = useState(false);
   const [files, setFiles] = useState<ChatUpload[]>(
     saved?.files ??
       saved?.attachmentFileIds.map((id) => ({
@@ -66,6 +71,7 @@ export function MessageComposer({
   function clear() {
     intent.current = null;
     setSaved(null);
+    setDraftRejected(false);
     setEditing(null);
     setText("");
     setFiles([]);
@@ -75,6 +81,11 @@ export function MessageComposer({
     } catch {
       /* Memory state remains authoritative for this screen. */
     }
+  }
+  function isTerminalDraftRejection(cause: unknown) {
+    return (
+      cause instanceof UserApiError && [400, 409, 422].includes(cause.status)
+    );
   }
   async function checkBeforeResend(draft: Draft) {
     setChecking(true);
@@ -91,11 +102,14 @@ export function MessageComposer({
         refresh();
         return false;
       }
+      setDraftRejected(false);
       return true;
     } catch (cause) {
       if (cause instanceof UserApiError && cause.status === 404) {
+        setDraftRejected(false);
         return true;
       }
+      if (isTerminalDraftRejection(cause)) setDraftRejected(true);
       setNotice(
         cause instanceof Error
           ? cause.message
@@ -115,10 +129,14 @@ export function MessageComposer({
       uploading
     )
       return;
-    if (!intent.current && files.some((file) => file.state !== "CLEAN")) {
+    if (!intent.current && files.some((file) => file.state !== "READY")) {
       setNotice(
         "Chờ tất cả tệp được kiểm tra sạch hoặc bỏ tệp chưa sẵn sàng trước khi gửi.",
       );
+      return;
+    }
+    if (!intent.current && detectContactInformation(messageText)) {
+      setNotice(contactPolicyMessage);
       return;
     }
     if (intent.current && !(await checkBeforeResend(intent.current))) return;
@@ -226,7 +244,7 @@ export function MessageComposer({
             checking ||
             uploading ||
             (!text.trim() && !files.length) ||
-            (!saved && files.some((file) => file.state !== "CLEAN"))
+            (!saved && files.some((file) => file.state !== "READY"))
           }
           loading={!!(command.pending || checking || uploading)}
         >
@@ -260,13 +278,14 @@ export function MessageComposer({
                       "Tin nhắn vẫn đang xử lý. Bạn có thể kiểm tra lại.",
                     );
                 })
-                .catch((cause: unknown) =>
+                .catch((cause: unknown) => {
+                  if (isTerminalDraftRejection(cause)) setDraftRejected(true);
                   setNotice(
                     cause instanceof Error
                       ? cause.message
                       : "Chưa kiểm tra được kết quả.",
-                  ),
-                )
+                  );
+                })
                 .finally(() => setChecking(false));
             }}
             loading={!!(checking || command.pending)}
@@ -275,13 +294,14 @@ export function MessageComposer({
           </LoadingButton>
         )}
       </div>
-      {saved && command.failure && !command.uncertain && (
+      {saved && (draftRejected || (command.failure && !command.uncertain)) && (
         <button
           type="button"
           className="btn"
           onClick={() => {
             intent.current = null;
             setSaved(null);
+            setDraftRejected(false);
             try {
               sessionStorage.removeItem(key);
             } catch {

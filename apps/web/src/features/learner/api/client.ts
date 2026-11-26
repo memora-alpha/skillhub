@@ -10,6 +10,19 @@ export class UserApiError extends Error {
   }
 }
 const messages: Record<string, string> = {
+  VOUCHER_REDEMPTION_DISABLED:
+    "Đổi voucher hiện chưa được mở. Bạn vẫn có thể xem danh mục và lịch sử.",
+  VOUCHER_REDEMPTION_NOT_FOUND:
+    "Không có đơn đổi thưởng phát sinh từ yêu cầu đã lưu.",
+  REWARD_PRICE_CHANGED:
+    "Giá voucher đã thay đổi. Kiểm tra lại yêu cầu cũ rồi xem và xác nhận giá mới.",
+  REWARD_NOT_AVAILABLE: "Voucher này hiện không còn sẵn sàng để đổi.",
+  REWARD_PERMISSION_REQUIRED:
+    "Tài khoản chưa có quyền thực hiện thao tác phần thưởng này.",
+  VOUCHER_USER_LIMIT_EXCEEDED:
+    "Bạn đã đạt hạn mức Credit đổi voucher trong ngày.",
+  VOUCHER_BUDGET_EXCEEDED:
+    "Ngân sách voucher hôm nay đã hết. Vui lòng thử lại sau.",
   MATERIAL_VERSION_CONFLICT:
     "Tài liệu đã thay đổi. Hãy đóng và mở lại để xem phiên bản mới.",
   MATERIAL_CONTENT_LOCKED:
@@ -18,6 +31,14 @@ const messages: Record<string, string> = {
     "Trạng thái tài liệu đã thay đổi. Tải lại để xem thao tác phù hợp.",
   MATERIAL_REVIEW_EDIT_BLOCKED:
     "Quyền đánh giá đã thay đổi. Tải lại đánh giá trước khi tiếp tục.",
+  CONTENT_MODERATION_BLOCKED:
+    "Nội dung hoặc tệp đính kèm vi phạm tiêu chuẩn cộng đồng. Vui lòng chỉnh sửa rồi thử lại.",
+  CONTENT_MODERATION_TEMPORARILY_UNAVAILABLE:
+    "Hệ thống kiểm duyệt nội dung đang tạm bận. Vui lòng thử lại sau ít phút.",
+  FILE_FORMAT_UNSUPPORTED:
+    "Định dạng tệp này không được hỗ trợ cho mục tải lên này.",
+  MATERIAL_COVER_NOT_READY:
+    "Ảnh bìa chưa hoàn tất kiểm tra an toàn. Vui lòng chờ hoặc chọn ảnh khác.",
   CONTACT_INFORMATION_NOT_ALLOWED:
     "Hãy bỏ số điện thoại, email hoặc thông tin liên hệ riêng trước khi gửi. Bạn có thể trao đổi ngay trong SkillHub.",
   REPORT_POLICY_UNAVAILABLE:
@@ -96,7 +117,7 @@ const messages: Record<string, string> = {
     "Tên tag cần từ 1 đến 80 ký tự, không chứa ký tự điều khiển.",
   TAG_ALREADY_EXISTS:
     "Tag này đã có trong danh mục. Hãy tìm và chọn tag có sẵn còn hiệu lực.",
-  TAG_REQUEST_ALREADY_PENDING:
+  TAG_REQUEST_PENDING:
     "Bạn đã có đề xuất tag này đang chờ duyệt. Kiểm tra yêu cầu của tôi.",
   TAG_NOT_ACTIVE:
     "Một tag không còn hiệu lực. Tìm lại tag hoặc bỏ tag đó trước khi lưu.",
@@ -137,6 +158,88 @@ const messages: Record<string, string> = {
   LEARNING_PATH_NOT_SETTLEABLE:
     "Lộ trình hiện chưa đủ điều kiện quyết toán. Tải lại trạng thái để kiểm tra.",
   INVALID_CREDENTIALS: "Email hoặc mật khẩu chưa đúng.",
+  ACCOUNT_NOT_ACTIVE:
+    "Tài khoản hiện chưa thể đăng nhập. Vui lòng liên hệ hỗ trợ SkillHub để kiểm tra trạng thái tài khoản.",
+  EMAIL_ALREADY_EXISTS:
+    "Email đã được sử dụng. Hãy đăng nhập hoặc khôi phục mật khẩu.",
+  EMAIL_ALREADY_REGISTERED:
+    "Email đã được sử dụng. Hãy đăng nhập hoặc khôi phục mật khẩu.",
+  OTP_INVALID_OR_EXPIRED:
+    "Mã không đúng, đã hết hạn hoặc đang bị giới hạn. Vui lòng kiểm tra lại.",
+  RESET_TOKEN_INVALID_OR_EXPIRED:
+    "Phiên đặt lại mật khẩu đã hết hạn. Vui lòng yêu cầu mã mới.",
+  INVALID_REFRESH_TOKEN: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+  ACTIVE_MATERIAL_REPORT_EXISTS:
+    "Bạn đã có báo cáo đang xử lý cho tài liệu này.",
+  DUPLICATE_REPORT_EVIDENCE: "Bằng chứng bị trùng. Bỏ tệp trùng rồi gửi lại.",
+  CASE_MESSAGE_ID_REUSED:
+    "Nội dung gửi lại đã thay đổi. Tải lại trao đổi để kiểm tra.",
+  CHAT_RATE_LIMIT:
+    "Bạn đang gửi tin nhắn quá nhanh. Vui lòng đợi trước khi gửi tiếp.",
+  EVENT_CONNECTION_LIMIT:
+    "Đã đạt giới hạn kết nối cập nhật. Đóng bớt tab đang mở và đợi kết nối lại.",
+  FILE_FORMAT_MISMATCH:
+    "Nội dung tệp không khớp với phần mở rộng hoặc định dạng đã khai báo.",
+  FILE_NAME_INVALID:
+    "Tên tệp không hợp lệ. Hãy đổi tên tệp không chứa ký tự đặc biệt rồi thử lại.",
+  FILE_EMPTY_OR_INVALID: "Tệp rỗng hoặc không đọc được dữ liệu hợp lệ.",
+  FILE_ARCHIVE_EXPANSION_LIMIT_EXCEEDED:
+    "Tệp tài liệu có cấu trúc nén vượt giới hạn an toàn.",
+  FILE_POLICY_UNAVAILABLE:
+    "Chưa thể kiểm tra chính sách tệp lúc này. Vui lòng thử lại sau.",
+  FILE_STORAGE_UNAVAILABLE:
+    "Dịch vụ lưu trữ tệp đang tạm gián đoạn. Vui lòng thử lại sau.",
+  FILE_NOT_READY:
+    "Tệp chưa được quét an toàn xong. Kiểm tra trạng thái tệp trước khi gửi.",
+  MATERIAL_PRICE_CHANGED:
+    "Giá hoặc phiên bản tài liệu đã đổi. Tải lại và kiểm tra trước khi xác nhận mua.",
+  MATERIAL_ACCESS_DENIED: "Bạn không có quyền truy cập tài liệu này.",
+  MATERIAL_ACCESS_CHANGED:
+    "Hình thức truy cập tài liệu đã thay đổi. Tải lại trước khi tiếp tục.",
+  MATERIAL_RIGHTS_CONFIRMATION_REQUIRED:
+    "Bạn cần xác nhận quyền chia sẻ tài liệu trước khi gửi duyệt.",
+  MATERIAL_DELETE_NOT_ALLOWED:
+    "Không thể xóa tài liệu ở trạng thái hiện tại hoặc đã có người mua.",
+  MATERIAL_ALREADY_OWNED: "Bạn đã có quyền truy cập tài liệu này.",
+  MATERIAL_NOT_PURCHASABLE: "Tài liệu hiện không đủ điều kiện mua.",
+  MATERIAL_FILE_REQUIRED: "Tài liệu cần có tệp hợp lệ trước khi gửi duyệt.",
+  MATERIAL_TRANSITION_INVALID:
+    "Tài liệu đã đổi trạng thái. Tải lại danh sách trước khi thao tác.",
+  PATH_ALREADY_LEARNING_FINISHED:
+    "Các buổi học đã hoàn thành. Mở mục quyết toán để theo dõi Credit.",
+  RECOVERY_MISSION_INCOMPLETE:
+    "Nhiệm vụ chưa đủ điều kiện. Hoàn thành các bước rồi kiểm tra lại.",
+  RECOVERY_MISSION_NOT_ELIGIBLE:
+    "Nhiệm vụ này không còn áp dụng cho tài khoản của bạn. Hãy tải lại mục uy tín.",
+  RECOVERY_QUIZ_VERSION_OR_LENGTH_INVALID:
+    "Bài kiểm tra đã cập nhật. Tải lại câu hỏi để làm tiếp.",
+  RESCHEDULE_CUTOFF_OR_STATE_VIOLATION:
+    "Buổi học đã quá hạn đổi lịch hoặc không còn ở trạng thái cho phép đổi lịch.",
+  ABSENCE_EXCUSE_EXISTS: "Bạn đã gửi lý do vắng mặt cho buổi học này.",
+  ABSENCE_EXCUSE_NOT_ALLOWED:
+    "Buổi học hiện không đủ điều kiện gửi lý do vắng mặt.",
+  ABSENCE_EXCUSE_NOT_PENDING:
+    "Yêu cầu xác nhận lý do vắng mặt không còn ở trạng thái chờ xử lý.",
+  PAYMENT_ALREADY_PAID: "Lệnh nạp này đã được thanh toán thành công.",
+  PAYMENT_CHANNEL_UNAVAILABLE:
+    "Kênh thanh toán tạm thời chưa sẵn sàng. Vui lòng thử lại sau.",
+  PAYMENT_CHECKOUT_BUSY:
+    "Hệ thống đang khởi tạo liên kết thanh toán. Vui lòng chờ giây lát.",
+  PROPOSAL_EXPIRED: "Đề nghị này đã hết hạn và không thể thao tác tiếp.",
+  PROPOSAL_VERSION_CONFLICT:
+    "Đề nghị đã thay đổi. Tải lại để xem thông tin mới nhất.",
+  VERIFICATION_PENDING: "Kỹ năng này đang có yêu cầu xác minh chờ duyệt.",
+  SKILL_DUPLICATE: "Bạn đã thêm kỹ năng này vào hồ sơ chia sẻ.",
+  SKILL_NOT_ACTIVE: "Kỹ năng này không còn hoạt động trong danh mục.",
+  SKILL_LEVEL_NOT_ACTIVE:
+    "Cấp độ kỹ năng đã chọn không còn hoạt động. Hãy chọn cấp độ khác.",
+  SESSION_BLOCKED_BY_DISPUTE:
+    "Buổi học đang có tranh chấp chưa giải quyết nên chưa thể thao tác.",
+  SESSION_NOT_ENDED: "Buổi học chưa kết thúc.",
+  CHANGE_REQUEST_ALREADY_DECIDED:
+    "Yêu cầu thay đổi đã có phản hồi. Tải lại để xem kết quả.",
+  CHANGE_REQUEST_CLOSED: "Yêu cầu thay đổi đã đóng.",
+  RATE_LIMITED: "Bạn đang gửi yêu cầu quá nhanh. Vui lòng đợi một lát.",
   USER_PORTAL_ACCESS_REQUIRED:
     "Dùng tài khoản người dùng để vào khu học tập. Admin/Staff có cổng riêng.",
   SESSION_EXPIRED: "Phiên đăng nhập đã hết hạn.",

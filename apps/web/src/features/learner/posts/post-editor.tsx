@@ -20,6 +20,7 @@ import type { Post } from "../types";
 import Link from "next/link";
 import { PostExtras, initialPostExtras } from "./post-extras";
 import { postExtraInput } from "./post-input";
+import { isPostOwner } from "./post-policy";
 export function PostEditor({ id }: Readonly<{ id?: string }>) {
   const query = useUserResource<Post>(id ? "learning-requests/" + id : null, {
     retainOnTemporaryError: true,
@@ -70,7 +71,7 @@ export function PostEditor({ id }: Readonly<{ id?: string }>) {
   );
 }
 function PostForm({ post }: Readonly<{ post?: Post }>) {
-  const { request } = useUserSession(),
+  const { request, actor } = useUserSession(),
     router = useRouter(),
     command = useUserCommand();
   const [skill, setSkill] = useState(post?.skillId ?? post?.skill?.id ?? ""),
@@ -82,7 +83,7 @@ function PostForm({ post }: Readonly<{ post?: Post }>) {
     command.pending ||
     command.uncertain ||
     stale ||
-    !!post?.owner ||
+    (!!post && !isPostOwner(post, actor.userId)) ||
     (!!post &&
       !["DRAFT", "OPEN", "PENDING_MODERATION", "REJECTED"].includes(
         post.status,
@@ -146,7 +147,7 @@ function PostForm({ post }: Readonly<{ post?: Post }>) {
             title: formText(fields, "title").trim(),
             description: formText(fields, "description").trim(),
             learningGoal: formText(fields, "goal").trim(),
-            currentLevel: formText(fields, "level"),
+            currentLevel: formText(fields, "level") || null,
             desiredCreditPerHour: fields.get("credit")
               ? formText(fields, "credit")
               : null,
@@ -246,9 +247,10 @@ function PostForm({ post }: Readonly<{ post?: Post }>) {
             <span>Trình độ hiện tại</span>
             <select
               name="level"
-              defaultValue={post?.currentLevel ?? "BEGINNER"}
+              defaultValue={post?.currentLevel ?? ""}
               disabled={blocked}
             >
+              <option value="">Không xác định</option>
               <option value="NONE">Chưa biết</option>
               <option value="BEGINNER">Cơ bản</option>
               <option value="INTERMEDIATE">Trung cấp</option>
@@ -263,7 +265,7 @@ function PostForm({ post }: Readonly<{ post?: Post }>) {
               min="0.01"
               step="0.01"
               max="9999999999.99"
-              defaultValue={post?.desiredCreditPerHour ?? "20"}
+              defaultValue={post ? (post.desiredCreditPerHour ?? "") : "20"}
               disabled={blocked}
             />
             <small>Mức gợi ý; giá cuối cùng do hai bên xác nhận.</small>

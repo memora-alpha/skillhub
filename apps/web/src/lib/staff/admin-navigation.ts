@@ -10,12 +10,16 @@ export type AdminTab = Readonly<{
   view?: ModerationView;
 }>;
 export type AdminSectionGroup =
-  "Điều hành" | "Kiểm duyệt & Vụ việc" | "Danh mục & Quản trị";
+  | "Tổng quan & Vận hành"
+  | "Kiểm duyệt & Xử lý"
+  | "Người dùng & Danh mục"
+  | "Hệ thống";
 
 export const adminSectionGroups: readonly AdminSectionGroup[] = [
-  "Điều hành",
-  "Kiểm duyệt & Vụ việc",
-  "Danh mục & Quản trị",
+  "Tổng quan & Vận hành",
+  "Kiểm duyệt & Xử lý",
+  "Người dùng & Danh mục",
+  "Hệ thống",
 ];
 
 export type AdminSection = Readonly<{
@@ -33,46 +37,53 @@ export const adminSections: readonly AdminSection[] = [
     href: "/admin",
     label: "Tổng quan",
     icon: "grid",
-    group: "Điều hành",
+    group: "Tổng quan & Vận hành",
   },
   {
     id: "learning-paths",
     href: "/admin/learning-paths",
     label: "Lộ trình học",
     icon: "book",
-    group: "Điều hành",
+    group: "Tổng quan & Vận hành",
   },
   {
     id: "finance",
     href: "/admin/credits",
     label: "Tài chính & Credit",
     icon: "card",
-    group: "Điều hành",
+    group: "Tổng quan & Vận hành",
+  },
+  {
+    id: "rewards",
+    href: "/admin/rewards",
+    label: "Voucher & phần thưởng",
+    icon: "award",
+    group: "Tổng quan & Vận hành",
   },
   {
     id: "moderation",
     href: "/admin/moderation",
     label: "Kiểm duyệt",
-    icon: "shield",
-    group: "Kiểm duyệt & Vụ việc",
+    icon: "flag",
+    group: "Kiểm duyệt & Xử lý",
     tabs: [
       {
         id: "requests",
         href: "/admin/moderation",
         path: "/admin/moderation",
-        label: "Yêu cầu học",
+        label: "Bài nhu cầu học",
       },
       {
         id: "materials",
         href: "/admin/content",
         path: "/admin/content",
-        label: "Tài liệu số",
+        label: "Tài liệu học tập",
       },
       {
         id: "evidence",
         href: "/admin/evidence",
         path: "/admin/evidence",
-        label: "Bằng chứng kỹ năng",
+        label: "Xác minh kỹ năng",
       },
       {
         id: "reviews",
@@ -93,9 +104,9 @@ export const adminSections: readonly AdminSection[] = [
   {
     id: "support",
     href: "/admin/disputes",
-    label: "Vụ việc & hỗ trợ",
+    label: "Tranh chấp & Hỗ trợ",
     icon: "alert",
-    group: "Kiểm duyệt & Vụ việc",
+    group: "Kiểm duyệt & Xử lý",
     tabs: [
       {
         id: "reports",
@@ -112,11 +123,18 @@ export const adminSections: readonly AdminSection[] = [
     ],
   },
   {
+    id: "reputation",
+    href: "/admin/reputation",
+    label: "Uy tín & Hạn chế",
+    icon: "shield",
+    group: "Kiểm duyệt & Xử lý",
+  },
+  {
     id: "people",
     href: "/admin/users",
     label: "Người dùng & nhân sự",
     icon: "users",
-    group: "Danh mục & Quản trị",
+    group: "Người dùng & Danh mục",
     tabs: [
       {
         id: "users",
@@ -135,9 +153,9 @@ export const adminSections: readonly AdminSection[] = [
   {
     id: "catalog",
     href: "/admin/skills",
-    label: "Danh mục chuẩn",
+    label: "Kỹ năng & Tag",
     icon: "tag",
-    group: "Danh mục & Quản trị",
+    group: "Người dùng & Danh mục",
     tabs: [
       {
         id: "skills",
@@ -160,18 +178,18 @@ export const adminSections: readonly AdminSection[] = [
     ],
   },
   {
+    id: "settings",
+    href: "/admin/config",
+    label: "Quy tắc & Cài đặt",
+    icon: "sliders",
+    group: "Hệ thống",
+  },
+  {
     id: "audit",
     href: "/admin/audit",
     label: "Nhật ký hoạt động",
     icon: "clock",
-    group: "Danh mục & Quản trị",
-  },
-  {
-    id: "settings",
-    href: "/admin/config",
-    label: "Cấu hình nghiệp vụ",
-    icon: "sliders",
-    group: "Danh mục & Quản trị",
+    group: "Hệ thống",
   },
 ];
 

@@ -24,7 +24,7 @@ type Editor = {
   slug: string;
   description: string;
   categoryId: string;
-  status: "ACTIVE" | "INACTIVE";
+  status: "ACTIVE" | "INACTIVE" | "ARCHIVED";
 };
 const uuidPattern =
   "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
@@ -33,6 +33,7 @@ export function CatalogScreen() {
   const [q, setQ] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
+  const [categoryId, setCategoryId] = useState("");
   const [editor, setEditor] = useState<Editor | null>(null);
   const [transition, setTransition] = useState<CatalogSkill | null>(null);
   const [levels, setLevels] = useState<CatalogSkill | null>(null);
@@ -42,6 +43,7 @@ export function CatalogScreen() {
   const params = new URLSearchParams({ limit: "20" });
   if (search) params.set("q", search);
   if (status) params.set("status", status);
+  if (categoryId) params.set("categoryId", categoryId);
   const queue = useStaffListPages<CatalogSkill>(`skills?${params}`);
   const reload = async () => {
     setLevels(null);
@@ -115,6 +117,28 @@ export function CatalogScreen() {
           </select>
         </label>
       </div>
+      <form
+        className="toolbar"
+        onSubmit={(event) => {
+          event.preventDefault();
+          setCategoryId(
+            String(
+              new FormData(event.currentTarget).get("categoryId") ?? "",
+            ).trim(),
+          );
+        }}
+      >
+        <label>
+          Mã danh mục
+          <input name="categoryId" pattern={uuidPattern} />
+        </label>
+        <button className="btn" type="submit">
+          Lọc danh mục
+        </button>
+        <button className="btn" type="button" onClick={() => setCategoryId("")}>
+          Xóa lọc
+        </button>
+      </form>
       {success && <output className="staff-success">{success}</output>}
       <Card flush>
         <QueueState
@@ -277,6 +301,7 @@ export function CatalogScreen() {
               >
                 <option value="ACTIVE">Hoạt động</option>
                 <option value="INACTIVE">Tạm ngưng</option>
+                {!editor.skill && <option value="ARCHIVED">Đã ẩn</option>}
               </select>
             </label>
           </div>

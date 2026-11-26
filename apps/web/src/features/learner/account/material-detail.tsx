@@ -16,8 +16,9 @@ import {
   PageHeading,
   Panel,
 } from "../components/common";
-import type { Material, MaterialOrder } from "./account-types";
+import type { Material, MaterialOrder, OwnedMaterial } from "./account-types";
 import { safeDownloadUrl } from "./view-policy";
+import { UserApiError } from "../api/client";
 import { materialPurchaseAccess } from "./material-access-policy";
 export function MaterialDetail({ id }: Readonly<{ id: string }>) {
   const { actor } = useUserSession();
@@ -27,7 +28,12 @@ function useMaterialDetail(id: string) {
   const query = useUserResource<Material>("materials/" + id),
     { request, actor } = useUserSession(),
     command = useUserCommand(true);
-  const material = query.data;
+  const unavailable =
+    query.failure instanceof UserApiError && query.failure.status === 404;
+  const ownDetail = useUserResource<OwnedMaterial>(
+    unavailable ? "me/materials/" + id : null,
+  );
+  const material = query.data ?? ownDetail.data;
   const orders = useUserSnapshot<MaterialOrder>(
     "me/material-orders?limit=100",
     {
@@ -91,8 +97,10 @@ function useMaterialDetail(id: string) {
   else if (command.canRetry) purchaseLabel = "Kiểm tra lại yêu cầu mua";
   else purchaseLabel = "Mua tài liệu";
   return {
-    query,
+    query:
+      unavailable && (ownDetail.loading || ownDetail.data) ? ownDetail : query,
     material,
+    coverPreview: ownDetail.data?.cover?.preview,
     orders,
     command,
     request,
@@ -116,6 +124,7 @@ function MaterialDetailContent({ id }: Readonly<{ id: string }>) {
   const {
     query,
     material,
+    coverPreview,
     orders,
     command,
     request,
@@ -156,7 +165,10 @@ function MaterialDetailContent({ id }: Readonly<{ id: string }>) {
           <div className="learner-two-columns">
             <Panel>
               <div className="product-file-preview">
-                <MaterialThumbnail thumbnail={material.thumbnail} large />
+                <MaterialThumbnail
+                  thumbnail={material.thumbnail ?? coverPreview}
+                  large
+                />
                 <strong>
                   {material.file?.originalFilename ?? material.title}
                 </strong>
@@ -166,6 +178,10 @@ function MaterialDetailContent({ id }: Readonly<{ id: string }>) {
               <MaterialRating summary={material.ratingSummary} />
               {!owned && <MaterialFavorite materialId={id} />}
               <p className="learner-prose">{material.description}</p>
+              <Link href={"/learn/people/" + material.ownerId}>
+                Xem hồ sơ tác giả
+              </Link>
+              <RelatedMaterials material={material} />
               <p>Phiên bản niêm yết: {material.listingVersion}</p>
               <Link
                 className="learner-card-link"
@@ -274,7 +290,7 @@ function MaterialDetailContent({ id }: Readonly<{ id: string }>) {
                         .run(
                           "purchase:" + id + ":" + material.listingVersion,
                           (key) =>
-                            request<{ order: MaterialOrder }>(
+                            request<MaterialOrder>(
                               "materials/" + id + "/purchase",
                               {
                                 method: "POST",
@@ -288,8 +304,8 @@ function MaterialDetailContent({ id }: Readonly<{ id: string }>) {
                         )
                         .then((result) => {
                           if (
-                            result?.data.order?.materialId === id &&
-                            result.data.order.status === "SUCCESS"
+                            result?.data?.materialId === id &&
+                            result.data.status === "SUCCESS"
                           ) {
                             setPurchaseRecorded(true);
                             void orders.reload();
@@ -311,5 +327,27 @@ function MaterialDetailContent({ id }: Readonly<{ id: string }>) {
         </>
       )}
     </>
+  );
+}
+
+function RelatedMaterials({ material }: Readonly<{ material: Material }>) {
+  const list = useUserResource<Material[]>(
+    `materials?skillId=${encodeURIComponent(material.skillId)}&limit=5`,
+  );
+  const items = list.data?.filter((row) => row.id !== material.id) ?? [];
+  return (
+    <section>
+      <h3>Tài liệu cùng kỹ năng</h3>
+      <Feedback
+        loading={list.initialLoading}
+        error={list.error}
+        reload={list.reload}
+      />
+      {items.map((row) => (
+        <p key={row.id}>
+          <Link href={"/learn/materials/" + row.id}>{row.title}</Link>
+        </p>
+      ))}
+    </section>
   );
 }

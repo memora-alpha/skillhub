@@ -29,6 +29,15 @@ type Review = {
     reasonCode: string;
     description: string;
     createdAt: string;
+    contentAssessment?: {
+      kind: string;
+      sourceId: string;
+      status: string;
+      reasonCodes: string[];
+      policyVersion: string | number | null;
+      classifierVersion: string | null;
+      assessmentId: string | null;
+    };
   }[];
 };
 
@@ -123,6 +132,14 @@ export function MaterialReviewModeration() {
                           )}
                         </summary>
                         <p>{report.description}</p>
+                        {report.contentAssessment && (
+                          <p className="muted">
+                            Kiểm duyệt nội dung:{" "}
+                            <strong>{report.contentAssessment.status}</strong>
+                            {report.contentAssessment.reasonCodes.length > 0 &&
+                              ` · ${report.contentAssessment.reasonCodes.join(", ")}`}
+                          </p>
+                        )}
                         <small>{fmtDateTime(report.createdAt)}</small>
                       </details>
                     ))}

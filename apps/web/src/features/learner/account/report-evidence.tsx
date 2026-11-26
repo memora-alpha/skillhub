@@ -4,6 +4,16 @@ import { useUserResource } from "../hooks/use-user-resource";
 import { Feedback } from "../components/common";
 import { LoadingSkeleton } from "@/components/loading-skeleton";
 
+const terminalStates = [
+  "READY",
+  "REJECTED",
+  "DELETED",
+  "FAILED",
+  "SCAN_FAILED",
+  "UPLOAD_FAILED",
+  "CLEANUP_PENDING",
+];
+
 export function ReportEvidence({
   id,
   onState,
@@ -15,24 +25,44 @@ export function ReportEvidence({
   onRemove: () => void;
   disabled: boolean;
 }>) {
-  const query = useUserResource<{ fileId: string; state: string }>(
-    "reports/evidence-files/" + id,
-    {
-      refetchInterval: (file) =>
-        file && !["READY", "REJECTED", "DELETED", "FAILED"].includes(file.state)
-          ? 5000
-          : false,
-    },
-  );
-  const state = query.data?.fileId === id ? query.data.state : undefined;
+  const query = useUserResource<{
+    fileId: string;
+    state: string;
+    moderationStatus?: string;
+  }>("reports/evidence-files/" + id, {
+    refetchInterval: (file) =>
+      file &&
+      !terminalStates.includes(file.state) &&
+      !["REVIEW_REQUIRED", "FAILED"].includes(file.moderationStatus ?? "")
+        ? 5000
+        : false,
+  });
+  const needsReview =
+    query.data?.fileId === id &&
+    query.data.moderationStatus === "REVIEW_REQUIRED";
+  const state =
+    query.data?.fileId === id
+      ? needsReview
+        ? "REVIEW_REQUIRED"
+        : query.data.state
+      : undefined;
   let stateLabel = "Chưa có kết quả kiểm tra tệp";
   if (state === "READY") stateLabel = "Sẵn sàng gửi";
+  else if (state === "REVIEW_REQUIRED")
+    stateLabel = "Tệp cần kiểm duyệt thêm trước khi gửi";
   else if (state === "REJECTED") stateLabel = "Tệp bị từ chối, hãy bỏ tệp này";
-  else if (state === "FAILED") stateLabel = "Kiểm tra tệp không thành công";
-  else if (state === "DELETED") stateLabel = "Tệp đã bị xóa";
+  else if (
+    state === "FAILED" ||
+    state === "SCAN_FAILED" ||
+    state === "UPLOAD_FAILED"
+  )
+    stateLabel = "Kiểm tra tệp không thành công, hãy bỏ tệp và thử lại";
+  else if (state === "DELETED" || state === "CLEANUP_PENDING")
+    stateLabel = "Tệp đã bị xóa";
   const processing =
     !query.error &&
-    (!state || !["READY", "REJECTED", "DELETED", "FAILED"].includes(state));
+    (!state ||
+      (!terminalStates.includes(state) && state !== "REVIEW_REQUIRED"));
   useEffect(() => {
     if (state) onState(id, state);
   }, [id, state, onState]);

@@ -85,6 +85,7 @@ export const auditTargetLabels: Readonly<Record<string, string>> = {
   SHARING_SKILL: "Kỹ năng chia sẻ",
   SKILL: "Kỹ năng",
   SKILL_VERIFICATION: "Xác minh kỹ năng",
+  SKILL_EVIDENCE: "Bằng chứng kỹ năng",
   SKILL_LEVEL: "Cấp độ kỹ năng",
   TAG: "Thẻ chủ đề",
   TAG_REQUEST: "Đề xuất thẻ chủ đề",

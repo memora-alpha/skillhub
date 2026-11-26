@@ -2,7 +2,7 @@
 export function staffQuery(path: string, query: URLSearchParams) {
   const accepted = new URLSearchParams();
   for (const name of staffQueryNames(path))
-    if (query.has(name)) accepted.set(name, query.get(name)!);
+    for (const value of query.getAll(name)) accepted.append(name, value);
   if (
     path === "reports/support/queue" &&
     ["ALL", "CLOSED"].includes(accepted.get("status") ?? "")
@@ -11,6 +11,9 @@ export function staffQuery(path: string, query: URLSearchParams) {
   return accepted.size ? `?${accepted}` : "";
 }
 function staffQueryNames(path: string): string[] {
+  if (path === "profanity-rules/revisions") return ["before"];
+  if (path.startsWith("rewards/"))
+    return ["limit", "cursor", "status", "productId", "userId"];
   if (path === "audit-logs")
     return [
       "limit",
@@ -22,8 +25,6 @@ function staffQueryNames(path: string): string[] {
       "from",
       "to",
     ];
-  if (/^reputation\/users\/[^/]+\/history$/.test(path))
-    return ["cursor", "limit"];
   if (path === "dashboard/summary") return ["from", "to", "timezone"];
   if (path === "dashboard/trends")
     return ["from", "to", "timezone", "granularity"];
@@ -65,6 +66,9 @@ function staffQueryNames(path: string): string[] {
       "gatewayTransactionId",
     );
   if (path === "reports/support/queue") names.push("severity", "handlerId");
+  if (path === "learning-requests") names.push("keyword", "skillId", "tagIds");
+  if (path === "materials")
+    names.push("skillId", "accessType", "ownerId", "from", "to");
   if (path === "dashboard/work-items")
     names.push(
       "kind",

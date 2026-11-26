@@ -1,9 +1,12 @@
 "use client";
 import { ListPagination } from "@/components/pagination/list-pagination";
-import { useUserPagedList } from "../hooks/use-user-paged-list";
+import {
+  splitPages,
+  useListPages,
+} from "@/components/pagination/use-list-pages";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useUserSession } from "../auth/session";
 import { useUserList, useUserResource } from "../hooks/use-user-resource";
 import type { Conversation } from "../types";
@@ -17,7 +20,23 @@ import styles from "./inbox.module.css";
 
 export function InboxLayout({ children }: Readonly<{ children: ReactNode }>) {
   const [selectedId, setSelectedId] = useState<string>();
-  const groups = useUserPagedList<InboxGroup>("conversations/inbox?limit=20");
+  const [scope, setScope] = useState("ALL");
+  const list = useUserList<InboxGroup>("conversations/inbox?limit=20");
+  const { cursor, loading, error, more } = list;
+  const filtered = scope !== "ALL";
+  useEffect(() => {
+    if (filtered && cursor && !loading && !error) void more();
+  }, [filtered, cursor, loading, error, more]);
+  const pagination = useListPages({
+    ...list,
+    scope: `${list.scope}:${scope}`,
+    chunks: filtered
+      ? splitPages(list.items.filter((row) => row.groupType === scope))
+      : list.chunks,
+    loading: loading || (filtered && !!cursor && !error),
+    hasMore: !filtered && !!cursor,
+  });
+  const groups = { ...list, ...pagination, allItems: list.items };
   const conversations = useUserList<Conversation>("conversations?limit=20");
   const pathname = usePathname();
   const router = useRouter();
@@ -47,6 +66,29 @@ export function InboxLayout({ children }: Readonly<{ children: ReactNode }>) {
             reload={groups.reload}
             refreshing={!!(groups.loading && !groups.initialLoading)}
           />
+          <div
+            className="learner-tabs"
+            role="group"
+            aria-label="Loại cuộc trò chuyện"
+          >
+            {[
+              ["ALL", "Tất cả"],
+              ["LEARNING_REQUEST", "Yêu cầu học"],
+              ["DIRECT_CONVERSATION", "Trực tiếp"],
+            ].map(([value, label]) => (
+              <button
+                type="button"
+                key={value}
+                aria-pressed={scope === value}
+                onClick={() => {
+                  setScope(value!);
+                  setSelectedId(undefined);
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <div className={styles.groupList}>
             {groups.items.map((group) => {
               if (

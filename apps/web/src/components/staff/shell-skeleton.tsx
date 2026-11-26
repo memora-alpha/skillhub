@@ -24,7 +24,7 @@ export function StaffShellSkeleton({
               Skill<em>Hub</em>
             </div>
             <div className="side-sub">
-              {portal === "admin" ? "Cổng quản trị" : "Bàn vận hành"}
+              {portal === "admin" ? "Cổng quản trị" : "Khu vực vận hành"}
             </div>
           </div>
         </div>
