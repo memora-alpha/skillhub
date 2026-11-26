@@ -8,7 +8,6 @@ import {
   PayloadTooLargeException,
   ServiceUnavailableException,
 } from "@nestjs/common";
-import { randomUUID } from "node:crypto";
 import type { Prisma } from "../../../../generated/prisma/client";
 import { PrismaService } from "../../../../infrastructure/database/prisma.service";
 import { TransactionRunner } from "../../../../infrastructure/database/transaction-runner";
@@ -16,27 +15,30 @@ import type { TransactionContext } from "../../../../infrastructure/database/tra
 import { CLOCK, type Clock } from "../../../../shared/time/clock";
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import { AuditWriter } from "../../../audit/application/services/audit-writer";
-import type { RoleCode } from "../../../../shared/authorization/authorization.types";
 import { SystemConfigurationService } from "../../../system-configuration/application/services/system-configuration.service";
 import type { JoinWindowPolicy } from "../../domain/session.policy";
 import {
   checkWhiteboardScene,
-  reportedSessionIds,
-  WHITEBOARD_HOLD_REPORT_STATUSES,
   whiteboardAccess,
   type WhiteboardEditPolicy,
   type WhiteboardRole,
   type WhiteboardScene,
 } from "../../domain/whiteboard.policy";
+import { sessionsHeldByReport } from "./report-hold";
 import { databaseNow } from "./session-tx";
+import {
+  appendEvidenceRead,
+  requireOpenCaseForSession,
+  requireStaffReviewer,
+  STAFF_REVIEW_PERMISSION,
+} from "./staff-evidence";
 
 export const WHITEBOARD_READ_PERMISSION = "session:read:participant";
 export const WHITEBOARD_UPDATE_PERMISSION =
   "session-whiteboard:update:participant";
-export const WHITEBOARD_STAFF_PERMISSION = "report:moderate";
+export const WHITEBOARD_STAFF_PERMISSION = STAFF_REVIEW_PERMISSION;
 
 const DAY_MS = 86_400_000;
-const holdStatuses: string[] = [...WHITEBOARD_HOLD_REPORT_STATUSES];
 
 type Reader = Pick<
   TransactionContext,
@@ -156,29 +158,9 @@ export class SessionWhiteboardService {
    * read, never edit, its board. Every read is audited in the same transaction.
    */
   async staffRead(actor: Principal, sessionId: string, caseId: string) {
-    if (
-      !actor.permissions.includes(WHITEBOARD_STAFF_PERMISSION) ||
-      (!actor.roles.includes("STAFF") && !actor.roles.includes("ADMIN"))
-    )
-      throw new ForbiddenException("STAFF_ACCESS_REQUIRED");
+    requireStaffReviewer(actor);
     return this.transactions.run(async (tx) => {
-      const item = await tx.reportCase.findUnique({
-        where: { id: caseId },
-        select: {
-          handlerId: true,
-          status: true,
-          relatedSessionId: true,
-          targetType: true,
-          targetId: true,
-        },
-      });
-      if (!item) throw new NotFoundException("REPORT_CASE_NOT_FOUND");
-      if (item.handlerId !== actor.userId)
-        throw new ForbiddenException("REPORT_CASE_NOT_ASSIGNED_TO_CALLER");
-      if (!holdStatuses.includes(item.status))
-        throw new ConflictException("REPORT_CASE_NOT_OPEN");
-      if (!reportedSessionIds(item).includes(sessionId))
-        throw new NotFoundException("SESSION_NOT_IN_REPORT_CASE");
+      await requireOpenCaseForSession(tx, actor, sessionId, caseId);
       const board = await tx.sessionWhiteboard.findUnique({
         where: { sessionId },
         select: {
@@ -188,20 +170,11 @@ export class SessionWhiteboardService {
           updatedByUserId: true,
         },
       });
-      await this.audit.append(tx, {
-        actor: {
-          kind: "HUMAN",
-          userId: actor.userId,
-          roles: actor.roles.filter(
-            (role): role is RoleCode =>
-              role === "USER" || role === "STAFF" || role === "ADMIN",
-          ),
-        },
-        action: "REPORT_EVIDENCE_READ",
-        target: { type: "SESSION_WHITEBOARD", id: sessionId },
-        after: { caseId, access: "READ" },
+      await appendEvidenceRead(this.audit, tx, actor, {
+        targetType: "SESSION_WHITEBOARD",
+        targetId: sessionId,
+        caseId,
         reason: "Staff accessed the session whiteboard",
-        context: { requestId: randomUUID(), correlationId: randomUUID() },
       });
       return {
         caseId,
@@ -242,17 +215,7 @@ export class SessionWhiteboardService {
       });
       const ids = due.map(({ sessionId }) => sessionId);
       if (ids.length === 0) return { deleted: 0, next: null };
-      const held = await tx.reportCase.findMany({
-        where: {
-          status: { in: [...WHITEBOARD_HOLD_REPORT_STATUSES] },
-          OR: [
-            { relatedSessionId: { in: ids } },
-            { targetType: "SESSION", targetId: { in: ids } },
-          ],
-        },
-        select: { relatedSessionId: true, targetType: true, targetId: true },
-      });
-      const heldIds = new Set(held.flatMap(reportedSessionIds));
+      const heldIds = await sessionsHeldByReport(tx, ids);
       const purge = ids.filter((id) => !heldIds.has(id));
       const { count } = purge.length
         ? await tx.sessionWhiteboard.deleteMany({
@@ -339,17 +302,7 @@ export class SessionWhiteboardService {
 
   /** An open report that targets or relates to the Session freezes its board. */
   private async underReport(reader: Reader, sessionId: string) {
-    const open = await reader.reportCase.findFirst({
-      where: {
-        status: { in: [...WHITEBOARD_HOLD_REPORT_STATUSES] },
-        OR: [
-          { relatedSessionId: sessionId },
-          { targetType: "SESSION", targetId: sessionId },
-        ],
-      },
-      select: { id: true },
-    });
-    return open !== null;
+    return (await sessionsHeldByReport(reader, [sessionId])).has(sessionId);
   }
 
   private async policies(

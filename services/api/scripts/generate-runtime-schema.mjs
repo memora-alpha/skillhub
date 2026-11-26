@@ -617,6 +617,24 @@ schema +=
   "\n" +
   readFileSync(new URL("session-whiteboard-support.prisma", root), "utf8");
 
+// Session recording (spec 020): consented LiveKit Egress recordings per Session.
+model("Session", (block) =>
+  fields(
+    block,
+    '  recordings SessionRecording[] @relation("SessionRecording_session")',
+  ),
+);
+model("User", (block) =>
+  fields(
+    block,
+    '  sessionRecordingsRequested SessionRecording[] @relation("SessionRecording_requested_by")\n' +
+      '  sessionRecordingsAccepted SessionRecording[] @relation("SessionRecording_accepted_by")',
+  ),
+);
+schema +=
+  "\n" +
+  readFileSync(new URL("session-recording-support.prisma", root), "utf8");
+
 schema = schema.replace(
   /^\/\/ Logical v3[^\r\n]*\r?\n(?:\/\/[^\r\n]*\r?\n)*\r?\n/,
   "// Runtime: v3 domain models plus implemented foundation support.\n" +

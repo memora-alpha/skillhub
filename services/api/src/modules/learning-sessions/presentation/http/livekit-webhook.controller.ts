@@ -13,6 +13,14 @@ import { createHash } from "node:crypto";
 import { OutboxConsumer } from "../../../../infrastructure/events/outbox-consumer";
 import { LiveKitService } from "../../infrastructure/livekit/livekit.service";
 import { LearningSessionsService } from "../../application/services/learning-sessions.service";
+import { SessionRecordingEventsService } from "../../application/services/session-recording-events.service";
+import { egressSnapshot } from "../../infrastructure/livekit/livekit-egress.service";
+
+const EGRESS_EVENTS = new Set([
+  "egress_started",
+  "egress_updated",
+  "egress_ended",
+]);
 
 function receiptId(eventId: string) {
   if (!/^[A-Za-z0-9_-]{1,128}$/.test(eventId))
@@ -42,6 +50,7 @@ export class LiveKitWebhookController {
     private readonly livekit: LiveKitService,
     private readonly consumer: OutboxConsumer,
     private readonly sessions: LearningSessionsService,
+    private readonly recordings: SessionRecordingEventsService,
   ) {}
 
   @Post("webhook")
@@ -57,6 +66,19 @@ export class LiveKitWebhookController {
       authorization,
     );
     const deliveryId = receiptId(event.id);
+    if (EGRESS_EVENTS.has(event.event)) {
+      // Spec 020: recording events have their own receipt consumer and never touch attendance.
+      if (!event.egressInfo?.egressId) return;
+      const info = egressSnapshot(event.egressInfo);
+      const result = await this.consumer.processOnce(
+        "livekit.session-recording",
+        deliveryId,
+        (tx) => this.recordings.applyEgress(tx, info),
+      );
+      if (result.processed)
+        await this.recordings.syncIndicator(result.value ?? null);
+      return;
+    }
     await this.sessions.reconcileLiveKitRoom(event);
     await this.consumer.processOnce(
       "livekit.session-lifecycle",

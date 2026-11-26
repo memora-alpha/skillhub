@@ -20,6 +20,14 @@ import { AuditModule } from "../audit/audit.module";
 import { SessionWhiteboardController } from "./presentation/http/session-whiteboard.controller";
 import { SessionWhiteboardService } from "./application/services/session-whiteboard.service";
 import { SessionWhiteboardRetentionWorker } from "./infrastructure/jobs/session-whiteboard-retention.worker";
+import { SessionRecordingController } from "./presentation/http/session-recording.controller";
+import { SessionRecordingService } from "./application/services/session-recording.service";
+import { LiveKitEgressService } from "./infrastructure/livekit/livekit-egress.service";
+import { SessionRecordingEventsService } from "./application/services/session-recording-events.service";
+import { SessionRecordingReconcileWorker } from "./infrastructure/jobs/session-recording-reconcile.worker";
+import { SessionRecordingRetentionService } from "./application/services/session-recording-retention.service";
+import { SessionRecordingRetentionWorker } from "./infrastructure/jobs/session-recording-retention.worker";
+import { StorageModule } from "../../infrastructure/storage/storage.module";
 
 @Module({
   imports: [
@@ -34,11 +42,13 @@ import { SessionWhiteboardRetentionWorker } from "./infrastructure/jobs/session-
     ReportsModule,
     SystemConfigurationModule,
     OutboxModule,
+    StorageModule,
   ],
   controllers: [
     LearningSessionsController,
     LiveKitWebhookController,
     SessionWhiteboardController,
+    SessionRecordingController,
   ],
   providers: [
     LearningSessionsService,
@@ -48,6 +58,12 @@ import { SessionWhiteboardRetentionWorker } from "./infrastructure/jobs/session-
     SessionCompletionHandler,
     SessionWhiteboardService,
     SessionWhiteboardRetentionWorker,
+    LiveKitEgressService,
+    SessionRecordingService,
+    SessionRecordingEventsService,
+    SessionRecordingReconcileWorker,
+    SessionRecordingRetentionService,
+    SessionRecordingRetentionWorker,
   ],
   exports: [LearningSessionsService],
 })

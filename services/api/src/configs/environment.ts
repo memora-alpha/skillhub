@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { paymentConfiguration } from "../modules/payments/domain/payment-config";
 import { liveKitConfiguration } from "../modules/learning-sessions/infrastructure/livekit/livekit.service";
+import { recordingStorageConfiguration } from "../modules/learning-sessions/infrastructure/livekit/recording-storage.config";
 import { validateModerationSettings } from "../modules/content-moderation/domain/moderation-config";
 
 const corsOriginSchema = z.string().transform((value, context) => {
@@ -172,6 +173,7 @@ export function validateEnvironment(input: Record<string, unknown>) {
   fail(invalidVoucherSettings(config));
   paymentConfiguration(input);
   liveKitConfiguration(input);
+  recordingStorageConfiguration(input);
   validateModerationSettings(input);
   return config;
 }

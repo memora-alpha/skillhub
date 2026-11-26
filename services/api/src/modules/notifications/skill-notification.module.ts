@@ -9,6 +9,7 @@ import { FcmPushSender } from "../../infrastructure/push/fcm-push-sender.adapter
 import { VerificationsModule } from "../verifications/verifications.module";
 import { SkillNotificationHandler } from "./infrastructure/events/skill-notification.handler";
 import { SessionNotificationHandler } from "./infrastructure/events/session-notification.handler";
+import { SessionRecordingNotificationHandler } from "./infrastructure/events/session-recording-notification.handler";
 import { LearningPathNotificationHandler } from "./infrastructure/events/learning-path-notification.handler";
 import { ScheduleConfirmationNotificationHandler } from "./infrastructure/events/schedule-confirmation-notification.handler";
 import { MaterialNotificationHandler } from "./infrastructure/events/material-notification.handler";
@@ -33,6 +34,7 @@ import { PrismaInAppNotificationAdapter } from "./infrastructure/channels/prisma
     LearningPathNotificationHandler,
     ScheduleConfirmationNotificationHandler,
     SessionNotificationHandler,
+    SessionRecordingNotificationHandler,
     MaterialNotificationHandler,
     LearningRequestRejectionPublisher,
     FeePolicyNotificationHandler,

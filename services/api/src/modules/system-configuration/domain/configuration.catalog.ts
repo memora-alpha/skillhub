@@ -53,6 +53,35 @@ export const CONFIGURATION_DEFINITIONS = {
     mutable: true,
     defaultValue: 30,
   },
+  // Spec 020: consented Session recordings. Off until the SRS and legal gates pass.
+  "recording.enabled": {
+    schema: z.boolean(),
+    mutable: true,
+    defaultValue: false,
+  },
+  "recording.kind": {
+    schema: z.enum(["ROOM_COMPOSITE_VIDEO", "AUDIO_ONLY"]),
+    mutable: true,
+    defaultValue: "ROOM_COMPOSITE_VIDEO",
+  },
+  // Days after endAt; an open report on the Session holds the recording longer.
+  "recording.retentionDays": {
+    schema: z.number().int().min(1).max(3650),
+    mutable: true,
+    defaultValue: 90,
+  },
+  // A recording stops at the Session length plus this many minutes.
+  "recording.overrunMinutes": {
+    schema: z.number().int().min(0).max(60),
+    mutable: true,
+    defaultValue: 10,
+  },
+  // Monthly recorded minutes that raise an ops alert; 0 turns the alert off.
+  "recording.monthlyAlertMinutes": {
+    schema: z.number().int().min(0).max(10_000_000),
+    mutable: true,
+    defaultValue: 0,
+  },
   "learningPath.minCreditPerUser": {
     schema: z.literal(20),
     mutable: false,

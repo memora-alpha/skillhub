@@ -372,8 +372,10 @@ model User {
   profileModeration       Json?              @map("profile_moderation")
   createdFeePolicies      FeePolicyVersion[] @relation("FeePolicy_creator")
 
-  voucherRedemptions       VoucherRedemption[] @relation("VoucherRedemption_user")
-  sessionWhiteboardUpdates SessionWhiteboard[] @relation("SessionWhiteboard_updated_by")
+  voucherRedemptions         VoucherRedemption[] @relation("VoucherRedemption_user")
+  sessionWhiteboardUpdates   SessionWhiteboard[] @relation("SessionWhiteboard_updated_by")
+  sessionRecordingsRequested SessionRecording[]  @relation("SessionRecording_requested_by")
+  sessionRecordingsAccepted  SessionRecording[]  @relation("SessionRecording_accepted_by")
 
   @@unique([id, avatarAssetId])
   @@index([roleId])
@@ -830,6 +832,7 @@ model Session {
   changeRequests  LearningChangeRequest[]
 
   whiteboard SessionWhiteboard? @relation("SessionWhiteboard_session")
+  recordings SessionRecording[] @relation("SessionRecording_session")
 
   @@unique([planId, planVersion, outlineSessionNo])
   @@unique([id, pathId])
@@ -2501,4 +2504,68 @@ model SessionWhiteboard {
 
   @@index([updatedByUserId])
   @@map("session_whiteboards")
+}
+
+// Session recording fragments (spec 020).
+enum SessionRecordingStatus {
+  REQUESTED
+  DECLINED
+  REQUEST_EXPIRED
+  STARTING
+  RECORDING
+  STOPPING
+  READY
+  FAILED
+  EXPIRED
+  DELETED
+}
+
+enum SessionRecordingKind {
+  ROOM_COMPOSITE_VIDEO
+  AUDIO_ONLY
+}
+
+enum SessionRecordingStopReason {
+  PARTICIPANT
+  WINDOW_CLOSED
+  ROOM_FINISHED
+  MAX_DURATION
+  DISABLED
+}
+
+// One row per request; stopping and recording again makes a new row. A partial unique index in the
+// migration allows one active row (REQUESTED, STARTING, RECORDING, STOPPING) per Session.
+model SessionRecording {
+  id                String                      @id @default(uuid()) @db.Uuid
+  sessionId         String                      @map("session_id") @db.Uuid
+  requestedByUserId String                      @map("requested_by_user_id") @db.Uuid
+  acceptedByUserId  String?                     @map("accepted_by_user_id") @db.Uuid
+  status            SessionRecordingStatus      @default(REQUESTED)
+  kind              SessionRecordingKind
+  egressId          String?                     @unique @map("egress_id") @db.VarChar(64)
+  objectKey         String?                     @map("object_key") @db.VarChar(512)
+  bytes             BigInt?
+  durationMs        BigInt?                     @map("duration_ms")
+  requestedAt       DateTime                    @map("requested_at") @db.Timestamptz(3)
+  startedAt         DateTime?                   @map("started_at") @db.Timestamptz(3)
+  endedAt           DateTime?                   @map("ended_at") @db.Timestamptz(3)
+  // Participant ids kept for history; who stopped or deleted is always one of the two participants.
+  stoppedByUserId   String?                     @map("stopped_by_user_id") @db.Uuid
+  stopReason        SessionRecordingStopReason? @map("stop_reason")
+  // Short code only: provider messages may hold credentials and are never stored.
+  failureCode       String?                     @map("failure_code") @db.VarChar(64)
+  deletedAt         DateTime?                   @map("deleted_at") @db.Timestamptz(3)
+  deletedByUserId   String?                     @map("deleted_by_user_id") @db.Uuid
+  createdAt         DateTime                    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime                    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  session     Session @relation("SessionRecording_session", fields: [sessionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  requestedBy User    @relation("SessionRecording_requested_by", fields: [requestedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  acceptedBy  User?   @relation("SessionRecording_accepted_by", fields: [acceptedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([sessionId, requestedAt])
+  @@index([status, requestedAt])
+  @@index([requestedByUserId])
+  @@index([acceptedByUserId])
+  @@map("session_recordings")
 }

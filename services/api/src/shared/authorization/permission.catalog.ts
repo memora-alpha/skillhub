@@ -163,6 +163,11 @@ export const PERMISSION_CATALOG = [
     code: "session-whiteboard:update:participant",
     description: "Save the whiteboard of a participant session",
   },
+  {
+    code: "session-recording:manage:participant",
+    description:
+      "Request, accept, stop, watch and delete recordings of a participant session",
+  },
   { code: "credit:adjust", description: "Adjust credit with audit" },
   { code: "credit:adjust:qa", description: "Grant credit for internal QA" },
   {
