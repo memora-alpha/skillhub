@@ -30,9 +30,9 @@
 
 ## Phase 3 — Renewal
 
-- [ ] T014 Renewal service and BullMQ worker: renew, grace, retry, expire, scheduled changes
-- [ ] T015 Outbox events and notification handlers (grace started, expired)
-- [ ] T016 Tests: double run, concurrent run, grace then top-up, auto-renew off, scheduled downgrade price
+- [x] T014 Renewal service and interval worker (SKIP LOCKED claims, like the voucher reconcile worker): renew, grace, retry, expire, scheduled changes
+- [x] T015 Outbox events and notification handlers (grace started, expired)
+- [x] T016 Tests: double run, concurrent run, grace then top-up, auto-renew off, scheduled downgrade price
 
 ## Phase 4 — Fee tiers
 

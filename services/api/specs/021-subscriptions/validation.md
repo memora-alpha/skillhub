@@ -33,6 +33,27 @@ Notes:
   before the failing step; the purchase debits Credit before creating any subscription row.
 - The Nest application was not booted; the module imports mirror `RewardsModule`.
 
+## Phase 3 — Renewal (2026-11-27)
+
+| Check                                                                                     | Result                                                                                                                                                                                                                                                                                                                                        |
+| ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `check-types`, `build`, ESLint on changed files                                           | Pass                                                                                                                                                                                                                                                                                                                                          |
+| `test/subscriptions/*.test.mjs`                                                           | 27/27 pass. Renewal: renew once from the old term end, repeated run, auto-renew off, grace with retries capped at `graceUntil`, top-up renewal, grace elapsed, zero grace days, scheduled downgrade and interval with the new price, very late run, retired plan. Notification handler: registration, rendering, owner only, invalid payloads |
+| `test/connections/bootstrap.test.mjs`                                                     | Pass. Boots the feature modules, so `SubscriptionsModule`, the renewal worker and the notification handler resolve through Nest DI                                                                                                                                                                                                            |
+| Full regression set (above plus notification delivery, completion gaps, report contracts) | 404/404 pass                                                                                                                                                                                                                                                                                                                                  |
+
+Findings fixed during this phase:
+
+- The event name `subscription.grace_started` failed the outbox type pattern `[a-z0-9.:-]`;
+  the bootstrap test caught it. The event is `subscription.grace-started`.
+- Phase 2 closed a lapsed row inline on purchase or PATCH, which would also have closed an
+  auto-renewing row the job was about to renew. Term-end transitions now belong to the job only;
+  user routes answer `409 SUBSCRIPTION_RENEWAL_PENDING` in that window.
+- Purchase and upgrade emit no outbox event: the dispatcher fails events without a publisher.
+
+Not covered: `renewDue` (its claim is raw SQL the fake database does not run) and real
+concurrent workers; both belong to T030.
+
 ## Pending
 
 - Apply the migration to an isolated PostgreSQL and check the CHECKs, the partial unique index

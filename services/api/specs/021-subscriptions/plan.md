@@ -11,7 +11,7 @@ retention, recording entitlement and material storage. Ship dark behind `subscri
 
 ## Technical context
 
-NestJS 11, TypeScript 6, Prisma/PostgreSQL, BullMQ for the renewal job, existing outbox,
+NestJS 11, TypeScript 6, Prisma/PostgreSQL, an interval worker with `FOR UPDATE SKIP LOCKED` claims for the renewal job (the voucher reconcile pattern; no BullMQ queue), existing outbox,
 audit, notifications and system configuration. No new dependency and no shared-package change.
 
 ## Module design
@@ -44,8 +44,11 @@ subscriptionId | null, entitlements }`; `forUsers` resolves several users with o
 - Purchase, upgrade and add-on: one transaction. Lock order: user subscription advisory lock
   (`subscription:<userId>`), then wallet (`lockWallet`). Insert charge + operation + ledger +
   subscription change + outbox together.
-- Renewal job: claims due rows with `FOR UPDATE SKIP LOCKED` and the same lock order; the
-  charge key `renewal:<subscriptionId>:<termEnd>` makes a repeated run a no-op.
+- Renewal job: claims due rows with `FOR UPDATE SKIP LOCKED` and a 5-minute lease, then
+  processes each row in its own transaction with the same lock order. It re-reads the row under
+  the owner lock, so a repeated run for the same term end is a no-op; the charge key
+  `renewal:<subscriptionId>:<termEnd>` is unique per user as a second guard. The job owns every
+  term-end transition; user routes answer `409 SUBSCRIPTION_RENEWAL_PENDING` until it has run.
 - Recording minutes: `chargeRecordingMinutes` runs inside the `egress_ended` consumer
   transaction, guarded by `charged_minutes IS NULL` with a conditional update.
 - Material storage: owner advisory lock, sum `sizeBytes`, compare, then attach.

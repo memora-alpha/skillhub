@@ -7,7 +7,9 @@ import { IdentityModule } from "../identity.module";
 import { SystemConfigurationModule } from "../system-configuration/system-configuration.module";
 import { SubscriptionEntitlementsReader } from "./application/services/subscription-entitlements.reader";
 import { SubscriptionPlansService } from "./application/services/subscription-plans.service";
+import { SubscriptionRenewalService } from "./application/services/subscription-renewal.service";
 import { SubscriptionsService } from "./application/services/subscriptions.service";
+import { SubscriptionRenewalWorker } from "./infrastructure/jobs/subscription-renewal.worker";
 import { AdminSubscriptionsController } from "./presentation/http/admin-subscriptions.controller";
 import { SubscriptionsController } from "./presentation/http/subscriptions.controller";
 
@@ -26,6 +28,8 @@ import { SubscriptionsController } from "./presentation/http/subscriptions.contr
     SubscriptionPlansService,
     SubscriptionsService,
     SubscriptionEntitlementsReader,
+    SubscriptionRenewalService,
+    SubscriptionRenewalWorker,
   ],
   exports: [SubscriptionEntitlementsReader],
 })

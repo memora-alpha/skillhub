@@ -1,159 +1,20 @@
-import "reflect-metadata";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { ConflictException } from "@nestjs/common";
-import { AuditWriter } from "../../dist/modules/audit/application/services/audit-writer.js";
-import { AuditRepository } from "../../dist/modules/audit/infrastructure/persistence/audit.repository.js";
 import {
   DEFAULT_FREE_ENTITLEMENTS,
   DEFAULT_PLAN_ENTITLEMENTS,
 } from "../../dist/modules/subscriptions/domain/plan-entitlements.js";
-import { SubscriptionEntitlementsReader } from "../../dist/modules/subscriptions/application/services/subscription-entitlements.reader.js";
-import { SubscriptionPlansService } from "../../dist/modules/subscriptions/application/services/subscription-plans.service.js";
-import { SubscriptionsService } from "../../dist/modules/subscriptions/application/services/subscriptions.service.js";
-import { createFakeDb, runner } from "../learning-platform/fake-db.mjs";
-
-const U = "0a0a0a0a-0000-4000-8000-00000000000a";
-const V = "0b0b0b0b-0000-4000-8000-00000000000b";
-const ADMIN = "0d0d0d0d-0000-4000-8000-00000000000d";
-const DAY = 86_400_000;
-const START = new Date("2026-12-01T00:00:00.000Z");
-const self = (userId = U) => ({
-  userId,
-  roles: ["USER"],
-  permissions: ["subscription:manage:self"],
-});
-const admin = {
-  userId: ADMIN,
-  roles: ["ADMIN"],
-  permissions: [
-    "subscription:manage:self",
-    "subscription:read",
-    "subscription:manage",
-  ],
-};
-
-/** Records idempotent results per key and checks the command fingerprint like the real service. */
-function fakeIdempotency(db) {
-  const completed = new Map();
-  return {
-    async execute(input, work) {
-      const id = `${input.scope}:${input.operation}:${input.key}`;
-      const command = JSON.stringify(input.command);
-      const previous = completed.get(id);
-      if (previous) {
-        if (previous.command !== command)
-          throw new ConflictException(input.conflictMessage);
-        return { value: previous.value, replayed: true };
-      }
-      const value = await work(db);
-      completed.set(id, { command, value });
-      return { value, replayed: false };
-    },
-  };
-}
-
-/** Wallet debit with the real error code; ledger internals are covered by credit tests. */
-function fakeCredit(db) {
-  return {
-    async chargeSubscription(_tx, { chargeId, userId, amount }) {
-      const wallet = db
-        .rows("creditWallet")
-        .find((row) => row.userId === userId);
-      if (!wallet || wallet.availableCredit < amount)
-        throw new ConflictException("INSUFFICIENT_AVAILABLE_CREDIT");
-      wallet.availableCredit -= amount;
-      const operation = db.seed("creditOperation", {
-        operationType: "SUBSCRIPTION_CHARGE",
-        referenceType: "SUBSCRIPTION_CHARGE",
-        referenceId: chargeId,
-        idempotencyKey: `subscription-charge:${chargeId}`,
-        status: "SUCCESS",
-      });
-      return { operationId: operation.id, lots: [] };
-    },
-  };
-}
-
-function setup({ wallet = 100_000n, enabled = true } = {}) {
-  const clock = { now: START };
-  const db = createFakeDb({ now: () => clock.now });
-  for (const userId of [U, V])
-    db.seed("creditWallet", {
-      userId,
-      availableCredit: wallet,
-      heldCredit: 0n,
-      purchasedCredit: wallet,
-      bonusCredit: 0n,
-      walletVersion: 0,
-    });
-  const values = {
-    "subscription.enabled": enabled,
-    "subscription.freeEntitlements": DEFAULT_FREE_ENTITLEMENTS,
-  };
-  const configuration = {
-    values,
-    getSnapshot: async (keys) => ({
-      values: Object.fromEntries(keys.map((key) => [key, values[key]])),
-    }),
-  };
-  const audit = new AuditWriter(new AuditRepository());
-  const plans = new SubscriptionPlansService(runner(db), audit);
-  const reader = new SubscriptionEntitlementsReader(configuration);
-  const service = new SubscriptionsService(
-    runner(db),
-    fakeIdempotency(db),
-    fakeCredit(db),
-    audit,
-    configuration,
-    plans,
-    reader,
-  );
-  const seedPlan = (planCode, monthPrice, yearPrice, extra = {}) =>
-    db.seed("subscriptionPlanVersion", {
-      planCode,
-      versionNo: 1,
-      monthPrice,
-      yearPrice,
-      entitlements: DEFAULT_PLAN_ENTITLEMENTS[planCode],
-      status: "APPROVED",
-      effectiveAt: new Date(START.getTime() - DAY),
-      approvedAt: new Date(START.getTime() - DAY),
-      approvedByUserId: ADMIN,
-      createdByUserId: ADMIN,
-      ...extra,
-    });
-  const creator = seedPlan("CREATOR", 9_900n, 95_000n);
-  const pro = seedPlan("PRO", 29_900n, 287_000n);
-  const wallets = () =>
-    Object.fromEntries(
-      db.rows("creditWallet").map((row) => [row.userId, row.availableCredit]),
-    );
-  return { db, clock, values, plans, reader, service, creator, pro, wallets };
-}
-
-const rejects = (promise, code) =>
-  assert.rejects(promise, (error) => {
-    assert.equal(error.message, code);
-    return true;
-  });
-
-const buy = (
-  ctx,
-  planCode = "CREATOR",
-  key = "purchase-key-1",
-  interval = "MONTH",
-  user = U,
-) =>
-  ctx.service.purchase(
-    self(user),
-    {
-      planCode,
-      interval,
-      expectedPlanVersionId: planCode === "PRO" ? ctx.pro.id : ctx.creator.id,
-    },
-    key,
-  );
+import {
+  DAY,
+  START,
+  U,
+  V,
+  admin,
+  buy,
+  rejects,
+  self,
+  setup,
+} from "./support.mjs";
 
 test("purchase debits the price once and activates a 30-day term", async () => {
   const ctx = setup();
@@ -233,7 +94,7 @@ test("purchase refusals leave the wallet and tables untouched", async () => {
   await rejects(buy(off), "SUBSCRIPTIONS_DISABLED");
 });
 
-test("one current subscription per user; a lapsed one is closed on the next purchase", async () => {
+test("one current subscription per user; a lapsed term waits for the renewal job", async () => {
   const ctx = setup();
   await buy(ctx);
   await rejects(
@@ -243,18 +104,33 @@ test("one current subscription per user; a lapsed one is closed on the next purc
   // Another user is independent.
   await buy(ctx, "CREATOR", "purchase-key-3", "MONTH", V);
 
-  // The term lapses and the renewal job has not run yet.
+  // The term lapses and the renewal job has not run yet: nothing is granted, and changes
+  // wait, so a row that auto-renews is never closed outside the renewal job.
   ctx.clock.now = new Date(START.getTime() + 31 * DAY);
   const lapsedView = await ctx.service.me(self());
   assert.equal(lapsedView.subscription, null);
   assert.deepEqual(lapsedView.entitlements, DEFAULT_FREE_ENTITLEMENTS);
-  const again = await buy(ctx, "PRO", "purchase-key-4");
+  await rejects(
+    buy(ctx, "PRO", "purchase-key-4"),
+    "SUBSCRIPTION_RENEWAL_PENDING",
+  );
+  await rejects(
+    ctx.service.update(self(), { expectedVersion: 1, autoRenew: false }),
+    "SUBSCRIPTION_RENEWAL_PENDING",
+  );
+  // The job expires the row when auto-renew is off; then a new purchase works.
+  ctx.db.rows("userSubscription").find((row) => row.userId === U).autoRenew =
+    false;
+  const mineId = ctx.db
+    .rows("userSubscription")
+    .find((row) => row.userId === U).id;
+  assert.equal(await ctx.renewals.processOne(mineId), "EXPIRED");
+  const again = await buy(ctx, "PRO", "purchase-key-5");
   assert.equal(again.subscription.planCode, "PRO");
   const mine = ctx.db
     .rows("userSubscription")
     .filter((row) => row.userId === U);
   assert.deepEqual(mine.map((row) => row.status).sort(), ["ACTIVE", "EXPIRED"]);
-  assert.ok(mine.find((row) => row.status === "EXPIRED").endedAt);
 });
 
 test("upgrade charges the prorated difference once and switches plan at once", async () => {

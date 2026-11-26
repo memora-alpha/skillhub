@@ -88,8 +88,9 @@ export class SubscriptionsService {
   }
 
   /**
-   * The user's ACTIVE or GRACE row. A row whose term or grace has lapsed before the renewal
-   * job ran is closed here, so it never blocks a new purchase and never grants anything.
+   * The user's ACTIVE or GRACE row while it still grants entitlements. A row whose term or
+   * grace has lapsed is left to the renewal job, which owns every term-end transition
+   * (renew, grace, expire) with its audit and events; until it runs, changes wait.
    */
   private async current(
     tx: TransactionContext,
@@ -101,17 +102,9 @@ export class SubscriptionsService {
       include: { planVersion: true },
     });
     if (!row) return null;
-    if (grantsEntitlements(row, now)) return row;
-    await tx.userSubscription.update({
-      where: { id: row.id },
-      data: {
-        status: "EXPIRED",
-        endedAt: row.status === "GRACE" ? (row.graceUntil ?? now) : row.termEnd,
-        nextRenewalAttemptAt: null,
-        version: { increment: 1 },
-      },
-    });
-    return null;
+    if (!grantsEntitlements(row, now))
+      throw new ConflictException("SUBSCRIPTION_RENEWAL_PENDING");
+    return row;
   }
 
   /** Debits Credit first, so a short balance fails before any subscription write. */

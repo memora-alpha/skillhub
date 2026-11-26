@@ -37,7 +37,8 @@ addonMinutesRemaining, materialStorageBytesUsed, materialStorageBytesAllowed }`.
 Header `Idempotency-Key` (required, 8–255 chars). Body
 `{ planCode, interval, expectedPlanVersionId }`. `201` with the subscription.
 
-Errors: `409 SUBSCRIPTION_ALREADY_ACTIVE`, `409 SUBSCRIPTION_PLAN_CHANGED`,
+Errors: `409 SUBSCRIPTION_ALREADY_ACTIVE`, `409 SUBSCRIPTION_RENEWAL_PENDING` (the term ended and the
+renewal job has not processed it yet; retry shortly), `409 SUBSCRIPTION_PLAN_CHANGED`,
 `409 INSUFFICIENT_AVAILABLE_CREDIT`, `409 IDEMPOTENCY_KEY_REUSED`, `404 SUBSCRIPTION_PLAN_NOT_FOUND`.
 
 ### `GET /me/subscription/upgrade-quote?planCode=PRO`
@@ -93,6 +94,11 @@ Each admin write writes an audit entry with the reason.
 
 ## Events (outbox)
 
-`subscription.activated`, `subscription.renewed`, `subscription.grace_started`,
-`subscription.expired`, `subscription.plan_changed`. Notifications send in-app messages for
-grace start (with the missing Credit) and expiry. Payloads carry ids and codes only.
+`subscription.renewed`, `subscription.grace-started` and `subscription.expired`, written by the
+renewal job in the same transaction as the change. Each has an in-app notification for the owner
+(grace start includes the amount due). Payloads carry ids, codes, amounts and times only.
+Purchase and upgrade emit no event: the outbox fails events that have no publisher, and the
+user sees the result in the response.
+
+`PATCH /me/subscription` and the upgrade routes also return `409 SUBSCRIPTION_RENEWAL_PENDING`
+in the same lapsed-term window as purchase.
