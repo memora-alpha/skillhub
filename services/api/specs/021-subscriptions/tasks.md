@@ -19,14 +19,14 @@
 
 ## Phase 2 — Core
 
-- [ ] T006 `CreditOperationsService.chargeSubscription` with ledger type `SUBSCRIPTION_PURCHASE`
-- [ ] T007 Plan versions admin: create draft, approve, retire, list; audit
-- [ ] T008 `SubscriptionEntitlementsReader` (`forUser`, `forUsers`)
-- [ ] T009 Purchase with idempotency, plan-version check, lock order
-- [ ] T010 `GET /me/subscription`, `PATCH /me/subscription`, charges list
-- [ ] T011 Upgrade quote and upgrade
-- [ ] T012 Controllers, DTOs, Swagger, exception filter allowlist
-- [ ] T013 Tests: purchase replay/key reuse, stale version, insufficient Credit, concurrent purchase, disabled flag, upgrade proration and stale quote, patch clearing
+- [x] T006 `CreditOperationsService.chargeSubscription` with ledger type `SUBSCRIPTION_PURCHASE`
+- [x] T007 Plan versions admin: create draft, approve, retire, list; audit
+- [x] T008 `SubscriptionEntitlementsReader` (`forUser`, `forUsers`)
+- [x] T009 Purchase with idempotency, plan-version check, lock order
+- [x] T010 `GET /me/subscription`, `PATCH /me/subscription`, charges list
+- [x] T011 Upgrade quote and upgrade
+- [x] T012 Controllers, DTOs, Swagger, exception filter allowlist
+- [x] T013 Tests: purchase replay/key reuse, stale version, insufficient Credit, concurrent purchase, disabled flag, upgrade proration and stale quote, patch clearing
 
 ## Phase 3 — Renewal
 

@@ -2,8 +2,10 @@
 
 All routes are versioned `/api/v1`, authenticated, and return the standard envelope. Credit
 amounts are decimal strings with two places (`"99.00"`). Times are ISO-8601 UTC.
-When `subscription.enabled` is `false`, every user route except `GET /subscriptions/plans`
-returns `403 SUBSCRIPTIONS_DISABLED`; admin routes stay available.
+When `subscription.enabled` is `false`, the routes that charge Credit (purchase, upgrade quote,
+upgrade, recording minutes) return `403 SUBSCRIPTIONS_DISABLED`. Reads, `PATCH /me/subscription`
+and admin routes stay available, so a paying user can always stop renewal and existing terms keep
+their entitlements.
 
 ## Permissions
 
@@ -40,7 +42,8 @@ Errors: `409 SUBSCRIPTION_ALREADY_ACTIVE`, `409 SUBSCRIPTION_PLAN_CHANGED`,
 
 ### `GET /me/subscription/upgrade-quote?planCode=PRO`
 
-`200 { planCode, planVersionId, amount, termEnd, quotedAt }`. The amount follows D7 at `quotedAt`.
+`200 { planCode, planVersionId, amount, termEnd, quotedAt, version }`. The amount follows D7 at
+`quotedAt`; `version` is the subscription version to send as `expectedVersion`.
 
 ### `POST /me/subscription/upgrade`
 

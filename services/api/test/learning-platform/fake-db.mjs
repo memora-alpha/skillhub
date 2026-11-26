@@ -17,6 +17,12 @@ const relations = {
   sessionRecording: {
     session: ["session", [["sessionId", "id"]], false],
   },
+  userSubscription: {
+    planVersion: ["subscriptionPlanVersion", [["planVersionId", "id"]], false],
+  },
+  subscriptionCharge: {
+    planVersion: ["subscriptionPlanVersion", [["planVersionId", "id"]], false],
+  },
   conversation: {
     requestIdRecord: ["learningRequest", [["requestId", "id"]], false],
     proposalIdRecord: ["proposal", [["proposalId", "id"]], false],
@@ -423,6 +429,11 @@ export function createFakeDb({ now = () => new Date() } = {}) {
         sql.includes("clock_timestamp()")
       )
         return [{ now: now() }];
+      // Transaction advisory locks have no row effect here; record the key for assertions.
+      if (sql.includes("pg_advisory_xact_lock")) {
+        locks.push(`advisory:${values[0]}`);
+        return [{ locked: 1 }];
+      }
       if (sql.includes("SELECT DISTINCT p.path_id")) {
         return rows("learningPath")
           .filter((path) => {
