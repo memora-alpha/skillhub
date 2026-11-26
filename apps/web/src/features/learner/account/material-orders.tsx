@@ -1,4 +1,5 @@
 "use client";
+import { MaterialFilters } from "@/components/material-filters";
 import { LoadingButton } from "@/components/loading-button";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useUserPagedList } from "../hooks/use-user-paged-list";
@@ -24,7 +25,10 @@ import { UserApiError, userErrorText } from "../api/client";
 import { MaterialOrderDownload } from "./material-order-download";
 
 export function MaterialOrders() {
-  const query = useUserPagedList<MaterialOrder>("me/material-orders?limit=20");
+  const [filters, setFilters] = useState("");
+  const query = useUserPagedList<MaterialOrder>(
+    "me/material-orders?limit=20&" + filters,
+  );
   return (
     <>
       <MaterialsSubnav current="/learn/materials/orders" />
@@ -33,6 +37,7 @@ export function MaterialOrders() {
         title="Đơn tài liệu đã mua"
         description="Xem bản ghi tài liệu tại thời điểm mua, quyền tải tệp và điều kiện hoàn Credit của từng đơn."
       />
+      <MaterialFilters value={filters} onApply={setFilters} />
       <Feedback
         loading={query.initialLoading}
         error={query.error}

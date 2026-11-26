@@ -32,8 +32,16 @@ export function MaterialEditor({
   const [fileId, setFileId] = useState("");
   const [uploading, setUploading] = useState(false);
   const cover = useMaterialCover();
-  const file = useUserResource<{ state: string }>(
+  const file = useUserResource<{ state: string; moderationStatus?: string }>(
     fileId ? "me/materials/files/" + fileId : null,
+    {
+      refetchInterval: (data) =>
+        data &&
+        ["UPLOADING", "QUARANTINED", "SCANNING"].includes(data.state) &&
+        !["REVIEW_REQUIRED", "FAILED"].includes(data.moderationStatus ?? "")
+          ? 3000
+          : false,
+    },
   );
   const disabled =
     command.pending || command.uncertain || !canEditMaterial(material);
@@ -162,8 +170,18 @@ export function MaterialEditor({
             <p>
               Trạng thái tệp:{" "}
               <Status
-                value={file.data?.state ?? "PENDING"}
-                label={file.data?.state === "READY" ? "Sẵn sàng" : undefined}
+                value={
+                  file.data?.moderationStatus === "REVIEW_REQUIRED"
+                    ? "REVIEW_REQUIRED"
+                    : (file.data?.state ?? "PENDING")
+                }
+                label={
+                  file.data?.moderationStatus === "REVIEW_REQUIRED"
+                    ? "Cần kiểm duyệt thêm, chưa thể lưu tệp này"
+                    : file.data?.state === "READY"
+                      ? "Sẵn sàng"
+                      : undefined
+                }
               />
             </p>
             <LoadingButton

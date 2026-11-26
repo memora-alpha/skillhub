@@ -88,19 +88,20 @@ export function MaterialThumbnail({
 export function useMaterialCover() {
   const [coverFileId, setCoverFileId] = useState<string | null>();
   const [uploading, setUploading] = useState(false);
-  const status = useUserResource<{ state: string }>(
+  const status = useUserResource<{ state: string; moderationStatus?: string }>(
     coverFileId ? `me/materials/files/${coverFileId}` : null,
     {
       refetchInterval: (file) =>
         file &&
-        [
+        ([
           "READY",
           "REJECTED",
           "SCAN_FAILED",
           "UPLOAD_FAILED",
           "CLEANUP_PENDING",
           "DELETED",
-        ].includes(file.state)
+        ].includes(file.state) ||
+          ["REVIEW_REQUIRED", "FAILED"].includes(file.moderationStatus ?? ""))
           ? false
           : 3000,
     },
@@ -148,9 +149,17 @@ export function MaterialCoverControl({
           <p>
             Ảnh bìa đã chọn ·{" "}
             <Status
-              value={cover.status.data?.state ?? "PENDING"}
+              value={
+                cover.status.data?.moderationStatus === "REVIEW_REQUIRED"
+                  ? "REVIEW_REQUIRED"
+                  : (cover.status.data?.state ?? "PENDING")
+              }
               label={
-                cover.status.data?.state === "READY" ? "Sẵn sàng" : undefined
+                cover.status.data?.moderationStatus === "REVIEW_REQUIRED"
+                  ? "Cần kiểm duyệt thêm, hãy chọn ảnh bìa khác hoặc dùng ảnh mặc định"
+                  : cover.status.data?.state === "READY"
+                    ? "Sẵn sàng"
+                    : undefined
               }
             />
           </p>

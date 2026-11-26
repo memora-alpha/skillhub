@@ -42,6 +42,7 @@ type Review = {
   comment: string | null;
   hiddenAt: string | null;
   moderationVersion: number;
+  publicationState?: "PENDING" | "REJECTED" | null;
   pathId: string;
   createdAt: string;
 };
@@ -310,7 +311,10 @@ function ProfileDecision({ value }: Readonly<{ value?: ModerationRecord }>) {
 function ReviewModeration() {
   const { api, actor, portal } = useStaffSession();
   const reviews = useStaffListPages<Review>("reviews?limit=20");
-  const [selected, setSelected] = useState<Review>();
+  const [selected, setSelected] = useState<{
+    review: Review;
+    hidden: boolean;
+  }>();
   return (
     <Card
       title="Đánh giá từ các lộ trình"
@@ -383,19 +387,60 @@ function ReviewModeration() {
                     )}
                   </td>
                   <td data-label="Trạng thái">
-                    <StatusBadge status={r.hiddenAt ? "HIDDEN" : "PUBLISHED"} />
+                    <StatusBadge
+                      status={
+                        r.publicationState === "PENDING"
+                          ? "PENDING"
+                          : r.publicationState === "REJECTED"
+                            ? "REJECTED"
+                            : r.hiddenAt
+                              ? "HIDDEN"
+                              : "PUBLISHED"
+                      }
+                    />
                   </td>
                   <td data-label="Thao tác">
-                    <button
-                      type="button"
-                      className="btn"
-                      disabled={[r.reviewerId, r.revieweeId].includes(
-                        actor?.userId ?? "",
-                      )}
-                      onClick={() => setSelected(r)}
-                    >
-                      {r.hiddenAt ? "Khôi phục" : "Ẩn đánh giá"}
-                    </button>
+                    {r.publicationState === "PENDING" ? (
+                      <>
+                        <button
+                          type="button"
+                          className="btn"
+                          disabled={[r.reviewerId, r.revieweeId].includes(
+                            actor?.userId ?? "",
+                          )}
+                          onClick={() =>
+                            setSelected({ review: r, hidden: false })
+                          }
+                        >
+                          Duyệt hiển thị
+                        </button>
+                        <button
+                          type="button"
+                          className="btn"
+                          disabled={[r.reviewerId, r.revieweeId].includes(
+                            actor?.userId ?? "",
+                          )}
+                          onClick={() =>
+                            setSelected({ review: r, hidden: true })
+                          }
+                        >
+                          Từ chối
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn"
+                        disabled={[r.reviewerId, r.revieweeId].includes(
+                          actor?.userId ?? "",
+                        )}
+                        onClick={() =>
+                          setSelected({ review: r, hidden: !r.hiddenAt })
+                        }
+                      >
+                        {r.hiddenAt ? "Khôi phục" : "Ẩn đánh giá"}
+                      </button>
+                    )}
                     {[r.reviewerId, r.revieweeId].includes(
                       actor?.userId ?? "",
                     ) && <small>Cần nhân viên khác kiểm duyệt.</small>}
@@ -409,23 +454,37 @@ function ReviewModeration() {
       <ListPagination query={reviews} />
       {selected && (
         <DecisionDialog
-          title={selected.hiddenAt ? "Khôi phục đánh giá" : "Ẩn đánh giá"}
+          title={
+            selected.hidden
+              ? selected.review.publicationState === "PENDING"
+                ? "Từ chối đánh giá"
+                : "Ẩn đánh giá"
+              : selected.review.publicationState === "PENDING"
+                ? "Duyệt hiển thị đánh giá"
+                : "Khôi phục đánh giá"
+          }
           description="Điểm uy tín được giữ theo quy tắc của hệ thống."
           min={3}
           max={1000}
           confirmLabel={
-            selected.hiddenAt ? "Khôi phục đánh giá" : "Ẩn đánh giá"
+            selected.hidden
+              ? selected.review.publicationState === "PENDING"
+                ? "Từ chối đánh giá"
+                : "Ẩn đánh giá"
+              : selected.review.publicationState === "PENDING"
+                ? "Duyệt hiển thị"
+                : "Khôi phục đánh giá"
           }
-          danger={!selected.hiddenAt}
+          danger={selected.hidden}
           onClose={() => setSelected(undefined)}
           onReload={reviews.reload}
           onSubmit={async (reason) => {
-            await api(`reviews/${selected.id}/moderation`, {
+            await api(`reviews/${selected.review.id}/moderation`, {
               method: "POST",
               body: {
                 reason,
-                hidden: !selected.hiddenAt,
-                expectedVersion: selected.moderationVersion,
+                hidden: selected.hidden,
+                expectedVersion: selected.review.moderationVersion,
               },
             });
             setSelected(undefined);
