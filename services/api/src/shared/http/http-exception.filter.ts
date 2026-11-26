@@ -229,6 +229,32 @@ function whiteboardDetails(status: number, text: string, detail: unknown) {
   return undefined;
 }
 
+// Spec 020: RECORDING_STATE_CONFLICT names the current recording status only.
+const recordingStatuses = new Set([
+  "REQUESTED",
+  "DECLINED",
+  "REQUEST_EXPIRED",
+  "STARTING",
+  "RECORDING",
+  "STOPPING",
+  "READY",
+  "FAILED",
+  "EXPIRED",
+  "DELETED",
+]);
+
+function recordingDetails(status: number, text: string, detail: unknown) {
+  if (
+    status === 409 &&
+    text === "RECORDING_STATE_CONFLICT" &&
+    isRecord(detail) &&
+    typeof detail.status === "string" &&
+    recordingStatuses.has(detail.status)
+  )
+    return { status: detail.status };
+  return undefined;
+}
+
 function publicErrorDetails(status: number, text: string, detail: unknown) {
   if (
     status === 409 &&
@@ -254,6 +280,8 @@ function publicErrorDetails(status: number, text: string, detail: unknown) {
   if (material) return material;
   const whiteboard = whiteboardDetails(status, text, detail);
   if (whiteboard) return whiteboard;
+  const recording = recordingDetails(status, text, detail);
+  if (recording) return recording;
   if (status === 409 && text === "INSUFFICIENT_AVAILABLE_CREDIT") {
     const userIds = (detail as { userIds?: unknown } | undefined)?.userIds;
     if (

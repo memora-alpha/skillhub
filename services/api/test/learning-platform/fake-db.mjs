@@ -14,6 +14,9 @@ const relations = {
   sessionWhiteboard: {
     session: ["session", [["sessionId", "id"]], false],
   },
+  sessionRecording: {
+    session: ["session", [["sessionId", "id"]], false],
+  },
   conversation: {
     requestIdRecord: ["learningRequest", [["requestId", "id"]], false],
     proposalIdRecord: ["proposal", [["proposalId", "id"]], false],
@@ -366,7 +369,14 @@ export function createFakeDb({ now = () => new Date() } = {}) {
             field,
             rows(name)
               .filter((row) => matches(name, row, where))
-              .reduce((sum, row) => sum + row[field], 0),
+              // Prisma sums BigInt columns as bigint and skips nulls.
+              .reduce((sum, row) => {
+                const value = row[field];
+                if (value === null || value === undefined) return sum;
+                return typeof value === "bigint"
+                  ? BigInt(sum) + value
+                  : sum + value;
+              }, 0),
           ]),
         ),
       }),

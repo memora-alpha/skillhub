@@ -24,6 +24,11 @@
       "id": "session-whiteboard-20261125",
       "seeds": ["identity", "configuration"],
       "reason": "Grant USER the session whiteboard update permission and initialize the whiteboard edit window and retention defaults."
+    },
+    {
+      "id": "session-recording-20261126",
+      "seeds": ["identity", "configuration"],
+      "reason": "Grant USER the session recording permission and initialize the recording defaults, with recording disabled."
     }
   ]
 }
