@@ -23,4 +23,6 @@
 
 ## Giới hạn và đề xuất
 
+Chat ảnh dùng `responseType: "arraybuffer"` cho GET content/preview/thumbnail qua cùng HTTP client. Đường này giữ auth renewal, generation/cancel/rate limit và đọc lỗi JSON từ binary response; không bóc envelope cho bytes thành công. Multipart POST có thể truyền Idempotency-Key khi contract hỗ trợ; chat vẫn đặt replayAfterRenewal:false, không tự replay bytes. Các request JSON và schema upload ngoài chat giữ hành vi cũ.
+
 Transport hỗ trợ renewal/replay không đồng nghĩa mọi mutation đã có business idempotency; LR chưa có guarantee đó. Quy chuẩn không tự cấp quyền sửa code cũ ngoài scope.
