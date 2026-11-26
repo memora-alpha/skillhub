@@ -19,6 +19,8 @@ import { ConversationLifecycleService } from "../../dist/modules/conversations/a
 import { ConnectionNotificationService } from "../../dist/modules/notifications/application/services/connection-notification.service.js";
 import { ChatAttachmentModerationController } from "../../dist/modules/conversations/presentation/http/chat-attachment-moderation.controller.js";
 import { FileContentModeration } from "../../dist/infrastructure/storage/file-content-moderation.js";
+import { PrismaStoredFileRepository } from "../../dist/infrastructure/storage/prisma-stored-file.repository.js";
+import { OutboxWriter } from "../../dist/infrastructure/events/outbox-writer.js";
 
 // No fallback to application configuration. All migrations run in a disposable schema.
 const url = process.env.TEST_DATABASE_URL;
@@ -81,6 +83,71 @@ test(
           status: "ACTIVE",
         },
       });
+      const files = new PrismaStoredFileRepository(
+        db,
+        new TransactionRunner(db),
+        new OutboxWriter(),
+      );
+      const makeUpload = () => {
+        const id = randomUUID();
+        return {
+          id,
+          purpose: "CHAT",
+          uploadedBy: ids[0],
+          objectKey: `private/${id}`,
+          generation: 1,
+          originalName: "retry.png",
+        };
+      };
+      const first = makeUpload();
+      const second = makeUpload();
+      const key = { keyDigest: "a".repeat(64), commandDigest: "b".repeat(64) };
+      const reserved = await Promise.allSettled([
+        files.reserveChatUpload(first, key),
+        files.reserveChatUpload(second, key),
+      ]);
+      assert.equal(reserved.filter((x) => x.status === "fulfilled").length, 1);
+      assert.equal(
+        reserved.find((x) => x.status === "rejected").reason.message,
+        "CHAT_UPLOAD_IN_PROGRESS",
+      );
+      const winningUpload = reserved[0].status === "fulfilled" ? first : second;
+      await files.finalize({
+        id: winningUpload.id,
+        generation: 1,
+        detectedMime: "image/png",
+        sizeBytes: 100,
+        sha256: "c".repeat(64),
+        correlationId: randomUUID(),
+      });
+      assert.equal(
+        await files.reserveChatUpload(makeUpload(), key),
+        winningUpload.id,
+      );
+      await assert.rejects(
+        files.reserveChatUpload(makeUpload(), {
+          ...key,
+          commandDigest: "d".repeat(64),
+        }),
+        { message: "CHAT_UPLOAD_KEY_CONFLICT" },
+      );
+      assert.equal(
+        await db.outboxEvent.count({
+          where: {
+            type: "file.scan.requested",
+            payload: { path: ["fileId"], equals: winningUpload.id },
+          },
+        }),
+        1,
+      );
+      const expired = makeUpload();
+      const expiredKey = { ...key, keyDigest: "e".repeat(64) };
+      await files.reserveChatUpload(expired, expiredKey);
+      await db.$executeRaw`UPDATE stored_files SET updated_at = CURRENT_TIMESTAMP - interval '6 minutes' WHERE id = ${expired.id}::uuid`;
+      await assert.rejects(files.reserveChatUpload(makeUpload(), expiredKey), {
+        message: "CHAT_UPLOAD_RESTART_REQUIRED",
+      });
+      assert.equal((await files.find(expired.id)).state, "UPLOAD_FAILED");
       const body = Buffer.from(
         "Synthetic duplicate attachment for PostgreSQL cache test.",
       );

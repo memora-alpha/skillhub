@@ -10,6 +10,7 @@ import {
   type StoredFileState,
 } from "./file.types";
 import type {
+  ChatUploadIdentity,
   StoredFileRecord,
   StoredFileRepository,
 } from "./stored-file.repository";
@@ -61,6 +62,57 @@ export class PrismaStoredFileRepository
         state: "UPLOADING",
       },
     });
+  }
+
+  async reserveChatUpload(
+    row: Omit<StoredFileRecord, "state">,
+    identity: ChatUploadIdentity,
+  ) {
+    return this.transactions
+      .run(async (tx) => {
+        const inserted = await tx.$executeRaw`
+        INSERT INTO stored_files (id, purpose, uploaded_by, object_key, generation, original_name,
+          state, updated_at, chat_upload_key_digest, chat_upload_command_digest)
+        VALUES (${row.id}::uuid, 'CHAT', ${row.uploadedBy}::uuid, ${row.objectKey}, ${row.generation},
+          ${row.originalName}, 'UPLOADING', CURRENT_TIMESTAMP, ${identity.keyDigest}, ${identity.commandDigest})
+        ON CONFLICT (chat_upload_key_digest) DO NOTHING`;
+        if (inserted) return null;
+        const [existing] = await tx.$queryRaw<
+          {
+            id: string;
+            fingerprint: string;
+            state: string;
+            finalized: boolean;
+            stale: boolean;
+          }[]
+        >`
+        SELECT id, chat_upload_command_digest AS fingerprint, state, upload_finalized_at IS NOT NULL AS finalized,
+          updated_at < CURRENT_TIMESTAMP - INTERVAL '5 minutes' AS stale
+        FROM stored_files WHERE chat_upload_key_digest = ${identity.keyDigest} FOR UPDATE`;
+        if (existing?.fingerprint !== identity.commandDigest)
+          throw new FileStorageError("CHAT_UPLOAD_KEY_CONFLICT", 409);
+        if (existing.finalized) return existing;
+        if (existing.state === "UPLOADING" && existing.stale) {
+          await tx.storedFile.updateMany({
+            where: { id: existing.id, state: "UPLOADING" },
+            data: {
+              state: "UPLOAD_FAILED",
+              failureCode: "UPLOAD_ATTEMPT_EXPIRED",
+            },
+          });
+        }
+        return existing;
+      })
+      .then((existing) => {
+        if (!existing) return null;
+        if (existing.finalized) return existing.id;
+        throw new FileStorageError(
+          existing.state === "UPLOADING" && !existing.stale
+            ? "CHAT_UPLOAD_IN_PROGRESS"
+            : "CHAT_UPLOAD_RESTART_REQUIRED",
+          409,
+        );
+      });
   }
 
   async finalize(input: {

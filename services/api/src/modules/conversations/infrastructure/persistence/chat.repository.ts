@@ -102,6 +102,7 @@ export function publicMessage(
     {
       accessStatus: string;
       moderationStatus: string;
+      restrictionReason?: "BLOCKED" | "REVOKED";
       dimensions: { width: number; height: number } | null;
     }
   >,
@@ -127,9 +128,15 @@ export function publicMessage(
         width: state?.dimensions?.width ?? null,
         height: state?.dimensions?.height ?? null,
         moderationStatus: state?.moderationStatus ?? "PENDING",
+        ...(state?.restrictionReason && {
+          restrictionReason: state.restrictionReason,
+        }),
         accessStatus: state?.accessStatus ?? "UNAVAILABLE",
         availability: state?.accessStatus ?? "UNAVAILABLE",
         downloadUrlEndpoint: `${path}/download`,
+        ...(state?.accessStatus === "AVAILABLE" && {
+          contentUrlEndpoint: `${path}/content`,
+        }),
         ...(state?.accessStatus === "AVAILABLE" &&
           state.dimensions && {
             previewUrlEndpoint: `${path}/preview`,
