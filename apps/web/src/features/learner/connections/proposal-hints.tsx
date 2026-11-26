@@ -5,6 +5,15 @@ export function readProposalHints(fields: FormData) {
   const proposedCredit = formText(fields, "proposedCredit").trim() || null;
   const rawDuration = formText(fields, "proposedDurationMinutes");
   const proposedDurationMinutes = rawDuration ? Number(rawDuration) : null;
+  const rawCount = formText(fields, "initialSessionCount");
+  const initialSessionCount = rawCount ? Number(rawCount) : null;
+  if (
+    initialSessionCount !== null &&
+    (!Number.isInteger(initialSessionCount) ||
+      initialSessionCount < 1 ||
+      initialSessionCount > 32767)
+  )
+    throw new Error("Số buổi gợi ý cần là số nguyên từ 1 đến 32767.");
   if (
     proposedCredit &&
     (!/^(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?$/.test(proposedCredit) ||
@@ -26,6 +35,7 @@ export function readProposalHints(fields: FormData) {
     exchangeTypeHint,
     proposedCredit,
     proposedDurationMinutes,
+    initialSessionCount,
     candidateSlots: formText(fields, "candidateSlots").trim() || null,
   };
 }
@@ -35,6 +45,18 @@ export function ProposalHintsFields({
 }: Readonly<{ disabled: boolean; initial?: Proposal }>) {
   return (
     <>
+      <label>
+        <span>Số buổi gợi ý (không bắt buộc)</span>
+        <input
+          name="initialSessionCount"
+          type="number"
+          min={1}
+          max={32767}
+          step={1}
+          defaultValue={initial?.initialSessionCount ?? ""}
+          disabled={disabled}
+        />
+      </label>
       <label>
         <span>Hình thức mong muốn</span>
         <select

@@ -15,7 +15,6 @@ import {
 } from "../components/common";
 import { MemberIdentity } from "../components/member-identity";
 import { ProductIcon } from "../components/product-icon";
-import { findInPages } from "../api/find-page";
 import { ProposalSource } from "./proposal-source";
 import { ProposalEditor } from "./proposal-editor";
 import styles from "./connections.module.css";
@@ -174,13 +173,12 @@ export function ProposalCard({
                 onClick={() => {
                   if (opening) return;
                   setOpening(true);
-                  void findInPages<Conversation>(
-                    request,
-                    "conversations?limit=100",
-                    (row) => row.proposalId === proposal.id,
-                  )
+                  void request<Proposal>("proposals/" + proposal.id)
                     .then((row) => {
-                      if (row) router.push("/learn/messages/" + row.id);
+                      if (row.data.conversationId)
+                        router.push(
+                          "/learn/messages/" + row.data.conversationId,
+                        );
                       else
                         setError(
                           "Chưa đọc được cuộc trao đổi. Mở mục Tin nhắn và tải lại.",
@@ -314,18 +312,49 @@ function ProposalListActions({
         <ProductIcon name="arrow" size={16} />
       </Link>
       {proposal.status === "ACCEPTED" && (
-        <Link
-          className={styles.action + " " + styles.primary}
-          href={
-            proposal.conversationId
-              ? "/learn/messages/" + proposal.conversationId
-              : "/learn/messages"
-          }
-        >
-          <ProductIcon name="chat" size={16} />
-          Nhắn tin
-        </Link>
+        <ProposalChatButton proposal={proposal} />
       )}
     </div>
+  );
+}
+
+function ProposalChatButton({ proposal }: Readonly<{ proposal: Proposal }>) {
+  const { request } = useUserSession();
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+  return (
+    <>
+      <LoadingButton
+        type="button"
+        className={styles.action + " " + styles.primary}
+        loading={busy}
+        disabled={busy}
+        onClick={async () => {
+          if (busy) return;
+          setBusy(true);
+          setError(undefined);
+          try {
+            const row = proposal.conversationId
+              ? proposal
+              : (await request<Proposal>("proposals/" + proposal.id)).data;
+            if (!row.conversationId)
+              throw new Error(
+                "Chưa có cuộc trao đổi cho đề nghị này. Hãy tải lại chi tiết đề nghị.",
+              );
+            router.push("/learn/messages/" + row.conversationId);
+          } catch (cause) {
+            setError(
+              cause instanceof Error ? cause.message : "Chưa mở được tin nhắn.",
+            );
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        Nhắn tin
+      </LoadingButton>
+      <Feedback error={error} />
+    </>
   );
 }

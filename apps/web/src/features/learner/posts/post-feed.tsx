@@ -1,31 +1,71 @@
 "use client";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useUserPagedList } from "../hooks/use-user-paged-list";
+import { useUserList } from "../hooks/use-user-resource";
 import Link from "next/link";
 import { useState } from "react";
 import { SearchInput } from "@/components/search-input";
 
 import { useUserSession } from "../auth/session";
 import type { Post, Skill } from "../types";
+import type { Tag } from "../tags/tag-policy";
 import { Empty, Feedback, PageHeading } from "../components/common";
 import { PostCard } from "./post-card";
+
+const requestStatusOptions: readonly [string, string][] = [
+  ["DRAFT", "Bản nháp"],
+  ["PENDING_MODERATION", "Chờ kiểm duyệt"],
+  ["OPEN", "Đang mở"],
+  ["REJECTED", "Cần chỉnh sửa"],
+  ["NEGOTIATING", "Đang thương lượng"],
+  ["MATCHED", "Đã kết nối"],
+  ["CLOSED", "Đã đóng"],
+  ["CANCELLED", "Đã hủy"],
+  ["EXPIRED", "Đã hết hạn"],
+];
+
 export function PostFeed({
   initialKeyword = "",
   initialMine = false,
-}: Readonly<{ initialKeyword?: string; initialMine?: boolean }>) {
+  initialSkillId = "",
+}: Readonly<{
+  initialKeyword?: string;
+  initialMine?: boolean;
+  initialSkillId?: string;
+}>) {
   const { actor } = useUserSession();
   const skills = useUserPagedList<Skill>("skills?limit=50");
-  const [skillId, setSkillId] = useState("");
+  const [recommended, setRecommended] = useState(false);
+  const [status, setStatus] = useState("");
+  const [tagSearch, setTagSearch] = useState("");
+  const [tagTerm, setTagTerm] = useState("");
+  const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
+  const [skillId, setSkillId] = useState(initialSkillId);
   const [mine, setMine] = useState(initialMine),
     [search, setSearch] = useState(initialKeyword),
     [keyword, setKeyword] = useState(initialKeyword);
+  const tagQuery = useUserList<Tag>(
+    "tags?limit=20" + (tagTerm ? "&q=" + encodeURIComponent(tagTerm) : ""),
+  );
   const query = useUserPagedList<Post>(
     "learning-requests" +
-      (mine ? "/mine" : "") +
+      (mine ? "/mine" : recommended ? "/recommended" : "") +
       "?limit=20&keyword=" +
       encodeURIComponent(keyword) +
-      (skillId ? "&skillId=" + encodeURIComponent(skillId) : ""),
+      (skillId ? "&skillId=" + encodeURIComponent(skillId) : "") +
+      (mine && status ? "&status=" + status : "") +
+      selectedTags
+        .map((tag) => "&tagIds=" + encodeURIComponent(tag.id))
+        .join(""),
   );
+  function toggleTag(tag: Tag) {
+    setSelectedTags((previous) => {
+      if (previous.some((item) => item.id === tag.id))
+        return previous.filter((item) => item.id !== tag.id);
+      if (previous.length >= 10) return previous;
+      return [...previous, tag];
+    });
+  }
   return (
     <>
       <PageHeading
@@ -45,10 +85,23 @@ export function PostFeed({
             >
               <button
                 type="button"
-                aria-pressed={!mine}
-                onClick={() => setMine(false)}
+                aria-pressed={!mine && !recommended}
+                onClick={() => {
+                  setMine(false);
+                  setRecommended(false);
+                }}
               >
                 Cộng đồng
+              </button>
+              <button
+                type="button"
+                aria-pressed={!mine && recommended}
+                onClick={() => {
+                  setMine(false);
+                  setRecommended(true);
+                }}
+              >
+                Phù hợp với tôi
               </button>
               <button
                 type="button"
@@ -64,6 +117,78 @@ export function PostFeed({
           </div>
         }
       />
+      {mine && (
+        <label>
+          Trạng thái bài đăng
+          <select
+            value={status}
+            onChange={(event) => setStatus(event.target.value)}
+          >
+            <option value="">Tất cả</option>
+            {requestStatusOptions.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      <details>
+        <summary>
+          Lọc theo tag
+          {selectedTags.length ? ` (${selectedTags.length}/10)` : ""}
+        </summary>
+        <div className="learner-stack">
+          <div className="learner-search">
+            <SearchInput
+              aria-label="Tìm tag để lọc"
+              placeholder="Tìm tên tag…"
+              value={tagSearch}
+              maxLength={120}
+              onChange={setTagSearch}
+              onSearch={setTagTerm}
+            />
+          </div>
+          <div className="learner-choice-list">
+            {tagQuery.items.map((tag) => {
+              const active = selectedTags.some((item) => item.id === tag.id);
+              return (
+                <button
+                  type="button"
+                  key={tag.id}
+                  className={"learner-choice " + (active ? "selected" : "")}
+                  aria-pressed={active}
+                  disabled={!active && selectedTags.length >= 10}
+                  onClick={() => toggleTag(tag)}
+                >
+                  {tag.label}
+                </button>
+              );
+            })}
+          </div>
+          {!!selectedTags.length && (
+            <div className="learner-actions">
+              {selectedTags.map((tag) => (
+                <button
+                  type="button"
+                  className="btn"
+                  key={tag.id}
+                  onClick={() => toggleTag(tag)}
+                >
+                  Bỏ {tag.label} ×
+                </button>
+              ))}
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setSelectedTags([])}
+              >
+                Xóa lọc tag
+              </button>
+            </div>
+          )}
+        </div>
+      </details>
       <div className="explore-layout">
         <aside className="category-panel">
           <h3>Kỹ năng</h3>

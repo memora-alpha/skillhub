@@ -110,6 +110,15 @@ export function PostCard({
             {post.proposedTags.length} tag đề xuất
           </p>
         )}
+        {(typeof post.matchScore === "number" || post.expiresAt) && (
+          <p className={styles.caption}>
+            {typeof post.matchScore === "number" && (
+              <span>Độ phù hợp: {post.matchScore} điểm</span>
+            )}
+            {typeof post.matchScore === "number" && post.expiresAt && " · "}
+            {post.expiresAt && <span>Hạn: {formatTime(post.expiresAt)}</span>}
+          </p>
+        )}
         <footer className={styles.cardFooter}>
           <span>
             <strong>{postCredit(post.desiredCreditPerHour)}</strong>

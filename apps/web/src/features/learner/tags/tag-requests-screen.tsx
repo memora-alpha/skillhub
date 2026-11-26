@@ -25,6 +25,7 @@ type TagRequest = {
   rejectReason: string | null;
   resultTagId: string | null;
   createdAt: string;
+  reviewedAt?: string | null;
 };
 export function TagRequestsScreen() {
   const { request } = useUserSession();
@@ -135,6 +136,14 @@ export function TagRequestsScreen() {
               label={row.status === "PENDING" ? "Chờ Admin duyệt" : undefined}
             />
             <p>Gửi lúc {formatTime(row.createdAt)}</p>
+            {row.reviewedAt && (
+              <p>Xét duyệt lúc {formatTime(row.reviewedAt)}</p>
+            )}
+            {row.resultTagId && (
+              <p>
+                Mã tag được duyệt: <code>{row.resultTagId}</code>
+              </p>
+            )}
             {row.rejectReason && <p>Lý do từ chối: {row.rejectReason}</p>}
             {row.status === "APPROVED" && (
               <p>

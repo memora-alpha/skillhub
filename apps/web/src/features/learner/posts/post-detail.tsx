@@ -8,17 +8,18 @@ import { useUserCommand } from "../hooks/use-user-command";
 import { Back, CommandFeedback, Feedback } from "../components/common";
 import { ProductIcon } from "../components/product-icon";
 import type { Post } from "../types";
-import { postActions } from "./post-policy";
+import { isPostOwner, postActions } from "./post-policy";
 import { postCredit } from "./post-presentation";
 import { PostDetailContent } from "./post-detail-content";
 import { PostPublicActions } from "./post-public-actions";
 import styles from "./posts.module.css";
 
 export function PostDetail({ id }: Readonly<{ id: string }>) {
+  const { actor } = useUserSession();
   const query = useUserResource<Post>("learning-requests/" + id);
   const post = query.data;
-  const owner = !!post && !post.owner;
-  const actions = post ? postActions(post) : undefined;
+  const owner = !!post && isPostOwner(post, actor.userId);
+  const actions = post ? postActions(post, undefined, actor.userId) : undefined;
   return (
     <>
       <Back href={owner ? "/learn/explore?mine=true" : "/learn/explore"} />
@@ -65,10 +66,10 @@ export function PostDetail({ id }: Readonly<{ id: string }>) {
 }
 
 function PostOwnerActions({ post }: Readonly<{ post: Post }>) {
-  const { request } = useUserSession();
+  const { request, actor } = useUserSession();
   const command = useUserCommand();
   const [cancelling, setCancelling] = useState(false);
-  const actions = postActions(post);
+  const actions = postActions(post, undefined, actor.userId);
   const id = post.id;
   if (!actions.edit && !actions.publish && !actions.cancel && !post.publishedAt)
     return null;

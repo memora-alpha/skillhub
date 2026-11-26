@@ -12,8 +12,13 @@ export function canTeachPost(skill: SharingSkill, post: Post) {
     (!post.verifiedTeacherOnly || skill.verificationStatus === "VERIFIED")
   );
 }
-export function postActions(post: Post, now = Date.now()) {
-  const owner = !post.owner;
+export function isPostOwner(post: Post, actorId?: string) {
+  if (post.owner) return false;
+  if (post.ownerId && actorId) return post.ownerId === actorId;
+  return true;
+}
+export function postActions(post: Post, now = Date.now(), actorId?: string) {
+  const owner = isPostOwner(post, actorId);
   const expired = !!post.expiresAt && Date.parse(post.expiresAt) <= now;
   return {
     owner,
@@ -25,6 +30,7 @@ export function postActions(post: Post, now = Date.now()) {
     publish: owner && post.status === "DRAFT",
     cancel:
       owner &&
+      !expired &&
       [
         "DRAFT",
         "OPEN",

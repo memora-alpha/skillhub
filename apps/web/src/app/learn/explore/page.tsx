@@ -46,9 +46,10 @@ export default async function Page({
         <SharersScreen key={selectedSkill} initialSkillId={selectedSkill} />
       ) : (
         <PostFeed
-          key={keyword + ":" + mine}
+          key={keyword + ":" + mine + ":" + selectedSkill}
           initialKeyword={keyword}
           initialMine={mine === "true"}
+          initialSkillId={selectedSkill}
         />
       )}
     </>
