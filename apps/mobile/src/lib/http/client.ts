@@ -15,6 +15,7 @@ export type RequestOptions = {
   paginated?: boolean;
   replayAfterRenewal?: boolean;
   includeMeta?: boolean;
+  responseType?: "arraybuffer";
 };
 export type SessionTransport = {
   readonly generation: number;
@@ -25,7 +26,9 @@ export type SessionTransport = {
 
 function requestHeaders(options: RequestOptions, token: string | null) {
   const headers: Record<string, string | boolean> = {
-    Accept: "application/json",
+    Accept: options.responseType
+      ? "application/octet-stream"
+      : "application/json",
   };
   if (options.body !== undefined)
     headers["Content-Type"] = options.multipart ? false : "application/json";
@@ -39,8 +42,10 @@ function validateRequestOptions(options: RequestOptions) {
   if (options.signal?.aborted) throw new AppError("session");
   if (
     options.idempotencyKey &&
-    (options.multipart || !["POST", "PATCH"].includes(options.method ?? "GET"))
+    !["POST", "PATCH"].includes(options.method ?? "GET")
   )
+    throw new AppError("config");
+  if (options.responseType && (options.method ?? "GET") !== "GET")
     throw new AppError("config");
 }
 
@@ -50,6 +55,28 @@ function readResponse(
 ) {
   const retryAt =
     response.status === 429 ? retryAfterAt(response.headers["retry-after"]) : 0;
+  if (options.responseType) {
+    const data = response.data;
+    const bytes =
+      data instanceof ArrayBuffer
+        ? new Uint8Array(data)
+        : ArrayBuffer.isView(data)
+          ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
+          : undefined;
+    if (response.status >= 200 && response.status < 300) {
+      if (!bytes?.byteLength) throw new AppError("protocol");
+      return bytes;
+    }
+    let payload = data;
+    if (bytes) {
+      try {
+        payload = JSON.parse(new TextDecoder().decode(bytes));
+      } catch {
+        payload = undefined;
+      }
+    }
+    return readPayload(response.status, payload, false, retryAt);
+  }
   if (options.paginated)
     return readPagePayload(response.status, response.data, retryAt);
   return readPayload(
@@ -102,6 +129,9 @@ export function createHttpClient(
             headers: requestHeaders(options, token),
             data: options.body,
             signal: options.signal,
+            ...(options.responseType
+              ? { responseType: options.responseType }
+              : {}),
           });
           return readResponse(options, response);
         },
