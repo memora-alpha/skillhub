@@ -17,6 +17,7 @@ import {
 import type { Wallet, LedgerEntry } from "./account-types";
 const transactionNames: Record<string, string> = {
   TOP_UP: "Nạp Credit",
+  VOUCHER_REDEMPTION: "Đổi voucher",
   DAILY_BONUS: "Thưởng hằng ngày",
   FEEDBACK_BONUS: "Thưởng phản hồi",
   HOLD: "Tạm giữ Credit",
@@ -42,6 +43,11 @@ export function WalletScreen() {
     ledger = useUserPagedList<LedgerEntry>("me/wallet/transactions?" + params);
   return (
     <>
+      <p>
+        <Link href="/learn/vouchers" className="btn">
+          Đổi voucher bằng Credit →
+        </Link>
+      </p>
       <PageHeading
         eyebrow="Tài chính trên SkillHub"
         title="Ví Credit"
@@ -95,8 +101,8 @@ export function WalletScreen() {
           <strong>1.000 VNĐ = 1 Credit</strong>
         </span>
         <span>
-          <strong>Quyết toán 96% / 4%:</strong> Hoàn 96% (2 chiều) hoặc trả 96%
-          người dạy (1 chiều), 4% phí nền tảng
+          <strong>Phí quyết toán:</strong> Theo chính sách được máy chủ chốt cho
+          từng thỏa thuận. Xem phân bổ Credit trước khi xác nhận.
         </span>
         <span>
           <strong>Không rút tiền mặt:</strong> Credit chỉ dùng trong hệ thống
@@ -224,6 +230,7 @@ const referenceLabels: Record<string, string> = {
   REVIEW: "Đánh giá",
   DISPUTE: "Vụ việc",
   MATERIAL_ORDER: "Đơn tài liệu",
+  VOUCHER_REDEMPTION: "Đổi voucher",
   SYSTEM: "Hệ thống",
 };
 function WalletTransactionDetail({
@@ -241,6 +248,7 @@ function WalletTransactionDetail({
     PAYMENT: "/learn/wallet/topup?paymentId=",
     LEARNING_PATH: "/learn/paths/",
     SESSION: "/learn/sessions/",
+    VOUCHER_REDEMPTION: "/learn/vouchers/mine/",
   };
   const target =
     row &&

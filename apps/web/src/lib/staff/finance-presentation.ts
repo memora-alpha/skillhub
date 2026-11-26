@@ -19,6 +19,7 @@ const labels: Record<string, string> = {
   PATH_HOLD: "Giữ Credit cho lộ trình",
   MATERIAL_REFUND: "Hoàn tiền tài liệu",
   REVERSAL: "Hoàn tác giao dịch",
+  VOUCHER_REDEMPTION: "Đổi voucher",
 };
 export function financeLabel(code: string) {
   return labels[code] ?? systemCodeLabel(code, "Nghiệp vụ khác");

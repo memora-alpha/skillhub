@@ -91,6 +91,7 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
     command = useUserCommand(true),
     cancel = useUserCommand(true);
   const cache = useQueryClient();
+  const [historyStatus, setHistoryStatus] = useState("");
   const policy = useUserResource<PaymentPolicy>("payments/creation-policy"),
     current = useUserResource<Payment>(
       paymentId ? "payments/" + paymentId : null,
@@ -103,12 +104,14 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
         pollOnTemporaryError: true,
       },
     ),
-    history = useUserPagedList<Payment>("payments?limit=10");
+    history = useUserPagedList<Payment>(
+      "payments?limit=10" + (historyStatus ? "&status=" + historyStatus : ""),
+    );
   const storageKey = "skillhub-user-draft:" + actor.userId + ":payment-intent";
   const [savedIntent, setSavedIntent] = useState<PaymentIntent | null>(() => {
     try {
       const value = JSON.parse(
-        sessionStorage.getItem(storageKey) ?? "null",
+        localStorage.getItem(storageKey) ?? "null",
       ) as PaymentIntent | null;
       return value &&
         /^[0-9a-f-]{36}$/i.test(value.key) &&
@@ -192,7 +195,7 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
                 intent.current = value;
                 setSavedIntent(value);
                 try {
-                  sessionStorage.setItem(storageKey, JSON.stringify(value));
+                  localStorage.setItem(storageKey, JSON.stringify(value));
                 } catch {
                   setRecoveryError(
                     "Trình duyệt không lưu được yêu cầu. Giữ màn hình này để khôi phục cùng lệnh.",
@@ -204,7 +207,7 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
                 intent.current = null;
                 setSavedIntent(null);
                 try {
-                  sessionStorage.removeItem(storageKey);
+                  localStorage.removeItem(storageKey);
                 } catch {
                   /* Preserve confirmed payment navigation. */
                 }
@@ -409,6 +412,20 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
       </div>
       <div style={{ marginTop: 24 }}>
         <Panel title="Lịch sử nạp Credit">
+          <label>
+            Trạng thái
+            <select
+              value={historyStatus}
+              onChange={(event) => setHistoryStatus(event.target.value)}
+            >
+              <option value="">Tất cả</option>
+              {Object.entries(paymentLabels).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
           <Feedback
             loading={history.initialLoading}
             error={history.error}
