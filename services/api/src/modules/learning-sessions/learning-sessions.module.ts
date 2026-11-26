@@ -17,6 +17,17 @@ import { SessionCompletionHandler } from "./infrastructure/events/session-comple
 import { LearningRequestsModule } from "../learning-requests/learning-requests.module";
 import { LearningPathRequestStateModule } from "../learning-paths/learning-path-request-state.module";
 import { AuditModule } from "../audit/audit.module";
+import { SessionWhiteboardController } from "./presentation/http/session-whiteboard.controller";
+import { SessionWhiteboardService } from "./application/services/session-whiteboard.service";
+import { SessionWhiteboardRetentionWorker } from "./infrastructure/jobs/session-whiteboard-retention.worker";
+import { SessionRecordingController } from "./presentation/http/session-recording.controller";
+import { SessionRecordingService } from "./application/services/session-recording.service";
+import { LiveKitEgressService } from "./infrastructure/livekit/livekit-egress.service";
+import { SessionRecordingEventsService } from "./application/services/session-recording-events.service";
+import { SessionRecordingReconcileWorker } from "./infrastructure/jobs/session-recording-reconcile.worker";
+import { SessionRecordingRetentionService } from "./application/services/session-recording-retention.service";
+import { SessionRecordingRetentionWorker } from "./infrastructure/jobs/session-recording-retention.worker";
+import { StorageModule } from "../../infrastructure/storage/storage.module";
 
 @Module({
   imports: [
@@ -31,14 +42,28 @@ import { AuditModule } from "../audit/audit.module";
     ReportsModule,
     SystemConfigurationModule,
     OutboxModule,
+    StorageModule,
   ],
-  controllers: [LearningSessionsController, LiveKitWebhookController],
+  controllers: [
+    LearningSessionsController,
+    LiveKitWebhookController,
+    SessionWhiteboardController,
+    SessionRecordingController,
+  ],
   providers: [
     LearningSessionsService,
     SessionOutcomeService,
     LiveKitService,
     SessionLifecycleWorker,
     SessionCompletionHandler,
+    SessionWhiteboardService,
+    SessionWhiteboardRetentionWorker,
+    LiveKitEgressService,
+    SessionRecordingService,
+    SessionRecordingEventsService,
+    SessionRecordingReconcileWorker,
+    SessionRecordingRetentionService,
+    SessionRecordingRetentionWorker,
   ],
   exports: [LearningSessionsService],
 })

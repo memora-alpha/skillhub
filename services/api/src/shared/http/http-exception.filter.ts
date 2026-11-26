@@ -203,6 +203,58 @@ function materialLifecycleDetails(
   return { currentStatus, currentListingVersion };
 }
 
+const whiteboardReadOnlyReasons = new Set([
+  "SESSION_NOT_EDITABLE",
+  "SESSION_UNDER_REPORT",
+  "EDIT_WINDOW_NOT_OPEN",
+  "EDIT_WINDOW_CLOSED",
+]);
+
+function whiteboardDetails(status: number, text: string, detail: unknown) {
+  if (status !== 409 || !isRecord(detail)) return undefined;
+  const { currentRevision, reason } = detail;
+  if (
+    text === "WHITEBOARD_REVISION_CONFLICT" &&
+    typeof currentRevision === "number" &&
+    Number.isSafeInteger(currentRevision) &&
+    currentRevision >= 0
+  )
+    return { currentRevision };
+  if (
+    text === "WHITEBOARD_READ_ONLY" &&
+    typeof reason === "string" &&
+    whiteboardReadOnlyReasons.has(reason)
+  )
+    return { reason };
+  return undefined;
+}
+
+// Spec 020: RECORDING_STATE_CONFLICT names the current recording status only.
+const recordingStatuses = new Set([
+  "REQUESTED",
+  "DECLINED",
+  "REQUEST_EXPIRED",
+  "STARTING",
+  "RECORDING",
+  "STOPPING",
+  "READY",
+  "FAILED",
+  "EXPIRED",
+  "DELETED",
+]);
+
+function recordingDetails(status: number, text: string, detail: unknown) {
+  if (
+    status === 409 &&
+    text === "RECORDING_STATE_CONFLICT" &&
+    isRecord(detail) &&
+    typeof detail.status === "string" &&
+    recordingStatuses.has(detail.status)
+  )
+    return { status: detail.status };
+  return undefined;
+}
+
 function publicErrorDetails(status: number, text: string, detail: unknown) {
   if (
     status === 409 &&
@@ -226,6 +278,10 @@ function publicErrorDetails(status: number, text: string, detail: unknown) {
   if (schedule) return schedule;
   const material = materialLifecycleDetails(status, text, detail);
   if (material) return material;
+  const whiteboard = whiteboardDetails(status, text, detail);
+  if (whiteboard) return whiteboard;
+  const recording = recordingDetails(status, text, detail);
+  if (recording) return recording;
   if (status === 409 && text === "INSUFFICIENT_AVAILABLE_CREDIT") {
     const userIds = (detail as { userIds?: unknown } | undefined)?.userIds;
     if (

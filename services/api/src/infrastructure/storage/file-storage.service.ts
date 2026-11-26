@@ -172,6 +172,13 @@ export class FileStorageService {
     return { url, expiresAt: new Date(now.getTime() + ttl * 1_000) };
   }
 
+  async readChatContent(key: string, size: number) {
+    const object = await this.objects.head(key);
+    if (object?.size !== size)
+      throw new FileStorageError("FILE_OBJECT_MISMATCH", 503);
+    return this.objects.read(key);
+  }
+
   private async configuredCapBytes(purpose: FilePurpose) {
     if (purpose === "CHAT") return 15_000_000;
     if (purpose === "MATERIAL") return MATERIAL_MAX_BYTES;

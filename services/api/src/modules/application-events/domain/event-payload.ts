@@ -44,6 +44,11 @@ const schemas: Record<string, z.ZodType> = {
     .object({ conversationId: id, readerId: id, lastReadSequence: sequence })
     .strict(),
   "chat.attachment.updated": z.object({ fileId: id }).strict(),
+  "chat.attachment.availability.updated": z.strictObject({
+    fileId: id,
+    conversationId: id,
+    messageId: id,
+  }),
   "notification.created": notification,
   "notification.read": notification,
 };

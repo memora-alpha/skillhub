@@ -26,6 +26,7 @@ import {
   type ModerationSurface,
 } from "../domain/moderation-policy";
 import {
+  ModerationProviderError,
   OpenAiModerationClient,
   type ModerationProviderInput,
 } from "../infrastructure/openai-moderation.client";
@@ -36,10 +37,7 @@ export type ModerationInput = {
   digest: string;
   text?: string;
   profanityFields?: readonly string[];
-  image?: {
-    mimeType: "image/jpeg" | "image/png" | "image/webp" | "image/gif";
-    bytes: Buffer;
-  };
+  image?: Exclude<ModerationProviderInput, string>["image"];
 };
 
 export type ModerationAssessment = Pick<
@@ -64,16 +62,9 @@ export function requireAllowed(assessment: ModerationAssessment): void {
 }
 
 function providerInput(input: ModerationInput): ModerationProviderInput {
-  if (!input.image) return input.text ?? "";
-  const { mimeType, bytes } = input.image;
-  const parts: Exclude<ModerationProviderInput, string> = [
-    {
-      type: "image_url",
-      image_url: { url: `data:${mimeType};base64,${bytes.toString("base64")}` },
-    },
-  ];
-  if (input.text?.trim()) parts.unshift({ type: "text", text: input.text });
-  return parts;
+  return input.image
+    ? { text: input.text, image: input.image }
+    : (input.text ?? "");
 }
 
 @Injectable()
@@ -216,10 +207,14 @@ export class ContentModerationService {
         assessmentId: result.id,
         classifierVersion: result.model,
       };
-    } catch {
+    } catch (error) {
       return {
         outcome: "RETRY" as const,
-        reasonCodes: ["PROVIDER_UNAVAILABLE"],
+        reasonCodes: [
+          error instanceof ModerationProviderError
+            ? error.reasonCode
+            : "PROVIDER_UNAVAILABLE",
+        ],
       };
     }
   }

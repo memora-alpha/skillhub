@@ -193,6 +193,8 @@ test("bootstrap grants only the chosen per-role actions and preserves existing g
       "tag-request:read:self",
       "session:read:participant",
       "livekit-token:issue:participant",
+      "session-whiteboard:update:participant",
+      "session-recording:manage:participant",
       "proposal:create",
       "event:read:self",
       "proposal:read:party",
@@ -225,6 +227,7 @@ test("bootstrap grants only the chosen per-role actions and preserves existing g
   assert.deepEqual(
     [...grants.get("STAFF")],
     [
+      "chat-attachment:moderate",
       "notification:read:self",
       "notification:update:self",
       "event:read:self",
@@ -249,6 +252,7 @@ test("bootstrap grants only the chosen per-role actions and preserves existing g
     ],
   );
   for (const permission of [
+    "chat-attachment:moderate",
     "learning-request:moderation:read",
     "learning-request:approve",
     "learning-request:reject",
@@ -260,6 +264,7 @@ test("bootstrap grants only the chosen per-role actions and preserves existing g
     );
   }
   assert.ok(calls.grants.every(({ skipDuplicates }) => skipDuplicates));
+  assert.equal(grants.get("USER").has("chat-attachment:moderate"), false);
   assert.equal(grants.get("USER").has("skill-catalog:create"), false);
   assert.equal(grants.get("USER").has("learning-path:terminate"), false);
   assert.equal(grants.get("STAFF").has("skill-verification:revoke"), false);

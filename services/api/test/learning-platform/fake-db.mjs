@@ -11,6 +11,12 @@ const relations = {
       true,
     ],
   },
+  sessionWhiteboard: {
+    session: ["session", [["sessionId", "id"]], false],
+  },
+  sessionRecording: {
+    session: ["session", [["sessionId", "id"]], false],
+  },
   conversation: {
     requestIdRecord: ["learningRequest", [["requestId", "id"]], false],
     proposalIdRecord: ["proposal", [["proposalId", "id"]], false],
@@ -363,7 +369,14 @@ export function createFakeDb({ now = () => new Date() } = {}) {
             field,
             rows(name)
               .filter((row) => matches(name, row, where))
-              .reduce((sum, row) => sum + row[field], 0),
+              // Prisma sums BigInt columns as bigint and skips nulls.
+              .reduce((sum, row) => {
+                const value = row[field];
+                if (value === null || value === undefined) return sum;
+                return typeof value === "bigint"
+                  ? BigInt(sum) + value
+                  : sum + value;
+              }, 0),
           ]),
         ),
       }),
@@ -387,6 +400,13 @@ export function createFakeDb({ now = () => new Date() } = {}) {
         const hits = rows(name).filter((row) => matches(name, row, where));
         hits.forEach((row) => apply(row, data));
         return { count: hits.length };
+      },
+      deleteMany: ({ where } = {}) => {
+        const list = rows(name);
+        const kept = list.filter((row) => !matches(name, row, where));
+        const count = list.length - kept.length;
+        list.splice(0, list.length, ...kept);
+        return { count };
       },
     };
   }

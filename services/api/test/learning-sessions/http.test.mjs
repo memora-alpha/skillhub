@@ -19,6 +19,7 @@ import { LearningSessionsController } from "../../dist/modules/learning-sessions
 import { LiveKitWebhookController } from "../../dist/modules/learning-sessions/presentation/http/livekit-webhook.controller.js";
 import { LiveKitService } from "../../dist/modules/learning-sessions/infrastructure/livekit/livekit.service.js";
 import { OutboxConsumer } from "../../dist/infrastructure/events/outbox-consumer.js";
+import { SessionRecordingEventsService } from "../../dist/modules/learning-sessions/application/services/session-recording-events.service.js";
 import { ReportsService } from "../../dist/modules/reports/application/services/reports.service.js";
 import { runner } from "../learning-platform/fake-db.mjs";
 import { HttpExceptionFilter } from "../../dist/shared/http/http-exception.filter.js";
@@ -83,6 +84,14 @@ test("HTTP token auth/validation/no-store and raw signed webhook ingress", async
       { provide: LearningSessionsService, useValue: ctx.sessions },
       { provide: LiveKitService, useValue: livekit },
       { provide: OutboxConsumer, useValue: consumer },
+      // Spec 020: egress events have their own consumer; attendance webhooks never reach it.
+      {
+        provide: SessionRecordingEventsService,
+        useValue: {
+          applyEgress: async () => assert.fail("not an egress event"),
+          syncIndicator: async () => {},
+        },
+      },
     ],
   }).compile();
   const app = module.createNestApplication({ logger: false, rawBody: true });

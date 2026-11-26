@@ -124,7 +124,86 @@ kể cả mất webhook. Heartbeat bổ sung interval và đóng connection mấ
 Sau join grace + 10 phút chờ dữ liệu, outcome dùng union interval cắt theo lịch:
 80% thời lượng là có mặt; vào sau 10 phút đánh dấu trễ. Lỗi quan sát hoặc provider
 disabled/thiếu join window không dẫn tới phạt vắng. READY vẫn đổi lịch theo cutoff
-60 phút; MAKEUP_REQUIRED dùng hạn học bù. Không ghi âm/ghi hình.
+60 phút; MAKEUP_REQUIRED dùng hạn học bù. Chỉ ghi hình khi cả hai bên đồng ý (mục Ghi hình).
+
+## Bảng trắng
+
+Nét vẽ được đồng bộ realtime giữa hai bên qua LiveKit DataChannel ở client.
+Backend chỉ lưu bản snapshot mới nhất của mỗi Session (bảng `session_whiteboards`,
+[spec 019](../specs/019-session-whiteboard/contracts.md)):
+
+- `GET /api/v1/sessions/:id/whiteboard`: trả `revision`, `sceneData`, `readOnly`, `readOnlyReason`,
+  `editableFrom`, `editableUntil`.
+- `PUT /api/v1/sessions/:id/whiteboard`: body `{expectedRevision, sceneData}`. Nếu revision lệch,
+  API trả `409 WHITEBOARD_REVISION_CONFLICT` kèm `details.currentRevision`. Scene tối đa
+  2 MiB và 20.000 phần tử; riêng route này nhận body 2 MiB, các route khác giữ giới hạn 100 kB.
+
+Chỉ hai participant được đọc và ghi. Quyền ghi là `session-whiteboard:update:participant`,
+request seed `session-whiteboard-20261125` trong `release-seeds.json` tự chạy `identity` và
+`configuration` ở lần deploy Docker đầu tiên. Khi chạy tay, dùng `identity:seed` và
+`db:seed-configuration` (trong container đã build sẵn thì dùng `db:seed-configuration:built`).
+
+Thời gian sửa bảng (config `whiteboard.editWindow`, mặc định `teacherPrepare = true`,
+`afterEndMinutes = 1440`):
+
+- Giáo viên được soạn bảng ngay từ khi Session được xác nhận. Người học chỉ được sửa từ khi join window mở.
+- Cả hai được sửa đến `max(giờ đóng join window, endAt + afterEndMinutes)`. Sau đó bảng chỉ đọc vĩnh viễn.
+- Session ở trạng thái `CANCELLED`, `DISPUTED`, `NO_SHOW` hoặc `MAKEUP_REQUIRED` thì bảng bị khóa ngay.
+- Khi có report `OPEN`, `UNDER_REVIEW` hoặc `NEED_MORE_INFO` nhắm vào Session (hoặc có
+  `relatedSessionId` là Session), bảng bị khóa với lý do `SESSION_UNDER_REPORT` để bằng chứng
+  Staff xem không bị sửa. Report đóng thì bảng sửa được lại nếu còn trong khung thời gian.
+- Khi bị khóa, API trả `409 WHITEBOARD_READ_ONLY` kèm `details.reason`.
+
+Staff xem bảng: Staff đang xử lý một report case còn mở về Session được đọc bảng (không sửa) qua
+`GET /api/v1/sessions/:id/whiteboard/staff-review?caseId=`. Report case đó phải nhắm vào Session hoặc có
+`relatedSessionId` là Session. Staff cần quyền `report:moderate`. Mỗi lần đọc ghi audit `REPORT_EVIDENCE_READ`.
+
+Lưu trữ: worker chạy mỗi giờ, xóa scene sau `whiteboard.retentionDays` ngày (mặc định 30) kể từ `endAt`.
+Session đang có report mở thì hoãn xóa cho đến khi report đóng.
+
+Các quy tắc trên đang chờ PO duyệt. Bảng không bị moderation. Lần lưu của người tham gia không ghi audit.
+Không lưu lịch sử revision.
+
+## Ghi hình
+
+[Spec 020](../specs/020-session-recording/spec.md) (D1–D10), contract ở
+[contracts.md](../specs/020-session-recording/contracts.md), cách bật ở
+[session-recording-setup.vi.md](session-recording-setup.vi.md). Tính năng mặc định tắt
+(`recording.enabled = false`). Chỉ bật trên production sau khi SRS được bổ sung và pháp lý duyệt
+nội dung xin đồng ý.
+
+Mục đích chính là để người học xem lại, mục đích phụ là làm bằng chứng khi Session có report. Màn hình
+xin đồng ý phải nêu cả hai, theo thứ tự đó.
+
+- Đồng ý: một bên `POST …/recordings`, bên còn lại `accept` hoặc `decline`. Không trả lời trong 2 phút
+  thì yêu cầu hết hạn. Bên nào cũng `stop` được; ghi lại cần yêu cầu mới.
+- Thời điểm: chỉ khi phòng đang mở, Session `READY` hoặc `ONGOING`, và đã có người vào phòng.
+  Egress tự dừng khi join window đóng, khi phòng kết thúc, hoặc khi đạt thời lượng Session +
+  `recording.overrunMinutes`.
+- Ghi gộp phòng thành MP4 (âm thanh, video, màn hình chia sẻ); `recording.kind = AUDIO_ONLY` chỉ ghi
+  âm. Egress ghi vào `recordings/<sessionId>/<recordingId>.mp4` trong `S3_BUCKET`.
+- Xem: `GET …/playback` trả link presigned 5 phút, `inline`, không có nút tải. Đây là biện pháp ngăn
+  cản, không phải DRM.
+- Xóa: bên nào cũng `DELETE` được, xóa cho cả hai, không hoàn tác, bên kia nhận thông báo.
+- Lưu: 90 ngày sau `endAt` (`recording.retentionDays`). Report `OPEN`, `UNDER_REVIEW`,
+  `NEED_MORE_INFO` nhắm vào hoặc liên quan tới Session sẽ giữ bản ghi: không hết hạn và không xóa được
+  (`409 RECORDING_HELD_BY_REPORT`) cho tới khi report đóng.
+- Staff: chỉ handler của report đang mở mới xem được, qua
+  `GET …/recordings/:id/staff-review?caseId=`. Mỗi link cấp ra ghi audit `REPORT_EVIDENCE_READ`
+  (target `SESSION_RECORDING`). Admin không có đường xem riêng.
+- Không ảnh hưởng điểm danh, Credit, Reputation hay settlement. Ghi lỗi thì Session vẫn tiếp tục, hai
+  bên nhận thông báo.
+
+Webhook `egress_started`, `egress_updated`, `egress_ended` đi chung URL `/api/v1/livekit/webhook`,
+qua consumer receipt riêng `livekit.session-recording`, không chạm phần điểm danh. Worker đối soát
+chạy mỗi phút: hết hạn yêu cầu, dừng theo công tắc tổng, join window hoặc giới hạn thời lượng, và
+sửa bản ghi kẹt ở `STARTING`/`STOPPING` quá 2 phút bằng `listEgress`. Worker lưu trữ chạy mỗi giờ:
+hết hạn bản ghi, xóa object của bản ghi `EXPIRED`/`DELETED` (thử lại nếu lỗi), và log
+`RECORDING_MONTHLY_MINUTES_ALERT` khi số phút trong tháng vượt `recording.monthlyAlertMinutes`.
+
+Room metadata `{ "recording": { "id", "kind" } }` bật khi đang ghi và về `null` khi kết thúc. Client
+hiển thị chỉ báo theo metadata này. API hiện ghi đè toàn bộ room metadata; nếu sau này có dữ liệu khác
+trong metadata thì phải gộp.
 
 ## Completion và các giới hạn còn mở
 
@@ -151,6 +230,10 @@ pnpm --filter api test:learning-sessions
 # TEST_DATABASE_URL phải trỏ PostgreSQL dùng cho test; harness tự migrate schema riêng.
 pnpm --filter api test:learning-sessions:integration
 ```
+
+`test/learning-sessions/integration/recording-migration.test.mjs` kiểm tra migration ghi hình trên
+PostgreSQL thật: chuỗi migration đầy đủ, partial unique index cho bản ghi đang hoạt động, hai yêu
+cầu đồng thời và các CHECK.
 
 Integration harness tạo schema UUID riêng, áp migrations trong schema đó và xóa
 schema khi xong. Không fallback DATABASE_URL. Cloud smoke cần hai participant

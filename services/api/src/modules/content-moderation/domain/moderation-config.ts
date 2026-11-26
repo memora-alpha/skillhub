@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { chatAttachmentOriginKey } from "../../../infrastructure/storage/chat-attachment-policy";
 import {
   type ModerationMode,
   type ModerationSurface,
@@ -7,6 +8,7 @@ import {
 
 export const defaultModerationModel = "omni-moderation-latest";
 export const defaultModerationTimeoutMs = 2000;
+export const defaultModerationImageTimeoutMs = 6000;
 
 const modeSchema = z.enum(["off", "observe", "enforce"]);
 const surfaceSchema = z.enum(moderationSurfaces);
@@ -21,10 +23,36 @@ const settingsSchema = z.object({
     .min(100)
     .max(30000)
     .default(defaultModerationTimeoutMs),
+  CONTENT_MODERATION_IMAGE_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(100)
+    .max(30000)
+    .optional(),
   CONTENT_MODERATION_MODES: z.string().trim().default(""),
   CONTENT_MODERATION_OCR_COMMAND: z.string().trim().min(1).optional(),
   CONTENT_MODERATION_PDFINFO_COMMAND: z.string().trim().min(1).optional(),
   CONTENT_MODERATION_PDFTOPPM_COMMAND: z.string().trim().min(1).optional(),
+  [chatAttachmentOriginKey]: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z
+      .url()
+      .refine((value) => {
+        const url = URL.parse(value);
+        if (!url) return false;
+        return (
+          !url.username &&
+          !url.password &&
+          !url.search &&
+          !url.hash &&
+          url.pathname === "/" &&
+          (url.protocol === "https:" ||
+            (url.protocol === "http:" &&
+              ["localhost", "127.0.0.1"].includes(url.hostname)))
+        );
+      })
+      .optional(),
+  ),
 });
 
 export function moderationModes(
@@ -61,6 +89,10 @@ export function validateModerationSettings(env: Record<string, unknown>): void {
     );
   }
   const modes = moderationModes(parsed.data.CONTENT_MODERATION_MODES);
+  if (parsed.data[chatAttachmentOriginKey] && modes.get("media") !== "enforce")
+    throw new Error(
+      `Invalid environment configuration: ${chatAttachmentOriginKey} requires media:enforce`,
+    );
   if (
     [...modes.values()].some((mode) => mode !== "off") &&
     !parsed.data.OPENAI_API_KEY

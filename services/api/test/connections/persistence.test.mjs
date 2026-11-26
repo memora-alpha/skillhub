@@ -15,6 +15,7 @@ import { connectionSettings } from "../../dist/modules/proposals/domain/connecti
 import { lockUsers } from "../../dist/shared/database/identity-transactions.js";
 import { ConversationLifecycleService } from "../../dist/modules/conversations/application/services/conversation-lifecycle.service.js";
 import { ConnectionNotificationService } from "../../dist/modules/notifications/application/services/connection-notification.service.js";
+import { ChatAttachmentModerationController } from "../../dist/modules/conversations/presentation/http/chat-attachment-moderation.controller.js";
 
 // No fallback to application configuration. All migrations run in a disposable schema.
 const url = process.env.TEST_DATABASE_URL;
@@ -77,6 +78,58 @@ test(
           status: "ACTIVE",
         },
       });
+      const fileId = randomUUID();
+      await db.storedFile.create({
+        data: {
+          id: fileId,
+          purpose: "CHAT",
+          uploadedBy: ids[0],
+          objectKey: `private/${fileId}`,
+          originalName: "fixture.jpg",
+          state: "READY",
+          detectedMime: "image/jpeg",
+          sizeBytes: 100,
+          sha256: "a".repeat(64),
+          scanVerdict: "CLEAN",
+          scannerVersion: "fixture",
+          scannedAt: new Date(),
+        },
+      });
+      const assessment = {
+        outcome: "ALLOW",
+        sourceVersion: "1",
+        digest: "a".repeat(64),
+        profanityVersion: 1,
+        extractorRevision: 1,
+        enforced: true,
+      };
+      const applyAssessment = (moderationAssessment) =>
+        db.storedFile.update({
+          where: { id: fileId },
+          data: { moderationAssessment },
+        });
+      await applyAssessment(assessment);
+      await applyAssessment({
+        ...assessment,
+        reasonCodes: ["changed-metadata"],
+      });
+      await applyAssessment({
+        ...assessment,
+        outcome: "BLOCK",
+        profanityVersion: 2,
+      });
+      const fileEvents = await db.userEventDelivery.findMany({
+        where: { type: "chat.attachment.updated" },
+        orderBy: { sequence: "asc" },
+      });
+      assert.deepEqual(
+        fileEvents.map(({ userId, payload }) => ({ userId, payload })),
+        [
+          { userId: ids[0], payload: { fileId } },
+          { userId: ids[0], payload: { fileId } },
+        ],
+      );
+      assert.notEqual(fileEvents[0].eventId, fileEvents[1].eventId);
       const request = await db.learningRequest.create({
         data: {
           ownerId: ids[0],
@@ -205,6 +258,111 @@ test(
       assert.equal(
         replay.conversation.id,
         results[winner].value.conversation.id,
+      );
+      const publication = await db.chatPublication.create({
+        data: {
+          id: randomUUID(),
+          conversationId: replay.conversation.id,
+          senderId: ids[0],
+          clientMessageId: randomUUID(),
+          commandDigest: "fixture",
+          deliveredEventId: randomUUID(),
+        },
+      });
+      await db.chatPublication.update({
+        where: { id: publication.id },
+        data: { status: "COMMITTED", draftDigest: "fixture" },
+      });
+      await db.chatPublication.update({
+        where: { id: publication.id },
+        data: { status: "DELIVERED", messageSequence: 1n },
+      });
+      const pendingId = randomUUID();
+      await db.storedFile.create({
+        data: {
+          id: pendingId,
+          purpose: "CHAT",
+          uploadedBy: ids[0],
+          objectKey: `private/${pendingId}`,
+          originalName: "pending.pdf",
+          detectedMime: "application/pdf",
+          sizeBytes: 50,
+          sha256: "a".repeat(64),
+          state: "QUARANTINED",
+          attachedAt: new Date(),
+          resourceType: "CHAT_MESSAGE",
+          resourceId: publication.id,
+        },
+      });
+      const updateFile = (data) =>
+        db.storedFile.update({ where: { id: pendingId }, data });
+      await updateFile({ state: "SCANNING" });
+      await updateFile({
+        state: "READY",
+        scanVerdict: "CLEAN",
+        scannerVersion: "fixture",
+        scannedAt: new Date(),
+      });
+      const block = { ...assessment, outcome: "BLOCK" };
+      await updateFile({
+        moderationAssessment: { ...assessment, outcome: "REVIEW" },
+      });
+      const staff = new ChatAttachmentModerationController(
+        transactions,
+        {
+          require: async (_tx, principal, permission) => {
+            assert.equal(permission, "chat-attachment:moderate");
+            if (principal.userId !== ids[1]) throw new Error("forbidden");
+            return { userId: ids[1], roles: ["STAFF"] };
+          },
+        },
+        { append: (tx, data) => tx.auditLog.create({ data }) },
+      );
+      await assert.rejects(staff.list({ userId: ids[0] }, {}), /forbidden/);
+      const queue = await staff.list({ userId: ids[1] }, {});
+      assert.deepEqual(
+        queue.data.items.map(({ fileId, outcome }) => ({ fileId, outcome })),
+        [{ fileId: pendingId, outcome: "REVIEW" }],
+      );
+      await staff.revoke({ userId: ids[1] }, pendingId, {
+        reason: "Confirmed by reviewer",
+      });
+      assert.equal(
+        await db.auditLog.count({
+          where: { action: "CHAT_ATTACHMENT_REVOKED", targetId: pendingId },
+        }),
+        1,
+      );
+      await updateFile({
+        moderationAssessment: { ...block, reasonCodes: ["PROFANITY:test"] },
+      });
+      const participants = [
+        replay.conversation.participantAId,
+        replay.conversation.participantBId,
+      ];
+      for (const party of participants) {
+        const entries = await db.userEventDelivery.findMany({
+          where: {
+            userId: party,
+            type: "chat.attachment.availability.updated",
+          },
+        });
+        assert.equal(entries.length, 2);
+        for (const item of entries)
+          assert.deepEqual(item.payload, {
+            conversationId: replay.conversation.id,
+            messageId: publication.id,
+            fileId: pendingId,
+          });
+      }
+      assert.equal(
+        await db.userEventDelivery.count({
+          where: {
+            userId: ids.find((id) => !participants.includes(id)),
+            type: "chat.attachment.availability.updated",
+          },
+        }),
+        0,
       );
       const source = randomUUID(),
         userId = ids[0];

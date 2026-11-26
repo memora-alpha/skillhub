@@ -105,6 +105,10 @@ export const PERMISSION_CATALOG = [
     description: "Configure global profanity rules",
   },
   {
+    code: "chat-attachment:moderate",
+    description: "Review flagged chat attachment results and revoke downloads",
+  },
+  {
     code: "learning-request:moderation:configure",
     description: "Configure learning request moderation rules",
   },
@@ -154,6 +158,15 @@ export const PERMISSION_CATALOG = [
   {
     code: "livekit-token:issue:participant",
     description: "Issue participant token",
+  },
+  {
+    code: "session-whiteboard:update:participant",
+    description: "Save the whiteboard of a participant session",
+  },
+  {
+    code: "session-recording:manage:participant",
+    description:
+      "Request, accept, stop, watch and delete recordings of a participant session",
   },
   { code: "credit:adjust", description: "Adjust credit with audit" },
   { code: "credit:adjust:qa", description: "Grant credit for internal QA" },

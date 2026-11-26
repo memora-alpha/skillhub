@@ -44,6 +44,11 @@ test("approved defaults and mutability are explicit", () => {
     "learningPath.minCreditPerUser",
     "learningRequest.moderationRuleSet",
     "livekit.joinWindow",
+    "recording.enabled",
+    "recording.kind",
+    "recording.monthlyAlertMinutes",
+    "recording.overrunMinutes",
+    "recording.retentionDays",
     "schedule.rescheduleCutoffMinutes",
     "session.attendancePolicy",
     "session.durationMinutes",
@@ -52,7 +57,47 @@ test("approved defaults and mutability are explicit", () => {
     "voucher.platformDailyBudgetVnd",
     "voucher.reconcileMaxAttempts",
     "voucher.userDailyLimitCredit",
+    "whiteboard.editWindow",
+    "whiteboard.retentionDays",
   ]);
+  assert.equal(
+    CONFIGURATION_DEFINITIONS["whiteboard.retentionDays"].defaultValue,
+    30,
+  );
+  // Spec 020 ships dark: recording is off until an operator turns it on.
+  assert.deepEqual(
+    Object.fromEntries(
+      [
+        "recording.enabled",
+        "recording.kind",
+        "recording.retentionDays",
+        "recording.overrunMinutes",
+        "recording.monthlyAlertMinutes",
+      ].map((key) => [key, CONFIGURATION_DEFINITIONS[key].defaultValue]),
+    ),
+    {
+      "recording.enabled": false,
+      "recording.kind": "ROOM_COMPOSITE_VIDEO",
+      "recording.retentionDays": 90,
+      "recording.overrunMinutes": 10,
+      "recording.monthlyAlertMinutes": 0,
+    },
+  );
+  assert.throws(() => parseConfigurationValue("recording.kind", "SCREEN"));
+  assert.throws(() => parseConfigurationValue("recording.retentionDays", 0));
+  assert.throws(() => parseConfigurationValue("recording.overrunMinutes", 61));
+  // Retention must outlast the longest edit window (7 days).
+  assert.throws(() => parseConfigurationValue("whiteboard.retentionDays", 7));
+  assert.deepEqual(
+    CONFIGURATION_DEFINITIONS["whiteboard.editWindow"].defaultValue,
+    { teacherPrepare: true, afterEndMinutes: 1440 },
+  );
+  assert.throws(() =>
+    parseConfigurationValue("whiteboard.editWindow", {
+      teacherPrepare: true,
+      afterEndMinutes: 10_081,
+    }),
+  );
   assert.deepEqual(
     CONFIGURATION_DEFINITIONS["learningPath.changeRequests"].defaultValue,
     { requestWindowHours: 72, terminationPolicyReference: null },

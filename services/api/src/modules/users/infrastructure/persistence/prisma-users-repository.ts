@@ -269,6 +269,8 @@ export class PrismaUsersRepository extends UsersRepository {
       USER: [
         "session:read:participant",
         "livekit-token:issue:participant",
+        "session-whiteboard:update:participant",
+        "session-recording:manage:participant",
         "proposal:create",
         "event:read:self",
         "proposal:read:party",
@@ -290,6 +292,7 @@ export class PrismaUsersRepository extends UsersRepository {
         "notification:update:self",
       ],
       STAFF: [
+        "chat-attachment:moderate",
         "notification:read:self",
         "notification:update:self",
         "event:read:self",
@@ -298,6 +301,7 @@ export class PrismaUsersRepository extends UsersRepository {
         "learning-request:reject",
       ],
       ADMIN: [
+        "chat-attachment:moderate",
         "notification:read:self",
         "notification:update:self",
         "event:read:self",

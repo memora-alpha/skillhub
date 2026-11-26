@@ -1,6 +1,11 @@
 {
   "requests": [
     {
+      "id": "chat-attachment-moderation-grants-20261124",
+      "seeds": ["identity"],
+      "reason": "Grant Admin and Staff access to confirmed, ambiguous and failed chat attachment moderation results."
+    },
+    {
       "id": "admin-staff-tag-material-grants",
       "seeds": ["identity"],
       "reason": "Synchronize existing role grants for tag administration, tag requests and material moderation after authenticated Admin requests were denied."
@@ -14,6 +19,16 @@
       "id": "path-termination-plan-v2-20261106",
       "seeds": ["identity", "configuration"],
       "reason": "Grant formula-only path termination approval to Staff and initialize missing configuration defaults before operator activation of the agreed plan V2 policy."
+    },
+    {
+      "id": "session-whiteboard-20261125",
+      "seeds": ["identity", "configuration"],
+      "reason": "Grant USER the session whiteboard update permission and initialize the whiteboard edit window and retention defaults."
+    },
+    {
+      "id": "session-recording-20261126",
+      "seeds": ["identity", "configuration"],
+      "reason": "Grant USER the session recording permission and initialize the recording defaults, with recording disabled."
     }
   ]
 }
