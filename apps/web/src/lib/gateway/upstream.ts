@@ -54,7 +54,7 @@ export async function readBackendReply(
   await rejectUpstreamChallenge(response);
   if (response.status === 204) return { status: 204, value: null };
   if (response.status >= 500) {
-    // This public policy code is safe to expose; never forward arbitrary server errors.
+    // Public policy codes safe to expose; never forward arbitrary server errors.
     if (response.status === 503) {
       try {
         const value: unknown = await response.json();
@@ -64,11 +64,12 @@ export async function readBackendReply(
           "success" in value &&
           value.success === false &&
           "message" in value &&
-          value.message === "CONNECTION_POLICY_UNAVAILABLE"
+          (value.message === "CONNECTION_POLICY_UNAVAILABLE" ||
+            value.message === "CONTENT_MODERATION_TEMPORARILY_UNAVAILABLE")
         )
           return {
             status: 503,
-            value: { success: false, message: "CONNECTION_POLICY_UNAVAILABLE" },
+            value: { success: false, message: value.message },
           };
       } catch {
         /* Keep infrastructure failures generic. */

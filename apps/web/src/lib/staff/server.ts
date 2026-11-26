@@ -62,7 +62,7 @@ async function jsonBody(request: Request): Promise<Record<string, unknown>> {
   if (!request.headers.get("content-type")?.startsWith("application/json"))
     throw new GatewayError(415, "JSON_REQUIRED");
   if (!request.body) throw new GatewayError(400, "BODY_REQUIRED");
-  const bytes = await readLimitedBody(request.body, 32768, "BODY_TOO_LARGE");
+  const bytes = await readLimitedBody(request.body, 262144, "BODY_TOO_LARGE");
   let body: unknown;
   try {
     body = JSON.parse(new TextDecoder().decode(bytes));
@@ -195,7 +195,8 @@ async function login(request: NextRequest, portal: Portal) {
     body.email.trim().length < 5 ||
     body.email.trim().length > 254 ||
     body.password.length < 1 ||
-    body.password.length > 64
+    body.password.length > 64 ||
+    (body.rememberMe !== undefined && typeof body.rememberMe !== "boolean")
   )
     throw new GatewayError(400, "INVALID_LOGIN_INPUT");
   // Refuse account replacement: logout first, so parallel tabs cannot silently switch identities.
@@ -205,7 +206,7 @@ async function login(request: NextRequest, portal: Portal) {
     await backend("auth/login", undefined, "POST", {
       email: body.email.trim(),
       password: body.password,
-      rememberMe: false,
+      rememberMe: body.rememberMe === true,
     }),
   );
   if (result.status !== 200 || !result.value?.success)
@@ -287,6 +288,13 @@ const sessionHandlers = new Map<
   ["POST", login],
   ["DELETE", logoutSession],
 ]);
+function isStaffBodyless(method: string, path: string) {
+  return (
+    (method === "PATCH" && /^notifications\/[0-9a-f-]+\/read$/i.test(path)) ||
+    (method === "DELETE" &&
+      /^notifications\/push-tokens\/[0-9a-f-]+$/i.test(path))
+  );
+}
 async function forwardRequest(
   request: NextRequest,
   path: string,
@@ -296,9 +304,11 @@ async function forwardRequest(
   if (!target) throw new GatewayError(404, "ROUTE_NOT_AVAILABLE");
   const token = accessToken(request);
   const actor = await identity(token, portal);
-  const body = ["POST", "PATCH", "PUT", "DELETE"].includes(request.method)
-    ? await jsonBody(request)
-    : undefined;
+  const body =
+    !isStaffBodyless(request.method, path) &&
+    ["POST", "PATCH", "PUT", "DELETE"].includes(request.method)
+      ? await jsonBody(request)
+      : undefined;
   const key = request.headers.get("idempotency-key") ?? undefined;
   if (key && (key.length > 200 || /[\r\n]/.test(key)))
     throw new GatewayError(400, "INVALID_IDEMPOTENCY_KEY");

@@ -31,6 +31,42 @@ export function useStaffCommand() {
     return result;
   };
 }
+
+/** Serialize a screen action and retain its actionable API error. */
+export function useStaffTask() {
+  const { expire } = useStaffSession();
+  const lock = useRef(false);
+  const active = useRef(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
+  async function run(work: () => Promise<void>) {
+    if (lock.current) return;
+    lock.current = true;
+    setBusy(true);
+    setError(undefined);
+    try {
+      await work();
+    } catch (cause) {
+      if (isSessionFailure(cause)) expire();
+      if (active.current)
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "Chưa thể hoàn tất thao tác.",
+        );
+    } finally {
+      lock.current = false;
+      if (active.current) setBusy(false);
+    }
+  }
+  return { busy, error, run };
+}
 export function useStaffResource<T>(
   path: string,
   options?: { retainOnReload?: boolean; enabled?: boolean },

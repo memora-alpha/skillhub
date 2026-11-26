@@ -27,6 +27,9 @@ export type EvidenceFile = {
   rejectReason: string | null;
   revokedAt: string | null;
   revokedReason: string | null;
+  reviewerId?: string | null;
+  reviewedAt?: string | null;
+  revokedByUserId?: string | null;
 };
 export type Verification = {
   id: string;

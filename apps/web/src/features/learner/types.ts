@@ -29,7 +29,8 @@ export type SharingSkill = {
   id: string;
   skill: Skill;
   level: string;
-  levelId: string;
+  levelId: string | null;
+  skillLevel?: { id: string; code: string; name: string } | null;
   description: string;
   isVisible: boolean;
   archivedAt: string | null;
@@ -71,6 +72,7 @@ export type Post = {
   version: number;
   desiredCreditPerHour: string | null;
   moderationRejectReason?: string | null;
+  matchScore?: number;
   createdAt: string;
 };
 export type Proposal = {
@@ -101,6 +103,7 @@ export type Conversation = {
   createdAt: string;
 };
 export type Message = {
+  readAt?: string | null;
   id: string;
   senderId: string;
   messageText: string;

@@ -113,7 +113,7 @@ export function hasPermission(
   if (Array.isArray(actor.permissions)) {
     return actor.permissions.includes(code);
   }
-  return isStaffDefaultPermission(code);
+  return isStaffDefaultPermission(code) || code === "reward:manage";
 }
 
 export function hasAnyPermission(

@@ -166,8 +166,14 @@ const errorMessages: Readonly<Record<string, string>> = {
     "Giao dịch cần đảo không thuộc lộ trình của vụ việc này.",
   TITLE_NOT_UNLOCKED:
     "Danh hiệu này chưa được mở khóa hoặc không còn khả dụng. Hãy làm mới thành tích.",
+  CONTENT_MODERATION_BLOCKED:
+    "Nội dung vi phạm tiêu chuẩn kiểm duyệt. Vui lòng chỉnh sửa rồi thử lại.",
+  CONTENT_MODERATION_TEMPORARILY_UNAVAILABLE:
+    "Hệ thống kiểm duyệt nội dung đang tạm bận. Vui lòng thử lại sau ít phút.",
+  FILE_FORMAT_UNSUPPORTED: "Định dạng tệp này không được hỗ trợ.",
   FILE_TYPE_NOT_SUPPORTED: "Định dạng tệp này chưa được hỗ trợ.",
   INVALID_CREDENTIALS: "Email hoặc mật khẩu không đúng.",
+  ACCOUNT_NOT_ACTIVE: "Tài khoản hiện không hoạt động nên chưa thể đăng nhập.",
   EMAIL_ALREADY_EXISTS:
     "Email này đã được sử dụng. Chọn email khác hoặc quản lý tài khoản hiện có.",
   ADMIN_PORTAL_ACCESS_REQUIRED:

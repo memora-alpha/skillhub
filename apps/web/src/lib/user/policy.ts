@@ -2,6 +2,8 @@ const uuid = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const route = (pattern: string) => new RegExp("^" + pattern + "$", "i");
 const allowed: Record<string, RegExp[]> = {
   GET: [
+    route("rewards/products(/" + uuid + ")?"),
+    route("rewards/redemptions(/" + uuid + ")?"),
     route("materials/" + uuid + "/(reviews|review-eligibility)"),
     route("me/skills/" + uuid + "/evidence/" + uuid + "/download"),
     route("reputation/recovery"),
@@ -82,6 +84,7 @@ const allowed: Record<string, RegExp[]> = {
     route("sessions/(mine|" + uuid + ")"),
   ],
   POST: [
+    route("rewards/redemptions(/lookup)?"),
     route("materials/" + uuid + "/reviews"),
     route("material-reviews/" + uuid + "/reports"),
     route("me/materials/cover-files"),
@@ -172,10 +175,15 @@ export function userQuery(search: URLSearchParams) {
   const result = new URLSearchParams();
   for (const name of [
     "limit",
+    "locale",
+    "brandId",
+    "category",
     "cursor",
     "keyword",
     "q",
     "skillId",
+    "categoryId",
+    "ownerId",
     "direction",
     "status",
     "from",
@@ -198,6 +206,7 @@ export function userQuery(search: URLSearchParams) {
   return result.size ? "?" + result : "";
 }
 export function isBodyless(method: string, target: string) {
+  if (method === "POST" && target === "rewards/redemptions/lookup") return true;
   if (method === "PATCH")
     return /^notifications\/[0-9a-f-]+\/read$/i.test(target);
   return (
