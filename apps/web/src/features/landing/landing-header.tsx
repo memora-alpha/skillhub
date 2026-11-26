@@ -7,9 +7,8 @@ import { Logo } from "./logo";
 
 const navigation = [
   ["#ways", "Hình thức học"],
-  ["#how", "Quy trình"],
-  ["#credit", "Credit 96%/4%"],
-  ["#trust", "Uy tín & xác minh"],
+  ["#how", "Cách hoạt động"],
+  ["#skills", "Kỹ năng"],
   ["#faq", "Hỏi đáp"],
 ] as const;
 
@@ -74,7 +73,7 @@ export function LandingHeader() {
             Đăng nhập
           </Link>
           <Link className="button button-small" href="/register">
-            Bắt đầu miễn phí <Icon name="arrow" size={16} />
+            Bắt đầu miễn phí
           </Link>
           <button
             ref={toggle}

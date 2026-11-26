@@ -1,100 +1,107 @@
 import type { IconName } from "./icon";
 
-export const skills: {
+export interface SkillItem {
   icon: IconName;
   title: string;
-  copy: string;
-  tone: string;
-}[] = [
+  tags: string;
+  tone: "orange" | "sage" | "cream" | "peach" | "green" | "sand";
+}
+
+export const skills: readonly SkillItem[] = [
   {
     icon: "code",
     title: "Lập trình Web",
-    copy: "React · Next.js · TypeScript",
+    tags: "React · Next.js · TypeScript",
     tone: "orange",
   },
   {
     icon: "data",
     title: "Backend & Hệ thống",
-    copy: "Node.js · Python · Java · SQL",
+    tags: "Node.js · Python · SQL",
     tone: "sage",
   },
   {
     icon: "language",
     title: "Tiếng Anh",
-    copy: "Giao tiếp 1:1 · IELTS · TOEIC",
+    tags: "Giao tiếp 1:1 · IELTS · TOEIC",
     tone: "cream",
   },
   {
     icon: "globe",
     title: "Tiếng Nhật",
-    copy: "Hội thoại · Luyện thi JLPT",
+    tags: "Hội thoại · Luyện thi JLPT",
     tone: "peach",
   },
   {
     icon: "spark",
     title: "Data & AI",
-    copy: "Python · Phân tích dữ liệu · ML",
+    tags: "Python · Phân tích dữ liệu · ML",
     tone: "green",
   },
   {
     icon: "book",
-    title: "Ngoại ngữ & Kỹ năng mềm",
-    copy: "Hàn · Trung · Thiết kế · Thuyết trình",
+    title: "Thiết kế & Kỹ năng mềm",
+    tags: "UI/UX · Thuyết trình · Hàn & Trung",
     tone: "sand",
   },
 ];
 
-export const steps: readonly [string, string, string?][] = [
+export const steps: readonly { number: string; title: string; copy: string }[] =
   [
-    "Tạo hồ sơ & kỹ năng",
-    "Đăng ký xác minh OTP, khởi điểm 50 điểm Uy tín. Khai báo kỹ năng chia sẻ và nộp chứng chỉ để nhân sự xác minh.",
-  ],
-  [
-    "Đăng nhu cầu hoặc tìm theo kỹ năng",
-    "Đăng bài tìm người hướng dẫn (lọc tự động/duyệt nhanh) hoặc chủ động tìm người chia sẻ theo kỹ năng và gửi đề nghị.",
-  ],
-  [
-    "Chat & chốt 2 chiều minh bạch",
-    "Chấp nhận đề nghị sẽ mở Chat. Hai bên chọn Trao đổi 2 chiều hoặc Học 1 chiều, lập lộ trình và xác nhận cùng phiên bản.",
-    "Với trao đổi 2 chiều, A lập kế hoạch A→B cho B xác nhận và B lập kế hoạch B→A cho A xác nhận trước khi xếp lịch.",
-  ],
-  [
-    "Xếp lịch, giữ Credit & học 1:1",
-    "Lịch gắn từng kế hoạch (60–180 phút/buổi), cả hai xác nhận mới tạm giữ Credit và mở phòng LiveKit 1:1. Đổi lịch cần chốt trước 60 phút.",
-  ],
-  [
-    "Hoàn thành, quyết toán & đánh giá",
-    "Cả hai xác nhận sau mỗi buổi học. Hoàn tất toàn bộ lộ trình mới quyết toán 96%/4%, cập nhật kỹ năng đã học và mở đánh giá 1–5 sao.",
-  ],
+    {
+      number: "01",
+      title: "Chọn kỹ năng",
+      copy: "Tìm người có kỹ năng bạn cần, hoặc chia sẻ điều bạn sẵn sàng hướng dẫn.",
+    },
+    {
+      number: "02",
+      title: "Chốt lộ trình & lịch học",
+      copy: "Nhắn tin thống nhất số buổi, giờ học và mức Credit rõ ràng trước khi bắt đầu.",
+    },
+    {
+      number: "03",
+      title: "Học 1:1 & hoàn tất",
+      copy: "Học trực tuyến trong phòng riêng, xác nhận hoàn thành và đánh giá nhau.",
+    },
+  ];
+
+export const trustPillars: readonly {
+  metric: string;
+  title: string;
+  copy: string;
+}[] = [
+  {
+    metric: "1 CR = 1.000đ",
+    title: "Quy đổi cố định",
+    copy: "Credit được giữ an toàn và chỉ quyết toán một lần khi xong toàn bộ lộ trình.",
+  },
+  {
+    metric: "96% / 4%",
+    title: "Phí nền tảng công khai",
+    copy: "Hoàn hoặc nhận 96% Credit khi hoàn tất. Phí duy trì 4% rõ ràng, không phí ẩn.",
+  },
+  {
+    metric: "Xác minh 1:1",
+    title: "Uy tín & quyền riêng tư",
+    copy: "Chứng chỉ kỹ năng được duyệt riêng tư. Email và dữ liệu cá nhân luôn bảo mật.",
+  },
 ];
 
 export const faqs: readonly [string, string][] = [
   [
-    "Tôi có thể vừa học vừa hướng dẫn người khác không?",
-    "Có. SkillHub không cố định tài khoản thành giáo viên hay học viên. Vai trò người học và người hướng dẫn được xác định linh hoạt theo từng thỏa thuận học tập.",
+    "Một tài khoản có thể vừa học vừa hướng dẫn không?",
+    "Có. Bạn linh hoạt đóng vai trò người học hoặc người hướng dẫn tùy theo từng thỏa thuận, không bị giới hạn vai trò cố định.",
   ],
   [
-    "Trao đổi hai chiều (TWO_WAY) khác gì học một chiều (ONE_WAY)?",
-    "Ở trao đổi hai chiều, mỗi bên lập một kế hoạch giảng dạy cho chiều mình phụ trách (A→B và B→A), cùng giữ cam kết tối thiểu 20 Credit/người và nhận lại 96% của chính mình khi hoàn tất. Ở học một chiều, người hướng dẫn lập 1 kế hoạch, hai bên thương lượng tổng Credit (>0), chỉ người học tạm giữ và người dạy nhận 96% khi xong toàn bộ lộ trình.",
+    "Trao đổi 2 chiều khác gì học 1 chiều?",
+    "Ở trao đổi 2 chiều, hai bên dạy chéo kỹ năng cho nhau, cùng giữ Credit cam kết và nhận lại 96% khi hoàn tất. Ở học 1 chiều, chỉ người học giữ Credit và người hướng dẫn nhận 96% sau khi xong lộ trình.",
   ],
   [
-    "Credit có quyết toán theo từng buổi học không?",
-    "Không. Xác nhận hoàn thành từng buổi chỉ cập nhật tiến độ (N/M buổi). Hệ thống chỉ quyết toán một lần duy nhất sau khi toàn bộ buổi học của thỏa thuận hoàn tất và không có tranh chấp đang giữ Credit.",
+    "Credit có được giữ an toàn trong lúc học không?",
+    "Có. Credit chỉ tạm giữ sau khi cả hai xác nhận lịch học và chỉ quyết toán một lần duy nhất khi toàn bộ lộ trình hoàn tất, không có tranh chấp đang mở.",
   ],
   [
-    "Một buổi học kéo dài bao lâu và có thể đổi lịch không?",
-    "Mỗi buổi học kéo dài từ 60 đến 180 phút. Khi cần đổi lịch buổi đã chốt, cả hai bên phải xác nhận lịch mới trước giờ bắt đầu ít nhất 60 phút; nếu không đủ hai xác nhận đúng hạn, lịch cũ vẫn giữ nguyên hiệu lực.",
-  ],
-  [
-    "Credit quy đổi thế nào và có rút ra tiền mặt được không?",
-    "Tỷ lệ nạp chuẩn là 1.000 VNĐ = 1 Credit qua cổng thanh toán được xác minh. SkillHub hiện không hỗ trợ rút Credit ra tiền mặt; Credit được dùng cho trao đổi kỹ năng, học một chiều và tài liệu số trong nền tảng.",
-  ],
-  [
-    "Điểm uy tín (Reputation) hoạt động ra sao?",
-    "Mọi tài khoản kích hoạt bắt đầu với 50/100 điểm uy tín. Điểm thay đổi minh bạch theo hoàn thành lộ trình, đánh giá 1–5 sao và vi phạm đã xác nhận. Nếu điểm xuống dưới 40, hệ thống cung cấp Nhiệm vụ phục hồi uy tín rõ ràng.",
-  ],
-  [
-    "Tài liệu số trên SkillHub có miễn phí không?",
-    "Có cả tài liệu miễn phí (0 Credit) và trả phí bằng Credit. Mọi tệp đều qua kiểm tra an toàn trước khi xuất bản; tài liệu trả phí chỉ mở quyền tải sau khi bạn mua hợp lệ bằng Credit khả dụng.",
+    "Mỗi buổi học kéo dài bao lâu và có đổi lịch được không?",
+    "Mỗi buổi kéo dài 60–180 phút. Hai bên có thể thống nhất đổi lịch trước giờ bắt đầu tối thiểu 60 phút.",
   ],
 ];
