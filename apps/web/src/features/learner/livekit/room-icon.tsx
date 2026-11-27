@@ -95,6 +95,18 @@ const paths = {
   refresh: <path d="M20 8a8 8 0 1 0 0 8M20 3v5h-5" />,
   back: <path d="m14 5-7 7 7 7M7 12h14" />,
   join: <path d="M14 3h6v18h-6M3 12h12m-4-4 4 4-4 4" />,
+  whiteboard: (
+    <>
+      <rect x="3" y="4" width="18" height="13" rx="2" />
+      <path d="M8 21l2-4m6 4-2-4M7 11l3-3 3 3 4-4" />
+    </>
+  ),
+  record: (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <circle cx="12" cy="12" r="3.5" fill="currentColor" />
+    </>
+  ),
 } satisfies Record<string, ReactNode>;
 
 export type RoomIconName = keyof typeof paths;

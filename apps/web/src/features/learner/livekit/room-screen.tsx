@@ -28,6 +28,9 @@ import { useRoomDevices } from "./use-room-devices";
 import { RoomMediaSettings } from "./room-media-settings";
 import { useRoomChat } from "./use-room-chat";
 import { RoomChat } from "./room-chat";
+import { useRoomWhiteboard } from "./use-room-whiteboard";
+import { WhiteboardCanvas } from "./whiteboard-canvas";
+import { useRoomRecording } from "./use-room-recording";
 import styles from "./room.module.css";
 
 function IconButton({
@@ -132,6 +135,9 @@ function RoomControls({
   chatOpen,
   chatCount,
   onToggleChat,
+  whiteboardOpen,
+  onToggleWhiteboard,
+  recording,
 }: Readonly<{
   room: ReturnType<typeof useLearningRoom>;
   background: ReturnType<typeof useCameraBackground>;
@@ -139,8 +145,19 @@ function RoomControls({
   chatOpen: boolean;
   chatCount: number;
   onToggleChat: () => void;
+  whiteboardOpen: boolean;
+  onToggleWhiteboard: () => void;
+  recording: ReturnType<typeof useRoomRecording>;
 }>) {
   const connected = room.status === "connected";
+  const canStopRecording =
+    recording.active &&
+    ["STARTING", "RECORDING"].includes(recording.active.status);
+  const recordingLabel = canStopRecording
+    ? "Dừng ghi hình buổi học"
+    : recording.waitingForPartner
+      ? "Đang chờ đối phương đồng ý ghi hình"
+      : "Yêu cầu ghi hình buổi học";
   return (
     <div className={styles.controls} aria-label="Điều khiển phòng học">
       <IconButton
@@ -166,6 +183,40 @@ function RoomControls({
         aria-pressed={room.screen}
         disabled={!connected || room.mediaBusy || background.busy || audio.busy}
         onClick={() => void room.toggle("screen")}
+      />
+      <IconButton
+        icon="whiteboard"
+        label={whiteboardOpen ? "Ẩn bảng trắng" : "Mở bảng trắng"}
+        tone={whiteboardOpen ? "active" : undefined}
+        aria-pressed={whiteboardOpen}
+        disabled={!connected}
+        onClick={onToggleWhiteboard}
+      />
+      <IconButton
+        icon="record"
+        label={recordingLabel}
+        tone={
+          recording.isRecording || canStopRecording
+            ? "danger"
+            : recording.waitingForPartner
+              ? "active"
+              : undefined
+        }
+        aria-pressed={recording.isRecording || Boolean(canStopRecording)}
+        disabled={
+          !connected ||
+          recording.busy ||
+          Boolean(recording.waitingForPartner) ||
+          Boolean(recording.pendingConsentForMe) ||
+          recording.active?.status === "STOPPING"
+        }
+        onClick={() => {
+          if (canStopRecording && recording.active) {
+            void recording.stopRecording(recording.active.id);
+          } else {
+            void recording.requestRecording();
+          }
+        }}
       />
       {room.audioBlocked && (
         <IconButton
@@ -213,6 +264,8 @@ function RoomNotices({
   peerProfile,
   displayError,
   joinReason,
+  extraError,
+  extraNotice,
 }: Readonly<{
   query: { initialLoading: boolean; error?: string; reload: () => void };
   room: Pick<ReturnType<typeof useLearningRoom>, "error" | "notice">;
@@ -221,6 +274,8 @@ function RoomNotices({
   peerProfile: { error?: string; reload: () => void };
   displayError?: string;
   joinReason?: string;
+  extraError?: string;
+  extraNotice?: string;
 }>) {
   const messages = [
     query.error,
@@ -233,11 +288,13 @@ function RoomNotices({
       : undefined,
     displayError,
     joinReason,
+    extraError,
+    extraNotice,
   ].filter(Boolean);
 
   if (!messages.length && !query.initialLoading && !background.busy)
     return null;
-  const hasError = !!(query.error || room.error || displayError);
+  const hasError = !!(query.error || room.error || displayError || extraError);
   return (
     <div className={styles.messages} role={hasError ? "alert" : undefined}>
       {query.initialLoading && !query.error && (
@@ -278,15 +335,17 @@ export function LearningRoomScreen({ id }: Readonly<{ id: string }>) {
   const [fullscreen, setFullscreen] = useState(false);
   const [displayError, setDisplayError] = useState<string>();
   const [chatOpen, setChatOpen] = useState(false);
+  const [whiteboardOpen, setWhiteboardOpen] = useState(false);
   const { peerId, peerProfile, peer, self } = useRoomPeople(
     id,
     actor,
     query.data,
     room.tiles,
   );
+  const peerIdentity = peerId ? id + ":" + peerId : "";
   const chat = useRoomChat(
     room.room,
-    peerId ? id + ":" + peerId : "",
+    peerIdentity,
     createChatId,
     () => !!query.data && canEnterSession(query.data),
   );
@@ -298,6 +357,14 @@ export function LearningRoomScreen({ id }: Readonly<{ id: string }>) {
     "signalReconnecting",
   ].includes(room.status);
   const joined = connected || room.tiles.length > 0;
+  const whiteboard = useRoomWhiteboard({
+    sessionId: id,
+    enabled: joined && whiteboardOpen,
+    room: room.room,
+    peerIdentity,
+    onRemoteToggle: (open) => setWhiteboardOpen(open),
+  });
+  const recording = useRoomRecording(id, room.room, joined);
   const tiles = participantTiles(id, actor, room.tiles, peerId, peer);
   const { room: connectedRoom, close: closeRoom } = room;
 
@@ -421,6 +488,16 @@ export function LearningRoomScreen({ id }: Readonly<{ id: string }>) {
               onClick={query.reload}
             />
           )}
+          {recording.isRecording && (
+            <div
+              className={styles.recordingPill}
+              role="status"
+              aria-live="polite"
+            >
+              <span className={styles.recordingDot} aria-hidden="true" />
+              Đang ghi hình
+            </div>
+          )}
           <div className={styles.connection} data-connected={connected}>
             {connecting ? (
               <LoadingSkeleton variant="inline" label={labels[room.status]} />
@@ -456,7 +533,59 @@ export function LearningRoomScreen({ id }: Readonly<{ id: string }>) {
         peerProfile={peerProfile}
         displayError={displayError}
         joinReason={joinReason}
+        extraError={whiteboard.error ?? recording.error}
+        extraNotice={recording.notice}
       />
+
+      {joined && recording.pendingConsentForMe && (
+        <div
+          className={styles.consentBar}
+          role="alertdialog"
+          aria-label="Yêu cầu đồng ý ghi hình"
+        >
+          <span>
+            Đối phương đang yêu cầu ghi hình buổi học. Bản ghi dùng để xem lại
+            kiến thức học tập và làm bằng chứng nếu phát sinh báo cáo tranh
+            chấp.
+          </span>
+          <div className={styles.consentActions}>
+            <button
+              type="button"
+              className={styles.consentBtn}
+              data-primary="true"
+              disabled={recording.busy}
+              onClick={() =>
+                void recording.acceptRecording(
+                  recording.pendingConsentForMe!.id,
+                )
+              }
+            >
+              Đồng ý ghi hình
+            </button>
+            <button
+              type="button"
+              className={styles.consentBtn}
+              disabled={recording.busy}
+              onClick={() =>
+                void recording.declineRecording(
+                  recording.pendingConsentForMe!.id,
+                )
+              }
+            >
+              Từ chối
+            </button>
+          </div>
+        </div>
+      )}
+
+      {joined && recording.waitingForPartner && (
+        <div className={styles.consentBar} role="status">
+          <span>
+            Đang chờ đối phương xác nhận đồng ý ghi hình (yêu cầu tự hết hạn sau
+            2 phút).
+          </span>
+        </div>
+      )}
 
       {!joined ? (
         <RoomPrejoin
@@ -477,6 +606,29 @@ export function LearningRoomScreen({ id }: Readonly<{ id: string }>) {
           }}
           onCancel={room.close}
         />
+      ) : whiteboardOpen ? (
+        <div className={styles.stageWithBoard}>
+          <div className={styles.boardPane}>
+            <WhiteboardCanvas
+              elements={whiteboard.elements}
+              readOnly={whiteboard.readOnly}
+              readOnlyNotice={whiteboard.readOnlyNotice}
+              statusText={whiteboard.statusText}
+              onMutate={whiteboard.readOnly ? undefined : whiteboard.mutate}
+              onSaveNow={whiteboard.readOnly ? undefined : whiteboard.saveNow}
+              saving={whiteboard.saving}
+              onClose={() => {
+                setWhiteboardOpen(false);
+                whiteboard.notifyToggle(false);
+              }}
+            />
+          </div>
+          <RoomStage
+            tiles={tiles}
+            participants={room.participants}
+            peerName={peer.name}
+          />
+        </div>
       ) : (
         <RoomStage
           tiles={tiles}
@@ -502,6 +654,13 @@ export function LearningRoomScreen({ id }: Readonly<{ id: string }>) {
             chatOpen={chatOpen}
             chatCount={chat.messages.length}
             onToggleChat={() => setChatOpen((value) => !value)}
+            whiteboardOpen={whiteboardOpen}
+            onToggleWhiteboard={() => {
+              const next = !whiteboardOpen;
+              setWhiteboardOpen(next);
+              whiteboard.notifyToggle(next);
+            }}
+            recording={recording}
           />
         )}
         <Link

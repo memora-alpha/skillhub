@@ -30,6 +30,7 @@ import {
   cancellationRulingAvailable,
 } from "@/lib/staff/report-ruling";
 import { AttendanceEvidence } from "./attendance-evidence";
+import { SessionEvidenceReview } from "./session-evidence-review";
 import { AdminNotice, RecordId } from "./admin-ui";
 import { CaseSupportPanel } from "./case-support";
 import { useStaffResource } from "./hooks";
@@ -342,6 +343,7 @@ function ReportDetailContent({
         <Card title="Bằng chứng">
           <ReportFiles files={item.reportEvidenceCaseIdRecords} />
         </Card>
+        <SessionEvidenceReview item={item} owns={owns} />
         {(item.session || item.path) && (
           <details className="ops-case-context">
             <summary>Thông tin buổi học và thỏa thuận</summary>
