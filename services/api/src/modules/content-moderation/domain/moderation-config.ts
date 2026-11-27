@@ -31,6 +31,12 @@ const settingsSchema = z.object({
     .optional(),
   CONTENT_MODERATION_MODES: z.string().trim().default(""),
   CONTENT_MODERATION_OCR_COMMAND: z.string().trim().min(1).optional(),
+  CONTENT_MODERATION_OCR_CONCURRENCY: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(8)
+    .optional(),
   CONTENT_MODERATION_PDFINFO_COMMAND: z.string().trim().min(1).optional(),
   CONTENT_MODERATION_PDFTOPPM_COMMAND: z.string().trim().min(1).optional(),
   [chatAttachmentOriginKey]: z.preprocess(

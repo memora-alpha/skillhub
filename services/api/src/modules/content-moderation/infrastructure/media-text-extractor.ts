@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { spawn } from "node:child_process";
+import { availableParallelism } from "node:os";
 import sharp from "sharp";
 import { extractDocx } from "./docx-content";
 
@@ -22,40 +23,50 @@ function parseWith(
   maxOutput: number,
   stage: string,
   signal?: AbortSignal,
+  timeout = 10_000,
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       windowsHide: true,
-      timeout: 10_000,
+      timeout,
       signal,
+      killSignal: "SIGKILL",
       stdio: ["pipe", "pipe", "ignore"],
       env: {
         PATH: process.env.PATH,
         SystemRoot: process.env.SystemRoot,
         WINDIR: process.env.WINDIR,
         TESSDATA_PREFIX: process.env.TESSDATA_PREFIX,
+        OMP_THREAD_LIMIT: "1",
         LC_ALL: "C",
       },
     });
     const chunks: Buffer[] = [];
     let count = 0;
-    const fail = (code: string, retryable = false) =>
-      reject(new MediaExtractionError(code, retryable));
-    child.on("error", () => fail(`MEDIA_${stage}_UNAVAILABLE`, true));
+    let failure: MediaExtractionError | undefined;
+    child.on("error", () => {
+      failure ??= new MediaExtractionError(
+        signal?.aborted
+          ? `MEDIA_${stage}_TIMEOUT`
+          : `MEDIA_${stage}_UNAVAILABLE`,
+        true,
+      );
+    });
     child.stdout.on("data", (chunk: Buffer) => {
       count += chunk.length;
       if (count > maxOutput) {
-        child.kill();
-        fail(`MEDIA_${stage}_OUTPUT_LIMIT`);
+        failure ??= new MediaExtractionError(`MEDIA_${stage}_OUTPUT_LIMIT`);
+        child.kill("SIGKILL");
         return;
       }
       chunks.push(chunk);
     });
     child.on("close", (code, signal) => {
-      if (code === 0 && count <= maxOutput)
-        resolve(Buffer.concat(chunks, count));
-      else if (signal) fail(`MEDIA_${stage}_TIMEOUT`, true);
-      else fail(`MEDIA_${stage}_FAILED`);
+      if (failure) reject(failure);
+      else if (code === 0) resolve(Buffer.concat(chunks, count));
+      else if (signal)
+        reject(new MediaExtractionError(`MEDIA_${stage}_TIMEOUT`, true));
+      else reject(new MediaExtractionError(`MEDIA_${stage}_FAILED`));
     });
     child.stdin.on("error", () => {
       /* close reports the command failure */
@@ -69,8 +80,16 @@ export class MediaTextExtractor {
   private readonly logger = new Logger(MediaTextExtractor.name);
   private languagesReady?: Promise<void>;
   private languageRetryAt = 0;
+  private readonly maximumOcrProcesses: number;
+  private activeOcr = 0;
+  private readonly waitingForOcr = new Set<() => void>();
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(private readonly config: ConfigService) {
+    this.maximumOcrProcesses = Math.min(
+      Number(config.get("CONTENT_MODERATION_OCR_CONCURRENCY", 2)),
+      availableParallelism(),
+    );
+  }
 
   async canonicalImage(bytes: Buffer): Promise<Buffer> {
     try {
@@ -91,7 +110,11 @@ export class MediaTextExtractor {
     }
   }
 
-  async ocr(bytes: Buffer, signal?: AbortSignal): Promise<string> {
+  async ocr(
+    bytes: Buffer,
+    signal?: AbortSignal,
+    timeoutMs = 10_000,
+  ): Promise<string> {
     const started = performance.now();
     const executable = this.config
       .get("CONTENT_MODERATION_OCR_COMMAND", "tesseract")
@@ -109,18 +132,45 @@ export class MediaTextExtractor {
       );
     }
     await this.languagesReady;
-    const text = await parseWith(
-      executable,
-      ["stdin", "stdout", "-l", "vie+eng"],
-      bytes,
-      128_000,
-      "OCR",
-      signal,
-    );
-    this.logger.log({
-      ocr_duration_ms: Math.round(performance.now() - started),
-    });
-    return new TextDecoder("utf-8", { fatal: true }).decode(text);
+    await this.acquireOcr(signal);
+    try {
+      const text = await parseWith(
+        executable,
+        ["stdin", "stdout", "-l", "vie+eng"],
+        bytes,
+        128_000,
+        "OCR",
+        signal,
+        timeoutMs,
+      );
+      this.logger.log({
+        ocr_duration_ms: Math.round(performance.now() - started),
+      });
+      return new TextDecoder("utf-8", { fatal: true }).decode(text);
+    } finally {
+      this.activeOcr--;
+      this.waitingForOcr.values().next().value?.();
+    }
+  }
+
+  private async acquireOcr(signal?: AbortSignal) {
+    while (this.activeOcr >= this.maximumOcrProcesses) {
+      signal?.throwIfAborted();
+      await new Promise<void>((resolve) => {
+        const wake = () => {
+          this.waitingForOcr.delete(wake);
+          signal?.removeEventListener("abort", wake);
+          resolve();
+        };
+        this.waitingForOcr.add(wake);
+        signal?.addEventListener("abort", wake, { once: true });
+      });
+    }
+    if (signal?.aborted) {
+      this.waitingForOcr.values().next().value?.();
+      signal.throwIfAborted();
+    }
+    this.activeOcr++;
   }
 
   private async requireOcrLanguages(executable: string): Promise<void> {
@@ -191,6 +241,11 @@ export class MediaTextExtractor {
     return this.canonicalImage(rendered).catch(() => {
       throw new MediaExtractionError("MEDIA_PDF_RENDER_FAILED");
     });
+  }
+
+  async isBlankPdfPage(bytes: Buffer): Promise<boolean> {
+    const { isOpaque, channels } = await sharp(bytes).stats();
+    return isOpaque && channels.every(({ min }) => min === 255);
   }
 
   async pdfText(bytes: Buffer, signal?: AbortSignal): Promise<string> {

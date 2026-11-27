@@ -18,7 +18,10 @@ import { OBJECT_STORAGE, type ObjectStorage } from "./object-storage.port";
 import { MATERIAL_MAX_BYTES } from "./file-policy";
 import { prepareChatImage } from "./chat-image";
 import { moderationPolicyVersion } from "../../modules/content-moderation/domain/moderation-policy";
-import { chatModerationRevision } from "./chat-attachment-policy";
+import {
+  chatAttachmentRetry,
+  chatModerationRevision,
+} from "./chat-attachment-policy";
 
 type FileState = {
   state: string;
@@ -120,11 +123,17 @@ export class FileContentModeration {
     row: FileState & { id: string },
     version: number,
   ): Promise<void> {
+    const retry = chatAttachmentRetry(row.moderationAssessment);
     await this.queue?.add(
       "scan",
-      { fileId: row.id, generation: row.generation },
       {
-        jobId: `moderation-${row.id}-${row.generation}-${version}-${extractorRevision}-${this.enforces(row)}`,
+        fileId: row.id,
+        generation: row.generation,
+        finalizedAt: retry?.queuedAt,
+        retryAttemptId: retry?.id,
+      },
+      {
+        jobId: `moderation-${row.id}-${row.generation}-${version}-${extractorRevision}-${this.enforces(row)}${retry ? `-${retry.id}` : ""}`,
         attempts: row.purpose === "CHAT" ? 3 : 5,
         priority: 15,
         backoff: fileScanBackoff,
@@ -138,9 +147,11 @@ export class FileContentModeration {
     if (!this.queue || this.moderation.mode("media") !== "enforce") return;
     const version = await this.profanityVersion();
     const rows = await this.db.$queryRaw<(FileState & { id: string })[]>`
-      SELECT id, purpose, generation, state, sha256
+      SELECT id, purpose, generation, state, sha256, moderation_assessment AS "moderationAssessment"
       FROM stored_files WHERE purpose = 'CHAT' AND state = 'READY' AND scan_verdict = 'CLEAN'
         AND resource_type = 'CHAT_MESSAGE'
+        AND ((moderation_assessment IS NOT NULL AND moderation_assessment ->> 'retryAttemptId' IS NULL)
+          OR updated_at < CURRENT_TIMESTAMP - interval '125 seconds')
         AND moderation_assessment ->> 'outcome' IS DISTINCT FROM 'BLOCK'
         AND (moderation_assessment ->> 'extractorRevision' IS DISTINCT FROM ${String(extractorRevision)}
           OR moderation_assessment ->> 'profanityVersion' IS DISTINCT FROM ${String(version)}
@@ -170,12 +181,32 @@ export class FileContentModeration {
     finalAttempt = false,
     signal = AbortSignal.timeout(120_000),
     attempt = 1,
+    queuedAt?: number,
+    retryAttemptId?: string,
   ): Promise<void> {
     const select = await this.db.storedFile.findUnique({
       where: { id: fileId },
     });
-    if (!select || select.generation !== generation || select.state !== "READY")
+    if (
+      !select ||
+      select.generation !== generation ||
+      select.state !== "READY" ||
+      chatAttachmentRetry(select.moderationAssessment)?.id !== retryAttemptId
+    )
       return;
+    let pdfDeadline: number | undefined;
+    if (
+      select.purpose === "CHAT" &&
+      select.detectedMime === "application/pdf" &&
+      queuedAt !== undefined
+    ) {
+      pdfDeadline = queuedAt + 120_000;
+      const remaining = pdfDeadline - Date.now();
+      signal = AbortSignal.any([
+        signal,
+        remaining > 0 ? AbortSignal.timeout(remaining) : AbortSignal.abort(),
+      ]);
+    }
     if (select.purpose !== "CHAT" || !this.db.$executeRaw)
       return this.processReady(
         fileId,
@@ -184,6 +215,8 @@ export class FileContentModeration {
         signal,
         attempt,
         select,
+        pdfDeadline,
+        retryAttemptId,
       );
 
     const key = `file:${fileId}:${generation}`;
@@ -202,6 +235,8 @@ export class FileContentModeration {
         signal,
         attempt,
         await this.db.storedFile.findUnique({ where: { id: fileId } }),
+        pdfDeadline,
+        retryAttemptId,
       );
     } finally {
       await this.db
@@ -216,6 +251,8 @@ export class FileContentModeration {
     signal: AbortSignal,
     attempt: number,
     row: Awaited<ReturnType<PrismaService["storedFile"]["findUnique"]>>,
+    pdfDeadline?: number,
+    retryAttemptId?: string,
   ): Promise<void> {
     const started = performance.now();
     if (
@@ -225,7 +262,8 @@ export class FileContentModeration {
       row.scanVerdict !== "CLEAN" ||
       !row.sha256 ||
       !row.detectedMime ||
-      !row.sizeBytes
+      !row.sizeBytes ||
+      chatAttachmentRetry(row.moderationAssessment)?.id !== retryAttemptId
     )
       return;
     const scope = surface(row.purpose);
@@ -235,12 +273,14 @@ export class FileContentModeration {
     if (scope === "report_evidence") return;
     const version = await this.profanityVersion();
     if (currentOutcome(row, version, mode === "enforce")) return;
-    const bytes = await this.readExact(
-      row.objectKey,
-      row.sizeBytes,
-      row.sha256,
-      signal,
-    ).catch(() => undefined);
+    const bytes = signal.aborted
+      ? undefined
+      : await this.readExact(
+          row.objectKey,
+          row.sizeBytes,
+          row.sha256,
+          signal,
+        ).catch(() => undefined);
     const readMs = Math.round(performance.now() - started);
     const failed: ModerationAssessment = {
       outcome: "RETRY",
@@ -297,11 +337,13 @@ export class FileContentModeration {
     }
     if (version !== (await this.profanityVersion()))
       throw new Error(moderationRetryCode);
-    if (
-      assessment.outcome === "RETRY" &&
+    const deadlineExpired = () =>
+      pdfDeadline !== undefined && Date.now() >= pdfDeadline;
+    const canRetry = () =>
       !finalAttempt &&
-      !(row.purpose === "CHAT" && attempt >= 3)
-    ) {
+      !deadlineExpired() &&
+      !(row.purpose === "CHAT" && attempt >= 3);
+    if (assessment.outcome === "RETRY" && canRetry()) {
       this.logger.warn({
         fileId,
         generation,
@@ -341,40 +383,57 @@ export class FileContentModeration {
             return undefined;
           })
         : undefined;
-    if (signal.aborted && outcome === "ALLOW") {
-      if (!finalAttempt && !(row.purpose === "CHAT" && attempt >= 3))
-        throw new Error(moderationRetryCode);
-      outcome = "FAILED";
-      assessment.reasonCodes = ["MEDIA_PROCESSING_TIMEOUT"];
-    }
     if (version !== (await this.profanityVersion()))
       throw new Error(moderationRetryCode);
-    const written = await this.db.storedFile.updateMany({
-      where: {
-        id: fileId,
-        generation,
-        sha256: row.sha256,
-        state: "READY",
-        scanVerdict: "CLEAN",
-        moderationAssessment: {
-          equals:
-            row.moderationAssessment === null
-              ? Prisma.DbNull
-              : row.moderationAssessment,
+    const write = (db: Pick<Prisma.TransactionClient, "storedFile">) => {
+      if ((signal.aborted || deadlineExpired()) && outcome === "ALLOW") {
+        if (canRetry()) throw new Error(moderationRetryCode);
+        outcome = "FAILED";
+        assessment.reasonCodes = ["MEDIA_PROCESSING_TIMEOUT"];
+      }
+      return db.storedFile.updateMany({
+        where: {
+          id: fileId,
+          generation,
+          sha256: row.sha256,
+          state: "READY",
+          scanVerdict: "CLEAN",
+          moderationAssessment: {
+            equals:
+              row.moderationAssessment === null
+                ? Prisma.DbNull
+                : row.moderationAssessment,
+          },
         },
-      },
-      data: {
-        moderationAssessment: {
-          ...assessment,
-          policyVersion: moderationPolicyVersion,
-          ...(image && outcome === "ALLOW" && { image }),
-          outcome,
-          enforced: mode === "enforce",
-          profanityVersion: version,
-          extractorRevision,
+        data: {
+          moderationAssessment: {
+            ...assessment,
+            policyVersion: moderationPolicyVersion,
+            ...(image && outcome === "ALLOW" && { image }),
+            outcome,
+            enforced: mode === "enforce",
+            profanityVersion: version,
+            extractorRevision,
+          },
         },
-      },
-    });
+      });
+    };
+    const lateApproval = new Error("CHAT_PDF_APPROVAL_DEADLINE");
+    const written =
+      pdfDeadline !== undefined && outcome === "ALLOW" && this.db.$transaction
+        ? await this.db
+            .$transaction(async (tx) => {
+              await tx.$queryRaw`SELECT id FROM stored_files WHERE id = ${fileId}::uuid FOR UPDATE`;
+              const result = await write(tx);
+              if (outcome === "ALLOW" && (signal.aborted || deadlineExpired()))
+                throw lateApproval;
+              return result;
+            })
+            .catch((error: unknown) => {
+              if (error !== lateApproval) throw error;
+              return write(this.db);
+            })
+        : await write(this.db);
     if (written.count) {
       const [timing] = this.db.$queryRaw
         ? await this.db.$queryRaw<{ elapsed: number }[]>`

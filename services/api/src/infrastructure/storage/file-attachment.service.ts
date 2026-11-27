@@ -8,7 +8,10 @@ import {
   chatAttachmentAvailability,
   chatAttachmentStatus,
   chatAttachmentRestriction,
+  canRetryChatAttachment,
+  chatAttachmentRetry,
 } from "./chat-attachment-policy";
+import { PrismaStoredFileRepository } from "./prisma-stored-file.repository";
 type Binding = {
   type: string;
   id: string;
@@ -19,6 +22,7 @@ export class FileAttachmentService {
   constructor(
     private readonly db: PrismaService,
     private readonly moderation?: FileContentModeration,
+    private readonly repository?: PrismaStoredFileRepository,
   ) {}
   async chatManifest(
     tx: TransactionContext,
@@ -98,7 +102,15 @@ export class FileAttachmentService {
       !!row.sha256 &&
       !!row.detectedMime &&
       !!row.sizeBytes;
-    if (row.state === "READY" && moderationStatus === "PENDING")
+    const staleCheck =
+      row.updatedAt && Date.now() - row.updatedAt.getTime() >= 125_000;
+    if (
+      row.state === "READY" &&
+      moderationStatus === "PENDING" &&
+      (staleCheck ||
+        (row.moderationAssessment &&
+          !chatAttachmentRetry(row.moderationAssessment)))
+    )
       await this.moderation?.resolveStatusDetails(row);
     const closedState = {
       BLOCKED: "REJECTED",
@@ -115,6 +127,7 @@ export class FileAttachmentService {
       availability,
       accessStatus: availability,
       moderationStatus,
+      canRetry: moderationStatus === "FAILED" && canRetryChatAttachment(row),
       ...(moderationStatus === "BLOCKED" && {
         restrictionReason: chatAttachmentRestriction(
           row.moderationAssessment,
@@ -130,6 +143,14 @@ export class FileAttachmentService {
       width: dimensions?.width ?? null,
       height: dimensions?.height ?? null,
     };
+  }
+
+  async retryChatAttachment(
+    input: Parameters<PrismaStoredFileRepository["requeueChatAttachment"]>[0],
+  ) {
+    if (!this.repository) throw new FileStorageError("FILE_NOT_READY", 503);
+    await this.repository.requeueChatAttachment(input);
+    return this.chatStatus(input.userId, input.fileId);
   }
 
   chatProfanityVersion() {

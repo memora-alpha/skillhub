@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { createHash } from "node:crypto";
 import { Readable } from "node:stream";
 import { FileAttachmentService } from "../../dist/infrastructure/storage/file-attachment.service.js";
+import { PrismaStoredFileRepository } from "../../dist/infrastructure/storage/prisma-stored-file.repository.js";
 import { ChatDownloadTicketService } from "../../dist/modules/conversations/application/services/chat-download-ticket.service.js";
 import { ConversationsService } from "../../dist/modules/conversations/application/services/conversations.service.js";
 import { FileStorageService } from "../../dist/infrastructure/storage/file-storage.service.js";
@@ -36,6 +37,68 @@ const approved = {
   extractorRevision: 2,
 };
 
+test("a sender can requeue a timed-out attachment once without changing its generation", async () => {
+  const row = {
+    ...base,
+    state: "READY",
+    scanVerdict: "CLEAN",
+    moderationAssessment: {
+      ...approved,
+      outcome: "FAILED",
+      reasonCodes: ["MEDIA_OCR_TIMEOUT"],
+    },
+  };
+  const queued = [];
+  const tx = {
+    $queryRaw: async () => [],
+    chatPublication: {
+      findFirst: async ({ where }) =>
+        where.conversationId === "conversation" ? { id: "message" } : null,
+    },
+    storedFile: {
+      findUnique: async () => row,
+      update: async ({ data }) => {
+        Object.assign(row, data);
+        return row;
+      },
+    },
+  };
+  const repository = new PrismaStoredFileRepository(
+    {},
+    { run: (work) => work(tx) },
+    {
+      append: async (_tx, event) => {
+        queued.push(event);
+      },
+    },
+  );
+  const retry = (userId, conversationId) =>
+    repository.requeueChatAttachment({
+      fileId: row.id,
+      userId,
+      conversationId,
+      correlationId: "request",
+    });
+  await assert.rejects(retry("recipient", "conversation"), {
+    message: "FILE_NOT_FOUND",
+  });
+  await assert.rejects(retry("sender", "other-conversation"), {
+    message: "FILE_NOT_FOUND",
+  });
+  assert.equal(queued.length, 0);
+  await retry("sender", "conversation");
+  await retry("sender", "conversation");
+  assert.equal(row.state, "READY");
+  assert.equal(queued.length, 1);
+  assert.equal(queued[0].type, "file.scan.requested");
+  assert.equal(queued[0].payload.generation, base.generation);
+  assert.equal(row.moderationAssessment.outcome, "PENDING");
+  assert.equal(
+    row.moderationAssessment.retryAttemptId,
+    queued[0].payload.retryAttemptId,
+  );
+});
+
 test("message metadata provides an original URL only after approval and labels staff revocation", () => {
   const message = {
     _id: "message",
@@ -67,9 +130,7 @@ test("publishes the attachment card before scanning, but blocks reads until clea
     $queryRaw: async () => {},
     storedFile: { findUnique: async () => row },
   };
-  const service = new FileAttachmentService(tx, undefined, {
-    get: () => "https://api.example.com",
-  });
+  const service = new FileAttachmentService(tx);
   const manifest = await service.chatManifest(
     tx,
     "sender",
@@ -85,6 +146,7 @@ test("publishes the attachment card before scanning, but blocks reads until clea
     accessStatus: "PENDING_SCAN",
     moderationStatus: "PENDING",
     canAttach: true,
+    canRetry: false,
     mimeType: "image/jpeg",
     fileSizeBytes: 50,
     attachmentType: "IMAGE",

@@ -42,6 +42,7 @@ import {
   chatAttachmentAvailability,
   chatAttachmentStatus,
   chatAttachmentRestriction,
+  canRetryChatAttachment,
 } from "../../../../infrastructure/storage/chat-attachment-policy";
 import { chatImageDimensions } from "../../../../infrastructure/storage/chat-image";
 import {
@@ -547,6 +548,74 @@ export class ConversationsService {
       ),
     );
     return this.files.chatStatus(principal.userId, fileId);
+  }
+
+  async retryAttachment(
+    principal: Principal,
+    id: string,
+    fileId: string,
+    context: RequestContext,
+  ) {
+    await this.transactions.run((tx) =>
+      this.access.require(
+        tx,
+        principal,
+        id,
+        "message:attachment:create:participant",
+      ),
+    );
+    return this.files.retryChatAttachment({
+      fileId,
+      conversationId: id,
+      userId: principal.userId,
+      correlationId: context.correlationId,
+    });
+  }
+
+  async publishedAttachmentStatus(
+    principal: Principal,
+    id: string,
+    messageId: string,
+    attachmentId: string,
+  ) {
+    await this.checkAttachmentPermission(principal, id);
+    const attachment = await this.publishedAttachment(
+      id,
+      messageId,
+      attachmentId,
+    );
+    const row = await this.db.storedFile.findUnique({
+      where: { id: attachment.fileId },
+      select: {
+        purpose: true,
+        resourceType: true,
+        resourceId: true,
+        sha256: true,
+        generation: true,
+        state: true,
+        scanVerdict: true,
+        moderationAssessment: true,
+        uploadedBy: true,
+      },
+    });
+    if (
+      row?.purpose !== "CHAT" ||
+      row.resourceType !== "CHAT_MESSAGE" ||
+      row.resourceId !== messageId ||
+      row.generation !== attachment.generation ||
+      row.sha256 !== attachment.checksum
+    )
+      throw new NotFoundException();
+    const version = await this.files.chatProfanityVersion();
+    const moderationStatus = chatAttachmentStatus(row, version);
+    return {
+      moderationStatus,
+      accessStatus: chatAttachmentAvailability(row, version),
+      canRetry:
+        row.uploadedBy === principal.userId &&
+        moderationStatus === "FAILED" &&
+        canRetryChatAttachment(row),
+    };
   }
   async download(
     principal: Principal,

@@ -96,25 +96,25 @@ export class MediaModerationService {
         );
         const text = await this.extractor.pdfText(input.bytes, input.signal);
         let last = combineAi(filename, await this.assessText(input, text));
+        if (last.outcome === "BLOCK") return last;
+        let exhaustedOcr: ModerationAssessment | undefined;
         for (let page = 1; page <= pages; page += 2) {
           input.signal?.throwIfAborted();
           const indexes = page < pages ? [page, page + 1] : [page];
           const assessed = await Promise.all(
-            indexes.map(async (index) =>
-              this.image(
-                input,
-                await this.extractor.pdfPage(input.bytes, index, input.signal),
-              ),
-            ),
+            indexes.map(async (index) => this.assessPdfPage(input, index)),
+          );
+          exhaustedOcr ??= assessed.find(
+            ({ outcome, reasonCodes }) =>
+              outcome === "REVIEW" && reasonCodes.includes("MEDIA_OCR_TIMEOUT"),
           );
           last = assessed.reduce(
             (previous, page) => combineAi(previous, page),
             last,
           );
-          if (last.reasonCodes.some((code) => code.startsWith("PROFANITY:")))
-            return last;
+          if (last.outcome === "BLOCK") return last;
         }
-        return last;
+        return exhaustedOcr ?? last;
       }
       if (input.mime === docxMime) {
         const { text, images } = await this.extractor.docx(input.bytes);
@@ -165,9 +165,12 @@ export class MediaModerationService {
     input: MediaModerationInput,
     bytes: Buffer,
     previous?: ModerationAssessment,
+    pdfPage = false,
   ) {
     const [text, image] = await Promise.all([
-      this.extractor.ocr(bytes, input.signal),
+      pdfPage
+        ? this.readPdfPageText(bytes, input.signal)
+        : this.extractor.ocr(bytes, input.signal),
       this.moderation.evaluateAi({
         ...this.base(input),
         surface: input.surface,
@@ -176,7 +179,50 @@ export class MediaModerationService {
       }),
     ]);
     const visual = previous ? combineAi(previous, image) : image;
+    if (text === undefined)
+      return visual.outcome === "BLOCK"
+        ? visual
+        : {
+            ...this.base(input),
+            outcome: "REVIEW" as const,
+            reasonCodes: ["MEDIA_OCR_TIMEOUT"],
+          };
     return combineAi(visual, await this.assessText(input, text));
+  }
+
+  private async assessPdfPage(input: MediaModerationInput, index: number) {
+    const image = await this.extractor.pdfPage(
+      input.bytes,
+      index,
+      input.signal,
+    );
+    if (await this.extractor.isBlankPdfPage(image)) {
+      return {
+        ...this.base(input),
+        outcome: "ALLOW" as const,
+        reasonCodes: [],
+      };
+    }
+    return this.image(input, image, undefined, true);
+  }
+
+  private async readPdfPageText(bytes: Buffer, signal?: AbortSignal) {
+    for (const timeoutMs of [10_000, 20_000]) {
+      signal?.throwIfAborted();
+      try {
+        return await this.extractor.ocr(bytes, signal, timeoutMs);
+      } catch (error) {
+        if (
+          !(error instanceof MediaExtractionError) ||
+          error.code !== "MEDIA_OCR_TIMEOUT" ||
+          signal?.aborted
+        )
+          throw error;
+      }
+    }
+    // The page exhausted its own retries. Preserve other page checks and avoid
+    // restarting the entire PDF through the file-level retry policy.
+    return undefined;
   }
 
   private async assessText(input: MediaModerationInput, text: string) {
