@@ -223,6 +223,16 @@ must confirm the gate before it is reported as passing.
 
 Checks after the fixes: lint, check-types, 348 unit/regression tests, 12 PostgreSQL integration tests pass.
 
+## Dev/demo plan seed (2026-11-27)
+
+`db:seed-subscription-plans` (`src/seed-subscription-plans.ts`, `seedSubscriptionPlans`) approves
+version 1 of Creator and Pro at the proposed prices and default entitlements. It writes no audit entry,
+like the fee policy seed; production plans use the audited admin routes.
+
+| Check                                                | Result                                                                                                                                                                                                |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/subscriptions/seed-plans.integration.test.mjs` | 4/4 pass on isolated PostgreSQL: refuses without an active Admin; seeds both once, rerun is a no-op; `listEffective` serves 99.00/950.00 and 299.00/2870.00; a plan with an Admin draft is left alone |
+
 ## Pending
 
 - Product gates before `subscription.enabled` goes on in production: G3 (plan values), G4 (SRS

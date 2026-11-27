@@ -77,6 +77,19 @@ subscriptionId | null, entitlements }`; `forUsers` resolves several users with o
 6. Recording entitlement, minutes, add-on and retention snapshot (spec 020 amendment).
 7. Material storage quota (after Q3/Q4).
 
+## Rollout
+
+1. `pnpm --filter api db:release` applies `20261127000000_subscriptions` and
+   `20261127010000_fee_policy_tiers`, then runs release seed `subscriptions-20261127` (permissions and
+   `subscription.*` configuration, with `subscription.enabled = false`). No new environment variables.
+2. Plans: production plans are created and approved by an Admin through `/admin/subscriptions/plans`
+   (audited). For dev or demo, `pnpm --filter api db:seed-subscription-plans` approves version 1 of
+   Creator (99 / 950) and Pro (299 / 2,870) with the default entitlements, owned by the earliest active
+   Admin. It skips any plan that already has a version, so reruns change nothing.
+3. Optional tier fees: approve `ONE_WAY_*` and `MATERIAL_PAID_*` tier policies; until then the base fee
+   applies.
+4. Turn `subscription.enabled` on. In production only after G3–G6.
+
 ## Risks
 
 - Changing the settlement policy-code check touches the most sensitive financial path; keep
