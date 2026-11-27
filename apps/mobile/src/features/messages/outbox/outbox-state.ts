@@ -3,7 +3,10 @@ import { parse } from "@/lib/http/contracts";
 import type { ApiMessage } from "../api/messages-api";
 import type { OutboxApi } from "./outbox-delivery";
 import { isContentRejection } from "../utils/chat-send-notice";
-import { isFinalAttachmentFailure } from "./attachment-errors";
+import {
+  canRecheckQueuedAttachment,
+  isFinalAttachmentFailure,
+} from "./attachment-errors";
 import { validateChatFile, type ChatFile } from "../utils/chat-file";
 import {
   queuedTextSchema,
@@ -129,7 +132,8 @@ export abstract class OutboxState {
       item?.state !== "failed" ||
       !this.canRetry() ||
       isContentRejection(item.failureCode) ||
-      isFinalAttachmentFailure(item.failureCode) ||
+      (isFinalAttachmentFailure(item.failureCode) &&
+        !canRecheckQueuedAttachment(item)) ||
       !this.options.current() ||
       this.stopped
     )

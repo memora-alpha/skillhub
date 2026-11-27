@@ -78,7 +78,7 @@ export function attachmentFixture() {
   };
   const files: Pick<
     ReturnType<typeof createMessagesApi>,
-    "upload" | "fileStatus"
+    "upload" | "fileStatus" | "retryAttachment"
   > = {
     upload: async (_id, body) => {
       assert.ok(body.has("file"));
@@ -89,6 +89,7 @@ export function attachmentFixture() {
       reads++;
       return status;
     },
+    retryAttachment: async () => status,
   };
   const options: OutboxOptions = {
     ownerId: fixtureId(1),

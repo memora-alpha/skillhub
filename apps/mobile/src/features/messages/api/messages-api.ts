@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { RequestOptions } from "@/lib/http/client";
 import { AppError } from "@/lib/http/errors";
-import { chatFileStatusSchema } from "./chat-attachment-contracts";
+import { createChatFilesApi } from "./chat-files-api";
 import {
   parse,
   parsePage,
@@ -60,6 +60,7 @@ export function createMessagesApi(
     return parsed;
   };
   return {
+    ...createChatFilesApi(call),
     async inbox(cursor?: string, signal?: AbortSignal) {
       return parsePage(
         inboxGroupSchema,
@@ -167,57 +168,6 @@ export function createMessagesApi(
           replayAfterRenewal: false,
         }),
       );
-    },
-    async upload(
-      id: string,
-      body: FormData,
-      signal?: AbortSignal,
-      uploadKey?: string,
-    ) {
-      return parse(
-        z.object({ fileId: uuid, state: z.literal("QUARANTINED") }),
-        await call(`${root(id)}/attachments`, {
-          method: "POST",
-          body,
-          multipart: true,
-          replayAfterRenewal: false,
-          ...(uploadKey ? { idempotencyKey: uploadKey } : {}),
-          ...(signal ? { signal } : {}),
-        }),
-      );
-    },
-    async fileStatus(id: string, fileId: string, signal?: AbortSignal) {
-      parse(uuid, fileId);
-      const result = parse(
-        chatFileStatusSchema,
-        await call(
-          `${root(id)}/attachments/${fileId}/status`,
-          ...(signal ? [{ signal }] : []),
-        ),
-      );
-      if (result.fileId !== fileId) throw new AppError("protocol");
-      return result;
-    },
-    async content(
-      id: string,
-      messageId: string,
-      attachmentId: string,
-      variant: "content" | "preview" | "thumbnail" = "content",
-      signal?: AbortSignal,
-    ) {
-      parse(uuid, messageId);
-      parse(uuid, attachmentId);
-      const result = await call(
-        `${root(id)}/messages/${messageId}/attachments/${attachmentId}/${variant}`,
-        { responseType: "arraybuffer", signal },
-      );
-      if (
-        !(result instanceof Uint8Array) ||
-        !result.byteLength ||
-        result.byteLength > 15_000_000
-      )
-        throw new AppError("protocol");
-      return result;
     },
   };
 }

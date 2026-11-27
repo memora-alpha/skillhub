@@ -20,6 +20,12 @@ Nguồn: `services/api/src/modules/conversations/presentation/http/conversations
 
 ## Tasks
 
+- [x] Dọn code lặp trong recovery (hủy operation, điều kiện async và trạng thái pending), giữ contract/guards; chạy full mobile và kiểm biến/import không dùng trước commit delta chat đã rà.
+
+- [x] Rà lại delta khôi phục tệp: tái hiện và sửa nút bị kẹt busy khi background→foreground nhanh; hủy operation đồng bộ, giữ chặn POST và không cho phản hồi cũ tác động lần mới. Thêm regression trước/sau sửa, chạy toàn nhóm chat và checks phù hợp; API/native acceptance giữ riêng.
+
+- [x] Đối chiếu BE chat sau fetch `origin/dev@126699c4`, delta `acffedf7` PR #136: canRetry, status tệp đã gửi và POST retry HTTP202. Bổ sung khôi phục lỗi kỹ thuật bằng thao tác thủ công cho outbox/tệp đã gửi của người gửi; GET quyền mới trước POST, giữ file/ID/caption, không replay tự động hoặc mở lại blocked/review/revoked. Cập nhật SSE status theo conversation/file và regression owner/lifecycle/mất phản hồi. Theo yêu cầu người dùng chỉ sửa chat; subscription/recording/whiteboard để sau.
+
 - [x] Dọn phần lặp trước review commit: dùng chung điều kiện chặn preview local, ổn định callback giải phóng ảnh, gộp import và dùng chung kích thước toolbar; siết type moderationStatus và cập nhật guide theo luồng bytes xác thực/preview/thu hồi hiện hành. Chạy checks toàn mobile, giữ nguyên index và chưa commit/push.
 
 - [x] Sửa ba lỗi qua rà soát mobile: lỗi tải ảnh đi theo attachment vào viewer đang mở với retry tải riêng; lỗi decode nguồn local native có validation/timeout 10 giây và retry, không đổi modal/toolbar khi lỗi; PDF REVIEW_REQUIRED hiện “Tệp cần kiểm tra thêm.” và không có download/nhãn tải vô hạn. Giữ guard owner/revoked, thêm regression cho status, forwarding lỗi và callback native đến muộn/timeout.

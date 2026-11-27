@@ -30,6 +30,7 @@ export const chatFileStatusSchema = z
     state: z.string().min(1),
     generation: z.number().int(),
     canAttach: z.boolean().optional(),
+    canRetry: z.boolean().optional(),
     mimeType: z.string().nullable().optional(),
     fileSizeBytes: z.number().int().nonnegative().nullable().optional(),
   })
@@ -37,3 +38,9 @@ export const chatFileStatusSchema = z
     file.accessStatus ? { ...file, availability: file.accessStatus } : file,
   );
 export type ChatFileStatus = z.infer<typeof chatFileStatusSchema>;
+
+export const publishedAttachmentStatusSchema = z.object({
+  moderationStatus: chatModerationStatusSchema,
+  accessStatus: attachmentAvailabilitySchema,
+  canRetry: z.boolean(),
+});

@@ -1,10 +1,20 @@
 # Proposal Chat LearningPlan và lịch
 
-## Contract chat ảnh hiện hành — BE dev ac3dbb7a
+## Contract chat ảnh hiện hành — BE dev 126699c4
 
 Mobile giữ local preparation: dán từ menu hệ thống của ô nhập qua expo-paste-input 0.2.2, không có Dán ảnh trong menu +; cần rebuild native binary. Web nhận paste event tại ô nhập. Text do editor chèn một lần; ảnh lấy từ event gốc, sao chép vào cache riêng, validate JPG/PNG/WebP và một ảnh/15 MB trước preparation. Preview ngay, nén ảnh nền khi trên 1 MB và giữ bản gốc nếu lỗi/kết quả lớn hơn. JPEG re-encode quality 0.85; PNG giữ alpha, WebP giữ bản gốc để không làm mất ảnh động; không crop/resize attachment. Chuẩn bị kết thúc trước enqueue để key upload luôn gắn cùng bytes. NSFW local đã gỡ; kiểm duyệt do BE quyết định qua canAttach và AVAILABLE. Ảnh pending/unavailable/revoked giữ khung ảnh, không dùng card tài liệu; bị thu hồi không hiển thị pixels/tên tệp hoặc hành động xem/tải, caption và vị trí tin vẫn giữ. Viewer native pinch/double-tap zoom tiếp tục dùng URI local xác thực, QA native vẫn riêng.
 
 Đối chiếu source `origin/dev` đã fetch ngày 2026-11-26, PR #134/#135. Phần này thay thế quy tắc attachment của PR #124/#129 được ghi bên dưới; không chứng minh backend đã deploy.
+
+Bổ sung sau fetch `origin/dev` ngày 2026-11-27 tại `126699c4`: delta chat `acffedf7` (PR #136) thêm khôi phục lỗi xử lý PDF/ảnh. Các thay đổi subscription/recording/whiteboard ngoài phạm vi lượt này theo yêu cầu người dùng.
+
+- GET `/conversations/:id/attachments/:fileId/status` thêm `canRetry` (mobile giữ tùy chọn để đọc response cũ). Chỉ BE quyết định lỗi kỹ thuật có thể kiểm tra lại; không suy quyền từ `FAILED` hoặc `SCAN_FAILED` đơn lẻ.
+- GET `/conversations/:id/messages/:messageId/attachments/:attachmentId/status` trả `{ moderationStatus, accessStatus, canRetry }` cho participant. Chỉ uploader có thể nhận `canRetry:true`. Mobile chỉ đọc thêm cho tệp đã gửi của chính mình có `FAILED/UNAVAILABLE`; recipient và tệp bị chặn/thu hồi không có thao tác kiểm tra lại.
+- POST `/conversations/:id/attachments/:fileId/retry` trả HTTP 202 cùng shape file status. Giữ `fileId`, không upload lại, không tạo message mới. Trước mỗi POST, mobile GET status mới và yêu cầu đồng thời `canRetry:true`, `moderationStatus:FAILED`, `accessStatus:UNAVAILABLE`. POST không tự replay sau auth renewal, reconnect hoặc background.
+- Outbox lỗi kỹ thuật hiện có được phép kiểm tra lại bằng thao tác thủ công, giữ caption, upload key và clientMessageId. Lần gửi đầu chỉ ghi nhận lỗi; không tự requeue. Sau yêu cầu kiểm tra lại, tiếp tục đọc trạng thái và fresh canAttach trước POST tin nhắn như cũ. Một số lỗi đã lưu trước contract mới có nút kiểm tra nhưng GET vẫn phải xác nhận quyền; blocked/review/revoked không được mở lại.
+- Với tệp đã gửi, “Kiểm tra lại tệp” chỉ yêu cầu quét lại tệp hiện hữu. Mất phản hồi chuyển sang “Kiểm tra trạng thái” (chỉ GET); cập nhật thread/preview cùng owner và revision attachments, kể cả trang cũ, qua REST/SSE. Event availability đồng thời invalidates status đúng conversation/file; payload không cấp quyền tải hoặc kết luận tệp đã được duyệt. Blur/offline/background/đổi phiên hủy công việc và bỏ kết quả muộn.
+
+Nguồn delta: `services/api/src/modules/conversations/presentation/http/conversations.controller.ts`, `conversations.responses.ts`, `application/services/conversations.service.ts`, `services/api/src/infrastructure/storage/chat-attachment-policy.ts` và `prisma-stored-file.repository.ts`. Đã đối chiếu source; chưa xác minh API/worker đang triển khai.
 
 - Upload multipart nhận `Idempotency-Key`. Mobile dùng `chat-upload:<clientMessageId>` cho cùng intent qua retry/restart; không đổi key nếu mất phản hồi. `CHAT_UPLOAD_IN_PROGRESS` cho retry thủ công, `CHAT_UPLOAD_KEY_CONFLICT`/`CHAT_UPLOAD_RESTART_REQUIRED` yêu cầu chọn lại tệp. POST upload không replay tự động sau auth renewal.
 - Status có `canAttach`, `moderationStatus` (`PENDING/APPROVED/REVIEW_REQUIRED/BLOCKED/FAILED`) và `accessStatus` (`PENDING_SCAN/AVAILABLE/REVOKED/UNAVAILABLE`). `canAttach:true` cho phát hành thẻ pending; fresh read trước POST vẫn bắt buộc, blocked/review/failed/revoked không gửi. Khi trường mới thiếu, giữ gate legacy READY không có moderationStatus. Schema chat riêng, không mở rộng enum upload của evidence/materials.

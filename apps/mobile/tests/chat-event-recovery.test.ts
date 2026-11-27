@@ -91,6 +91,7 @@ test("availability events hydrate the conversation and older attachments; malfor
       [
         ["thread", fixtureId(1)],
         ["conversations", "preview", fixtureId(1)],
+        ["chat-file", fixtureId(1), fixtureId(3)],
       ],
       undefined,
       fixtureId(1),

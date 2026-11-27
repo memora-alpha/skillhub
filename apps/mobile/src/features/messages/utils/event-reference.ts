@@ -73,7 +73,7 @@ export function chatEventReference(frame: SseFrame):
     ];
     if (frame.event === "proposal.accepted") prefixes.push(["conversations"]);
   } else if (frame.event === "chat.attachment.availability.updated") {
-    const { conversationId } = parse(
+    const { conversationId, fileId } = parse(
       z.object({
         conversationId: uuid,
         messageId: uuid,
@@ -85,6 +85,7 @@ export function chatEventReference(frame: SseFrame):
     prefixes = [
       ["thread", conversationId],
       ["conversations", "preview", conversationId],
+      ["chat-file", conversationId, fileId],
     ];
     attachmentsFor = conversationId;
   } else if (frame.event === "chat.attachment.updated") {

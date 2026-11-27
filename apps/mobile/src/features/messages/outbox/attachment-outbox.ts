@@ -12,10 +12,11 @@ import {
 } from "./attachment-errors";
 import { AttachmentWait } from "./attachment-wait";
 import { SentChatImages } from "./sent-chat-images";
+import { retryChatAttachment } from "../utils/retry-chat-attachment";
 
 type FileApi = Pick<
   ReturnType<typeof createMessagesApi>,
-  "upload" | "fileStatus"
+  "upload" | "fileStatus" | "retryAttachment"
 >;
 
 // Separate from the text worker: slow OCR must not hold up ordinary messages.
@@ -209,6 +210,24 @@ export class AttachmentOutbox extends OutboxState {
         const fileId = attachment.fileId!;
         this.observing.fileId = fileId;
         stage = "status";
+        if (entry.attempts > 0) {
+          await retryChatAttachment({
+            read: () =>
+              this.fileApi.fileStatus(
+                entry.conversationId,
+                fileId,
+                control.signal,
+              ),
+            retry: () =>
+              this.fileApi.retryAttachment(
+                entry.conversationId,
+                fileId,
+                control.signal,
+              ),
+            current: active,
+          });
+          assertActive();
+        }
         await waitForChatAttachment({
           read: (signal) =>
             this.fileApi.fileStatus(entry.conversationId, fileId, signal),

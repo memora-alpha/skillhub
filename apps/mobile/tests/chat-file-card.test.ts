@@ -116,6 +116,9 @@ test("file messages stay in the message row and only open the authorized current
     },
     "./ChatWorkflowCard": { ChatWorkflowCard: "Workflow" },
     "./ChatImageMessage": { ChatImageMessage: "ImageMessage" },
+    "./ChatAttachmentRecovery": {
+      ChatAttachmentRecovery: "AttachmentRecovery",
+    },
   };
   const contexts = Object.entries(mocks).map(([name, namedExports]) =>
     mock.module(pathToFileURL(local.resolve(name)), { namedExports }),
@@ -170,6 +173,15 @@ test("file messages stay in the message row and only open the authorized current
       "published photos use the image presentation",
     );
     message.attachments[0]!.mimeType = "application/pdf";
+    message.attachments[0]!.availability = "UNAVAILABLE";
+    message.attachments[0]!.moderationStatus = "FAILED";
+    assert.ok(render().some((node) => node.type === "AttachmentRecovery"));
+    assert.ok(
+      !render("them").some((node) => node.type === "AttachmentRecovery"),
+    );
+    message.attachments[0]!.availability = "REVOKED";
+    message.attachments[0]!.moderationStatus = "BLOCKED";
+    assert.ok(!render().some((node) => node.type === "AttachmentRecovery"));
     message.attachments[0]!.availability = "PENDING_SCAN";
     message.attachments[0]!.moderationStatus = "REVIEW_REQUIRED";
     const review = render();

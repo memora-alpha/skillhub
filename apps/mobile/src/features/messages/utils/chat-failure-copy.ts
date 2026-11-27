@@ -19,6 +19,7 @@ const messages: Record<string, string> = {
   CHAT_ATTACHMENT_INTERRUPTED: "Không gửi được.",
   CHAT_ATTACHMENT_TIMEOUT: "Chưa xác nhận được tệp đã gửi.",
   CHAT_ATTACHMENT_PENDING: "Tệp chưa sẵn sàng.",
+  CHAT_ATTACHMENT_RETRYABLE: "Không kiểm tra được tệp. Có thể thử lại.",
   CHAT_OUTBOX_STORAGE_UNAVAILABLE: "Không gửi được.",
   FILE_NOT_READY: "Tệp chưa sẵn sàng.",
   FILE_FORMAT_UNSUPPORTED: "Không đọc được tệp.",

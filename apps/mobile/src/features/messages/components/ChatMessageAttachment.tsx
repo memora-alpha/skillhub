@@ -2,6 +2,7 @@ import type { ApiMessage } from "../api/messages-api";
 import { isChatImage } from "../utils/chat-attachment-kind";
 import { ChatFileCard } from "./ChatFileCard";
 import { ChatImageMessage } from "./ChatImageMessage";
+import { ChatAttachmentRecovery } from "./ChatAttachmentRecovery";
 
 export function ChatMessageAttachment(
   props: Readonly<{
@@ -14,8 +15,8 @@ export function ChatMessageAttachment(
     downloadError?: string;
   }>,
 ) {
-  const { file, mine, pending, disabled, onDownload } = props;
-  return isChatImage(file.mimeType) ? (
+  const { message, file, mine, pending, disabled, onDownload } = props;
+  const content = isChatImage(file.mimeType) ? (
     <ChatImageMessage {...props} />
   ) : (
     <ChatFileCard
@@ -29,5 +30,19 @@ export function ChatMessageAttachment(
       disabled={disabled}
       onPress={onDownload}
     />
+  );
+  return (
+    <>
+      {content}
+      {mine &&
+        file.moderationStatus === "FAILED" &&
+        (file.accessStatus ?? file.availability) === "UNAVAILABLE" && (
+          <ChatAttachmentRecovery
+            key={`${message.id}:${file.fileId}:${file.attachmentId}`}
+            message={message}
+            file={file}
+          />
+        )}
+    </>
   );
 }

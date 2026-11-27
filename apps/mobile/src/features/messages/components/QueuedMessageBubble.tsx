@@ -5,7 +5,10 @@ import { messageColors } from "../constants/theme";
 import { MessageBubble } from "./MessageBubble";
 import { chatTime } from "../utils/chat-dates";
 import { chatSendNotice } from "../utils/chat-send-notice";
-import { isFinalAttachmentFailure } from "../outbox/attachment-errors";
+import {
+  canRecheckQueuedAttachment,
+  isFinalAttachmentFailure,
+} from "../outbox/attachment-errors";
 import { ChatFileCard } from "./ChatFileCard";
 import { ChatImageCard } from "./ChatImageCard";
 import { chatAttachmentNoun, isChatImage } from "../utils/chat-attachment-kind";
@@ -85,7 +88,8 @@ export function QueuedMessageBubble({
             )}
           </View>
           {!rejected &&
-            !isFinalAttachmentFailure(entry.failureCode) &&
+            (!isFinalAttachmentFailure(entry.failureCode) ||
+              canRecheckQueuedAttachment(entry)) &&
             entry.state === "failed" && (
               <Pressable
                 accessibilityRole="button"
