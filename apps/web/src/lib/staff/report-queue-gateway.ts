@@ -76,11 +76,15 @@ export async function reportQueueGateway(
   const limit = Number(query.get("limit") ?? "20");
   const source = query.get("source") || "";
   const status = query.get("status") || "";
+  const contentReview = query.get("contentReview") || "";
   if (
     !Number.isSafeInteger(limit) ||
     limit < 1 ||
     limit > 100 ||
     (source && source !== "USER" && source !== "SYSTEM") ||
+    (contentReview &&
+      contentReview !== "REQUIRED" &&
+      contentReview !== "PENDING") ||
     (status &&
       status !== "ALL" &&
       !reportQueueStatuses.includes(
@@ -97,6 +101,7 @@ export async function reportQueueGateway(
     status,
     query.get("severity") || null,
     query.get("handlerId") || null,
+    contentReview || null,
   ]);
   let cursor: Cursor | null = readCursor(
     query.get("cursor"),
@@ -110,7 +115,7 @@ export async function reportQueueGateway(
     const active: Cursor = cursor;
     const upstream = new URLSearchParams({ limit: String(limit) });
     if (statuses[active.index]) upstream.set("status", statuses[active.index]!);
-    for (const key of ["severity", "handlerId"])
+    for (const key of ["severity", "handlerId", "contentReview"])
       if (query.get(key)) upstream.set(key, query.get(key)!);
     if (active.upstream) upstream.set("cursor", active.upstream);
     const result = await readPage(upstream);

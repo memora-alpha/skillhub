@@ -39,13 +39,13 @@ export async function userBackend(
   }
   return readBackendReply(response);
 }
-export async function userJson(request: Request) {
+export async function userJson(request: Request, maxBytes = 262144) {
   if (!request.headers.get("content-type")?.startsWith("application/json"))
     throw new UserGatewayError(415, "JSON_REQUIRED");
   if (!request.body) throw new UserGatewayError(400, "BODY_REQUIRED");
   const bodyBytes = await readBoundedBody(
     request.body,
-    262144,
+    maxBytes,
     () => new UserGatewayError(413, "BODY_TOO_LARGE"),
   );
   let value: unknown;

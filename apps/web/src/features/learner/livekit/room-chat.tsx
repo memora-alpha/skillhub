@@ -8,6 +8,14 @@ import {
   useState,
   type FormEvent,
 } from "react";
+import {
+  contactPolicyMessage,
+  detectContactInformation,
+} from "@/lib/chat/contact-policy";
+import {
+  contentPolicyMessage,
+  detectInappropriateText,
+} from "@/lib/chat/content-policy";
 import type { useRoomChat } from "./use-room-chat";
 import { roomChatTextLimit } from "./ephemeral-chat";
 import { RoomIcon } from "./room-icon";
@@ -31,6 +39,7 @@ export function RoomChat({
   self: RoomPerson;
 }>) {
   const [draft, setDraft] = useState("");
+  const [policyError, setPolicyError] = useState<string>();
   const [mode, setMode] = useState<WindowMode>("floating");
   const [restoreMode, setRestoreMode] = useState<"floating" | "maximized">(
     "floating",
@@ -74,6 +83,17 @@ export function RoomChat({
   async function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const text = draft;
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    if (detectContactInformation(trimmed)) {
+      setPolicyError(contactPolicyMessage);
+      return;
+    }
+    if (detectInappropriateText(trimmed)) {
+      setPolicyError(contentPolicyMessage);
+      return;
+    }
+    setPolicyError(undefined);
     if (await chat.send(text))
       setDraft((value) => (value === text ? "" : value));
   }
@@ -205,9 +225,9 @@ export function RoomChat({
             <output>{chat.statusMessage}</output>
           </p>
         )}
-        {chat.error && (
+        {(policyError || chat.error) && (
           <p className={styles.error} role="alert">
-            {chat.error}
+            {policyError ?? chat.error}
           </p>
         )}
         <form
@@ -221,7 +241,10 @@ export function RoomChat({
             value={draft}
             rows={2}
             maxLength={roomChatTextLimit}
-            onChange={(event) => setDraft(event.target.value)}
+            onChange={(event) => {
+              setDraft(event.target.value);
+              if (policyError) setPolicyError(undefined);
+            }}
             disabled={!chat.ready || chat.pending}
             placeholder={"Nhắn cho " + peer.name + "…"}
             onKeyDown={(event) => {

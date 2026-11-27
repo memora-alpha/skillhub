@@ -99,6 +99,12 @@ export const adminSections: readonly AdminSection[] = [
         label: "Hồ sơ",
         view: "profile",
       },
+      {
+        id: "chat-attachments",
+        href: "/admin/chat-attachments",
+        path: "/admin/chat-attachments",
+        label: "Tệp chat",
+      },
     ],
   },
   {

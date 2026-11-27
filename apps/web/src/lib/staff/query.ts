@@ -11,7 +11,17 @@ export function staffQuery(path: string, query: URLSearchParams) {
   return accepted.size ? `?${accepted}` : "";
 }
 function staffQueryNames(path: string): string[] {
-  if (path === "profanity-rules/revisions") return ["before"];
+  if (
+    path === "profanity-rules/revisions" ||
+    path === "content-moderation/chat-attachments"
+  )
+    return ["before"];
+  if (
+    /^sessions\/[0-9a-f-]{36}\/(whiteboard|recordings\/[0-9a-f-]{36})\/staff-review$/i.test(
+      path,
+    )
+  )
+    return ["caseId"];
   if (path.startsWith("rewards/"))
     return ["limit", "cursor", "status", "productId", "userId"];
   if (path === "audit-logs")
@@ -65,7 +75,8 @@ function staffQueryNames(path: string): string[] {
       "orderCode",
       "gatewayTransactionId",
     );
-  if (path === "reports/support/queue") names.push("severity", "handlerId");
+  if (path === "reports/support/queue")
+    names.push("severity", "handlerId", "contentReview");
   if (path === "learning-requests") names.push("keyword", "skillId", "tagIds");
   if (path === "materials")
     names.push("skillId", "accessType", "ownerId", "from", "to");

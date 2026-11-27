@@ -72,6 +72,15 @@ export const staffNavItems: readonly StaffNavItem[] = [
     ],
   },
   {
+    id: "chat-attachments",
+    href: "/staff/chat-attachments",
+    label: "Tệp đính kèm chat",
+    description: "Kiểm duyệt tệp tin nhắn bị gắn cờ và thu hồi quyền tải.",
+    icon: "file",
+    group: "Kiểm duyệt nội dung",
+    requiredAny: ["chat-attachment:moderate"],
+  },
+  {
     id: "disputes",
     href: "/staff/disputes",
     label: "Báo cáo & tranh chấp",

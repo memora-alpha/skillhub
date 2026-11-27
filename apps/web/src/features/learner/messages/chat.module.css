@@ -199,6 +199,36 @@
 .fileCard > div {
   min-width: 0;
 }
+.fileBody {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+.imagePreviewWrap {
+  overflow: hidden;
+  border-radius: 8px;
+  background: #f5f2ed;
+  max-width: 280px;
+}
+.imagePreview {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 240px;
+  object-fit: contain;
+}
+.fileStatusNote {
+  display: grid;
+  gap: 2px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #75685e;
+}
+.fileStatusNote strong {
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
 .fileCard button,
 .fileCard a {
   color: var(--brand-strong);

@@ -13,6 +13,18 @@ import { useUserResource } from "../hooks/use-user-resource";
 import { Feedback } from "../components/common";
 import styles from "./chat.module.css";
 import {
+  contactPolicyMessage,
+  detectContactInformation,
+} from "@/lib/chat/contact-policy";
+import {
+  contentPolicyMessage,
+  detectInappropriateText,
+} from "@/lib/chat/content-policy";
+import {
+  isCheckableImageFile,
+  moderateImageOnClient,
+} from "@/lib/chat/image-moderation";
+import {
   chatExtensions,
   validateChatFiles,
   type ChatUpload,
@@ -42,6 +54,7 @@ export function ChatFiles({
 }>) {
   const { request } = useUserSession();
   const [uploading, setUploading] = useState(false);
+  const [checkingLabel, setCheckingLabel] = useState("Đang tải tệp lên");
   const lock = useRef(false);
   const active = useRef(true);
   const [error, setError] = useState<string>();
@@ -60,13 +73,30 @@ export function ChatFiles({
       ),
     [setFiles],
   );
+  async function preCheckFileOnClient(file: File) {
+    if (file.type === "text/plain" || /\.txt$/i.test(file.name)) {
+      const text = await file.text().catch(() => "");
+      if (detectInappropriateText(text)) throw new Error(contentPolicyMessage);
+      if (detectContactInformation(text)) throw new Error(contactPolicyMessage);
+      return;
+    }
+    if (isCheckableImageFile(file)) {
+      setCheckingLabel("Đang kiểm tra an toàn ảnh trên trình duyệt…");
+      const verdict = await moderateImageOnClient(file);
+      if (!active.current) return;
+      if (!verdict.allowed) throw new Error(verdict.message);
+    }
+  }
   async function uploadChosen(chosen: readonly File[]) {
     for (const file of chosen) {
+      await preCheckFileOnClient(file);
+      if (!active.current) return;
+      setCheckingLabel("Đang tải tệp lên máy chủ để kiểm duyệt…");
       const form = new FormData();
       form.set("file", file);
       const result = await request<{ fileId: string; state: string }>(
         "conversations/" + conversationId + "/attachments",
-        { method: "POST", body: form },
+        { method: "POST", body: form, key: crypto.randomUUID() },
       );
       if (!active.current) return;
       if (!/^[0-9a-f-]{36}$/i.test(result.data.fileId))
@@ -134,7 +164,7 @@ export function ChatFiles({
       </label>
       {uploading && (
         <p>
-          <LoadingSkeleton variant="inline" label="Đang tải tệp lên" />
+          <LoadingSkeleton variant="inline" label={checkingLabel} />
         </p>
       )}
       <Feedback error={error} />
@@ -153,6 +183,16 @@ export function ChatFiles({
     </fieldset>
   );
 }
+function resolveAttachmentState(
+  error: unknown,
+  data: { state: string; moderationStatus?: string } | undefined,
+): string {
+  if (error) return "UNAVAILABLE";
+  if (data?.moderationStatus === "BLOCKED") return "REJECTED";
+  if (data?.moderationStatus === "REVIEW_REQUIRED") return "REVIEW_REQUIRED";
+  return data?.state ?? "CHECKING";
+}
+
 function ChatFileRow({
   file,
   conversationId,
@@ -176,16 +216,14 @@ function ChatFileRow({
       refetchInterval: (data) =>
         data &&
         ["UPLOADING", "QUARANTINED", "SCANNING"].includes(data.state) &&
-        !["REVIEW_REQUIRED", "FAILED"].includes(data.moderationStatus ?? "")
+        !["REVIEW_REQUIRED", "BLOCKED", "FAILED"].includes(
+          data.moderationStatus ?? "",
+        )
           ? 2500
           : false,
     },
   );
-  const state = query.error
-    ? "UNAVAILABLE"
-    : query.data?.moderationStatus === "REVIEW_REQUIRED"
-      ? "REVIEW_REQUIRED"
-      : (query.data?.state ?? "CHECKING");
+  const state = resolveAttachmentState(query.error, query.data);
   useEffect(() => {
     onState(file.id, state);
   }, [file.id, state, onState]);

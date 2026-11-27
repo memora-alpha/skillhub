@@ -58,6 +58,15 @@ const errorMessages: Readonly<Record<string, string>> = {
     "Báo cáo không còn tồn tại hoặc bạn không thể truy cập. Hãy quay lại hàng đợi.",
   REPORT_CASE_CLOSED:
     "Báo cáo đã kết thúc. Bạn chỉ có thể xem lại nội dung và lịch sử.",
+  REPORT_CASE_NOT_OPEN:
+    "Chỉ có thể xem bằng chứng bảng trắng hoặc bản ghi khi vụ việc đang mở và bạn là người phụ trách.",
+  SESSION_NOT_IN_REPORT_CASE:
+    "Buổi học này không gắn với vụ việc báo cáo hiện tại.",
+  RECORDING_NOT_FOUND:
+    "Không tìm thấy bản ghi theo mã đã nhập cho buổi học này.",
+  RECORDING_NOT_READY: "Bản ghi chưa sẵn sàng phát lại hoặc đã bị xóa/hết hạn.",
+  RECORDING_UNAVAILABLE: "Dịch vụ lưu trữ bản ghi hiện tạm thời chưa sẵn sàng.",
+  RECORDING_DISABLED: "Tính năng ghi hình buổi học hiện chưa được bật.",
   STALE_REPORT_CASE_VERSION:
     "Mức độ hoặc trạng thái báo cáo đã thay đổi. Tải lại báo cáo trước khi lưu.",
   STALE_INCIDENT_VERSION:
@@ -170,6 +179,41 @@ const errorMessages: Readonly<Record<string, string>> = {
     "Nội dung vi phạm tiêu chuẩn kiểm duyệt. Vui lòng chỉnh sửa rồi thử lại.",
   CONTENT_MODERATION_TEMPORARILY_UNAVAILABLE:
     "Hệ thống kiểm duyệt nội dung đang tạm bận. Vui lòng thử lại sau ít phút.",
+  PROFANITY_VERSION_CONFLICT:
+    "Bộ quy tắc lọc từ ngữ vừa được cập nhật bởi phiên khác. Hãy tải lại trước khi lưu.",
+  PROFANITY_REVISION_NOT_FOUND:
+    "Không tìm thấy phiên bản bộ lọc từ ngữ đã chọn để khôi phục.",
+  INVALID_PROFANITY_RULES:
+    "Cấu trúc quy tắc lọc từ ngữ chưa hợp lệ. Kiểm tra lại danh sách mẫu trước khi lưu.",
+  INVALID_MODERATION_RULES:
+    "Cấu trúc quy tắc kiểm duyệt bài đăng chưa hợp lệ. Kiểm tra lại nhóm và mẫu nội dung.",
+  MODERATION_RULES_REQUIRED:
+    "Cần cung cấp đầy đủ danh sách quy tắc kiểm duyệt trước khi lưu.",
+  INVALID_CONFIGURATION_PATCH:
+    "Dữ liệu cập nhật cấu hình chưa đúng định dạng hoặc thiếu trường bắt buộc.",
+  MATERIAL_NOT_FOUND:
+    "Không tìm thấy tài liệu hoặc tài liệu đã thay đổi trạng thái.",
+  INVALID_MATERIAL_ACTION:
+    "Thao tác xử lý tài liệu không hợp lệ ở trạng thái hiện tại.",
+  MATERIAL_REVIEW_NOT_FOUND:
+    "Không tìm thấy đánh giá tài liệu này. Hãy tải lại danh sách.",
+  MATERIAL_REVIEW_NO_OPEN_REPORTS:
+    "Đánh giá tài liệu này hiện không có báo cáo đang mở để xử lý.",
+  MATERIAL_REVIEW_REASON_REQUIRED:
+    "Vui lòng nhập lý do kiểm duyệt đánh giá tài liệu trước khi xác nhận.",
+  MATERIAL_REVIEW_TRANSITION_INVALID:
+    "Trạng thái đánh giá tài liệu đã thay đổi. Tải lại để chọn thao tác phù hợp.",
+  MATERIAL_REVIEW_VERSION_CONFLICT:
+    "Đánh giá tài liệu vừa được cập nhật. Tải lại trước khi thao tác tiếp.",
+  STALE_REVIEW_VERSION:
+    "Đánh giá vừa có thay đổi mới. Tải lại trước khi lưu quyết định.",
+  STALE_PROFILE_VERSION:
+    "Hồ sơ người dùng vừa được cập nhật. Tải lại trước khi xử lý tiếp.",
+  INVALID_ACCOUNT_TRANSITION:
+    "Trạng thái tài khoản đã thay đổi nên không thể áp dụng thao tác này. Hãy tải lại.",
+  PROFILE_MODERATION_REQUIRED:
+    "Bạn chưa được cấp quyền kiểm duyệt hồ sơ người dùng.",
+  REVIEW_MODERATION_REQUIRED: "Bạn chưa được cấp quyền kiểm duyệt đánh giá.",
   FILE_FORMAT_UNSUPPORTED: "Định dạng tệp này không được hỗ trợ.",
   FILE_TYPE_NOT_SUPPORTED: "Định dạng tệp này chưa được hỗ trợ.",
   INVALID_CREDENTIALS: "Email hoặc mật khẩu không đúng.",

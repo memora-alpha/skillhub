@@ -1,5 +1,21 @@
 const uuid = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const routes: [string, RegExp, (path: string) => string][] = [
+  ["GET", /^content-moderation\/chat-attachments$/, (p) => p],
+  [
+    "POST",
+    new RegExp(`^content-moderation/chat-attachments/${uuid}/revoke$`, "i"),
+    (p) => p,
+  ],
+  [
+    "GET",
+    new RegExp(`^sessions/${uuid}/whiteboard/staff-review$`, "i"),
+    (p) => p,
+  ],
+  [
+    "GET",
+    new RegExp(`^sessions/${uuid}/recordings/${uuid}/staff-review$`, "i"),
+    (p) => p,
+  ],
   ["GET", /^me\/notification-preferences$/, (p) => p],
   ["PATCH", /^me\/notification-preferences$/, (p) => p],
   ["POST", /^notifications\/push-tokens$/, (p) => p],

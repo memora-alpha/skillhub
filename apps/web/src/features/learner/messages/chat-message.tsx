@@ -4,8 +4,22 @@ import { ProfileAvatar } from "../components/profile-avatar";
 import { ProductIcon } from "../components/product-icon";
 import { formatTime } from "../components/common";
 import { formatVietnamTime } from "@/lib/vietnam-time";
-import { ChatDownload } from "./chat-download";
+import { ChatDownload, ChatImagePreview } from "./chat-download";
 import styles from "./chat.module.css";
+
+function attachmentStatusMessage(
+  file: Message["attachments"][number],
+): string | null {
+  const status = file.accessStatus ?? file.availability;
+  if (!status || status === "AVAILABLE") return null;
+  if (status === "PENDING_SCAN")
+    return "Đang kiểm tra an toàn tệp. Tệp sẽ mở tải sau khi hoàn tất.";
+  if (status === "REVOKED")
+    return file.restrictionReason === "REVOKED"
+      ? "Tệp đã bị kiểm duyệt viên thu hồi quyền tải."
+      : "Tệp đã bị chặn do vi phạm tiêu chuẩn cộng đồng.";
+  return "Tệp hiện không khả dụng.";
+}
 
 export function ChatMessage({
   message,
@@ -84,17 +98,44 @@ export function ChatMessage({
           ))}
         <article className={styles.bubble} title={formatTime(message.sentAt)}>
           {message.messageText.trim() && <p>{message.messageText}</p>}
-          {message.attachments.map((file) => (
-            <div className={styles.fileCard} key={file.attachmentId}>
-              <ProductIcon name="file" size={19} />
-              <ChatDownload
-                conversationId={conversationId}
-                messageId={message.id}
-                attachmentId={file.attachmentId}
-                filename={file.filename}
-              />
-            </div>
-          ))}
+          {message.attachments.map((file) => {
+            const blockedText = attachmentStatusMessage(file);
+            const isImage =
+              file.attachmentType === "IMAGE" ||
+              Boolean(file.mimeType?.startsWith("image/"));
+            return (
+              <div className={styles.fileCard} key={file.attachmentId}>
+                <ProductIcon name="file" size={19} />
+                <div className={styles.fileBody}>
+                  {blockedText ? (
+                    <div className={styles.fileStatusNote}>
+                      <strong>{file.filename}</strong>
+                      <span>{blockedText}</span>
+                    </div>
+                  ) : (
+                    <>
+                      {isImage && (
+                        <ChatImagePreview
+                          conversationId={conversationId}
+                          messageId={message.id}
+                          attachmentId={file.attachmentId}
+                          filename={file.filename}
+                          width={file.width}
+                          height={file.height}
+                        />
+                      )}
+                      <ChatDownload
+                        conversationId={conversationId}
+                        messageId={message.id}
+                        attachmentId={file.attachmentId}
+                        filename={file.filename}
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })}
           {workflowCard}
         </article>
       </div>

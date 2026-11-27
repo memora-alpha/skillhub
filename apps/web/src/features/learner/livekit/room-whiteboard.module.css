@@ -1,0 +1,115 @@
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  width: 100%;
+  background: #fffefc;
+  border: 1px solid var(--line, #e6dfd5);
+  border-radius: 14px;
+  padding: 12px;
+  color: var(--ink, #1f1b16);
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.toolGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.toolBtn {
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 1px solid #dfd7cc;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #2c241d;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.toolBtn[data-active="true"] {
+  background: #a94323;
+  border-color: #a94323;
+  color: #ffffff;
+}
+.toolBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.swatch[data-active="true"] {
+  border-color: #1f1b16;
+  box-shadow: 0 0 0 2px #ffffff inset;
+}
+.canvasFrame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 1px solid #dfd7cc;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #ffffff;
+  touch-action: none;
+}
+.canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+.canvas[data-readonly="true"] {
+  cursor: default;
+}
+.statusBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: #6b5f55;
+}
+.banner {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fbf5ec;
+  border: 1px solid #eadcc9;
+  color: #6c4620;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.textPrompt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 8px;
+  background: #f8f4ee;
+  border: 1px solid #e6dfd5;
+}
+.textPrompt input {
+  flex: 1;
+  min-width: 180px;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid #d7cec2;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+}

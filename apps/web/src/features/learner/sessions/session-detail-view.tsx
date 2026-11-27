@@ -13,6 +13,8 @@ import { sessionRefreshInterval } from "./attendance-presentation";
 import { SessionAttendanceStatus } from "./session-attendance-status";
 import { SessionLimits } from "./session-limits";
 import { SessionMakeupPanel } from "./session-makeup-panel";
+import { SessionWhiteboardPanel } from "./session-whiteboard-panel";
+import { SessionRecordingsPanel } from "./session-recordings-panel";
 import { LearningChangePanel } from "../paths/learning-change-panel";
 import { canRequestCancellation } from "../paths/post-session-contract";
 import { allSessionsCompleted } from "../paths/settlement-policy";
@@ -154,6 +156,8 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
             disabled={!!query.error || !!path.error || path.initialLoading}
           />
           <SessionProgress session={session} />
+          <SessionWhiteboardPanel sessionId={id} />
+          <SessionRecordingsPanel sessionId={id} />
           {finished && !settled && (
             <section id="session-settlement" className={styles.after}>
               <SettlementStatusPanel pathId={session.pathId} />

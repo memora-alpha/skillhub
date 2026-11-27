@@ -37,7 +37,7 @@ const allowed: Record<string, RegExp[]> = {
         uuid +
         "/attachments/" +
         uuid +
-        "/download",
+        "/(download|content|preview|thumbnail)",
     ),
     route("me"),
     route("me/avatar/uploads/" + uuid),
@@ -82,6 +82,8 @@ const allowed: Record<string, RegExp[]> = {
     ),
     route("learning-paths/(mine|" + uuid + ")"),
     route("sessions/(mine|" + uuid + ")"),
+    route("sessions/" + uuid + "/whiteboard"),
+    route("sessions/" + uuid + "/recordings(/" + uuid + "/playback)?"),
   ],
   POST: [
     route("rewards/redemptions(/lookup)?"),
@@ -142,7 +144,11 @@ const allowed: Record<string, RegExp[]> = {
         uuid +
         "/(livekit-token|confirm-completion|absence-excuse|absence-excuse/decision|reschedule-proposals)",
     ),
+    route(
+      "sessions/" + uuid + "/recordings(/" + uuid + "/(accept|decline|stop))?",
+    ),
   ],
+  PUT: [route("sessions/" + uuid + "/whiteboard")],
   PATCH: [
     route("material-reviews/" + uuid),
     route("me/notification-preferences"),
@@ -163,6 +169,7 @@ const allowed: Record<string, RegExp[]> = {
     route("me/avatar"),
     route("notifications/push-tokens/" + uuid),
     route("material-reviews/" + uuid),
+    route("sessions/" + uuid + "/recordings/" + uuid),
   ],
 };
 export function userUpstreamPath(method: string, segments: string[]) {
@@ -205,15 +212,21 @@ export function userQuery(search: URLSearchParams) {
   }
   return result.size ? "?" + result : "";
 }
+const bodylessPostPatterns: readonly RegExp[] = [
+  /^payments\/[0-9a-f-]+\/cancel$/i,
+  /^sessions\/paths\/[0-9a-f-]+\/settlement$/i,
+  /^sessions\/[0-9a-f-]+\/recordings$/i,
+  /^sessions\/[0-9a-f-]+\/recordings\/[0-9a-f-]+\/(accept|decline|stop)$/i,
+  /^me\/material-orders\/[0-9a-f-]+\/refund$/i,
+  /^materials\/[0-9a-f-]+\/favorite$/i,
+];
 export function isBodyless(method: string, target: string) {
   if (method === "POST" && target === "rewards/redemptions/lookup") return true;
   if (method === "PATCH")
     return /^notifications\/[0-9a-f-]+\/read$/i.test(target);
   return (
     method === "POST" &&
-    /^(payments\/[0-9a-f-]+\/cancel|sessions\/paths\/[0-9a-f-]+\/settlement|me\/material-orders\/[0-9a-f-]+\/refund|materials\/[0-9a-f-]+\/favorite)$/i.test(
-      target,
-    )
+    bodylessPostPatterns.some((pattern) => pattern.test(target))
   );
 }
 export function userIdentity(value: unknown) {
