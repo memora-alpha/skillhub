@@ -50,38 +50,34 @@ let nsfwModelPromise: Promise<NsfwModel> | null = null;
 let ocrWorkerPromise: Promise<OcrWorker> | null = null;
 
 async function getNsfwModel(): Promise<NsfwModel> {
-  if (!nsfwModelPromise) {
-    nsfwModelPromise = (async () => {
-      const tf = await import("@tensorflow/tfjs");
-      await tf.ready();
-      const [{ load }, { MobileNetV2Model }] = await Promise.all([
-        import("nsfwjs/core"),
-        import("nsfwjs/models/mobilenet_v2"),
-      ]);
-      return (await load("MobileNetV2", {
-        modelDefinitions: [MobileNetV2Model],
-      })) as unknown as NsfwModel;
-    })().catch((cause) => {
-      nsfwModelPromise = null;
-      throw cause;
-    });
-  }
+  nsfwModelPromise ??= (async () => {
+    const tf = await import("@tensorflow/tfjs");
+    await tf.ready();
+    const [{ load }, { MobileNetV2Model }] = await Promise.all([
+      import("nsfwjs/core"),
+      import("nsfwjs/models/mobilenet_v2"),
+    ]);
+    return (await load("MobileNetV2", {
+      modelDefinitions: [MobileNetV2Model],
+    })) as unknown as NsfwModel;
+  })().catch((cause) => {
+    nsfwModelPromise = null;
+    throw cause;
+  });
   return nsfwModelPromise;
 }
 
 async function getOcrWorker(): Promise<OcrWorker> {
-  if (!ocrWorkerPromise) {
-    ocrWorkerPromise = (async () => {
-      const tesseract = await import("tesseract.js");
-      return (await tesseract.createWorker([
-        "vie",
-        "eng",
-      ])) as unknown as OcrWorker;
-    })().catch((cause) => {
-      ocrWorkerPromise = null;
-      throw cause;
-    });
-  }
+  ocrWorkerPromise ??= (async () => {
+    const tesseract = await import("tesseract.js");
+    return (await tesseract.createWorker([
+      "vie",
+      "eng",
+    ])) as unknown as OcrWorker;
+  })().catch((cause) => {
+    ocrWorkerPromise = null;
+    throw cause;
+  });
   return ocrWorkerPromise;
 }
 

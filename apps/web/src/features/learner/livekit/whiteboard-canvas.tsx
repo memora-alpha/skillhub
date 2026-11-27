@@ -54,6 +54,7 @@ export function WhiteboardCanvas({
   onClose?: () => void;
 }>) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const textInputRef = useRef<HTMLInputElement>(null);
   const [tool, setTool] = useState<WhiteboardTool>("freedraw");
   const [color, setColor] = useState(colors[0]!);
   const [strokeWidth, setStrokeWidth] = useState(widths[0]!);
@@ -78,6 +79,12 @@ export function WhiteboardCanvas({
       bgColor,
     );
   }, [elements, draft, bgColor]);
+
+  useEffect(() => {
+    if (textAt && !readOnly) {
+      textInputRef.current?.focus();
+    }
+  }, [textAt, readOnly]);
 
   function toBoardPoint(event: PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current;
@@ -417,10 +424,10 @@ export function WhiteboardCanvas({
       {textAt && !readOnly && (
         <div className={styles.textPrompt}>
           <input
+            ref={textInputRef}
             type="text"
             value={textValue}
             placeholder="Nhập nội dung chữ lên bảng…"
-            autoFocus
             maxLength={300}
             onChange={(e) => setTextValue(e.target.value)}
             onKeyDown={(e) => {

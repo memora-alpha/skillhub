@@ -6,22 +6,98 @@ import {
 
 export const whiteboardTopic = "skillhub.whiteboard.v1";
 
+type DeltaChunkPacket = {
+  type: "wb:delta_chunk";
+  batchId: string;
+  index: number;
+  total: number;
+  data: string;
+};
+
 type WhiteboardPacket =
   | { type: "wb:toggle"; open: boolean }
   | { type: "wb:delta"; elements: WhiteboardElement[] }
-  | {
-      type: "wb:delta_chunk";
-      batchId: string;
-      index: number;
-      total: number;
-      data: string;
-    }
+  | DeltaChunkPacket
   | { type: "wb:sync_req" }
   | { type: "wb:sync_res"; elements: WhiteboardElement[] };
+
+type ChunkBucket = {
+  total: number;
+  parts: Map<number, string>;
+  receivedAt: number;
+};
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const maxChunkChars = 9000;
+
+function isValidDeltaChunk(
+  msg: Record<string, unknown>,
+): msg is DeltaChunkPacket {
+  return (
+    msg.type === "wb:delta_chunk" &&
+    typeof msg.batchId === "string" &&
+    typeof msg.index === "number" &&
+    typeof msg.total === "number" &&
+    typeof msg.data === "string" &&
+    msg.total > 0 &&
+    msg.total <= 200 &&
+    msg.index >= 0 &&
+    msg.index < msg.total
+  );
+}
+
+function pruneExpiredChunks(
+  pendingChunks: Map<string, ChunkBucket>,
+  now: number,
+) {
+  for (const [id, entry] of pendingChunks) {
+    if (now - entry.receivedAt > 30_000) pendingChunks.delete(id);
+  }
+}
+
+function assembleChunkBatch(
+  pendingChunks: Map<string, ChunkBucket>,
+  chunk: DeltaChunkPacket,
+): string | null {
+  const now = Date.now();
+  pruneExpiredChunks(pendingChunks, now);
+  const bucket = pendingChunks.get(chunk.batchId) ?? {
+    total: chunk.total,
+    parts: new Map<number, string>(),
+    receivedAt: now,
+  };
+  bucket.parts.set(chunk.index, chunk.data);
+  pendingChunks.set(chunk.batchId, bucket);
+  if (bucket.parts.size !== bucket.total) return null;
+  pendingChunks.delete(chunk.batchId);
+  const ordered: string[] = [];
+  for (let i = 0; i < bucket.total; i++) {
+    ordered.push(bucket.parts.get(i) ?? "");
+  }
+  return ordered.join("");
+}
+
+function encodeChunkPayloads(raw: string): Uint8Array<ArrayBuffer>[] {
+  const batchId = crypto.randomUUID();
+  const total = Math.ceil(raw.length / maxChunkChars);
+  const payloads: Uint8Array<ArrayBuffer>[] = [];
+  for (let index = 0; index < total; index++) {
+    const data = raw.slice(index * maxChunkChars, (index + 1) * maxChunkChars);
+    payloads.push(
+      encoder.encode(
+        JSON.stringify({
+          type: "wb:delta_chunk",
+          batchId,
+          index,
+          total,
+          data,
+        } satisfies WhiteboardPacket),
+      ),
+    );
+  }
+  return payloads;
+}
 
 export function createRoomWhiteboardTransport(options: {
   room: Room;
@@ -32,10 +108,17 @@ export function createRoomWhiteboardTransport(options: {
 }) {
   const { room, peerIdentity } = options;
   let closed = false;
-  const pendingChunks = new Map<
-    string,
-    { total: number; parts: Map<number, string>; receivedAt: number }
-  >();
+  const pendingChunks = new Map<string, ChunkBucket>();
+
+  function sendBytes(bytes: Uint8Array<ArrayBuffer>) {
+    return room.localParticipant
+      .publishData(bytes, {
+        reliable: true,
+        topic: whiteboardTopic,
+        destinationIdentities: [peerIdentity],
+      })
+      .catch(() => undefined);
+  }
 
   async function publishRaw(packet: WhiteboardPacket) {
     if (
@@ -49,39 +132,10 @@ export function createRoomWhiteboardTransport(options: {
     const raw = JSON.stringify(packet);
     const bytes = encoder.encode(raw);
     if (bytes.byteLength <= 12_000 || packet.type === "wb:delta_chunk") {
-      await room.localParticipant
-        .publishData(bytes, {
-          reliable: true,
-          topic: whiteboardTopic,
-          destinationIdentities: [peerIdentity],
-        })
-        .catch(() => undefined);
+      await sendBytes(bytes);
       return;
     }
-    const batchId = crypto.randomUUID();
-    const total = Math.ceil(raw.length / maxChunkChars);
-    for (let index = 0; index < total; index++) {
-      const data = raw.slice(
-        index * maxChunkChars,
-        (index + 1) * maxChunkChars,
-      );
-      const chunkBytes = encoder.encode(
-        JSON.stringify({
-          type: "wb:delta_chunk",
-          batchId,
-          index,
-          total,
-          data,
-        } satisfies WhiteboardPacket),
-      );
-      await room.localParticipant
-        .publishData(chunkBytes, {
-          reliable: true,
-          topic: whiteboardTopic,
-          destinationIdentities: [peerIdentity],
-        })
-        .catch(() => undefined);
-    }
+    await Promise.all(encodeChunkPayloads(raw).map(sendBytes));
   }
 
   function handleParsed(parsed: unknown) {
@@ -89,47 +143,27 @@ export function createRoomWhiteboardTransport(options: {
     const msg = parsed as Record<string, unknown>;
     if (msg.type === "wb:toggle" && typeof msg.open === "boolean") {
       options.onToggle(msg.open);
-    } else if (
+      return;
+    }
+    if (
       (msg.type === "wb:delta" || msg.type === "wb:sync_res") &&
       Array.isArray(msg.elements)
     ) {
       const valid = msg.elements.filter(isWhiteboardElement);
       if (valid.length) options.onElements(valid);
-    } else if (msg.type === "wb:sync_req") {
+      return;
+    }
+    if (msg.type === "wb:sync_req") {
       options.onSyncRequest();
-    } else if (
-      msg.type === "wb:delta_chunk" &&
-      typeof msg.batchId === "string" &&
-      typeof msg.index === "number" &&
-      typeof msg.total === "number" &&
-      typeof msg.data === "string" &&
-      msg.total > 0 &&
-      msg.total <= 200 &&
-      msg.index >= 0 &&
-      msg.index < msg.total
-    ) {
-      const now = Date.now();
-      for (const [id, entry] of pendingChunks) {
-        if (now - entry.receivedAt > 30_000) pendingChunks.delete(id);
-      }
-      const bucket = pendingChunks.get(msg.batchId) ?? {
-        total: msg.total,
-        parts: new Map<number, string>(),
-        receivedAt: now,
-      };
-      bucket.parts.set(msg.index, msg.data);
-      pendingChunks.set(msg.batchId, bucket);
-      if (bucket.parts.size === bucket.total) {
-        pendingChunks.delete(msg.batchId);
-        let full = "";
-        for (let i = 0; i < bucket.total; i++)
-          full += bucket.parts.get(i) ?? "";
-        try {
-          handleParsed(JSON.parse(full));
-        } catch {
-          /* Ignore malformed peer packet. */
-        }
-      }
+      return;
+    }
+    if (!isValidDeltaChunk(msg)) return;
+    const full = assembleChunkBatch(pendingChunks, msg);
+    if (!full) return;
+    try {
+      handleParsed(JSON.parse(full));
+    } catch {
+      /* Ignore malformed peer packet. */
     }
   }
 

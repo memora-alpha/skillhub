@@ -325,7 +325,7 @@ export type SessionRecording = {
   id: string;
   sessionId: string;
   status: SessionRecordingStatus;
-  kind: "ROOM_COMPOSITE_VIDEO" | "AUDIO_ONLY" | string;
+  kind: "ROOM_COMPOSITE_VIDEO" | "AUDIO_ONLY";
   requestedByUserId: string;
   acceptedByUserId: string | null;
   requestedAt: string;

@@ -49,6 +49,18 @@ function isPlaybackValid(playback: SessionRecordingPlayback) {
   );
 }
 
+function playbackErrorMessage(cause: unknown): string {
+  if (
+    cause instanceof UserApiError &&
+    cause.status === 503 &&
+    cause.code === "API_UNAVAILABLE"
+  ) {
+    return "Dịch vụ lưu trữ/phát bản ghi hiện chưa được cấu hình hoặc tạm gián đoạn trên máy chủ (HTTP 503).";
+  }
+  if (cause instanceof Error) return cause.message;
+  return "Không lấy được liên kết phát bản ghi.";
+}
+
 export function SessionRecordingsPanel({
   sessionId,
 }: Readonly<{ sessionId: string }>) {
@@ -91,15 +103,7 @@ export function SessionRecordingsPanel({
       }
       setPlaying({ id: recordingId, playback: res.data });
     } catch (cause) {
-      setActionError(
-        cause instanceof UserApiError &&
-          cause.status === 503 &&
-          cause.code === "API_UNAVAILABLE"
-          ? "Dịch vụ lưu trữ/phát bản ghi hiện chưa được cấu hình hoặc tạm gián đoạn trên máy chủ (HTTP 503)."
-          : cause instanceof Error
-            ? cause.message
-            : "Không lấy được liên kết phát bản ghi.",
-      );
+      setActionError(playbackErrorMessage(cause));
     } finally {
       setBusyId(null);
     }
@@ -254,7 +258,9 @@ export function SessionRecordingsPanel({
                     controlsList="nodownload"
                     src={playing.playback.url}
                     style={{ width: "100%" }}
-                  />
+                  >
+                    <track kind="captions" label="Phụ đề" />
+                  </audio>
                 ) : (
                   <video
                     controls
@@ -267,7 +273,9 @@ export function SessionRecordingsPanel({
                       borderRadius: 8,
                       background: "#000",
                     }}
-                  />
+                  >
+                    <track kind="captions" label="Phụ đề" />
+                  </video>
                 )}
                 <small style={{ color: "var(--muted)" }}>
                   Liên kết phát trực tuyến hết hạn lúc{" "}

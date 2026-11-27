@@ -183,6 +183,16 @@ export function ChatFiles({
     </fieldset>
   );
 }
+function resolveAttachmentState(
+  error: unknown,
+  data: { state: string; moderationStatus?: string } | undefined,
+): string {
+  if (error) return "UNAVAILABLE";
+  if (data?.moderationStatus === "BLOCKED") return "REJECTED";
+  if (data?.moderationStatus === "REVIEW_REQUIRED") return "REVIEW_REQUIRED";
+  return data?.state ?? "CHECKING";
+}
+
 function ChatFileRow({
   file,
   conversationId,
@@ -213,13 +223,7 @@ function ChatFileRow({
           : false,
     },
   );
-  const state = query.error
-    ? "UNAVAILABLE"
-    : query.data?.moderationStatus === "BLOCKED"
-      ? "REJECTED"
-      : query.data?.moderationStatus === "REVIEW_REQUIRED"
-        ? "REVIEW_REQUIRED"
-        : (query.data?.state ?? "CHECKING");
+  const state = resolveAttachmentState(query.error, query.data);
   useEffect(() => {
     onState(file.id, state);
   }, [file.id, state, onState]);

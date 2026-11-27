@@ -17,6 +17,12 @@ import {
 } from "./whiteboard-scene";
 import { createRoomWhiteboardTransport } from "./room-whiteboard-transport";
 
+function formatSaveError(cause: unknown): string {
+  return cause instanceof Error
+    ? cause.message
+    : "Chưa lưu được bảng trắng. Thay đổi vẫn được giữ trên màn hình.";
+}
+
 export function useRoomWhiteboard(options: {
   sessionId: string;
   enabled: boolean;
@@ -114,6 +120,85 @@ export function useRoomWhiteboard(options: {
     return () => clearTimeout(kickoff);
   }, [enabled, load]);
 
+  const applySavedRevision = useCallback((saved: SessionWhiteboardSave) => {
+    revisionRef.current = saved.revision;
+    setRevision(saved.revision);
+    setUpdatedAt(saved.updatedAt);
+    dirtyRef.current = false;
+    setDirty(false);
+  }, []);
+
+  const persistSnapshot = useCallback(
+    (expectedRevision: number, els: readonly WhiteboardElement[]) =>
+      request<SessionWhiteboardSave>(`sessions/${sessionId}/whiteboard`, {
+        method: "PUT",
+        body: {
+          expectedRevision,
+          sceneData: serializeWhiteboardScene(
+            els,
+            appStateRef.current,
+            filesRef.current,
+          ),
+        },
+      }),
+    [request, sessionId],
+  );
+
+  const resolveRevisionConflict = useCallback(async () => {
+    const latest = await request<SessionWhiteboard>(
+      `sessions/${sessionId}/whiteboard`,
+    );
+    const merged = applyServerSnapshot(latest.data, true);
+    if (latest.data.readOnly) return;
+    const retried = await persistSnapshot(latest.data.revision, merged);
+    applySavedRevision(retried.data);
+  }, [
+    applySavedRevision,
+    applyServerSnapshot,
+    persistSnapshot,
+    request,
+    sessionId,
+  ]);
+
+  const applyReadOnlyRejection = useCallback((cause: UserApiError) => {
+    let reason: WhiteboardReadOnlyReason | null = null;
+    if (
+      cause.details &&
+      typeof cause.details === "object" &&
+      "reason" in cause.details &&
+      typeof (cause.details as { reason?: unknown }).reason === "string"
+    ) {
+      reason = (cause.details as { reason: WhiteboardReadOnlyReason }).reason;
+    }
+    readOnlyRef.current = true;
+    dirtyRef.current = false;
+    setReadOnly(true);
+    setReadOnlyReason(reason);
+    setDirty(false);
+    setError(cause.message);
+  }, []);
+
+  const handleSaveFailure = useCallback(
+    async (cause: unknown) => {
+      if (cause instanceof UserApiError) {
+        if (cause.code === "WHITEBOARD_REVISION_CONFLICT") {
+          try {
+            await resolveRevisionConflict();
+          } catch (retryError) {
+            setError(formatSaveError(retryError));
+          }
+          return;
+        }
+        if (cause.code === "WHITEBOARD_READ_ONLY") {
+          applyReadOnlyRejection(cause);
+          return;
+        }
+      }
+      setError(formatSaveError(cause));
+    },
+    [applyReadOnlyRejection, resolveRevisionConflict],
+  );
+
   const saveNow = useCallback(async () => {
     if (readOnlyRef.current || savingRef.current || !dirtyRef.current) return;
     if (saveTimerRef.current) {
@@ -124,83 +209,18 @@ export function useRoomWhiteboard(options: {
     setSaving(true);
     setError(undefined);
     try {
-      const attemptSave = async (
-        expectedRevision: number,
-        els: readonly WhiteboardElement[],
-      ) =>
-        request<SessionWhiteboardSave>(`sessions/${sessionId}/whiteboard`, {
-          method: "PUT",
-          body: {
-            expectedRevision,
-            sceneData: serializeWhiteboardScene(
-              els,
-              appStateRef.current,
-              filesRef.current,
-            ),
-          },
-        });
-
-      try {
-        const saved = await attemptSave(
-          revisionRef.current,
-          elementsRef.current,
-        );
-        revisionRef.current = saved.data.revision;
-        setRevision(saved.data.revision);
-        setUpdatedAt(saved.data.updatedAt);
-        dirtyRef.current = false;
-        setDirty(false);
-      } catch (cause) {
-        if (
-          cause instanceof UserApiError &&
-          cause.code === "WHITEBOARD_REVISION_CONFLICT"
-        ) {
-          const latest = await request<SessionWhiteboard>(
-            `sessions/${sessionId}/whiteboard`,
-          );
-          const merged = applyServerSnapshot(latest.data, true);
-          if (!latest.data.readOnly) {
-            const retried = await attemptSave(latest.data.revision, merged);
-            revisionRef.current = retried.data.revision;
-            setRevision(retried.data.revision);
-            setUpdatedAt(retried.data.updatedAt);
-            dirtyRef.current = false;
-            setDirty(false);
-          }
-          return;
-        }
-        if (
-          cause instanceof UserApiError &&
-          cause.code === "WHITEBOARD_READ_ONLY"
-        ) {
-          const reason =
-            cause.details &&
-            typeof cause.details === "object" &&
-            "reason" in cause.details &&
-            typeof (cause.details as { reason?: unknown }).reason === "string"
-              ? (cause.details as { reason: WhiteboardReadOnlyReason }).reason
-              : null;
-          readOnlyRef.current = true;
-          dirtyRef.current = false;
-          setReadOnly(true);
-          setReadOnlyReason(reason);
-          setDirty(false);
-          setError(cause.message);
-          return;
-        }
-        throw cause;
-      }
-    } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : "Chưa lưu được bảng trắng. Thay đổi vẫn được giữ trên màn hình.",
+      const saved = await persistSnapshot(
+        revisionRef.current,
+        elementsRef.current,
       );
+      applySavedRevision(saved.data);
+    } catch (cause) {
+      await handleSaveFailure(cause);
     } finally {
       savingRef.current = false;
       setSaving(false);
     }
-  }, [applyServerSnapshot, request, sessionId]);
+  }, [applySavedRevision, handleSaveFailure, persistSnapshot]);
 
   // Peer-to-peer LiveKit DataChannel sync
   useEffect(() => {

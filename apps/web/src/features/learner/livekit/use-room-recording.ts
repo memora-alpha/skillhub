@@ -28,6 +28,18 @@ function parseRoomRecordingMetadata(
   }
 }
 
+function recordingActionErrorMessage(cause: unknown): string {
+  if (
+    cause instanceof UserApiError &&
+    cause.status === 503 &&
+    cause.code === "API_UNAVAILABLE"
+  ) {
+    return "Tính năng ghi hình hiện chưa được bật hoặc máy chủ chưa cấu hình dịch vụ ghi hình (HTTP 503).";
+  }
+  if (cause instanceof Error) return cause.message;
+  return "Không thực hiện được thao tác ghi hình.";
+}
+
 export function useRoomRecording(
   sessionId: string,
   room: Room | null,
@@ -130,15 +142,7 @@ export function useRoomRecording(
       await load();
     } catch (cause) {
       if (aliveRef.current) {
-        const message =
-          cause instanceof UserApiError &&
-          cause.status === 503 &&
-          cause.code === "API_UNAVAILABLE"
-            ? "Tính năng ghi hình hiện chưa được bật hoặc máy chủ chưa cấu hình dịch vụ ghi hình (HTTP 503)."
-            : cause instanceof Error
-              ? cause.message
-              : "Không thực hiện được thao tác ghi hình.";
-        setError(message);
+        setError(recordingActionErrorMessage(cause));
       }
       await load();
     } finally {

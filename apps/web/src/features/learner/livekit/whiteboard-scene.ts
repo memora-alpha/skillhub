@@ -33,7 +33,9 @@ export const WHITEBOARD_WIDTH = 1280;
 export const WHITEBOARD_HEIGHT = 720;
 
 export function randomNonce(): number {
-  return Math.floor(Math.random() * 2_000_000_000);
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return buf[0]! % 2_000_000_000;
 }
 
 export function isWhiteboardElement(
@@ -96,7 +98,7 @@ export function serializeWhiteboardScene(
 ): WhiteboardSceneData {
   const cleanAppState: Record<string, unknown> = {
     viewBackgroundColor: WHITEBOARD_DEFAULT_BG,
-    ...(appState ?? {}),
+    ...appState,
   };
   delete cleanAppState.collaborators;
   const deduped = new Map<string, WhiteboardElement>();
@@ -162,6 +164,182 @@ export function whiteboardReadOnlyMessage(
   }
 }
 
+function drawDotGrid(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+) {
+  ctx.fillStyle = "#e8e3dc";
+  for (let gx = 32; gx < width; gx += 32) {
+    for (let gy = 32; gy < height; gy += 32) {
+      ctx.fillRect(gx, gy, 1.5, 1.5);
+    }
+  }
+}
+
+function drawPointPath(
+  ctx: CanvasRenderingContext2D,
+  points: readonly [number, number][],
+  x: number,
+  y: number,
+  dotOnSingle: boolean,
+) {
+  const first = points[0]!;
+  ctx.beginPath();
+  ctx.moveTo(x + first[0], y + first[1]);
+  for (let i = 1; i < points.length; i++) {
+    const pt = points[i]!;
+    ctx.lineTo(x + pt[0], y + pt[1]);
+  }
+  if (dotOnSingle && points.length === 1) {
+    ctx.lineTo(x + first[0] + 0.5, y + first[1] + 0.5);
+  }
+  ctx.stroke();
+}
+
+function drawArrowHead(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  prev: [number, number],
+  last: [number, number],
+  strokeWidth: number,
+) {
+  const angle = Math.atan2(last[1] - prev[1], last[0] - prev[0]);
+  const head = Math.max(10, strokeWidth * 4);
+  const tx = x + last[0];
+  const ty = y + last[1];
+  ctx.beginPath();
+  ctx.moveTo(tx, ty);
+  ctx.lineTo(
+    tx - head * Math.cos(angle - Math.PI / 6),
+    ty - head * Math.sin(angle - Math.PI / 6),
+  );
+  ctx.moveTo(tx, ty);
+  ctx.lineTo(
+    tx - head * Math.cos(angle + Math.PI / 6),
+    ty - head * Math.sin(angle + Math.PI / 6),
+  );
+  ctx.stroke();
+}
+
+function drawDiamond(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + w / 2, y);
+  ctx.lineTo(x + w, y + h / 2);
+  ctx.lineTo(x + w / 2, y + h);
+  ctx.lineTo(x, y + h / 2);
+  ctx.closePath();
+  ctx.stroke();
+}
+
+function drawTextElement(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  rawFontSize: unknown,
+) {
+  const fontSize =
+    typeof rawFontSize === "number" && rawFontSize > 0 ? rawFontSize : 20;
+  ctx.font = `500 ${fontSize}px system-ui, -apple-system, sans-serif`;
+  ctx.textBaseline = "top";
+  text.split("\n").forEach((line, idx) => {
+    ctx.fillText(line, x, y + idx * (fontSize * 1.3));
+  });
+}
+
+function drawWhiteboardShape(
+  ctx: CanvasRenderingContext2D,
+  el: WhiteboardElement,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  strokeWidth: number,
+) {
+  if (el.type === "freedraw" && Array.isArray(el.points) && el.points.length) {
+    drawPointPath(ctx, el.points, x, y, true);
+    return;
+  }
+  if (
+    (el.type === "line" || el.type === "arrow") &&
+    Array.isArray(el.points) &&
+    el.points.length >= 2
+  ) {
+    drawPointPath(ctx, el.points, x, y, false);
+    if (el.type === "arrow") {
+      drawArrowHead(
+        ctx,
+        x,
+        y,
+        el.points.at(-2)!,
+        el.points.at(-1)!,
+        strokeWidth,
+      );
+    }
+    return;
+  }
+  if (el.type === "rectangle") {
+    ctx.strokeRect(x, y, w, h);
+    return;
+  }
+  if (el.type === "diamond") {
+    drawDiamond(ctx, x, y, w, h);
+    return;
+  }
+  if (el.type === "ellipse") {
+    ctx.beginPath();
+    ctx.ellipse(
+      x + w / 2,
+      y + h / 2,
+      Math.abs(w / 2),
+      Math.abs(h / 2),
+      0,
+      0,
+      Math.PI * 2,
+    );
+    ctx.stroke();
+    return;
+  }
+  if (el.type === "text" && typeof el.text === "string") {
+    drawTextElement(ctx, el.text, x, y, el.fontSize);
+  }
+}
+
+function drawWhiteboardElement(
+  ctx: CanvasRenderingContext2D,
+  el: WhiteboardElement,
+) {
+  const x = typeof el.x === "number" ? el.x : 0;
+  const y = typeof el.y === "number" ? el.y : 0;
+  const w = typeof el.width === "number" ? el.width : 0;
+  const h = typeof el.height === "number" ? el.height : 0;
+  const color =
+    typeof el.strokeColor === "string" && el.strokeColor
+      ? el.strokeColor
+      : "#1e1e1e";
+  const strokeWidth =
+    typeof el.strokeWidth === "number" && el.strokeWidth > 0
+      ? el.strokeWidth
+      : 2;
+
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = strokeWidth;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  drawWhiteboardShape(ctx, el, x, y, w, h, strokeWidth);
+  ctx.restore();
+}
+
 export function renderWhiteboardScene(
   ctx: CanvasRenderingContext2D,
   elements: readonly WhiteboardElement[],
@@ -172,119 +350,9 @@ export function renderWhiteboardScene(
   ctx.save();
   ctx.fillStyle = bgColor;
   ctx.fillRect(0, 0, width, height);
-
-  // Subtle dot grid for readability
-  ctx.fillStyle = "#e8e3dc";
-  for (let gx = 32; gx < width; gx += 32) {
-    for (let gy = 32; gy < height; gy += 32) {
-      ctx.fillRect(gx, gy, 1.5, 1.5);
-    }
-  }
-
+  drawDotGrid(ctx, width, height);
   for (const el of elements) {
-    if (el.isDeleted) continue;
-    const x = typeof el.x === "number" ? el.x : 0;
-    const y = typeof el.y === "number" ? el.y : 0;
-    const w = typeof el.width === "number" ? el.width : 0;
-    const h = typeof el.height === "number" ? el.height : 0;
-    const color =
-      typeof el.strokeColor === "string" && el.strokeColor
-        ? el.strokeColor
-        : "#1e1e1e";
-    const strokeWidth =
-      typeof el.strokeWidth === "number" && el.strokeWidth > 0
-        ? el.strokeWidth
-        : 2;
-
-    ctx.save();
-    ctx.strokeStyle = color;
-    ctx.fillStyle = color;
-    ctx.lineWidth = strokeWidth;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-
-    if (
-      el.type === "freedraw" &&
-      Array.isArray(el.points) &&
-      el.points.length
-    ) {
-      ctx.beginPath();
-      const first = el.points[0]!;
-      ctx.moveTo(x + first[0], y + first[1]);
-      for (let i = 1; i < el.points.length; i++) {
-        const pt = el.points[i]!;
-        ctx.lineTo(x + pt[0], y + pt[1]);
-      }
-      if (el.points.length === 1) {
-        ctx.lineTo(x + first[0] + 0.5, y + first[1] + 0.5);
-      }
-      ctx.stroke();
-    } else if (
-      (el.type === "line" || el.type === "arrow") &&
-      Array.isArray(el.points) &&
-      el.points.length >= 2
-    ) {
-      const first = el.points[0]!;
-      const last = el.points.at(-1)!;
-      ctx.beginPath();
-      ctx.moveTo(x + first[0], y + first[1]);
-      for (let i = 1; i < el.points.length; i++) {
-        const pt = el.points[i]!;
-        ctx.lineTo(x + pt[0], y + pt[1]);
-      }
-      ctx.stroke();
-      if (el.type === "arrow") {
-        const prev = el.points.at(-2)!;
-        const angle = Math.atan2(last[1] - prev[1], last[0] - prev[0]);
-        const head = Math.max(10, strokeWidth * 4);
-        const tx = x + last[0];
-        const ty = y + last[1];
-        ctx.beginPath();
-        ctx.moveTo(tx, ty);
-        ctx.lineTo(
-          tx - head * Math.cos(angle - Math.PI / 6),
-          ty - head * Math.sin(angle - Math.PI / 6),
-        );
-        ctx.moveTo(tx, ty);
-        ctx.lineTo(
-          tx - head * Math.cos(angle + Math.PI / 6),
-          ty - head * Math.sin(angle + Math.PI / 6),
-        );
-        ctx.stroke();
-      }
-    } else if (el.type === "rectangle") {
-      ctx.strokeRect(x, y, w, h);
-    } else if (el.type === "diamond") {
-      ctx.beginPath();
-      ctx.moveTo(x + w / 2, y);
-      ctx.lineTo(x + w, y + h / 2);
-      ctx.lineTo(x + w / 2, y + h);
-      ctx.lineTo(x, y + h / 2);
-      ctx.closePath();
-      ctx.stroke();
-    } else if (el.type === "ellipse") {
-      ctx.beginPath();
-      ctx.ellipse(
-        x + w / 2,
-        y + h / 2,
-        Math.abs(w / 2),
-        Math.abs(h / 2),
-        0,
-        0,
-        Math.PI * 2,
-      );
-      ctx.stroke();
-    } else if (el.type === "text" && typeof el.text === "string") {
-      const fontSize =
-        typeof el.fontSize === "number" && el.fontSize > 0 ? el.fontSize : 20;
-      ctx.font = `500 ${fontSize}px system-ui, -apple-system, sans-serif`;
-      ctx.textBaseline = "top";
-      const lines = el.text.split("\n");
-      lines.forEach((line, idx) => {
-        ctx.fillText(line, x, y + idx * (fontSize * 1.3));
-      });
-    }
-    ctx.restore();
+    if (!el.isDeleted) drawWhiteboardElement(ctx, el);
   }
   ctx.restore();
 }

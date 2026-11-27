@@ -212,15 +212,21 @@ export function userQuery(search: URLSearchParams) {
   }
   return result.size ? "?" + result : "";
 }
+const bodylessPostPatterns: readonly RegExp[] = [
+  /^payments\/[0-9a-f-]+\/cancel$/i,
+  /^sessions\/paths\/[0-9a-f-]+\/settlement$/i,
+  /^sessions\/[0-9a-f-]+\/recordings$/i,
+  /^sessions\/[0-9a-f-]+\/recordings\/[0-9a-f-]+\/(accept|decline|stop)$/i,
+  /^me\/material-orders\/[0-9a-f-]+\/refund$/i,
+  /^materials\/[0-9a-f-]+\/favorite$/i,
+];
 export function isBodyless(method: string, target: string) {
   if (method === "POST" && target === "rewards/redemptions/lookup") return true;
   if (method === "PATCH")
     return /^notifications\/[0-9a-f-]+\/read$/i.test(target);
   return (
     method === "POST" &&
-    /^(payments\/[0-9a-f-]+\/cancel|sessions\/paths\/[0-9a-f-]+\/settlement|sessions\/[0-9a-f-]+\/recordings(\/[0-9a-f-]+\/(accept|decline|stop))?|me\/material-orders\/[0-9a-f-]+\/refund|materials\/[0-9a-f-]+\/favorite)$/i.test(
-      target,
-    )
+    bodylessPostPatterns.some((pattern) => pattern.test(target))
   );
 }
 export function userIdentity(value: unknown) {

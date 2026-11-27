@@ -190,7 +190,9 @@ export function SessionEvidenceReview({
                     controlsList="nodownload"
                     src={playback.url}
                     style={{ width: "100%" }}
-                  />
+                  >
+                    <track kind="captions" label="Phụ đề" />
+                  </audio>
                 ) : (
                   <video
                     controls
@@ -203,7 +205,9 @@ export function SessionEvidenceReview({
                       borderRadius: 8,
                       background: "#000",
                     }}
-                  />
+                  >
+                    <track kind="captions" label="Phụ đề" />
+                  </video>
                 )}
                 <small className="muted">
                   Liên kết phát có hiệu lực tới{" "}

@@ -145,11 +145,7 @@ export function ChatAttachmentsModerationScreen() {
         }
       />
 
-      {notice && (
-        <output className="staff-success" role="status">
-          {notice}
-        </output>
-      )}
+      {notice && <output className="staff-success">{notice}</output>}
 
       <Card>
         <QueueState
