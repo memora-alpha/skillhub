@@ -6,4 +6,10 @@ type Context = { params: Promise<{ path: string[] }> };
 async function handler(request: NextRequest, context: Context) {
   return userGateway(request, (await context.params).path);
 }
-export { handler as GET, handler as POST, handler as PATCH, handler as DELETE };
+export {
+  handler as GET,
+  handler as POST,
+  handler as PUT,
+  handler as PATCH,
+  handler as DELETE,
+};

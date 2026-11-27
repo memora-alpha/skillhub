@@ -254,6 +254,51 @@ const messages: Record<string, string> = {
   LIVEKIT_POLICY_NOT_READY:
     "Phòng học chưa có cấu hình thời gian mở. Hãy kiểm tra lại sau hoặc liên hệ hỗ trợ.",
   LIVEKIT_DISABLED: "Máy chủ chưa bật phòng học.",
+  WHITEBOARD_POLICY_NOT_READY:
+    "Cấu hình bảng trắng chưa sẵn sàng. Vui lòng thử lại sau.",
+  WHITEBOARD_READ_ONLY:
+    "Bảng trắng đang ở chế độ chỉ đọc nên chưa thể lưu thay đổi.",
+  WHITEBOARD_REVISION_CONFLICT:
+    "Bảng trắng vừa có cập nhật mới từ phía còn lại. Đang đồng bộ lại.",
+  WHITEBOARD_SCENE_TOO_LARGE:
+    "Nội dung bảng trắng vượt quá giới hạn 2 MB. Hãy xóa bớt nét vẽ cũ.",
+  INVALID_WHITEBOARD_SCENE: "Dữ liệu bảng trắng chưa đúng định dạng.",
+  SESSION_UNDER_REPORT:
+    "Buổi học đang có báo cáo mở nên bảng trắng được khóa chỉ đọc để giữ nguyên bằng chứng.",
+  SESSION_NOT_EDITABLE:
+    "Trạng thái buổi học hiện tại không cho phép chỉnh sửa bảng trắng.",
+  EDIT_WINDOW_NOT_OPEN: "Chưa đến khung giờ cho phép chỉnh sửa bảng trắng.",
+  EDIT_WINDOW_CLOSED: "Đã hết thời hạn chỉnh sửa bảng trắng của buổi học.",
+  RECORDING_DISABLED: "Tính năng ghi hình buổi học hiện chưa được bật.",
+  RECORDING_UNAVAILABLE:
+    "Dịch vụ ghi hình hoặc lưu trữ bản ghi hiện chưa sẵn sàng.",
+  RECORDING_ALREADY_ACTIVE:
+    "Buổi học đã có yêu cầu hoặc phiên ghi hình đang hoạt động.",
+  RECORDING_WINDOW_NOT_OPEN:
+    "Chỉ có thể ghi hình trong khung giờ mở phòng khi buổi học đang sẵn sàng hoặc diễn ra.",
+  RECORDING_ROOM_NOT_STARTED:
+    "Cần có người tham gia đã vào phòng học trước khi bắt đầu ghi hình.",
+  RECORDING_STATE_CONFLICT:
+    "Trạng thái ghi hình đã thay đổi. Đang tải lại trạng thái mới nhất.",
+  RECORDING_ACTION_NOT_ALLOWED:
+    "Chỉ người còn lại mới có thể đồng ý hoặc từ chối yêu cầu ghi hình.",
+  RECORDING_NOT_FOUND: "Không tìm thấy bản ghi buổi học này.",
+  RECORDING_NOT_READY:
+    "Bản ghi chưa sẵn sàng phát lại hoặc đã hết thời hạn lưu trữ.",
+  RECORDING_HELD_BY_REPORT:
+    "Bản ghi đang được tạm giữ vì buổi học có báo cáo tranh chấp đang mở nên chưa thể xóa.",
+  CHAT_DOWNLOAD_UNAVAILABLE:
+    "Dịch vụ tải tệp tin nhắn tạm thời chưa sẵn sàng. Vui lòng thử lại sau.",
+  CHAT_REPLICA_SET_OR_INDEXES_UNAVAILABLE:
+    "Hệ thống tin nhắn đang tạm thời bảo trì. Vui lòng thử lại sau ít phút.",
+  CHAT_STORE_UNAVAILABLE:
+    "Dịch vụ lưu trữ tin nhắn đang tạm gián đoạn. Vui lòng thử lại sau.",
+  COMMITTED_DRAFT_MISSING:
+    "Tin nhắn đang được đồng bộ lại. Hãy tải lại cuộc trò chuyện để kiểm tra.",
+  MESSAGE_NOT_READY:
+    "Tin nhắn chưa sẵn sàng hiển thị. Hãy tải lại sau ít giây.",
+  EVENT_CONNECTIONS_UNAVAILABLE:
+    "Kênh cập nhật trực tuyến đang tạm gián đoạn. Hệ thống sẽ tự kết nối lại.",
   JOIN_WINDOW_NOT_OPEN: "Chưa đến giờ mở phòng.",
   JOIN_WINDOW_CLOSED: "Đã hết giờ vào phòng.",
   SESSION_ATTENDANCE_NOT_MET: "Điểm danh chưa đủ điều kiện xác nhận hoàn tất.",
@@ -301,7 +346,7 @@ export function userErrorText(status: number, code: string) {
   }
 }
 export type UserRequestOptions = {
-  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   key?: string;
   signal?: AbortSignal;

@@ -102,6 +102,28 @@ export type Conversation = {
   participantBId: string;
   createdAt: string;
 };
+export type ChatAttachmentAccessStatus =
+  "PENDING_SCAN" | "AVAILABLE" | "REVOKED" | "UNAVAILABLE";
+export type ChatAttachmentModerationStatus =
+  "PENDING" | "APPROVED" | "REVIEW_REQUIRED" | "BLOCKED" | "FAILED";
+export type MessageAttachment = {
+  attachmentId: string;
+  fileId?: string;
+  filename: string;
+  mimeType?: string;
+  fileSizeBytes?: number;
+  attachmentType?: "IMAGE" | "DOCUMENT";
+  width?: number | null;
+  height?: number | null;
+  accessStatus?: ChatAttachmentAccessStatus;
+  availability?: ChatAttachmentAccessStatus;
+  moderationStatus?: ChatAttachmentModerationStatus;
+  restrictionReason?: "BLOCKED" | "REVOKED";
+  downloadUrlEndpoint?: string;
+  contentUrlEndpoint?: string;
+  previewUrlEndpoint?: string;
+  thumbnailUrlEndpoint?: string;
+};
 export type Message = {
   readAt?: string | null;
   id: string;
@@ -110,12 +132,7 @@ export type Message = {
   messageType: string;
   sentAt: string;
   sequence: string;
-  attachments: {
-    attachmentId: string;
-    fileId?: string;
-    filename: string;
-    fileSizeBytes?: number;
-  }[];
+  attachments: MessageAttachment[];
   objectType?: string;
   objectId?: string;
 };
@@ -267,4 +284,63 @@ export type LiveKitCredentials = {
   expiresAt: string;
   joinOpensAt: string;
   joinClosesAt: string;
+};
+
+export type WhiteboardReadOnlyReason =
+  | "SESSION_NOT_EDITABLE"
+  | "SESSION_UNDER_REPORT"
+  | "WHITEBOARD_POLICY_NOT_READY"
+  | "EDIT_WINDOW_NOT_OPEN"
+  | "EDIT_WINDOW_CLOSED";
+
+export type SessionWhiteboard = {
+  revision: number;
+  sceneData: Record<string, unknown> | null;
+  updatedAt: string | null;
+  updatedByUserId: string | null;
+  readOnly: boolean;
+  readOnlyReason: WhiteboardReadOnlyReason | null;
+  editableFrom: string | null;
+  editableUntil: string | null;
+};
+
+export type SessionWhiteboardSave = {
+  revision: number;
+  updatedAt: string;
+};
+
+export type SessionRecordingStatus =
+  | "REQUESTED"
+  | "DECLINED"
+  | "REQUEST_EXPIRED"
+  | "STARTING"
+  | "RECORDING"
+  | "STOPPING"
+  | "READY"
+  | "FAILED"
+  | "EXPIRED"
+  | "DELETED";
+
+export type SessionRecording = {
+  id: string;
+  sessionId: string;
+  status: SessionRecordingStatus;
+  kind: "ROOM_COMPOSITE_VIDEO" | "AUDIO_ONLY" | string;
+  requestedByUserId: string;
+  acceptedByUserId: string | null;
+  requestedAt: string;
+  startedAt: string | null;
+  endedAt: string | null;
+  durationMs: number | null;
+  bytes: number | null;
+  stopReason: string | null;
+  expiresAt: string | null;
+  heldByReport: boolean;
+  deletedAt: string | null;
+};
+
+export type SessionRecordingPlayback = {
+  url: string;
+  expiresAt: string;
+  mime: string;
 };

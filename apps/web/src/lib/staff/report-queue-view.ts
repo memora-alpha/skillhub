@@ -7,10 +7,12 @@ export function reportQueueParams(input: {
   severity: string;
   source: string;
   handlerId?: string;
+  contentReview?: string;
 }) {
   const params = new URLSearchParams({ limit: "20" });
   if (input.severity) params.set("severity", input.severity);
   if (input.handlerId) params.set("handlerId", input.handlerId);
+  if (input.contentReview) params.set("contentReview", input.contentReview);
   if (input.view === "actionable") {
     params.set("source", "USER");
     if (openReportStatuses.includes(input.status))

@@ -113,6 +113,7 @@ export function LearnerShell({
         "chat.delivery.updated",
         "chat.read.updated",
         "chat.attachment.updated",
+        "chat.attachment.availability.updated",
         "proposal.created",
         "proposal.updated",
         "proposal.accepted",

@@ -18,6 +18,7 @@ export async function userUpload(
   path: string,
   token: string,
   maxBytes: number,
+  idempotencyKey?: string,
 ) {
   const contentType = request.headers.get("content-type");
   if (!contentType?.startsWith("multipart/form-data;"))
@@ -73,6 +74,7 @@ export async function userUpload(
         Accept: "application/json",
         Authorization: "Bearer " + token,
         "X-Request-Id": randomUUID(),
+        ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
       },
       body: form,
     });

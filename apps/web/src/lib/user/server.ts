@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
 import { apiBase, userBackend, userJson, UserGatewayError } from "./backend";
+import { readBackendReply, rejectUpstreamChallenge } from "../gateway/upstream";
 import {
   userIdentity,
   userUpstreamPath,
@@ -136,22 +138,82 @@ async function session(request: NextRequest, refresh: boolean) {
   const token = request.cookies.get(REFRESH)?.value;
   return refresh ? refreshSession(token) : loginSession(request, token);
 }
+const chatAttachmentBinary =
+  /^conversations\/[0-9a-f-]{36}\/messages\/[0-9a-f-]{36}\/attachments\/[0-9a-f-]{36}\/(content|preview|thumbnail)$/i;
+const whiteboardRoute = /^sessions\/[0-9a-f-]{36}\/whiteboard$/i;
+const whiteboardBodyCap = 2 * 1024 * 1024 + 4096;
+
+async function proxyChatAttachmentBinary(
+  request: NextRequest,
+  target: string,
+  token: string,
+) {
+  const url = new URL(target, apiBase());
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "GET",
+      cache: "no-store",
+      redirect: "error",
+      signal: AbortSignal.any([request.signal, AbortSignal.timeout(30000)]),
+      headers: {
+        Authorization: "Bearer " + token,
+        "X-Request-Id": randomUUID(),
+      },
+    });
+  } catch {
+    throw new UserGatewayError(504, "API_UNAVAILABLE");
+  }
+  await rejectUpstreamChallenge(response);
+  if (response.status !== 200) {
+    const failed = await readBackendReply(response);
+    return reply(failed.value, failed.status);
+  }
+  if (!response.body) throw new UserGatewayError(502, "API_RESPONSE_INVALID");
+  const contentType =
+    response.headers.get("content-type")?.split(";")[0]?.trim() ||
+    "application/octet-stream";
+  const contentLength = response.headers.get("content-length");
+  const contentDisposition = response.headers.get("content-disposition");
+  return new NextResponse(response.body, {
+    status: 200,
+    headers: {
+      "Cache-Control": "private, no-store",
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": "default-src 'none'; sandbox",
+      "Referrer-Policy": "no-referrer",
+      "Content-Type": contentType,
+      ...(contentLength ? { "Content-Length": contentLength } : {}),
+      ...(contentDisposition
+        ? { "Content-Disposition": contentDisposition }
+        : {}),
+    },
+  });
+}
+
 async function forwardRequest(request: NextRequest, segments: string[]) {
   const target = userUpstreamPath(request.method, segments);
   if (!target) throw new UserGatewayError(404, "ROUTE_NOT_AVAILABLE");
   const token = accessToken(request);
-  const cap = request.method === "POST" ? uploadLimit(target) : null;
-  if (cap) {
-    const result = await userUpload(request, target, token, cap);
-    return reply(result.value, result.status);
+  if (request.method === "GET" && chatAttachmentBinary.test(target)) {
+    return proxyChatAttachmentBinary(request, target, token);
   }
   const key = request.headers.get("idempotency-key") ?? undefined;
   if (key && (key.length > 200 || /[\r\n]/.test(key)))
     throw new UserGatewayError(400, "INVALID_IDEMPOTENCY_KEY");
+  const cap = request.method === "POST" ? uploadLimit(target) : null;
+  if (cap) {
+    const result = await userUpload(request, target, token, cap, key);
+    return reply(result.value, result.status);
+  }
+  const maxBodyBytes =
+    request.method === "PUT" && whiteboardRoute.test(target)
+      ? whiteboardBodyCap
+      : 262144;
   const body =
     !isBodyless(request.method, target) &&
-    ["POST", "PATCH"].includes(request.method)
-      ? await userJson(request)
+    ["POST", "PUT", "PATCH"].includes(request.method)
+      ? await userJson(request, maxBodyBytes)
       : undefined;
   const result = await userBackend(
     target + userQuery(request.nextUrl.searchParams),

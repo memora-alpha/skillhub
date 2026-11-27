@@ -37,7 +37,7 @@ const allowed: Record<string, RegExp[]> = {
         uuid +
         "/attachments/" +
         uuid +
-        "/download",
+        "/(download|content|preview|thumbnail)",
     ),
     route("me"),
     route("me/avatar/uploads/" + uuid),
@@ -82,6 +82,8 @@ const allowed: Record<string, RegExp[]> = {
     ),
     route("learning-paths/(mine|" + uuid + ")"),
     route("sessions/(mine|" + uuid + ")"),
+    route("sessions/" + uuid + "/whiteboard"),
+    route("sessions/" + uuid + "/recordings(/" + uuid + "/playback)?"),
   ],
   POST: [
     route("rewards/redemptions(/lookup)?"),
@@ -142,7 +144,11 @@ const allowed: Record<string, RegExp[]> = {
         uuid +
         "/(livekit-token|confirm-completion|absence-excuse|absence-excuse/decision|reschedule-proposals)",
     ),
+    route(
+      "sessions/" + uuid + "/recordings(/" + uuid + "/(accept|decline|stop))?",
+    ),
   ],
+  PUT: [route("sessions/" + uuid + "/whiteboard")],
   PATCH: [
     route("material-reviews/" + uuid),
     route("me/notification-preferences"),
@@ -163,6 +169,7 @@ const allowed: Record<string, RegExp[]> = {
     route("me/avatar"),
     route("notifications/push-tokens/" + uuid),
     route("material-reviews/" + uuid),
+    route("sessions/" + uuid + "/recordings/" + uuid),
   ],
 };
 export function userUpstreamPath(method: string, segments: string[]) {
@@ -211,7 +218,7 @@ export function isBodyless(method: string, target: string) {
     return /^notifications\/[0-9a-f-]+\/read$/i.test(target);
   return (
     method === "POST" &&
-    /^(payments\/[0-9a-f-]+\/cancel|sessions\/paths\/[0-9a-f-]+\/settlement|me\/material-orders\/[0-9a-f-]+\/refund|materials\/[0-9a-f-]+\/favorite)$/i.test(
+    /^(payments\/[0-9a-f-]+\/cancel|sessions\/paths\/[0-9a-f-]+\/settlement|sessions\/[0-9a-f-]+\/recordings(\/[0-9a-f-]+\/(accept|decline|stop))?|me\/material-orders\/[0-9a-f-]+\/refund|materials\/[0-9a-f-]+\/favorite)$/i.test(
       target,
     )
   );

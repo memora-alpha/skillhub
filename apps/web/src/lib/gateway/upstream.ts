@@ -48,6 +48,26 @@ export async function rejectUpstreamChallenge(response: Response) {
   throw new GatewayError(502, "API_UPSTREAM_CHALLENGE");
 }
 
+const public503Codes = new Set([
+  "CONNECTION_POLICY_UNAVAILABLE",
+  "CONTENT_MODERATION_TEMPORARILY_UNAVAILABLE",
+  "CHAT_REPLICA_SET_OR_INDEXES_UNAVAILABLE",
+  "CHAT_STORE_UNAVAILABLE",
+  "COMMITTED_DRAFT_MISSING",
+  "MESSAGE_NOT_READY",
+  "EVENT_CONNECTIONS_UNAVAILABLE",
+  "LIVEKIT_DISABLED",
+  "PAYMENT_PROVIDER_UNAVAILABLE",
+  "PAYMENT_CREATION_PAUSED",
+  "PAYMENT_CHANNEL_RECONCILIATION_REQUIRED",
+  "PAYMENT_CHANNEL_UNAVAILABLE",
+  "PAYMENT_CANCELLATION_UNCONFIRMED",
+  "CHAT_DOWNLOAD_UNAVAILABLE",
+  "RECORDING_DISABLED",
+  "RECORDING_UNAVAILABLE",
+  "WHITEBOARD_POLICY_NOT_READY",
+]);
+
 export async function readBackendReply(
   response: Response,
 ): Promise<BackendReply> {
@@ -64,8 +84,8 @@ export async function readBackendReply(
           "success" in value &&
           value.success === false &&
           "message" in value &&
-          (value.message === "CONNECTION_POLICY_UNAVAILABLE" ||
-            value.message === "CONTENT_MODERATION_TEMPORARILY_UNAVAILABLE")
+          typeof value.message === "string" &&
+          public503Codes.has(value.message)
         )
           return {
             status: 503,

@@ -62,6 +62,7 @@ export function SupportQueueScreen({
   const [severity, setSeverity] = useState("");
   const [status, setStatus] = useState("");
   const [source, setSource] = useState("");
+  const [contentReview, setContentReview] = useState("");
   const [search, setSearch] = useState("");
   const [currentId, setCurrentId] = useState<string>();
   const [mobileDetail, setMobileDetail] = useState(false);
@@ -80,6 +81,7 @@ export function SupportQueueScreen({
     severity,
     status,
     source,
+    contentReview,
     handlerId: assignedOnly ? actor?.userId : undefined,
   });
   const list = useStaffListPages<SupportCase>(
@@ -243,6 +245,22 @@ export function SupportQueueScreen({
                 {label}
               </option>
             ))}
+          </select>
+        </label>
+        <label className="ops-filter">
+          <span>Kiểm duyệt tệp</span>
+          <select
+            className="select"
+            aria-label="Kiểm duyệt tệp bằng chứng"
+            value={contentReview}
+            onChange={(e) => {
+              setContentReview(e.target.value);
+              reset();
+            }}
+          >
+            <option value="">Tất cả</option>
+            <option value="REQUIRED">Cần kiểm duyệt</option>
+            <option value="PENDING">Đang quét</option>
           </select>
         </label>
         <label className="ops-filter">

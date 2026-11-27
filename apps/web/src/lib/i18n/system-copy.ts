@@ -108,6 +108,9 @@ const notificationTitles: Record<string, string> = {
   "Material order refunded": "Đơn mua tài liệu đã được hoàn Credit",
   "Material purchased": "Đã mua tài liệu",
   "Material sold": "Tài liệu đã có người mua",
+  "Recording requested": "Có yêu cầu ghi hình buổi học",
+  "Recording failed": "Không thể hoàn tất ghi hình buổi học",
+  "Recording deleted": "Bản ghi buổi học đã bị xóa",
 };
 
 const notificationBodies: Record<string, string> = {
@@ -150,6 +153,12 @@ const notificationBodies: Record<string, string> = {
     "Tài liệu bạn đã mua hiện có thể tải xuống.",
   "A buyer purchased your learning material.":
     "Một người dùng đã mua tài liệu học tập của bạn.",
+  "Your partner asked to record this session for later review. Accept or decline in the room.":
+    "Đối phương đã yêu cầu ghi hình buổi học này để xem lại sau. Hãy đồng ý hoặc từ chối ngay trong phòng học.",
+  "The session recording could not be completed. The session itself is not affected.":
+    "Không thể hoàn tất bản ghi buổi học. Bản thân buổi học không bị ảnh hưởng.",
+  "Your partner deleted the recording of your session. It is no longer available to either of you.":
+    "Đối phương đã xóa bản ghi của buổi học này. Bản ghi không còn khả dụng cho cả hai bên.",
 };
 
 const reportStatuses: Record<string, string> = {
