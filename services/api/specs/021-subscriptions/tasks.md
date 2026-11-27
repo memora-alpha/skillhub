@@ -61,5 +61,5 @@
 
 ## Verification
 
-- [ ] T030 Real PostgreSQL concurrency tests for purchase, renewal and minutes
-- [ ] T031 `pnpm --filter api lint`, `check-types`, `build` and affected suites; record results in `validation.md`
+- [x] T030 Real PostgreSQL concurrency tests for purchase, renewal and minutes
+- [x] T031 `pnpm --filter api lint`, `check-types`, `build` and affected suites; record results in `validation.md`

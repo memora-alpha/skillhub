@@ -148,12 +148,42 @@ Design notes:
 
 Not covered: two concurrent attaches near the limit on PostgreSQL (US8 independent test); T030.
 
+## Real PostgreSQL — T030/T031 (2026-11-27)
+
+Run on the developer's local PostgreSQL 17 service (port 5432, server timezone `Asia/Bangkok`) with
+user approval. Every suite migrates a fresh `skills_test_<uuid>` schema and drops it; the `public` schema
+is never read or written. Docker was unavailable, so no throwaway container was used.
+
+| Check                                                                                    | Result                                                                                                                                                                                      |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test:subscriptions:integration` (`subscriptions`, `subscriptions-http`, `release-seed`) | 12/12 pass                                                                                                                                                                                  |
+| Migrations                                                                               | All 68 apply on a fresh schema; the four spec 021 CHECKs exist; the one-current partial unique index and `termEnd > termStart` reject bad rows                                              |
+| Concurrent purchases (3 keys)                                                            | One succeeds, two `SUBSCRIPTION_ALREADY_ACTIVE`; one charge, one `SUBSCRIPTION_CHARGE` operation with a `SUBSCRIPTION_PURCHASE` ledger row; replaying the winning key charges nothing       |
+| Short balance                                                                            | `INSUFFICIENT_AVAILABLE_CREDIT`, no subscription row                                                                                                                                        |
+| `renewDue` × 3 concurrently                                                              | Raw `FOR UPDATE SKIP LOCKED` claim works; renewed once, one RENEWAL charge, one `subscription.renewed` event; next run finds nothing                                                        |
+| Minutes vs add-on                                                                        | 3 concurrent minute charges and an add-on purchase: used 23, add-on 60, wallet debited once; no lost update                                                                                 |
+| Material storage                                                                         | 3 concurrent 2000-byte attaches under a 3000-byte plan: exactly one passes (US8 independent test)                                                                                           |
+| HTTP (Nest testing module, real guard)                                                   | 401 without session; `IDEMPOTENCY_KEY_REQUIRED`; DTO validation; purchase, add-on, `GET /me/subscription`, charges with Credit strings                                                      |
+| Release seed `subscriptions-20261127`                                                    | `seedIdentity` + `seedApprovedConfigurations` twice: USER/STAFF/ADMIN subscription permissions as specified; `subscription.enabled = false`; add-on 60/30; Free defaults                    |
+| Schema drift (`prisma migrate diff`, migrated schema vs `schema.prisma`)                 | 87 lines of drift, identical to the pre-021 base (`d54c775a`): FKs, `updated_at` defaults, `proposals.expires_at`. Nothing touches spec 021 objects; the pre-existing drift is out of scope |
+| Existing materials integration suites                                                    | Pass (purchase path with `feeTiers` wiring, lifecycle, access, reviews, reports, favorites, covers)                                                                                         |
+| `learning-platform/finalize.integration`                                                 | Pass (one transient failure in a run that overlapped other DDL; three reruns pass)                                                                                                          |
+| `learning-platform/path-activity.integration`                                            | Fails only under the server's `Asia/Bangkok` timezone (dates shift 7 h); passes with session `TimeZone=UTC`. Environment issue, unrelated to spec 021                                       |
+| `lint`, `check-types`, `build`, `test:subscriptions` (62 unit tests)                     | Pass                                                                                                                                                                                        |
+
+Notes:
+
+- `test:subscriptions` now lists its unit files. The old `test/subscriptions/*.test.mjs` glob would pick up
+  the integration files, whose fixture falls back to `DATABASE_URL` when `TEST_DATABASE_URL` is unset.
+- The release seed scripts build `PrismaPg` without a schema, so they always write `public`; the seed was
+  verified by calling the same seed functions against the isolated schema instead.
+- Three empty `diff_<uuid>_legacy_v3` schemas left by the one-off drift check remain on the local database
+  (the check dropped its main schema but not the one a v3 migration creates). They hold no spec data and
+  can be dropped by the developer.
+
 ## Pending
 
-- Apply the migration to an isolated PostgreSQL and check the CHECKs, the partial unique index
-  `user_subscriptions_one_current_per_user`, and that `prisma migrate diff` from migrations to
-  `schema.prisma` is empty.
-- Run the release seed `subscriptions-20261127` against a database (identity + configuration).
-- Real PostgreSQL: concurrent purchases (partial unique index + owner lock), Serializable retries,
-  `chargeSubscription` ledger rows, and an HTTP test through the Nest app (T030).
-- Constitution principles 3, 5, 6 and 8 stay Pending until T030.
+- Product gates before `subscription.enabled` goes on in production: G3 (plan values), G4 (SRS
+  amendment), G5 (Q3/Q4 defaults used by Phase 7), G6 (LiveKit Egress quote).
+- Product question: whether an upgrade mid-period should raise the current period's recording allowance.
+- Real production-like run of the release pipeline (`scripts/release.mjs`) on a staging database.

@@ -56,16 +56,16 @@ subscriptionId | null, entitlements }`; `forUsers` resolves several users with o
 
 ## Constitution Check
 
-| Principle                  | Status         | Evidence / note                                                                                                        |
-| -------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| 1 Modular monolith         | Pass (planned) | New module with domain/application/infrastructure/presentation; consumers use the exported reader.                     |
-| 2 Stores                   | Pass (planned) | All state in PostgreSQL.                                                                                               |
-| 3 Atomic finance           | Pending        | Integer hundredths, idempotency keys, one operation per charge; needs real-DB concurrency tests (T030).                |
-| 4 Auth                     | Pass (planned) | New permission codes and role maps; self routes act only on the caller.                                                |
-| 5 Validation and contracts | Pending        | DTOs, Swagger, config schema; T012/T013.                                                                               |
-| 6 Verification             | Pending        | Lint, check-types, build, behavioral suites per phase.                                                                 |
-| 7 Ownership                | Pass (planned) | Credit writes stay in `credit`; recording/whiteboard columns written by `learning-sessions`; materials by `materials`. |
-| 8 Jobs and events          | Pending        | Renewal job idempotent per term; outbox events after commit; duplicate webhook test for minutes.                       |
+| Principle                  | Status         | Evidence / note                                                                                                           |
+| -------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| 1 Modular monolith         | Pass (planned) | New module with domain/application/infrastructure/presentation; consumers use the exported reader.                        |
+| 2 Stores                   | Pass (planned) | All state in PostgreSQL.                                                                                                  |
+| 3 Atomic finance           | Pass           | Integer hundredths, idempotency keys, one operation per charge; concurrent purchase/renewal/minutes on PostgreSQL (T030). |
+| 4 Auth                     | Pass (planned) | New permission codes and role maps; self routes act only on the caller.                                                   |
+| 5 Validation and contracts | Pass           | DTOs, Swagger, config schema; HTTP suite checks validation, envelope and Credit strings.                                  |
+| 6 Verification             | Pass           | Lint, check-types, build, unit and PostgreSQL integration suites (validation.md).                                         |
+| 7 Ownership                | Pass (planned) | Credit writes stay in `credit`; recording/whiteboard columns written by `learning-sessions`; materials by `materials`.    |
+| 8 Jobs and events          | Pass           | Concurrent `renewDue` renews once with one event; duplicate `egress_ended` charges once.                                  |
 
 ## Phases
 
