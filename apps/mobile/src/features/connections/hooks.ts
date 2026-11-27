@@ -12,6 +12,7 @@ import {
   CommandIntent,
   isConnectionPolicyUnavailable,
   isRejectedCommand,
+  isTerminalModerationRejection,
 } from "@/lib/http/command-intent";
 import { connectionReadAccess } from "@/lib/http/read-access";
 import { useConnections } from "./runtime";
@@ -176,6 +177,7 @@ export function useConnectionList<T>(
 // Keep the identity and immutable intent on uncertain failure, including manual retry.
 export function useConnectionCommand<TResult = unknown>(
   affectedKeys: readonly ConnectionReadTarget[] = [[]],
+  options: { isTerminalRejection?: (error: unknown) => boolean } = {},
 ) {
   const runtime = useConnections();
   const cache = useQueryClient();
@@ -222,9 +224,11 @@ export function useConnectionCommand<TResult = unknown>(
     // that the command did not commit, even during an exact-key replay.
     const rejected =
       isConnectionPolicyUnavailable(error_) ||
+      isTerminalModerationRejection(error_) ||
+      options.isTerminalRejection?.(error_) ||
       (!recovery.current && isRejectedCommand(error_));
     if (rejected) {
-      intent.current.failed(error_);
+      intent.current.clear();
       clearRecovery();
     } else {
       retainRecovery(error_, fingerprint, send);

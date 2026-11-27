@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { AppError } from "@/lib/http/errors";
 import {
   useConnections,
   useConnectionCommand,
@@ -8,17 +9,21 @@ import {
 import { useMessagesApi } from "./use-messages-api";
 import type { Delivery, MessageDraft } from "../api/messages-api";
 import { rememberLatestMessage } from "../utils/conversation-preview";
+import { isChatMediaRejection } from "../utils/chat-send-notice";
 
 export function useMessageSend(id: string) {
   const api = useMessagesApi(),
     runtime = useConnections(),
     cache = useQueryClient();
-  const command = useConnectionCommand<Delivery>([
-    ["thread", id],
-    ["conversations", "preview", id],
-    ["conversations", "inbox"],
-    ["delivery", id],
-  ]);
+  const command = useConnectionCommand<Delivery>(
+    [
+      ["thread", id],
+      ["conversations", "preview", id],
+      ["conversations", "inbox"],
+      ["delivery", id],
+    ],
+    { isTerminalRejection: isChatMediaRejection },
+  );
   const draft = useRef<MessageDraft | undefined>(undefined);
   const [receipt, setReceipt] = useState<string>();
   const refreshPreview = () => {
@@ -47,6 +52,28 @@ export function useMessageSend(id: string) {
       });
     }
   }, [delivery.data, runtime, cache, id]);
+  async function sendDraft(body: MessageDraft) {
+    try {
+      return await api.send(id, body);
+    } catch (error) {
+      if (
+        runtime.isCurrent() &&
+        error instanceof AppError &&
+        error.kind === "http" &&
+        error.status === 409 &&
+        (error.code === "FILE_NOT_READY" || isChatMediaRejection(error))
+      )
+        await Promise.all(
+          body.attachmentFileIds?.map((fileId) =>
+            cache.invalidateQueries({
+              queryKey: [...runtime.key, "chat-file", id, fileId],
+              exact: true,
+            }),
+          ) ?? [],
+        ).catch(() => {});
+      throw error;
+    }
+  }
   async function send(messageText: string, attachmentFileIds: string[] = []) {
     if (
       receipt ||
@@ -62,7 +89,7 @@ export function useMessageSend(id: string) {
       JSON.stringify({ id, ...body }),
       (clientMessageId) => {
         draft.current = { ...body, clientMessageId };
-        return api.send(id, draft.current);
+        return sendDraft(draft.current);
       },
     );
     return acceptDelivery(result);
@@ -85,7 +112,7 @@ export function useMessageSend(id: string) {
     const body = draft.current;
     if (!body || !receipt) return;
     const result = await command.run(`publication:${id}:${receipt}`, () =>
-      api.send(id, body),
+      sendDraft(body),
     );
     if (result?.deliveryStatus === "DELIVERED" && runtime.isCurrent()) {
       rememberLatestMessage(cache, runtime.key, result.message);

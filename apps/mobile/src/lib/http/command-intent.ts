@@ -19,6 +19,19 @@ export function isRejectedCommand(error: unknown): error is AppError {
   );
 }
 
+// Chat receipts permanently cancel a blocked command, including on delivery
+// reconciliation. Unlike a later permission error, this proves it cannot publish.
+export function isTerminalModerationRejection(
+  error: unknown,
+): error is AppError {
+  return (
+    error instanceof AppError &&
+    error.kind === "http" &&
+    error.status === 422 &&
+    error.code === "CONTENT_MODERATION_BLOCKED"
+  );
+}
+
 export class CommandIntent {
   private intent?: { fingerprint: string; id: string };
   begin(fingerprint: string, createId: () => string) {

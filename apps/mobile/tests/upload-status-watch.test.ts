@@ -74,6 +74,48 @@ test("failed or rejected scans stop checking and never become READY on the clien
     assert.equal(ctx.files()[0]?.state, state);
   }
 });
+
+test("moderation review and failure stop polling without changing the server state", async () => {
+  for (const moderationStatus of ["REVIEW_REQUIRED", "FAILED"] as const) {
+    const ctx = context();
+    let reads = 0;
+    const state = moderationStatus === "FAILED" ? "SCAN_FAILED" : "QUARANTINED";
+    await watchUploadStatus({
+      ...ctx.options,
+      read: async (fileId) => {
+        reads++;
+        return { fileId, state, moderationStatus };
+      },
+    });
+    assert.equal(reads, 1);
+    assert.equal(ctx.time(), 0);
+    assert.deepEqual(ctx.files(), [
+      { fileId: "upload-1", name: "lesson.docx", state, moderationStatus },
+    ]);
+    await watchUploadStatus({
+      ...ctx.options,
+      read: async () => {
+        throw new Error("settled moderation must not be polled again");
+      },
+    });
+  }
+});
+
+test("pending moderation continues polling and clears its metadata when the server becomes READY", async () => {
+  const ctx = context();
+  let reads = 0;
+  await watchUploadStatus({
+    ...ctx.options,
+    read: async (fileId) =>
+      ++reads === 1
+        ? { fileId, state: "QUARANTINED", moderationStatus: "PENDING" as const }
+        : { fileId, state: "READY" },
+  });
+  assert.equal(reads, 2);
+  assert.deepEqual(ctx.files(), [
+    { fileId: "upload-1", name: "lesson.docx", state: "READY" },
+  ]);
+});
 test("a quick scan is observed within one second instead of waiting for a five-second polling gap", async () => {
   const ctx = context();
   const readyAt = 4500;
@@ -144,17 +186,20 @@ test("removing or replacing a file while a check is in flight cannot resurrect t
     { fileId: "new-file", name: "new.pdf", state: "READY" },
   ]);
 });
-test("status read errors retain the upload for an explicit read retry; sleeping checks are abortable", async () => {
+test("repeated status read errors stop after bounded retries and retain the upload; sleeping checks are abortable", async () => {
   const ctx = context(["READY"]);
+  let failures = 0;
   await assert.rejects(
     watchUploadStatus({
       ...ctx.options,
       read: async () => {
+        failures++;
         throw new AppError("network");
       },
     }),
     AppError,
   );
+  assert.equal(failures, 3);
   assert.equal(ctx.files()[0]?.state, "QUARANTINED");
   await watchUploadStatus(ctx.options);
   assert.equal(ctx.files()[0]?.state, "READY");
@@ -162,4 +207,46 @@ test("status read errors retain the upload for an explicit read retry; sleeping 
   const waiting = waitForUploadCheck(5000, request.signal);
   request.abort();
   await assert.rejects(waiting);
+});
+
+test("temporary status failures retry GETs automatically, while permission and protocol errors stop immediately", async () => {
+  for (const cause of [new AppError("network"), new AppError("http", 500)]) {
+    const ctx = context();
+    let reads = 0;
+    await watchUploadStatus({
+      ...ctx.options,
+      read: async (id) => {
+        if (++reads <= 2) throw cause;
+        return { fileId: id, state: "READY" };
+      },
+    });
+    assert.equal(reads, 3);
+    assert.equal(ctx.files()[0]?.state, "READY");
+    assert.equal(
+      ctx.changes.length,
+      1,
+      "read errors never fabricate file states",
+    );
+    assert.ok(ctx.time() >= 2000);
+  }
+  for (const cause of [
+    new AppError("http", 403),
+    new AppError("http", 429),
+    new AppError("protocol"),
+  ]) {
+    const ctx = context();
+    let reads = 0;
+    await assert.rejects(
+      watchUploadStatus({
+        ...ctx.options,
+        read: async () => {
+          reads++;
+          throw cause;
+        },
+      }),
+      (error: unknown) => error === cause,
+    );
+    assert.equal(reads, 1);
+    assert.equal(ctx.changes.length, 0);
+  }
 });

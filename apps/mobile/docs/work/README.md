@@ -8,6 +8,7 @@
 
 | Work tiếp nhận                                                                       | Plan                                                 | Hiện trạng và bước tiếp                                  |
 | ------------------------------------------------------------------------------------ | ---------------------------------------------------- | -------------------------------------------------------- |
+| Cảnh báo không gửi được tin nhắn vi phạm | [plan](chat-moderation/plan.md) | [status](chat-moderation/status.md) |
 | Dọn mock/code thừa và rà soát logic mobile | [plan](mobile-cleanup/plan.md) | [status](mobile-cleanup/status.md) |
 | Làm gọn giao diện toàn mobile | [plan](mobile-ui-density/plan.md) | [status](mobile-ui-density/status.md) |
 | Tài liệu — Discover, đăng/chỉnh sửa, mua và thư viện | [plan](materials-ui/plan.md) | [status](materials-ui/status.md) |

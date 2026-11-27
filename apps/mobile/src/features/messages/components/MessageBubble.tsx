@@ -6,8 +6,14 @@ import {
   type ViewStyle,
 } from "react-native";
 import type { ReactNode } from "react";
-import { Avatar } from "@/components/Avatar";
-import { avatarSizes, typography, fonts } from "@/constants/theme";
+import { ChatParticipantAvatar } from "./ChatParticipantAvatar";
+import { Icon } from "@/components/Icon";
+import {
+  avatarSizes,
+  typography,
+  fonts,
+  colors as palette,
+} from "@/constants/theme";
 import type { MessageBubbleModel } from "../api/messages-api";
 import { messageCardShadow, messageColors as colors } from "../constants/theme";
 
@@ -18,6 +24,8 @@ export function MessageBubble({
   avatarUrl,
   showTime = false,
   showAvatar = true,
+  failed = false,
+  attachmentNotice,
   children,
 }: {
   message: MessageBubbleModel;
@@ -26,26 +34,32 @@ export function MessageBubble({
   avatarUrl?: string | null;
   showTime?: boolean;
   showAvatar?: boolean;
+  failed?: boolean;
+  attachmentNotice?: string;
   children?: ReactNode;
 }) {
   const { width } = useWindowDimensions();
   const mine = message.from === "me";
+  const noticeOnly = !!attachmentNotice && !message.text.trim() && !children;
   let bubbleWidth: ViewStyle["maxWidth"] = mine ? "82%" : "70%";
   if (width >= 768) bubbleWidth = "62%";
   return (
     <View style={styles.message}>
-      <View style={[styles.row, mine && styles.mineRow]}>
-        {!mine &&
-          (showAvatar ? (
-            <Avatar
-              name={partner}
-              userId={partnerId}
-              sourceUri={avatarUrl}
-              size={avatarSizes.inline}
-            />
-          ) : (
-            <View style={{ width: avatarSizes.inline }} />
-          ))}
+      <View
+        style={[
+          styles.row,
+          mine && styles.mineRow,
+          mine && failed && styles.failedSpacing,
+        ]}
+      >
+        <ChatParticipantAvatar
+          mine={mine}
+          showAvatar={showAvatar}
+          partner={partner}
+          partnerId={partnerId}
+          avatarUrl={avatarUrl}
+          size={avatarSizes.inline}
+        />
         <View
           style={[
             styles.bubble,
@@ -54,6 +68,7 @@ export function MessageBubble({
             !!children && styles.withFile,
             !!children && { minWidth: Math.min(240, Math.max(0, width - 80)) },
             !!children && !message.text.trim() && styles.fileOnly,
+            noticeOnly && styles.withdrawn,
           ]}
         >
           {!!message.text.trim() && (
@@ -66,12 +81,35 @@ export function MessageBubble({
             </Text>
           )}
           {children}
+          {!!attachmentNotice && (
+            <Text accessibilityLiveRegion="polite" style={styles.withdrawnText}>
+              {attachmentNotice}
+            </Text>
+          )}
         </View>
+        {failed && (
+          <View
+            accessible={false}
+            accessibilityElementsHidden
+            pointerEvents="none"
+            style={mine ? styles.failure : styles.receivedFailure}
+          >
+            <Icon name="alert-circle" size={16} color={palette.error} />
+          </View>
+        )}
       </View>
       {showTime && (
-        <Text style={[styles.time, mine ? styles.myTime : styles.theirTime]}>
-          {message.time}
-        </Text>
+        <View
+          style={[
+            styles.metadata,
+            mine ? styles.myMetadata : styles.theirMetadata,
+            mine && failed && styles.failedSpacing,
+          ]}
+        >
+          <Text style={[styles.time, mine && styles.myTime]}>
+            {message.time}
+          </Text>
+        </View>
       )}
     </View>
   );
@@ -80,6 +118,12 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
   message: { gap: 2 },
   mineRow: { justifyContent: "flex-end" },
+  failedSpacing: { paddingRight: 22 },
+  failure: { position: "absolute", right: 0, bottom: 6 },
+  receivedFailure: { marginBottom: 6 },
+  metadata: { flexDirection: "row", alignItems: "center", gap: 5 },
+  myMetadata: { justifyContent: "flex-end" },
+  theirMetadata: { marginLeft: avatarSizes.inline + 8 },
   bubble: {
     borderRadius: 10,
     paddingHorizontal: 10,
@@ -93,6 +137,18 @@ const styles = StyleSheet.create({
     boxShadow: messageCardShadow,
   },
   withFile: { gap: 8 },
+  withdrawn: {
+    backgroundColor: "transparent",
+    boxShadow: "none",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.mutedLight,
+  },
+  withdrawnText: {
+    ...typography.secondary,
+    fontFamily: fonts.body,
+    fontStyle: "italic",
+    color: colors.muted,
+  },
   fileOnly: {
     paddingHorizontal: 0,
     paddingVertical: 0,
@@ -109,6 +165,5 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.mutedLight,
   },
-  myTime: { color: colors.muted, textAlign: "right" },
-  theirTime: { marginLeft: avatarSizes.inline + 8 },
+  myTime: { color: colors.muted },
 });

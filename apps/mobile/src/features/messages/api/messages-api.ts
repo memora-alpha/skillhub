@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { RequestOptions } from "@/lib/http/client";
 import { AppError } from "@/lib/http/errors";
+import { createChatFilesApi } from "./chat-files-api";
 import {
   parse,
   parsePage,
@@ -59,6 +60,7 @@ export function createMessagesApi(
     return parsed;
   };
   return {
+    ...createChatFilesApi(call),
     async inbox(cursor?: string, signal?: AbortSignal) {
       return parsePage(
         inboxGroupSchema,
@@ -165,46 +167,6 @@ export function createMessagesApi(
           body: { messageId },
           replayAfterRenewal: false,
         }),
-      );
-    },
-    async upload(id: string, body: FormData) {
-      return parse(
-        z.object({ fileId: uuid, state: z.literal("QUARANTINED") }),
-        await call(`${root(id)}/attachments`, {
-          method: "POST",
-          body,
-          multipart: true,
-          replayAfterRenewal: false,
-        }),
-      );
-    },
-    async fileStatus(id: string, fileId: string, signal?: AbortSignal) {
-      parse(uuid, fileId);
-      const result = parse(
-        z.object({
-          fileId: uuid,
-          state: z.string(),
-          generation: z.number().int(),
-        }),
-        await call(
-          `${root(id)}/attachments/${fileId}/status`,
-          ...(signal ? [{ signal }] : []),
-        ),
-      );
-      if (result.fileId !== fileId) throw new AppError("protocol");
-      return result;
-    },
-    async download(id: string, messageId: string, attachmentId: string) {
-      parse(uuid, messageId);
-      parse(uuid, attachmentId);
-      return parse(
-        z.object({
-          url: z.url().refine((value) => /^https?:\/\//.test(value)),
-          expiresAt: timestamp,
-        }),
-        await call(
-          `${root(id)}/messages/${messageId}/attachments/${attachmentId}/download`,
-        ),
       );
     },
   };

@@ -1,9 +1,11 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Image } from "expo-image";
 import { Icon } from "@/components/Icon";
 import { appRadius, fonts, typography } from "@/constants/theme";
 import { messageColors as colors } from "../constants/theme";
 import type { ChatFile } from "../utils/chat-file";
 import { fileSizeLabel } from "./ChatFileCard";
+import { chatAttachmentNoun } from "../utils/chat-attachment-kind";
 
 export function ChatAttachmentTile({
   file,
@@ -20,13 +22,22 @@ export function ChatAttachmentTile({
     /\.([a-z0-9]{1,10})$/i.exec(file.name)?.[1]?.toUpperCase() ?? "TỆP";
   return (
     <View style={styles.tile}>
-      <View style={styles.icon}>
-        <Icon
-          name={/^(JPG|JPEG|PNG|WEBP)$/.test(extension) ? "image" : "file"}
-          size={24}
-          color={colors.brand}
+      {file.previewUri ? (
+        <Image
+          source={{ uri: file.previewUri }}
+          contentFit="cover"
+          accessibilityLabel="Ảnh đã chọn"
+          style={styles.thumbnail}
         />
-      </View>
+      ) : (
+        <View style={styles.icon}>
+          <Icon
+            name={/^(JPG|JPEG|PNG|WEBP)$/.test(extension) ? "image" : "file"}
+            size={24}
+            color={colors.brand}
+          />
+        </View>
+      )}
       <View style={styles.copy}>
         <Text numberOfLines={2} ellipsizeMode="middle" style={styles.name}>
           {file.name}
@@ -42,7 +53,7 @@ export function ChatAttachmentTile({
       </View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Bỏ tệp ${file.name}`}
+        accessibilityLabel={`Bỏ ${chatAttachmentNoun(file.mimeType)} ${file.name}`}
         accessibilityState={{ disabled: locked }}
         disabled={locked}
         onPress={() => {
@@ -85,6 +96,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     flexShrink: 0,
   },
+  thumbnail: { width: 44, height: 44, borderRadius: 8, flexShrink: 0 },
   copy: { flex: 1, minWidth: 0, gap: 3 },
   name: {
     ...typography.secondary,

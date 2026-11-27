@@ -1,10 +1,8 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { openURL } from "expo-linking";
+import { avatarSizes, colors, fonts, typography } from "@/constants/theme";
 import { useRouter } from "expo-router";
 import { Avatar } from "@/components/Avatar";
-import { appColors, fonts, typography } from "@/constants/theme";
-
 import {
   readPlanShare,
   readConfirmedForm,
@@ -13,20 +11,29 @@ import {
 } from "@/features/learning-paths/policy";
 import { FormNotice } from "@/components/FormNotice";
 import { useConnections, connectionError } from "@/features/connections";
-import { useMessagesApi } from "../hooks/use-messages-api";
+import { useChatAttachmentDownload } from "../hooks/use-chat-attachment-download";
+import {
+  attachmentDownloadProblem,
+  attachmentAvailabilityLabel,
+  canDownloadAttachment,
+  revokedAttachmentCopy,
+} from "../utils/attachment-availability";
+import { visibleChatMessage } from "../utils/chat-visibility";
+import { AppError } from "@/lib/http/errors";
 import type { ApiMessage } from "../api/messages-api";
 import { MessageBubble } from "./MessageBubble";
 import { ChatWorkflowCard } from "./ChatWorkflowCard";
-import { ChatFileCard } from "./ChatFileCard";
+import { ChatMessageAttachment } from "./ChatMessageAttachment";
+import { attachmentCopy, isChatImage } from "../utils/chat-attachment-kind";
 import { ChatScheduleNotice } from "./ChatScheduleNotice";
 import {
   readChatSchedule,
   type ChatScheduleNotice as ScheduleNotice,
 } from "../utils/schedule-notice";
-import { systemMessageText } from "../utils/system-message-text";
+import { ChatSystemNotice } from "./ChatSystemNotice";
 
 export function ApiMessageBubble({
-  message,
+  message: originalMessage,
   partner,
   partnerId,
   avatarUrl,
@@ -44,40 +51,41 @@ export function ApiMessageBubble({
   showAvatar?: boolean;
   scheduleNotice?: ScheduleNotice;
 }>) {
-  const { userId, isCurrent } = useConnections(),
-    api = useMessagesApi();
-  const [error, setError] = useState<unknown>(),
-    [pending, setPending] = useState<string>();
-  const downloading = useRef(false);
-  const [expired, setExpired] = useState(false);
+  const { userId } = useConnections();
+  const { error, pending, feedbackFor, download } =
+    useChatAttachmentDownload(originalMessage);
   const router = useRouter();
   const [expanded, setExpanded] = useState(false);
-  const mine = message.senderId === userId;
-  const download = async (attachmentId: string) => {
-    if (downloading.current) return;
-    downloading.current = true;
-    setPending(attachmentId);
-    setError(undefined);
-    setExpired(false);
-    try {
-      const result = await api.download(
-        message.conversationId,
-        message.id,
-        attachmentId,
-      );
-      if (!isCurrent()) return;
-      if (Date.parse(result.expiresAt) <= Date.now()) {
-        setExpired(true);
-        return;
-      }
-      await openURL(result.url);
-    } catch (error_) {
-      if (isCurrent()) setError(error_);
-    } finally {
-      downloading.current = false;
-      if (isCurrent()) setPending(undefined);
-    }
-  };
+  const mine = originalMessage.senderId === userId;
+  const message = visibleChatMessage(originalMessage, userId);
+  const recipientRevoked =
+    !mine &&
+    originalMessage.attachments.some(
+      (file) => file.availability === "REVOKED" && !isChatImage(file.mimeType),
+    );
+  const feedbackVisible =
+    !feedbackFor ||
+    message.attachments.some(
+      (file) =>
+        file.attachmentId === feedbackFor &&
+        canDownloadAttachment(file.availability),
+    );
+  const recipientBlockedDownload =
+    !mine &&
+    error instanceof AppError &&
+    error.code === "CONTENT_MODERATION_BLOCKED";
+  const revokedNotice = revokedAttachmentCopy(originalMessage.attachments);
+  const feedbackMime = message.attachments.find(
+    (file) => file.attachmentId === feedbackFor,
+  )?.mimeType;
+  const downloadError =
+    error && feedbackVisible && !recipientBlockedDownload
+      ? (attachmentDownloadProblem(error, feedbackMime) ??
+        attachmentCopy(
+          connectionError(error) ?? "Không mở được tệp.",
+          feedbackMime,
+        ))
+      : undefined;
   return (
     <View style={{ gap: 6 }}>
       <ApiMessageContent
@@ -89,27 +97,62 @@ export function ApiMessageBubble({
         showTime={showTime}
         showAvatar={showAvatar}
         mine={mine}
+        revokedAttachmentNotice={
+          recipientRevoked ? "Tệp không còn khả dụng." : undefined
+        }
         expanded={expanded}
         onToggleExpanded={() => setExpanded((value) => !value)}
         router={router}
         attachmentContent={
           message.attachments.length
             ? message.attachments.map((file) => (
-                <ChatFileCard
+                <ChatMessageAttachment
                   key={file.attachmentId}
-                  filename={file.filename}
-                  bytes={file.fileSizeBytes}
+                  message={message}
+                  file={file}
                   mine={mine}
                   disabled={!!pending}
                   pending={pending === file.attachmentId}
-                  onPress={() => {
-                    void download(file.attachmentId);
-                  }}
+                  downloadError={
+                    feedbackFor === file.attachmentId
+                      ? downloadError
+                      : undefined
+                  }
+                  onDownload={() => void download(file.attachmentId)}
                 />
               ))
             : undefined
         }
       />
+      {message.attachments.some(
+        (file) =>
+          file.availability === "PENDING_SCAN" &&
+          file.moderationStatus !== "REVIEW_REQUIRED" &&
+          !isChatImage(file.mimeType),
+      ) && (
+        <View
+          accessibilityLiveRegion="polite"
+          style={[styles.scanNotice, mine ? styles.mine : styles.theirs]}
+        >
+          <Text style={styles.scanning}>
+            {attachmentAvailabilityLabel("PENDING_SCAN")}
+          </Text>
+        </View>
+      )}
+      {mine &&
+        message.attachments.some((file) => file.availability === "REVOKED") && (
+          <View
+            accessibilityRole="alert"
+            accessibilityLiveRegion="polite"
+            accessibilityLabel={revokedNotice}
+            style={[
+              styles.revokedNotice,
+              mine ? styles.myFailureNotice : styles.theirs,
+            ]}
+          >
+            <Text style={styles.reason}>{revokedNotice}</Text>
+          </View>
+        )}
       {showReadReceipt && mine && message.readAt && (
         <View
           accessible
@@ -124,18 +167,38 @@ export function ApiMessageBubble({
           />
         </View>
       )}
-      {expired && (
-        <FormNotice tone="info" compact>
-          Liên kết tải đã hết hạn. Nhấn vào tệp để thử lại.
+      {!!downloadError && (
+        <FormNotice tone="error" compact>
+          {downloadError}
         </FormNotice>
-      )}
-      {!!error && (
-        <FormNotice tone="error">{connectionError(error)}</FormNotice>
       )}
     </View>
   );
 }
 
+const styles = StyleSheet.create({
+  scanNotice: { maxWidth: "90%" },
+  scanning: {
+    ...typography.secondary,
+    fontFamily: fonts.body,
+    color: colors.inkSoft,
+  },
+  revokedNotice: {
+    maxWidth: "90%",
+    backgroundColor: colors.errorLight,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  mine: { alignSelf: "flex-end" },
+  myFailureNotice: { alignSelf: "flex-end", marginRight: 22 },
+  theirs: { alignSelf: "flex-start", marginLeft: avatarSizes.inline + 8 },
+  reason: {
+    ...typography.secondary,
+    fontFamily: fonts.body,
+    color: colors.error,
+  },
+});
 function ApiMessageContent({
   message,
   scheduleNotice,
@@ -149,6 +212,7 @@ function ApiMessageContent({
   onToggleExpanded,
   router,
   attachmentContent,
+  revokedAttachmentNotice,
 }: Readonly<{
   message: ApiMessage;
   scheduleNotice?: ScheduleNotice;
@@ -162,14 +226,12 @@ function ApiMessageContent({
   onToggleExpanded: () => void;
   router: ReturnType<typeof useRouter>;
   attachmentContent?: ReactNode;
+  revokedAttachmentNotice?: string;
 }>) {
-  const share = attachmentContent ? null : readPlanShare(message.messageText);
-  const form = attachmentContent
-    ? null
-    : readConfirmedForm(message.messageText);
-  const legacy = attachmentContent
-    ? null
-    : readNegotiationMessage(message.messageText);
+  const hasFile = message.messageType === "FILE" || !!attachmentContent;
+  const share = hasFile ? null : readPlanShare(message.messageText);
+  const form = hasFile ? null : readConfirmedForm(message.messageText);
+  const legacy = hasFile ? null : readNegotiationMessage(message.messageText);
   const schedule = scheduleNotice ?? readChatSchedule(message);
   if (schedule)
     return (
@@ -198,13 +260,7 @@ function ApiMessageContent({
       />
     );
   if (message.messageType === "SYSTEM")
-    return (
-      <View style={systemMessageStyles.container}>
-        <Text selectable style={systemMessageStyles.text}>
-          {systemMessageText(message) || "Cập nhật từ hệ thống"}
-        </Text>
-      </View>
-    );
+    return <ChatSystemNotice message={message} />;
   if (legacy)
     return (
       <>
@@ -247,6 +303,13 @@ function ApiMessageContent({
       avatarUrl={avatarUrl}
       showTime={showTime}
       showAvatar={showAvatar}
+      attachmentNotice={revokedAttachmentNotice}
+      failed={message.attachments.some(
+        (file) =>
+          (mine || !isChatImage(file.mimeType)) &&
+          (file.availability === "REVOKED" ||
+            file.availability === "UNAVAILABLE"),
+      )}
       message={{
         id: message.id,
         from: mine ? "me" : "them",
@@ -334,19 +397,3 @@ function openSharedWorkflow(
     },
   });
 }
-
-const systemMessageStyles = StyleSheet.create({
-  container: {
-    alignSelf: "center",
-    alignItems: "center",
-    maxWidth: "90%",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  text: {
-    ...typography.caption,
-    fontFamily: fonts.body,
-    color: appColors.muted,
-    textAlign: "center",
-  },
-});

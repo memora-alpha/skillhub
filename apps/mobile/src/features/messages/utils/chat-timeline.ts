@@ -1,4 +1,4 @@
-import type { ApiMessage } from "../api/messages-api";
+import { mergeMessages, type ApiMessage } from "../api/messages-api";
 import type { QueuedText } from "../outbox/outbox-types";
 import {
   scheduleMessageGroups,
@@ -23,26 +23,46 @@ export function chatTimeline(
     if (entry.messageId)
       deliveryKeys?.set(entry.messageId, entry.clientMessageId);
   }
-  const known = new Set(messages.map((item) => item.id));
-  const items: ChatTimelineItem[] = [
-    ...messages.map((message): ChatTimelineItem => ({
+  const published = mergeMessages(
+    queued.flatMap((entry) =>
+      entry.state === "sent" && entry.message ? [entry.message] : [],
+    ),
+    // The delivery receipt can predate revocation. Fresh thread data wins.
+    messages,
+  );
+  const known = new Set(published.map((item) => item.id));
+  const local = queued.filter(
+    (entry) =>
+      !(entry.messageId && known.has(entry.messageId)) &&
+      !(entry.state === "sent" && entry.message),
+  );
+  const failed = local
+    .filter((entry) => entry.state === "failed")
+    .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
+  const items: ChatTimelineItem[] = [];
+  let failedIndex = 0;
+  // Failed attempts stay at their original time instead of pinning themselves
+  // after every new delivery. Server messages always keep their sequence order.
+  for (const message of published) {
+    while (
+      failedIndex < failed.length &&
+      Date.parse(failed[failedIndex]!.createdAt) < Date.parse(message.sentAt)
+    ) {
+      const entry = failed[failedIndex++]!;
+      items.push({ id: entry.clientMessageId, kind: "queued", entry });
+    }
+    items.push({
       id: deliveryKeys?.get(message.id) ?? message.id,
       kind: "message",
       message,
-    })),
-    ...queued.flatMap((entry): ChatTimelineItem[] => {
-      if (entry.messageId && known.has(entry.messageId)) return [];
-      if (entry.state === "sent" && entry.message)
-        return [
-          {
-            id: deliveryKeys?.get(entry.message.id) ?? entry.message.id,
-            kind: "message",
-            message: entry.message,
-          },
-        ];
-      return [{ id: entry.clientMessageId, kind: "queued", entry }];
-    }),
-  ];
+    });
+  }
+  for (const entry of failed.slice(failedIndex))
+    items.push({ id: entry.clientMessageId, kind: "queued", entry });
+  // Active sends remain at the end in enqueue order, including with clock skew.
+  for (const entry of local)
+    if (entry.state !== "failed")
+      items.push({ id: entry.clientMessageId, kind: "queued", entry });
   const schedules = scheduleMessageGroups(
     items.flatMap((item) => (item.kind === "message" ? [item.message] : [])),
   );

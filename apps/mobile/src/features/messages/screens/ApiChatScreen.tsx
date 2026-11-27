@@ -192,7 +192,7 @@ function ApiChatConversation({
       current = false;
     };
   }, [last?.id, focused, thread.error, api, id, runtime, sender.offline]);
-  const send = async (text: string) => {
+  const send = (text: string) => {
     if (
       sending.current ||
       draftRef.current !== text ||
@@ -202,9 +202,7 @@ function ApiChatConversation({
       return;
     sending.current = true;
     try {
-      if (
-        attachment.file ? await attachment.send(text) : await sender.send(text)
-      ) {
+      if (attachment.file ? attachment.send(text) : sender.send(text)) {
         if (draftRef.current === text) updateDraft("");
         atLatest.current = true;
         setHasNewMessages(false);
@@ -368,29 +366,21 @@ function ApiChatConversation({
         </View>
         <ChatComposer
           attachmentPreview={
-            <ChatAttachmentPreview
-              inComposer
-              attachment={attachment}
-              onRecovered={(text) => {
-                if (draftRef.current === text && runtime.isCurrent())
-                  updateDraft("");
-              }}
-            />
+            <ChatAttachmentPreview inComposer attachment={attachment} />
           }
           value={draft}
           onChange={updateDraft}
           onSend={(text) => {
             void send(text);
           }}
-          pending={
-            !sender.ready || attachment.uncertain || attachment.processing
-          }
+          pending={!sender.ready}
           hasAttachment={!!attachment.file}
           sendDisabled={
             attachment.pending || (!!attachment.file && !attachment.ready)
           }
           attachmentDisabled={attachment.locked}
-          onAttach={() => void attachment.choose()}
+          onAttach={(source) => void attachment.choose(source)}
+          onPasteImage={(image) => void attachment.paste(image)}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>

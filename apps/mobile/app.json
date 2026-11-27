@@ -38,7 +38,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "SkillHub dùng ảnh bạn chọn làm ảnh đại diện, bằng chứng xác minh kỹ năng hoặc bằng chứng báo cáo.",
+          "photosPermission": "SkillHub dùng ảnh bạn chọn làm ảnh đại diện, bằng chứng xác minh kỹ năng, bằng chứng báo cáo hoặc gửi trong Chat.",
           "cameraPermission": "Cho phép SkillHub dùng camera trong buổi học video.",
           "microphonePermission": "Cho phép SkillHub dùng micro để trao đổi trong buổi học."
         }

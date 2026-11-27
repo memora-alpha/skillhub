@@ -17,4 +17,6 @@ Từ root, chạy pnpm install rồi pnpm --filter mobile start. Nếu chưa có
 
 ## Thiết kế và license
 
+Chat hỗ trợ nhấn giữ ô nhập → Dán ảnh (expo-paste-input 0.2.2; cần rebuild dev/production binary), nén nền và viewer native có pinch/double-tap zoom. Menu + chỉ chọn Ảnh/Tệp; web dán trực tiếp vào ô nhập. Ảnh đang chờ hoặc không còn khả dụng giữ khung ảnh riêng, không đổi thành card tài liệu. Kiểm duyệt nội dung và quyền xem/tải do BE quyết định; mobile không chạy model NSFW hoặc gửi cảnh báo AI local. Xem [status chat](docs/work/chat-moderation/status.md) để phân biệt source/bundle checks với nghiệm thu thiết bị thật.
+
 UI có nguồn được ghi nhận từ Complete SkillHub Product Design/Figma Make do người dùng cung cấp. Ảnh hero: Kateryna Hliznitsova / Unsplash. Fraunces và Nunito kèm SIL Open Font License trong [assets/fonts](assets/fonts). Chọn frame/pattern thực tế khi làm UI, không suy pixel-match từ việc render thành công.

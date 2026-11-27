@@ -50,6 +50,7 @@ export function ChatScheduleNotice({
     return (
       <ChatWorkflowCard
         {...cardProps}
+        variant="notice"
         label={teaching ? "Lịch bạn dạy" : "Lịch bạn học"}
         title={value.title}
         summary={confirmationSummary(value, cardProps.mine, cardProps.partner)}
@@ -65,6 +66,7 @@ export function ChatScheduleNotice({
   return (
     <ChatWorkflowCard
       {...cardProps}
+      variant="notice"
       label="Lịch học"
       title={scheduleTitle(notice)}
       summary={scheduleDateRange(notice)}

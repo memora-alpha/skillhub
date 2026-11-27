@@ -7,11 +7,13 @@ import { ConnectionFeedback } from "@/features/connections";
 import { useConversation } from "../hooks/use-messages-api";
 import { useChatAttachment } from "../hooks/use-chat-attachment";
 import { ChatAttachmentPreview } from "../components/ChatAttachmentPreview";
+import { chatAttachmentNoun } from "../utils/chat-attachment-kind";
 
 // Preserve existing deep links; Chat itself now opens the device picker inline.
 export function ApiAttachmentScreen({ id }: Readonly<{ id: string }>) {
   const conversation = useConversation(id);
   const attachment = useChatAttachment(id);
+  const noun = chatAttachmentNoun(attachment.file?.mimeType);
   const [text, setText] = useState("");
   const [sent, setSent] = useState(false);
   const draft = useRef("");
@@ -25,7 +27,7 @@ export function ApiAttachmentScreen({ id }: Readonly<{ id: string }>) {
   };
   return (
     <FeaturePage
-      title="Gửi tệp trong chat"
+      title="Gửi ảnh hoặc tệp trong chat"
       backBehavior="history"
       back={{
         pathname: "/chat/[proposalId]",
@@ -38,25 +40,32 @@ export function ApiAttachmentScreen({ id }: Readonly<{ id: string }>) {
         retry={conversation.refetch}
       />
       {conversation.data && (
-        <Panel title="Đính kèm tệp">
+        <Panel title="Đính kèm ảnh hoặc tệp">
           <Button
             variant="secondary"
             disabled={attachment.locked || !!conversation.error}
             onPress={() => {
               setSent(false);
-              void attachment.choose();
+              void attachment.choose("photos");
+            }}
+          >
+            Chọn ảnh
+          </Button>
+          <Button
+            variant="secondary"
+            disabled={attachment.locked || !!conversation.error}
+            onPress={() => {
+              setSent(false);
+              void attachment.choose("files");
             }}
           >
             Chọn tệp từ thiết bị
           </Button>
-          <ChatAttachmentPreview
-            attachment={attachment}
-            onRecovered={recovered}
-          />
+          <ChatAttachmentPreview attachment={attachment} />
           {attachment.file && (
             <>
               <Input
-                label="Nội dung kèm tệp (tùy chọn)"
+                label={`Nội dung kèm ${noun} (tùy chọn)`}
                 value={text}
                 onChangeText={updateText}
                 maxLength={2000}
@@ -65,17 +74,17 @@ export function ApiAttachmentScreen({ id }: Readonly<{ id: string }>) {
               <Button
                 disabled={!attachment.ready || !!conversation.error}
                 onPress={() => {
-                  void attachment.send(text).then((accepted) => {
-                    if (accepted) recovered(text);
-                  });
+                  if (attachment.send(text)) recovered(text);
                 }}
               >
-                Gửi tệp
+                {`Gửi ${noun}`}
               </Button>
             </>
           )}
-          {sent && !attachment.processing && !attachment.uncertain && (
-            <FormNotice tone="success">Tệp đã được gửi trong Chat.</FormNotice>
+          {sent && (
+            <FormNotice tone="info">
+              Đã thêm vào Chat. Nội dung đang được gửi.
+            </FormNotice>
           )}
         </Panel>
       )}

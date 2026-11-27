@@ -19,7 +19,7 @@ const message = {
   }),
 };
 
-test("resume avoids full reload but replays affected resources and still notifies consumers", async () => {
+test("resume refreshes attachments without a full reload and still replays affected resources", async () => {
   const reloads: unknown[] = [],
     received: string[] = [];
   let readyCount = 0,
@@ -40,7 +40,8 @@ test("resume avoids full reload but replays affected resources and still notifie
   });
   await hydration.handle(ready, signal);
   await hydration.handle(ready, signal);
-  assert.equal(reloads.length, 1);
+  assert.equal(reloads.length, 2);
+  assert.deepEqual(reloads[1], [["chat-file"], ["thread"]]);
   assert.equal(readyCount, 2);
   assert.deepEqual(received, ["stream.ready", "stream.ready"]);
   fail = true;
@@ -58,7 +59,62 @@ test("resume avoids full reload but replays affected resources and still notifie
     { event: "stream.checkpoint", data: "{}", id: "checkpoint" },
     signal,
   );
-  assert.equal(reloads.length, 3);
+  assert.equal(reloads.length, 4);
+});
+
+test("availability events hydrate the conversation and older attachments; malformed references are not acknowledged", async () => {
+  const calls: unknown[] = [];
+  const hydration = createChatEventHydrator({
+    reload: async (...args) => {
+      calls.push(args);
+    },
+    assertCurrent() {},
+    renew: async () => {},
+    ready() {},
+  });
+  const frame = {
+    event: "chat.attachment.availability.updated",
+    id: "availability-1",
+    data: JSON.stringify({
+      version: 1,
+      eventId: fixtureId(90),
+      data: {
+        conversationId: fixtureId(1),
+        messageId: fixtureId(2),
+        fileId: fixtureId(3),
+      },
+    }),
+  };
+  await hydration.handle(frame, signal);
+  assert.deepEqual(calls, [
+    [
+      [
+        ["thread", fixtureId(1)],
+        ["conversations", "preview", fixtureId(1)],
+        ["chat-file", fixtureId(1), fixtureId(3)],
+      ],
+      undefined,
+      fixtureId(1),
+    ],
+  ]);
+  await hydration.handle(frame, signal);
+  assert.equal(calls.length, 1);
+  await assert.rejects(
+    hydration.handle(
+      {
+        ...frame,
+        id: "bad",
+        data: JSON.stringify({
+          version: 1,
+          eventId: fixtureId(91),
+          data: { conversationId: fixtureId(1), fileId: fixtureId(3) },
+        }),
+      },
+      signal,
+    ),
+    { kind: "protocol" },
+  );
+  assert.equal(hydration.cursor, "availability-1");
 });
 
 test("reset and cursor rejection require full recovery again; aborted recovery cannot mark ready", async () => {

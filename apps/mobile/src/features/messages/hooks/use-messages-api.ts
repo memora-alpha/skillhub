@@ -85,6 +85,14 @@ export function useThread(id: string, enabled: boolean) {
       const receiptRevision =
         cache.getQueryData<number>([...runtime.key, "thread-receipts", id]) ??
         0;
+      const attachmentRevision =
+        cache.getQueryData<number>([
+          ...runtime.key,
+          "thread-attachments",
+          id,
+        ]) ?? 0;
+      if ((previous?.attachmentRevision ?? 0) !== attachmentRevision)
+        olderRequest.current?.abort();
       const latestOnly = fresh.current;
       fresh.current = false;
       return readThreadSnapshot(api, id, {
@@ -92,6 +100,7 @@ export function useThread(id: string, enabled: boolean) {
         latestOnly,
         previous,
         receiptRevision,
+        attachmentRevision,
         userId: runtime.userId,
         current: () => cache.getQueryData<Thread>(key),
         assertCurrent: runtime.assertCurrent,

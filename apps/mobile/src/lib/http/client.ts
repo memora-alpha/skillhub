@@ -4,6 +4,8 @@ import { readPayload, readPagePayload, type Page } from "./response";
 import { connectionStore } from "../network/connection-store";
 import { RequestCoordinator, retryAfterAt } from "./rate-limit";
 import { requestDiagnostics } from "./request-diagnostics";
+import { readBinaryResponse } from "./binary-response";
+import { retrySessionRequest } from "./session-request-retry";
 
 export type RequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
@@ -15,6 +17,7 @@ export type RequestOptions = {
   paginated?: boolean;
   replayAfterRenewal?: boolean;
   includeMeta?: boolean;
+  responseType?: "arraybuffer";
 };
 export type SessionTransport = {
   readonly generation: number;
@@ -25,7 +28,9 @@ export type SessionTransport = {
 
 function requestHeaders(options: RequestOptions, token: string | null) {
   const headers: Record<string, string | boolean> = {
-    Accept: "application/json",
+    Accept: options.responseType
+      ? "application/octet-stream"
+      : "application/json",
   };
   if (options.body !== undefined)
     headers["Content-Type"] = options.multipart ? false : "application/json";
@@ -39,8 +44,10 @@ function validateRequestOptions(options: RequestOptions) {
   if (options.signal?.aborted) throw new AppError("session");
   if (
     options.idempotencyKey &&
-    (options.multipart || !["POST", "PATCH"].includes(options.method ?? "GET"))
+    !["POST", "PATCH"].includes(options.method ?? "GET")
   )
+    throw new AppError("config");
+  if (options.responseType && (options.method ?? "GET") !== "GET")
     throw new AppError("config");
 }
 
@@ -50,6 +57,8 @@ function readResponse(
 ) {
   const retryAt =
     response.status === 429 ? retryAfterAt(response.headers["retry-after"]) : 0;
+  if (options.responseType)
+    return readBinaryResponse(response.status, response.data, retryAt);
   if (options.paginated)
     return readPagePayload(response.status, response.data, retryAt);
   return readPayload(
@@ -102,6 +111,9 @@ export function createHttpClient(
             headers: requestHeaders(options, token),
             data: options.body,
             signal: options.signal,
+            ...(options.responseType
+              ? { responseType: options.responseType }
+              : {}),
           });
           return readResponse(options, response);
         },
@@ -179,33 +191,15 @@ export function createHttpClient(
           if (error.code === "ACCOUNT_NOT_ACTIVE") await transport.expire();
           throw error;
         }
-        await transport.renew(token);
-        assertCurrentSession();
-        // Upload bytes are not an idempotent JSON intent. Let the owner retry.
-        if (options.replayAfterRenewal === false) throw error;
-        const nextToken = await transport.getToken();
-        assertCurrentSession();
-        if (!nextToken) throw new AppError("session");
-        try {
-          const result = await send(
-            path,
-            options,
-            nextToken,
-            policy,
-            assertCurrentSession,
-          );
-          assertCurrentSession();
-          return result;
-        } catch (retryError) {
-          assertCurrentSession();
-          if (
-            retryError instanceof AppError &&
-            (retryError.status === 401 ||
-              retryError.code === "ACCOUNT_NOT_ACTIVE")
-          )
-            await transport.expire();
-          throw retryError;
-        }
+        return retrySessionRequest({
+          request: options,
+          transport,
+          staleToken: token,
+          originalError: error,
+          assertCurrent: assertCurrentSession,
+          send: (nextToken) =>
+            send(path, options, nextToken, policy, assertCurrentSession),
+        });
       }
     },
   };
