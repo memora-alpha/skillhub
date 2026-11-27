@@ -7,6 +7,7 @@ import { ControlledInput } from "@/components/ControlledInput";
 import { FormNotice } from "@/components/FormNotice";
 import { ServerFilePicker } from "@/components/server-file-picker";
 import { appColors } from "@/constants/theme";
+import { AppError } from "@/lib/http/errors";
 import { materialFailure } from "../utils/material-failure";
 import {
   canEditMaterial,
@@ -236,6 +237,18 @@ export function MaterialEditorForm({
           </Button>
         </>
       )}
+      {!command.pending &&
+        !command.uncertain &&
+        command.error instanceof AppError &&
+        command.error.code === "MATERIAL_STORAGE_QUOTA_EXCEEDED" && (
+          <Button
+            variant="paper"
+            leadingIcon="award"
+            onPress={() => router.push("/membership")}
+          >
+            Xem gói thành viên
+          </Button>
+        )}
       {readOnlyMaterial?.hasBeenPublished ? (
         <Button
           variant="craft"
