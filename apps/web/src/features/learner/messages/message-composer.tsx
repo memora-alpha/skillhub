@@ -3,6 +3,10 @@ import {
   detectContactInformation,
   contactPolicyMessage,
 } from "@/lib/chat/contact-policy";
+import {
+  detectInappropriateText,
+  contentPolicyMessage,
+} from "@/lib/chat/content-policy";
 import { LoadingButton } from "@/components/loading-button";
 import { useEffect, useId, useRef, useState } from "react";
 import { ProductIcon } from "../components/product-icon";
@@ -137,6 +141,10 @@ export function MessageComposer({
     }
     if (!intent.current && detectContactInformation(messageText)) {
       setNotice(contactPolicyMessage);
+      return;
+    }
+    if (!intent.current && detectInappropriateText(messageText)) {
+      setNotice(contentPolicyMessage);
       return;
     }
     if (intent.current && !(await checkBeforeResend(intent.current))) return;
