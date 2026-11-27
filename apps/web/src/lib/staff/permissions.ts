@@ -13,6 +13,7 @@ export const STAFF_DEFAULT_PERMISSIONS = [
 ] as const;
 
 export const STAFF_OPT_IN_PERMISSIONS = [
+  "chat-attachment:moderate",
   "report:group",
   "report:classify",
   "report:communicate",
@@ -72,6 +73,7 @@ export const STAFF_PERMISSION_GROUPS: readonly Readonly<{
       "material-review:moderate",
       "review:moderate",
       "profile:moderate",
+      "chat-attachment:moderate",
     ],
   },
   {

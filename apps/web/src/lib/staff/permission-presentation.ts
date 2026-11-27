@@ -2,6 +2,11 @@
 const staffPermissionText: Readonly<
   Record<string, { label: string; description: string }>
 > = {
+  "chat-attachment:moderate": {
+    label: "Kiểm duyệt tệp đính kèm tin nhắn",
+    description:
+      "Xem hàng đợi tệp chat bị gắn cờ kiểm duyệt và thu hồi quyền tải tệp vi phạm.",
+  },
   "learning-path:terminate": {
     label: "Duyệt dừng lộ trình",
     description:
