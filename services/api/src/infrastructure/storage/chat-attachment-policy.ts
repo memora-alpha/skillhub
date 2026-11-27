@@ -59,6 +59,47 @@ export function chatAttachmentAvailability(
   return accessStatus[chatAttachmentStatus(row, profanityVersion)];
 }
 
+export function canRetryChatAttachment(row: AttachmentState) {
+  if (row.state === "SCAN_FAILED") return true;
+  const assessment = row.moderationAssessment;
+  return (
+    row.state === "READY" &&
+    row.scanVerdict === "CLEAN" &&
+    row.sha256 !== null &&
+    !!assessment &&
+    typeof assessment === "object" &&
+    !Array.isArray(assessment) &&
+    assessment.outcome === "FAILED" &&
+    assessment.sourceVersion === String(row.generation) &&
+    assessment.digest === row.sha256 &&
+    Array.isArray(assessment.reasonCodes) &&
+    assessment.reasonCodes.some(
+      (code) =>
+        typeof code === "string" &&
+        (/^(MEDIA_|PROVIDER_|MODERATION_).*(TIMEOUT|UNAVAILABLE)$/u.test(
+          code,
+        ) ||
+          ["MEDIA_STORAGE_READ_FAILED", "MEDIA_CACHE_PENDING"].includes(code)),
+    )
+  );
+}
+
+export function chatAttachmentRetry(assessment: Prisma.JsonValue | undefined) {
+  if (
+    assessment &&
+    typeof assessment === "object" &&
+    !Array.isArray(assessment) &&
+    assessment.outcome === "PENDING" &&
+    typeof assessment.retryAttemptId === "string" &&
+    typeof assessment.retryQueuedAt === "number"
+  )
+    return {
+      id: assessment.retryAttemptId,
+      queuedAt: assessment.retryQueuedAt,
+    };
+  return undefined;
+}
+
 export function chatAttachmentRestriction(
   assessment: unknown,
   status: ReturnType<typeof chatAttachmentStatus>,

@@ -9,10 +9,7 @@ export class ConversationResponse {
   @ApiProperty({ type: String, format: "date-time" }) createdAt!: Date;
   @ApiProperty({ type: String, format: "date-time" }) lastActivityAt!: Date;
 }
-export class ChatAttachmentMetadataResponse {
-  @ApiProperty({ enum: ["IMAGE", "DOCUMENT"] }) attachmentType!: string;
-  @ApiProperty({ type: Number, nullable: true }) width!: number | null;
-  @ApiProperty({ type: Number, nullable: true }) height!: number | null;
+export class ChatAttachmentModerationStatusResponse {
   @ApiProperty({
     enum: ["PENDING_SCAN", "AVAILABLE", "REVOKED", "UNAVAILABLE"],
   })
@@ -21,6 +18,14 @@ export class ChatAttachmentMetadataResponse {
     enum: ["PENDING", "APPROVED", "REVIEW_REQUIRED", "BLOCKED", "FAILED"],
   })
   moderationStatus!: string;
+}
+export class PublishedChatAttachmentStatusResponse extends ChatAttachmentModerationStatusResponse {
+  @ApiProperty() canRetry!: boolean;
+}
+export class ChatAttachmentMetadataResponse extends ChatAttachmentModerationStatusResponse {
+  @ApiProperty({ enum: ["IMAGE", "DOCUMENT"] }) attachmentType!: string;
+  @ApiProperty({ type: Number, nullable: true }) width!: number | null;
+  @ApiProperty({ type: Number, nullable: true }) height!: number | null;
   @ApiPropertyOptional({ enum: ["BLOCKED", "REVOKED"] })
   restrictionReason?: string;
 }
@@ -79,6 +84,7 @@ export class ChatFileStatusResponse extends ChatAttachmentMetadataResponse {
   @ApiProperty() state!: string;
   @ApiProperty({ type: Number }) generation!: number;
   @ApiProperty() canAttach!: boolean;
+  @ApiProperty() canRetry!: boolean;
   @ApiProperty({ type: String, nullable: true }) mimeType!: string | null;
   @ApiProperty({ type: Number, nullable: true }) fileSizeBytes!: number | null;
   @ApiPropertyOptional({

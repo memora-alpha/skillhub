@@ -51,6 +51,7 @@ import {
   ReadStateResponse,
   ChatFileUploadResponse,
   ChatFileStatusResponse,
+  PublishedChatAttachmentStatusResponse,
   ChatDownloadResponse,
 } from "./conversations.responses";
 import {
@@ -226,6 +227,43 @@ export class ConversationsController {
   ) {
     return success(
       await this.conversations.attachmentStatus(actor, id, fileId),
+    );
+  }
+
+  @Post(":id/attachments/:fileId/retry")
+  @HttpCode(202)
+  @ApiSuccessResponse(202, ChatFileStatusResponse)
+  async retryAttachment(
+    @CurrentIdentity() actor: Principal,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("fileId", ParseUUIDPipe) fileId: string,
+    @Req() req: IdentityRequest,
+  ) {
+    return success(
+      await this.conversations.retryAttachment(
+        actor,
+        id,
+        fileId,
+        getOrCreateRequestContext(req),
+      ),
+    );
+  }
+
+  @Get(":id/messages/:messageId/attachments/:attachmentId/status")
+  @ApiSuccessResponse(200, PublishedChatAttachmentStatusResponse)
+  async publishedAttachmentStatus(
+    @CurrentIdentity() actor: Principal,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("messageId", ParseUUIDPipe) messageId: string,
+    @Param("attachmentId", ParseUUIDPipe) attachmentId: string,
+  ) {
+    return success(
+      await this.conversations.publishedAttachmentStatus(
+        actor,
+        id,
+        messageId,
+        attachmentId,
+      ),
     );
   }
   @Get(":id/messages/:messageId/attachments/:attachmentId/download")

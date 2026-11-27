@@ -24,6 +24,7 @@ function scanPayload(event: OutboxMessage): {
   generation: number;
   priority: number;
   finalizedAt?: number;
+  retryAttemptId?: string;
 } {
   if (
     event.type !== FILE_SCAN_EVENT ||
@@ -50,6 +51,11 @@ function scanPayload(event: OutboxMessage): {
       typeof event.payload.finalizedAt === "number"
         ? event.payload.finalizedAt
         : undefined,
+    retryAttemptId:
+      "retryAttemptId" in event.payload &&
+      typeof event.payload.retryAttemptId === "string"
+        ? event.payload.retryAttemptId
+        : undefined,
   };
 }
 
@@ -74,6 +80,7 @@ export class FileScanPublisher implements OutboxPublisher, OnModuleInit {
         fileId: payload.fileId,
         generation: payload.generation,
         finalizedAt: payload.finalizedAt,
+        retryAttemptId: payload.retryAttemptId,
       },
       {
         jobId: event.eventId,
@@ -110,7 +117,12 @@ export class FileScanWorker extends WorkerHost {
   }
 
   async process(
-    job: Job<{ fileId: string; generation: number; finalizedAt?: number }>,
+    job: Job<{
+      fileId: string;
+      generation: number;
+      finalizedAt?: number;
+      retryAttemptId?: string;
+    }>,
   ): Promise<string> {
     if (
       !/^[0-9a-f-]{36}$/i.test(job.data.fileId) ||
@@ -158,6 +170,8 @@ export class FileScanWorker extends WorkerHost {
           job.attemptsMade + 1 >= (job.opts?.attempts ?? 1),
           signal,
           job.attemptsMade + 1,
+          job.data.finalizedAt ?? (job.timestamp || undefined),
+          job.data.retryAttemptId,
         );
       return state;
     } finally {

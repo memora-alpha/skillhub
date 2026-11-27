@@ -16,6 +16,7 @@ import type {
 } from "./stored-file.repository";
 import type { ScanClaim, ScanRepository } from "./scan-repository.port";
 import type { ScanVerdict } from "./malware-scanner.port";
+import { canRetryChatAttachment } from "./chat-attachment-policy";
 import type {
   CleanupCandidate,
   ReconciliationRepository,
@@ -295,6 +296,66 @@ export class PrismaStoredFileRepository
         correlationId,
       });
     });
+  }
+
+  async requeueChatAttachment(input: {
+    fileId: string;
+    userId: string;
+    conversationId: string;
+    correlationId: string;
+  }): Promise<void> {
+    const { fileId, userId, conversationId, correlationId } = input;
+    const queued = await this.transactions.run(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM stored_files WHERE id = ${fileId}::uuid FOR UPDATE`;
+      const row = await tx.storedFile.findUnique({ where: { id: fileId } });
+      if (row?.purpose !== "CHAT" || row.uploadedBy !== userId)
+        throw new FileStorageError("FILE_NOT_FOUND", 404);
+      if (
+        row.resourceId &&
+        (row.resourceType !== "CHAT_MESSAGE" ||
+          !(await tx.chatPublication.findFirst({
+            where: { id: row.resourceId, conversationId },
+            select: { id: true },
+          })))
+      )
+        throw new FileStorageError("FILE_NOT_FOUND", 404);
+      if (!canRetryChatAttachment(row)) return false;
+
+      const retryAttemptId = randomUUID();
+      const finalizedAt = Date.now();
+      await tx.storedFile.update({
+        where: { id: fileId },
+        data: {
+          moderationAssessment: {
+            outcome: "PENDING",
+            retryAttemptId,
+            retryQueuedAt: finalizedAt,
+          },
+          ...(row.state === "SCAN_FAILED" && {
+            state: "QUARANTINED",
+            scanAttempts: 0,
+            scanLeaseToken: null,
+            scanLeaseUntil: null,
+            failureCode: null,
+          }),
+        },
+      });
+      await this.outbox.append(tx, {
+        eventId: retryAttemptId,
+        type: "file.scan.requested",
+        version: 1,
+        payload: {
+          fileId,
+          generation: row.generation,
+          largeFile: (row.sizeBytes ?? 0) > 5_000_000,
+          finalizedAt,
+          retryAttemptId,
+        },
+        correlationId,
+      });
+      return true;
+    });
+    if (queued) this.dispatcher?.wake();
   }
 
   async claimCleanup(

@@ -6,6 +6,7 @@ import { FileContentModeration } from "../../dist/infrastructure/storage/file-co
 import { ConfigService } from "@nestjs/config";
 import { ContentModerationService } from "../../dist/modules/content-moderation/application/content-moderation.service.js";
 import { MediaModerationService } from "../../dist/modules/content-moderation/application/media-moderation.service.js";
+import { MediaExtractionError } from "../../dist/modules/content-moderation/infrastructure/media-text-extractor.js";
 import { Prisma } from "../../dist/generated/prisma/client.js";
 
 test("enforces keywords from media OCR even without an available AI provider", async () => {
@@ -46,6 +47,7 @@ test("an AI result on the filename or first PDF page cannot bypass local screeni
     );
     const service = new MediaModerationService(moderation, {
       pdfPageCount: async () => 2,
+      isBlankPdfPage: async () => false,
       pdfText: async () => "",
       pdfPage: async (_bytes, page) =>
         Buffer.from(page === 1 ? "intro" : "đù má"),
@@ -101,6 +103,83 @@ test("media cannot approve an image until visual and extracted text checks both 
       (input) => input.sourceVersion === "2" && input.digest === "checksum",
     ),
   );
+});
+
+test("a PDF OCR timeout retries only that page and still checks later visible text", async () => {
+  const rendered = [];
+  const recognized = [];
+  const checked = [];
+  const service = new MediaModerationService(
+    {
+      evaluateAi: async (input) => {
+        checked.push(input.text);
+        return {
+          outcome:
+            input.text === "blocked in the last page" ? "BLOCK" : "ALLOW",
+          reasonCodes: [],
+        };
+      },
+    },
+    {
+      pdfPageCount: async () => 3,
+      isBlankPdfPage: async () => false,
+      pdfText: async () => "A benign text layer",
+      pdfPage: async (_bytes, page) => {
+        rendered.push(page);
+        return Buffer.from(String(page));
+      },
+      ocr: async (bytes) => {
+        const page = Number(bytes.toString());
+        recognized.push(page);
+        if (
+          page === 2 &&
+          recognized.filter((value) => value === 2).length === 1
+        )
+          throw new MediaExtractionError("MEDIA_OCR_TIMEOUT", true);
+        return page === 3
+          ? "blocked in the last page"
+          : `text from page ${page}`;
+      },
+    },
+  );
+  const result = await service.assess({
+    surface: "media",
+    mime: "application/pdf",
+    version: "1",
+    digest: "pdf",
+    bytes: Buffer.from("fixture"),
+  });
+  assert.equal(result.outcome, "BLOCK");
+  assert.deepEqual(rendered, [1, 2, 3]);
+  assert.deepEqual(recognized, [1, 2, 2, 3]);
+  assert.ok(checked.includes("A benign text layer"));
+});
+
+test("exhausted OCR retries stay fail-closed without restarting the whole PDF", async () => {
+  let ocrAttempts = 0;
+  const service = new MediaModerationService(
+    { evaluateAi: async () => ({ outcome: "ALLOW", reasonCodes: [] }) },
+    {
+      pdfPageCount: async () => 1,
+      isBlankPdfPage: async () => false,
+      pdfText: async () => "A benign text layer",
+      pdfPage: async () => Buffer.from("page"),
+      ocr: async () => {
+        ocrAttempts++;
+        throw new MediaExtractionError("MEDIA_OCR_TIMEOUT", true);
+      },
+    },
+  );
+  const result = await service.assess({
+    surface: "media",
+    mime: "application/pdf",
+    version: "1",
+    digest: "pdf",
+    bytes: Buffer.from("fixture"),
+  });
+  assert.equal(ocrAttempts, 2);
+  assert.equal(result.outcome, "REVIEW");
+  assert.deepEqual(result.reasonCodes, ["MEDIA_OCR_TIMEOUT"]);
 });
 
 test("unsupported office formats and failed image parsing stay in review", async () => {
@@ -286,6 +365,168 @@ test("retries temporary media errors and returns terminal status after exhaustio
     moderationStatus: "FAILED",
   });
   assert.deepEqual(row.moderationAssessment.reasonCodes, ["MEDIA_OCR_TIMEOUT"]);
+});
+
+test("an expired chat PDF budget does not start another assessment", async () => {
+  let objectReads = 0;
+  const row = {
+    id: "file-id",
+    purpose: "CHAT",
+    state: "READY",
+    generation: 1,
+    sha256: "pdf-hash",
+    scanVerdict: "CLEAN",
+    detectedMime: "application/pdf",
+    sizeBytes: 6,
+    moderationAssessment: null,
+  };
+  const service = new FileContentModeration(
+    {
+      storedFile: {
+        findUnique: async () => row,
+        updateMany: async ({ data }) => {
+          Object.assign(row, data);
+          return { count: 1 };
+        },
+      },
+    },
+    {
+      read: async () => {
+        objectReads++;
+        return Readable.from(["sample"]);
+      },
+    },
+    { mode: () => "enforce" },
+    {
+      assess: async () => {
+        throw new Error("The job already expired");
+      },
+    },
+  );
+  await service.process(
+    row.id,
+    row.generation,
+    false,
+    new AbortController().signal,
+    1,
+    Date.now() - 121_000,
+  );
+  assert.equal(objectReads, 0);
+  assert.equal(row.moderationAssessment.outcome, "FAILED");
+  assert.deepEqual(row.moderationAssessment.reasonCodes, [
+    "MEDIA_PROCESSING_TIMEOUT",
+  ]);
+});
+
+test("a redelivered old worker job cannot overwrite an explicit attachment retry", async () => {
+  const row = {
+    id: "file-id",
+    purpose: "CHAT",
+    state: "READY",
+    generation: 1,
+    sha256: "pdf-hash",
+    scanVerdict: "CLEAN",
+    detectedMime: "application/pdf",
+    sizeBytes: 6,
+    moderationAssessment: {
+      outcome: "PENDING",
+      retryAttemptId: "new-retry",
+      retryQueuedAt: Date.now(),
+    },
+  };
+  let writes = 0;
+  const service = new FileContentModeration(
+    {
+      storedFile: {
+        findUnique: async () => row,
+        updateMany: async ({ data }) => {
+          writes++;
+          Object.assign(row, data);
+          return { count: 1 };
+        },
+      },
+    },
+    {},
+    { mode: () => "enforce" },
+    {},
+  );
+  const expiredAt = Date.now() - 121_000;
+  await service.process(
+    row.id,
+    1,
+    true,
+    new AbortController().signal,
+    1,
+    expiredAt,
+  );
+  assert.equal(row.moderationAssessment.retryAttemptId, "new-retry");
+  assert.equal(writes, 0);
+  await service.process(
+    row.id,
+    1,
+    true,
+    new AbortController().signal,
+    1,
+    expiredAt,
+    "new-retry",
+  );
+  assert.equal(row.moderationAssessment.outcome, "FAILED");
+  assert.equal(writes, 1);
+});
+
+test("an approval that expires during its database update is rolled back", async () => {
+  const contents = Buffer.from("a pdf");
+  const row = {
+    id: "file-id",
+    purpose: "CHAT",
+    state: "READY",
+    generation: 1,
+    sha256: createHash("sha256").update(contents).digest("hex"),
+    scanVerdict: "CLEAN",
+    detectedMime: "application/pdf",
+    sizeBytes: contents.length,
+    moderationAssessment: null,
+  };
+  const signal = new AbortController();
+  const committed = [];
+  const service = new FileContentModeration(
+    {
+      storedFile: {
+        findUnique: async () => row,
+        updateMany: async ({ data }) => {
+          committed.push(data.moderationAssessment.outcome);
+          return { count: 1 };
+        },
+      },
+      $transaction: async (work) => {
+        let pending;
+        const result = await work({
+          $queryRaw: async () => [],
+          storedFile: {
+            updateMany: async ({ data }) => {
+              pending = data.moderationAssessment.outcome;
+              signal.abort();
+              return { count: 1 };
+            },
+          },
+        });
+        committed.push(pending);
+        return result;
+      },
+    },
+    { read: async () => Readable.from([contents]) },
+    { mode: () => "enforce" },
+    {
+      assess: async (input) => ({
+        outcome: "ALLOW",
+        reasonCodes: [],
+        sourceVersion: input.version,
+        digest: input.digest,
+      }),
+    },
+  );
+  await service.process(row.id, 1, true, signal.signal, 1, Date.now());
+  assert.deepEqual(committed, ["FAILED"]);
 });
 
 test("a new policy version queues one recheck identity for the same file and generation", async () => {
