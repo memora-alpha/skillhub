@@ -156,9 +156,19 @@ test("recording storage is optional, needs shared storage and never echoes secre
     accessKeyId: "upload-id",
     secretAccessKey: "private-value",
   });
+  // ConfigService hands over the validated boolean, not the raw string.
+  assert.equal(
+    recordingStorageConfiguration({
+      ...storage,
+      ...keys,
+      STORAGE_ENABLED: true,
+    }).enabled,
+    true,
+  );
   for (const input of [
     { ...storage, RECORDING_STORAGE_SECRET_ACCESS_KEY: "private-value" },
     { ...storage, ...keys, STORAGE_ENABLED: "false" },
+    { ...storage, ...keys, STORAGE_ENABLED: false },
     { ...storage, ...keys, S3_BUCKET: "" },
   ])
     assert.throws(

@@ -32,7 +32,10 @@ export function recordingStorageConfiguration(
 ): RecordingStorageConfiguration {
   if (KEYS.every((key) => input[key] === undefined)) return { enabled: false };
   const invalid: string[] = KEYS.filter((key) => !text(input, key));
-  if (input.STORAGE_ENABLED !== "true") invalid.push("STORAGE_ENABLED");
+  // ConfigService returns the validated value (boolean); raw env input is the string.
+  const storageEnabled =
+    input.STORAGE_ENABLED === true || input.STORAGE_ENABLED === "true";
+  if (!storageEnabled) invalid.push("STORAGE_ENABLED");
   invalid.push(...SHARED.filter((key) => !text(input, key)));
   if (invalid.length)
     throw new Error(
