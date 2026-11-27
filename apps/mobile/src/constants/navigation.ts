@@ -21,6 +21,7 @@ export const appRoutes: Record<string, Href | undefined> = {
   "Thông báo": "/notifications",
   "Tìm kiếm": "/search",
   "Ví Credit": "/wallet",
+  "Gói thành viên": "/membership",
   Voucher: "/vouchers",
   "Tài liệu của tôi": "/materials/mine",
   "Tài liệu học tập": "/materials",
@@ -53,6 +54,7 @@ export const appTabs: { name: string; label: string; icon: IconName }[] = [
 ];
 export const accountItems: { label: string; icon: IconName }[] = [
   { label: "Hồ sơ", icon: "user" },
+  { label: "Gói thành viên", icon: "award" },
   { label: "Ví Credit", icon: "wallet" },
   { label: "Voucher", icon: "ticket" },
   { label: "Tài liệu của tôi", icon: "book" },

@@ -43,3 +43,7 @@ Không tạo lại sáu bộ hồ sơ lịch sử. Task đang mở trong specs k
 ## Voucher
 
 [Plan Voucher](vouchers/plan.md) · [Trạng thái và kiểm chứng](vouchers/status.md).
+
+## Gói thành viên
+
+[Plan](subscriptions/plan.md) · [Trạng thái và kiểm chứng](subscriptions/status.md).
