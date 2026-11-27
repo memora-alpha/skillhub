@@ -6,6 +6,7 @@ import { useUserSession } from "../auth/session";
 import { useUserCommand } from "../hooks/use-user-command";
 import { CommandFeedback, Panel, formatTime } from "../components/common";
 import type { LearningPath } from "../types";
+import { feeRatePresentation } from "./fee-rate-presentation";
 import {
   allSessionsCompleted,
   settlementReceipt,
@@ -100,16 +101,12 @@ export function SettlementPanel({
 }
 
 function settlementOutcome(path: LearningPath, userId: string) {
-  const snapshot = path.agreement.feeRateSnapshot;
-  const rate = snapshot === null ? NaN : Number(snapshot);
-  if (!Number.isFinite(rate) || rate < 0 || rate >= 1)
+  const presentation = feeRatePresentation(path.agreement.feeRateSnapshot);
+  if (!presentation)
     return "Mức quyết toán đang chờ snapshot phí đã chốt từ máy chủ.";
-  const bps = Math.round(rate * 10_000);
-  const fee = `${bps / 100}%`;
-  const returned = `${(10_000 - bps) / 100}%`;
   if (path.agreement.exchangeType === "TWO_WAY")
-    return `Mỗi người được hoàn ${returned} Credit đã giữ của chính mình; ${fee} là phí nền tảng.`;
+    return `Mỗi người được hoàn ${presentation.returned} Credit đã giữ của chính mình; ${presentation.fee} là phí nền tảng.`;
   if (path.agreement.teacherId === userId)
-    return `Bạn là người dạy: nhận ${returned} Credit thỏa thuận; ${fee} là phí nền tảng.`;
-  return `Học một chiều: ${returned} Credit đã giữ được trả cho người dạy; ${fee} là phí nền tảng.`;
+    return `Bạn là người dạy: nhận ${presentation.returned} Credit thỏa thuận; ${presentation.fee} là phí nền tảng.`;
+  return `Học một chiều: ${presentation.returned} Credit đã giữ được trả cho người dạy; ${presentation.fee} là phí nền tảng.`;
 }

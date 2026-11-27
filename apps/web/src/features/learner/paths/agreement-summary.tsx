@@ -3,6 +3,7 @@ import { useUserSession } from "../auth/session";
 import { ProfileName } from "../components/profile-name";
 import type { LearningPath } from "../types";
 import styles from "./agreement-summary.module.css";
+import { feeRatePresentation } from "./fee-rate-presentation";
 export function AgreementSummary({
   exchangeType,
   teacherId,
@@ -89,18 +90,15 @@ export function PathAgreementSummary({
 }
 
 function feeTerms(rate: string | null | undefined) {
-  const value = rate === null || rate === undefined ? NaN : Number(rate);
-  if (!Number.isFinite(value) || value < 0 || value >= 1)
+  const presentation = feeRatePresentation(rate);
+  if (!presentation)
     return {
       oneWay:
         "Mức người hướng dẫn nhận và phí nền tảng sẽ được chốt khi khóa lịch.",
       twoWay: "Mức hoàn Credit và phí nền tảng sẽ được chốt khi khóa lịch.",
     };
-  const bps = Math.round(value * 10_000);
-  const fee = `${bps / 100}%`;
-  const returned = `${(10_000 - bps) / 100}%`;
   return {
-    oneWay: `Người hướng dẫn nhận ${returned} khi quyết toán; phí ${fee}.`,
-    twoWay: `Mỗi người nhận lại ${returned} Credit đã giữ khi quyết toán; phí ${fee}.`,
+    oneWay: `Người hướng dẫn nhận ${presentation.returned} khi quyết toán; phí ${presentation.fee}.`,
+    twoWay: `Mỗi người nhận lại ${presentation.returned} Credit đã giữ khi quyết toán; phí ${presentation.fee}.`,
   };
 }

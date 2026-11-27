@@ -106,6 +106,83 @@ export function MaterialFeePolicies() {
     if (mode === "edit") return "Sửa";
     return "Xóa";
   }
+  const feePercentField = (
+    <label>
+      <span>Mức phí (%)</span>
+      <input
+        className="input"
+        type="number"
+        min={1}
+        max={10}
+        step={0.01}
+        required
+        value={feePercent}
+        onChange={(e) => setFeePercent(e.target.value)}
+      />
+    </label>
+  );
+  function policyFields() {
+    if (mode === "create") {
+      return (
+        <>
+          <label>
+            <span>Phạm vi áp dụng</span>
+            <select
+              className="select"
+              value={policyCode}
+              onChange={(e) => {
+                setPolicyCode(e.target.value as FeePolicyCode);
+                setVersion(undefined);
+              }}
+            >
+              {feePolicyCodes.map((code) => (
+                <option value={code} key={code}>
+                  {financeLabel(code)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Phiên bản</span>
+            <input
+              className="input"
+              type="number"
+              min={1}
+              step={1}
+              required
+              value={version ?? nextVersion ?? ""}
+              onChange={(e) =>
+                setVersion(
+                  e.target.value === "" ? undefined : Number(e.target.value),
+                )
+              }
+            />
+          </label>
+          {feePercentField}
+        </>
+      );
+    }
+    if (mode === "approve") {
+      return (
+        <label>
+          <span>Hiệu lực từ (để trống: ngay khi duyệt)</span>
+          <input
+            className="input"
+            type="datetime-local"
+            value={effectiveAt}
+            onChange={(e) => setEffectiveAt(e.target.value)}
+          />
+        </label>
+      );
+    }
+    if (mode === "edit") return feePercentField;
+    return (
+      <p className={styles.hint}>
+        Bản nháp bị xóa sẽ không có hiệu lực và phiên bản đó có thể được tạo lại
+        nếu chưa có phiên bản mới hơn.
+      </p>
+    );
+  }
   return (
     <div className={styles.workspace}>
       <Card title="Chính sách phí">
@@ -280,87 +357,7 @@ export function MaterialFeePolicies() {
             }}
           >
             <fieldset className={styles.form} disabled={operation.busy}>
-              {mode === "create" ? (
-                <>
-                  <label>
-                    <span>Phạm vi áp dụng</span>
-                    <select
-                      className="select"
-                      value={policyCode}
-                      onChange={(e) => {
-                        setPolicyCode(e.target.value as FeePolicyCode);
-                        setVersion(undefined);
-                      }}
-                    >
-                      {feePolicyCodes.map((code) => (
-                        <option value={code} key={code}>
-                          {financeLabel(code)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    <span>Phiên bản</span>
-                    <input
-                      className="input"
-                      type="number"
-                      min={1}
-                      step={1}
-                      required
-                      value={version ?? nextVersion ?? ""}
-                      onChange={(e) =>
-                        setVersion(
-                          e.target.value === ""
-                            ? undefined
-                            : Number(e.target.value),
-                        )
-                      }
-                    />
-                  </label>
-                  <label>
-                    <span>Mức phí (%)</span>
-                    <input
-                      className="input"
-                      type="number"
-                      min={1}
-                      max={10}
-                      step={0.01}
-                      required
-                      value={feePercent}
-                      onChange={(e) => setFeePercent(e.target.value)}
-                    />
-                  </label>
-                </>
-              ) : mode === "approve" ? (
-                <label>
-                  <span>Hiệu lực từ (để trống: ngay khi duyệt)</span>
-                  <input
-                    className="input"
-                    type="datetime-local"
-                    value={effectiveAt}
-                    onChange={(e) => setEffectiveAt(e.target.value)}
-                  />
-                </label>
-              ) : mode === "edit" ? (
-                <label>
-                  <span>Mức phí (%)</span>
-                  <input
-                    className="input"
-                    type="number"
-                    min={1}
-                    max={10}
-                    step={0.01}
-                    required
-                    value={feePercent}
-                    onChange={(e) => setFeePercent(e.target.value)}
-                  />
-                </label>
-              ) : (
-                <p className={styles.hint}>
-                  Bản nháp bị xóa sẽ không có hiệu lực và phiên bản đó có thể
-                  được tạo lại nếu chưa có phiên bản mới hơn.
-                </p>
-              )}
+              {policyFields()}
               <label>
                 <span>Lý do</span>
                 <textarea
