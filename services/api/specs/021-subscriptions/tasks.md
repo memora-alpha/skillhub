@@ -44,9 +44,9 @@
 
 ## Phase 5 — Whiteboard retention
 
-- [ ] T022 Raise the `retention_days` snapshot on each save to the highest of its value and both participants' plans
-- [ ] T023 Retention worker uses the snapshot; legacy rows use config; legal hold unchanged
-- [ ] T024 Amend spec 019 and its tests
+- [x] T022 Raise the `retention_days` snapshot on each save to the highest of its value and both participants' plans
+- [x] T023 Retention worker uses the snapshot; legacy rows use config; legal hold unchanged
+- [x] T024 Amend spec 019 and its tests
 
 ## Phase 6 — Recording
 

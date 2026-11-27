@@ -1,3 +1,4 @@
+import { SubscriptionsModule } from "../subscriptions/subscriptions.module";
 import { ContentModerationModule } from "../content-moderation/content-moderation.module";
 import { SessionOutcomeService } from "./application/services/session-outcome.service";
 import { Module } from "@nestjs/common";
@@ -43,6 +44,7 @@ import { StorageModule } from "../../infrastructure/storage/storage.module";
     SystemConfigurationModule,
     OutboxModule,
     StorageModule,
+    SubscriptionsModule,
   ],
   controllers: [
     LearningSessionsController,

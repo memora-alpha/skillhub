@@ -100,19 +100,23 @@ Index: `(userId, createdAt desc, id desc)`.
 
 Add-on minutes carry across periods inside a term: the next period row copies `addonMinutesRemaining`.
 
+Whiteboard retention: a board is kept `max(retention_days, whiteboard.retentionDays)` days after `endAt`. The
+config value is the Free value and the floor, so Free participants never write a snapshot and the reader is
+queried through `paidEntitlements`, which reads no configuration.
+
 ## Columns on existing tables
 
-| Table                 | Column            | Type     | Notes                                                       |
-| --------------------- | ----------------- | -------- | ----------------------------------------------------------- |
-| `session_whiteboards` | `retention_days`  | int?     | D10 snapshot raised on each save; null = legacy, use config |
-| `session_recordings`  | `retention_days`  | int?     | D12 snapshot at start; null = legacy, use config            |
-| `session_recordings`  | `charged_minutes` | int?     | set once at `egress_ended`; non-null = already charged      |
-| `session_recordings`  | `subscription_id` | uuid? FK | subscription charged                                        |
+| Table                 | Column            | Type     | Notes                                                  |
+| --------------------- | ----------------- | -------- | ------------------------------------------------------ |
+| `session_whiteboards` | `retention_days`  | int?     | D10 snapshot raised on each save; null = Free/legacy   |
+| `session_recordings`  | `retention_days`  | int?     | D12 snapshot at start; null = legacy, use config       |
+| `session_recordings`  | `charged_minutes` | int?     | set once at `egress_ended`; non-null = already charged |
+| `session_recordings`  | `subscription_id` | uuid? FK | subscription charged                                   |
 
 ## Ownership
 
 - `subscriptions` owns the four new tables and exports `SubscriptionEntitlementsReader`
-  (`forUser`, `forUsers`, `chargeRecordingMinutes`) for other modules.
+  (`forUser`, `forUsers`, `feeTier`, `paidEntitlements`, `chargeRecordingMinutes`) for other modules.
 - `credit` keeps owning wallets, lots, operations and fee policies; it exports a
   `chargeSubscription(tx, …)` operation like `redeemVoucher`.
 - `learning-sessions` and `materials` write their own columns, calling the reader inside their

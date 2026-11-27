@@ -13,6 +13,7 @@ Permission `session:read:participant` + Session membership.
   "sceneData": null,
   "updatedAt": null,
   "updatedByUserId": null,
+  "retentionDays": null,
   "readOnly": false,
   "readOnlyReason": null,
   "editableFrom": "2026-11-02T09:50:00.000Z",
@@ -86,8 +87,11 @@ Errors:
 
 ## Retention
 
-The scene is deleted `whiteboard.retentionDays` days after `endAt` (default 30) unless a report on the Session is
-open. After deletion both reads return `revision 0` and `sceneData null`.
+The scene is deleted `max(retention snapshot, whiteboard.retentionDays)` days after `endAt` unless a report on
+the Session is open (spec 021 D10). Each save raises the snapshot to the longest paid plan of either participant
+(Creator 180, Pro 365 by default); Free adds nothing, so a Free-only board keeps the config value (default 30).
+The participant `GET` returns that effective `retentionDays` once the Session has ended, and `null` before or
+when there is no board. After deletion both reads return `revision 0` and `sceneData null`.
 
 ## Client flow
 

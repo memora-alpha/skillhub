@@ -72,6 +72,7 @@ test("empty board reads as revision 0 and editable inside the join window", asyn
     sceneData: null,
     updatedAt: null,
     updatedByUserId: null,
+    retentionDays: null,
     readOnly: false,
     readOnlyReason: null,
     editableFrom: null,

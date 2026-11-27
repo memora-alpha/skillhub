@@ -76,6 +76,27 @@ Design notes:
 Not covered: the material purchase path with a tier seller runs only in the PostgreSQL integration
 suite (`test/materials/purchase.test.mjs`), which was not run. `effectiveFeePolicy` it calls is unit tested.
 
+## Phase 5 — Whiteboard retention (2026-11-27)
+
+| Check                                                                                   | Result                                                                                                                                                                                                                            |
+| --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `check-types`, `build`, ESLint                                                          | Pass                                                                                                                                                                                                                              |
+| `test/subscriptions/whiteboard-retention.test.mjs`                                      | 9/9 pass: helpers; Free leaves no snapshot (30 days); either participant's longest plan; never decreases after a plan ends; a plan bought inside the edit window raises it; worker keeps 180 days; longer config wins; read field |
+| `test/learning-sessions/whiteboard*.test.mjs` (spec 019 suites)                         | Pass; the GET shape assertion gained `retentionDays: null`                                                                                                                                                                        |
+| Regression set: subscriptions, learning-sessions, learning-platform, reports, bootstrap | 337/337 pass; bootstrap resolves `LearningSessionsModule` importing `SubscriptionsModule`                                                                                                                                         |
+
+Design notes:
+
+- Free contributes no snapshot. `whiteboard.retentionDays` is the Free value and also the floor:
+  the worker keeps a board `max(snapshot, config)` days, so raising the config never deletes a paid
+  board earlier than a Free one. Spec D10 said "the snapshot"; this is a clarification, not a change
+  for any default value.
+- The config value bounds the candidate query; rows kept longer by their snapshot are examined and
+  skipped in memory, and paging still advances past them. Boards between 30 and 365 days old are
+  re-examined each hourly sweep, which is acceptable at current volume.
+- Saves read plans through `paidEntitlements`, which reads no configuration, so an unseeded
+  `subscription.freeEntitlements` cannot block whiteboard saves.
+
 ## Pending
 
 - Apply the migration to an isolated PostgreSQL and check the CHECKs, the partial unique index

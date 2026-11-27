@@ -3,6 +3,7 @@ import type { TransactionContext } from "../../../../infrastructure/database/tra
 import { SystemConfigurationService } from "../../../system-configuration/application/services/system-configuration.service";
 import type { FeeTier } from "../../../credit/domain/fee-policy-codes";
 import { grantsEntitlements } from "../../domain/subscription.policy";
+import type { PlanEntitlements } from "../../domain/plan-entitlements";
 import type { UserEntitlements } from "../contracts/subscription-entitlements";
 import { databaseNow, versionEntitlements } from "./subscription-support";
 
@@ -33,12 +34,32 @@ export class SubscriptionEntitlementsReader {
     userId: string,
     at: Date,
   ): Promise<FeeTier | null> {
-    const row = await tx.userSubscription.findFirst({
-      where: { userId, status: { in: ["ACTIVE", "GRACE"] } },
+    const paid = await this.paidEntitlements(tx, [userId], at);
+    return paid.get(userId)?.feeTier ?? null;
+  }
+
+  /**
+   * Entitlements of the users who hold a current paid plan at `at`; Free users are absent.
+   * Reads no configuration, for callers whose Free value is their own module's setting.
+   */
+  async paidEntitlements(
+    tx: TransactionContext,
+    userIds: readonly string[],
+    at: Date,
+  ): Promise<Map<string, PlanEntitlements>> {
+    if (userIds.length === 0) return new Map();
+    const rows = await tx.userSubscription.findMany({
+      where: {
+        userId: { in: [...new Set(userIds)] },
+        status: { in: ["ACTIVE", "GRACE"] },
+      },
       include: { planVersion: true },
     });
-    if (!row || !grantsEntitlements(row, at)) return null;
-    return versionEntitlements(row.planVersion).feeTier;
+    return new Map(
+      rows
+        .filter((row) => grantsEntitlements(row, at))
+        .map((row) => [row.userId, versionEntitlements(row.planVersion)]),
+    );
   }
 
   /** One query for every user; results follow the input order. */

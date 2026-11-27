@@ -15,11 +15,14 @@ import type { TransactionContext } from "../../../../infrastructure/database/tra
 import { CLOCK, type Clock } from "../../../../shared/time/clock";
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import { AuditWriter } from "../../../audit/application/services/audit-writer";
+import { SubscriptionEntitlementsReader } from "../../../subscriptions/application/services/subscription-entitlements.reader";
 import { SystemConfigurationService } from "../../../system-configuration/application/services/system-configuration.service";
 import type { JoinWindowPolicy } from "../../domain/session.policy";
 import {
   checkWhiteboardScene,
+  raisedRetentionDays,
   whiteboardAccess,
+  whiteboardRetentionDays,
   type WhiteboardEditPolicy,
   type WhiteboardRole,
   type WhiteboardScene,
@@ -88,6 +91,7 @@ export class SessionWhiteboardService {
     private readonly configuration: SystemConfigurationService,
     @Inject(CLOCK) private readonly clock: Clock,
     private readonly audit: AuditWriter,
+    private readonly plans?: SubscriptionEntitlementsReader,
   ) {}
 
   async read(actor: Principal, sessionId: string) {
@@ -101,13 +105,15 @@ export class SessionWhiteboardService {
         sceneData: true,
         updatedAt: true,
         updatedByUserId: true,
+        retentionDays: true,
       },
     });
+    const now = this.clock.now();
     const policies = await this.policies();
     const access = whiteboardAccess(
       session,
       roleOf(actor, session),
-      this.clock.now(),
+      now,
       policies?.join ?? null,
       policies?.edit ?? null,
       await this.underReport(this.db, sessionId),
@@ -117,6 +123,11 @@ export class SessionWhiteboardService {
       sceneData: (board?.sceneData as WhiteboardScene | undefined) ?? null,
       updatedAt: board?.updatedAt ?? null,
       updatedByUserId: board?.updatedByUserId ?? null,
+      // Spec 021 contracts: shown once the Session has ended; a later save may still raise it.
+      retentionDays:
+        board && now >= session.endAt
+          ? await this.boardRetentionDays(board.retentionDays)
+          : null,
       ...access,
     };
   }
@@ -187,9 +198,10 @@ export class SessionWhiteboardService {
   }
 
   /**
-   * Spec 019 P3: delete one page of scenes whose Session ended more than
-   * whiteboard.retentionDays ago, skipping Sessions with an open report.
-   * Returns the last examined sessionId so held rows never stall the sweep.
+   * Spec 019 P3 amended by spec 021 D10: delete one page of scenes whose Session ended more
+   * than max(retention snapshot, whiteboard.retentionDays) days ago, skipping Sessions with
+   * an open report. The config value is the shortest retention, so it bounds the candidates.
+   * Returns the last examined sessionId so held or longer-kept rows never stall the sweep.
    */
   async purgeExpired(
     limit: number,
@@ -201,22 +213,33 @@ export class SessionWhiteboardService {
         ["whiteboard.retentionDays"],
         tx,
       );
-      const cutoff = new Date(
-        +now - values["whiteboard.retentionDays"] * DAY_MS,
-      );
+      const floorDays = values["whiteboard.retentionDays"];
       const due = await tx.sessionWhiteboard.findMany({
         where: {
-          session: { is: { endAt: { lte: cutoff } } },
+          session: {
+            is: { endAt: { lte: new Date(+now - floorDays * DAY_MS) } },
+          },
           ...(after ? { sessionId: { gt: after } } : {}),
         },
         orderBy: { sessionId: "asc" },
         take: limit,
-        select: { sessionId: true },
+        select: {
+          sessionId: true,
+          retentionDays: true,
+          session: { select: { endAt: true } },
+        },
       });
-      const ids = due.map(({ sessionId }) => sessionId);
-      if (ids.length === 0) return { deleted: 0, next: null };
-      const heldIds = await sessionsHeldByReport(tx, ids);
-      const purge = ids.filter((id) => !heldIds.has(id));
+      if (due.length === 0) return { deleted: 0, next: null };
+      const expired = due
+        .filter(
+          (row) =>
+            +row.session.endAt +
+              whiteboardRetentionDays(row.retentionDays, floorDays) * DAY_MS <=
+            +now,
+        )
+        .map(({ sessionId }) => sessionId);
+      const heldIds = await sessionsHeldByReport(tx, expired);
+      const purge = expired.filter((id) => !heldIds.has(id));
       const { count } = purge.length
         ? await tx.sessionWhiteboard.deleteMany({
             where: { sessionId: { in: purge } },
@@ -224,7 +247,7 @@ export class SessionWhiteboardService {
         : { count: 0 };
       return {
         deleted: count,
-        next: ids.length < limit ? null : ids.at(-1)!,
+        next: due.length < limit ? null : due.at(-1)!.sessionId,
       };
     });
   }
@@ -263,12 +286,18 @@ export class SessionWhiteboardService {
     };
     const current = await tx.sessionWhiteboard.findUnique({
       where: { sessionId },
-      select: { revision: true },
+      select: { revision: true, retentionDays: true },
     });
+    const retentionDays = await this.raisedRetention(
+      tx,
+      session,
+      current?.retentionDays ?? null,
+      now,
+    );
     if (!current) {
       if (expectedRevision !== 0) throw revisionConflict(0);
       const created = await tx.sessionWhiteboard.create({
-        data: { sessionId, revision: 1, ...data },
+        data: { sessionId, revision: 1, retentionDays, ...data },
         select: { revision: true, updatedAt: true },
       });
       return created;
@@ -276,10 +305,49 @@ export class SessionWhiteboardService {
     // Conditional update: a concurrent save that committed first wins.
     const updated = await tx.sessionWhiteboard.updateMany({
       where: { sessionId, revision: expectedRevision },
-      data: { ...data, revision: { increment: 1 } },
+      data: { ...data, retentionDays, revision: { increment: 1 } },
     });
     if (updated.count !== 1) throw revisionConflict(current.revision);
     return { revision: expectedRevision + 1, updatedAt: now };
+  }
+
+  /**
+   * Spec 021 D10: the snapshot only rises, to the longest paid plan of either participant
+   * at this save. Free participants add nothing; the config value covers them. Saves stop
+   * when the edit window closes, so the value is frozen before any sweep can use it.
+   */
+  private async raisedRetention(
+    tx: TransactionContext,
+    session: { teacherId: string; learnerId: string },
+    current: number | null,
+    now: Date,
+  ): Promise<number | null> {
+    if (!this.plans) return current;
+    const paid = await this.plans.paidEntitlements(
+      tx,
+      [session.teacherId, session.learnerId],
+      now,
+    );
+    return raisedRetentionDays(
+      current,
+      [...paid.values()].map((plan) => plan.whiteboardRetentionDays),
+    );
+  }
+
+  /** Effective retention for a response; the snapshot alone if config is unavailable. */
+  private async boardRetentionDays(snapshot: number | null) {
+    try {
+      const { values } = await this.configuration.getSnapshot([
+        "whiteboard.retentionDays",
+      ]);
+      return whiteboardRetentionDays(
+        snapshot,
+        values["whiteboard.retentionDays"],
+      );
+    } catch (error) {
+      if (error instanceof ServiceUnavailableException) return snapshot;
+      throw error;
+    }
   }
 
   private async participantSession(
