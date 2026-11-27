@@ -13,6 +13,7 @@ import {
   usagePercent,
 } from "../src/features/subscriptions/utils/subscription-presentation";
 import { AppError } from "../src/lib/http/errors";
+import { requestDiagnostics } from "../src/lib/http/request-diagnostics";
 import { notificationTarget } from "../src/features/notifications/utils/notification-target";
 import { parseHistoryFilters } from "../src/features/wallet/schemas/transaction-contracts";
 import {
@@ -150,6 +151,33 @@ test("purchase sends only confirmed fields and the stable key with auth replay d
   });
   await api.send(purchaseIntent);
   assert.equal(requests, 1);
+});
+test("a malformed payment response is reported as protocol failure without claiming an HTTP 500", async (t) => {
+  const reports: {
+    path: string;
+    method: string;
+    error: unknown;
+    source: string;
+  }[] = [];
+  t.mock.method(
+    requestDiagnostics,
+    "failed",
+    (path: string, method: string, error: unknown, source: string) => {
+      reports.push({ path, method, error, source });
+    },
+  );
+  await assert.rejects(
+    createSubscriptionsApi(async () => ({ subscription: null })).send(
+      purchaseIntent,
+    ),
+    { kind: "protocol" },
+  );
+  assert.equal(reports.length, 1);
+  assert.equal(reports[0]?.path, "/me/subscription");
+  assert.equal(reports[0]?.method, "POST");
+  assert.equal(reports[0]?.source, "server");
+  assert.ok(reports[0]?.error instanceof AppError);
+  assert.equal(reports[0].error.status, 0);
 });
 test("upgrade uses the server quote amount/version and PATCH preserves null vs omitted", async () => {
   const quote = {

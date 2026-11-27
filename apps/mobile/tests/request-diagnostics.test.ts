@@ -25,6 +25,7 @@ test("technical logs redact IDs/query values, suppress local cooldown and repeat
   assert.equal(lines.length, 1);
   assert.equal(/private|secret|12345678/.test(lines.join()), false);
   assert.deepEqual(JSON.parse(lines[0]!), {
+    timestamp: "1970-01-01T00:00:01.000Z",
     request: "GET /conversations/:id/messages",
     status: 429,
     kind: "http",
@@ -42,6 +43,42 @@ test("technical logs redact IDs/query values, suppress local cooldown and repeat
   assert.equal(JSON.parse(lines.at(-1)!).code, "UNKNOWN");
   trace.failed("/events", "GET", new AppError("network"), "server");
   assert.equal(JSON.parse(lines.at(-1)!).kind, "network");
+});
+
+test("subscription diagnostics identify the endpoint and separate response validation from HTTP failures", () => {
+  const lines: string[] = [];
+  const trace = createRequestDiagnostics(
+    () => true,
+    (line) => lines.push(line),
+    () => 1000,
+  );
+  trace.failed(
+    "/me/subscription?key=private",
+    "POST",
+    new AppError("protocol"),
+    "server",
+  );
+  trace.failed(
+    "/me/subscription?key=private",
+    "POST",
+    new AppError("http", 500),
+    "server",
+  );
+  assert.equal(lines.length, 2);
+  assert.equal(
+    lines.some((line) => line.includes("private")),
+    false,
+  );
+  assert.deepEqual(
+    lines.map((line) => {
+      const row = JSON.parse(line);
+      return { request: row.request, status: row.status, kind: row.kind };
+    }),
+    [
+      { request: "POST /me/subscription", status: 0, kind: "protocol" },
+      { request: "POST /me/subscription", status: 500, kind: "http" },
+    ],
+  );
 });
 
 test("production and normal business failures do not emit diagnostic logs", () => {

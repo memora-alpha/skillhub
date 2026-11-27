@@ -77,13 +77,6 @@ export const manageStyles = StyleSheet.create({
   progressFill: { height: "100%", borderRadius: 3, backgroundColor: c.brand },
   divider: { height: 1, backgroundColor: c.border },
   usageFootnote: { paddingLeft: 44, gap: 4 },
-  walletAction: { justifyContent: "flex-start", paddingHorizontal: 0 },
-  walletRow: {
-    width: "100%",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
   scheduled: {
     gap: 8,
     padding: 12,

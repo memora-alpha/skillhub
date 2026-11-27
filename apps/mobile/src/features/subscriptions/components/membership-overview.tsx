@@ -24,16 +24,12 @@ type OverviewProps = Readonly<{
     title: string,
     description: string,
   ) => void;
-  onBrowsePlans: () => void;
-  onOpenWallet: () => void;
 }>;
 
 export function MembershipOverview({
   membership,
   disabled,
   onUpdate,
-  onBrowsePlans,
-  onOpenWallet,
 }: OverviewProps) {
   const { subscription: current, usage, materialStorage: storage } = membership;
   const remaining = usage
@@ -58,16 +54,6 @@ export function MembershipOverview({
               {current?.status === "GRACE" ? "Chờ gia hạn" : "Đang dùng"}
             </Text>
           </View>
-          {current && (
-            <Button
-              variant="paper"
-              size="sm"
-              accessibilityLabel="Thay đổi gói thành viên"
-              onPress={onBrowsePlans}
-            >
-              Đổi gói
-            </Button>
-          )}
         </View>
         {current && (
           <View style={s.planMeta}>
@@ -135,7 +121,7 @@ export function MembershipOverview({
       {current && (
         <View style={s.section}>
           <Text accessibilityRole="header" style={s.heading}>
-            Gia hạn & thanh toán
+            Gia hạn
           </Text>
           <View style={s.row}>
             <View style={s.smallIcon}>
@@ -152,19 +138,6 @@ export function MembershipOverview({
               </Text>
             </View>
           </View>
-          <View style={s.divider} />
-          <Button
-            variant="ghost"
-            onPress={onOpenWallet}
-            style={s.walletAction}
-            accessibilityLabel="Mở Ví Credit"
-          >
-            <View style={s.walletRow}>
-              <Icon name="wallet" color={appColors.body} size={18} />
-              <Text style={[s.label, s.grow]}>Ví Credit</Text>
-              <Icon name="chevron" color={appColors.muted} size={16} />
-            </View>
-          </Button>
           {(current.scheduledPlanCode || current.scheduledInterval) && (
             <View style={s.scheduled}>
               <Text style={s.label}>Thay đổi đã hẹn</Text>

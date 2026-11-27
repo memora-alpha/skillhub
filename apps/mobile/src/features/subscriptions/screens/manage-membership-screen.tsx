@@ -73,8 +73,6 @@ function ManageContent() {
           membership={me.data}
           disabled={blocked}
           onUpdate={actions.update}
-          onBrowsePlans={() => router.push("/membership")}
-          onOpenWallet={() => router.push("/wallet")}
         />
       )}
       <SubscriptionConfirmation

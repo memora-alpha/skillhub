@@ -79,28 +79,26 @@ export function SubscriptionRecovery({
   if (state.stage === "uncertain" && state.intent)
     return (
       <View style={s.card}>
-        <Text style={s.heading}>Yêu cầu cần tiếp tục</Text>
+        <Text style={s.heading}>
+          {state.intent.command.kind === "purchase"
+            ? "Hoàn tất đăng ký"
+            : "Hoàn tất nâng cấp"}
+        </Text>
         <Text style={s.body}>
           {planName(state.intent.command.body.planCode)} ·{" "}
           {creditLabel(state.intent.command.amount)}
         </Text>
         <Text style={s.muted}>
-          Chưa xác nhận được kết quả trước. Tiếp tục sẽ gửi lại đúng yêu cầu cũ;
-          nếu đã thành công, hệ thống không thu thêm Credit. Nếu chưa thực hiện,
-          yêu cầu có thể được thanh toán.
+          Thanh toán trước chưa được xác nhận. Bạn sẽ không bị trừ Credit hai
+          lần.
         </Text>
-        {!!state.error && (
-          <SubscriptionFeedback>
-            {subscriptionFailure(state.error)}
-          </SubscriptionFeedback>
-        )}
         <Button
           variant="craft"
           onPress={() => {
             void resume();
           }}
         >
-          Tiếp tục yêu cầu đã xác nhận
+          Tiếp tục thanh toán
         </Button>
       </View>
     );

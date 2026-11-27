@@ -8,7 +8,8 @@ const segments = new Set(
     "sessions mine requests learning-requests feed recommended skills tags " +
     "sharing-skills verifications conversations messages proposals notifications " +
     "learning-paths learning-plans wallet balance transactions payments events " +
-    "attachments delivery read download-url upload-url policy reputation"
+    "attachments delivery read download-url upload-url policy reputation " +
+    "subscriptions subscription plans upgrade upgrade-quote charges"
   ).split(" "),
 );
 
@@ -39,6 +40,7 @@ export function createRequestDiagnostics(
         !(error instanceof AppError) ||
         !(
           error.kind === "network" ||
+          error.kind === "protocol" ||
           error.status === 429 ||
           error.status >= 500
         )
@@ -53,6 +55,7 @@ export function createRequestDiagnostics(
       reported.set(key, Math.max(at + 60_000, error.retryAt));
       emit(
         JSON.stringify({
+          timestamp: new Date(at).toISOString(),
           request,
           status: error.status,
           kind: error.kind,

@@ -31,8 +31,12 @@ Lịch sử trên header; quản lý gia hạn/mức sử dụng ở màn riêng
 - [x] Thiết kế lại Quản lý gói: thẻ hiện tại gọn, hai mức sử dụng có progress, nhóm gia hạn/thanh toán; bỏ Xem gói ở Free, dùng hành động Hủy/Tiếp tục gia hạn qua xác nhận.
 - [x] Bỏ banner lỗi/thành công: dùng toast chung sau thao tác; read/storage/recovery dùng chữ gọn và retry. Đối chiếu lỗi không đăng ký được với cờ bán gói BE.
 - [x] Rà lỗi sau feedback: regression PATCH khi blur/refocus, xác nhận theo ID+version và nội dung hủy/tiếp tục gia hạn khi GRACE; giữ refresh đúng owner và không replay mutation.
+- [x] Rút gọn thẻ khôi phục thành Hoàn tất đăng ký/nâng cấp, nút Tiếp tục thanh toán; bỏ diễn giải kỹ thuật và lỗi lặp trong thẻ, giữ toast và bảo vệ chống thu trùng.
+- [x] Bỏ Đổi gói và hàng mở Ví Credit khỏi Quản lý gói, dọn props/style/divider thừa; nhóm thanh toán rút thành Gia hạn.
 - [x] Hoàn tất checks toàn mobile, web export và review source cuối.
 - [ ] Android/iOS + SecureStore app kill/restart + API demo đã triển khai.
+- [ ] Gỡ request lỗi chưa trừ tiền: cần xác nhận mở phạm vi BE cho [lookup/retire](recovery-proposal.md), rồi nối mobile để kiểm tra kết quả trước khi mở mua mới.
+- [x] Thêm timestamp/endpoint vào log dev, phân biệt lỗi HTTP và parse response; đính chính log cached chưa đủ quy lỗi 500 cho lần mua đang kiểm tra.
 
 ## Tiêu chí
 

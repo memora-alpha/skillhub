@@ -1,6 +1,6 @@
 # Trạng thái Gói thành viên
 
-- Cập nhật: 2026-11-28T02:39:16+07:00.
+- Cập nhật: 2026-11-28T03:24:26+07:00.
 - Source: Ready for review; nghiệm thu native/API còn mở.
 - Giao diện dùng Nunito/theme/component hiện có. Hai thẻ Creator/Pro cạnh nhau;
   gói được chọn có nền cam nhạt, viền và dấu chọn; quyền lợi dạng lưới hiển thị một lần.
@@ -12,7 +12,7 @@
 - Giảm số giá trên thẻ 25→20px, số quyền lợi 20→17px, số tiền ở footer/lịch sử 17→15px;
   dùng token typography hiện hành, giữ font Nunito và font scaling. Ảnh evidence giữ bố cục trước lần giảm số này.
 - Quản lý gói dùng style riêng: thẻ trắng với chu kỳ/hạn dùng, progress tài liệu/ghi hình,
-  nhóm gia hạn/thanh toán và thay đổi đã hẹn. Giữ số 15px; nút Đổi gói chỉ có ở gói trả phí,
+  nhóm Gia hạn và thay đổi đã hẹn. Giữ số 15px; bỏ nút Đổi gói và hàng mở Ví Credit,
   không có Xem gói ở Free. Dùng dòng thao tác Hủy tự động gia hạn/Tiếp tục gia hạn
   có xác nhận ở cuối nhóm thanh toán, thay nút Bật/Tắt ngắn. Không thay PATCH/version guard.
 - Có entry Hồ sơ/Ví/account, danh sách gói, usage, mua/nâng cấp và quản lý gia hạn,
@@ -25,6 +25,9 @@
   tránh áp xác nhận cũ vào row mới trùng version. Nội dung GRACE phân biệt hủy/tiếp tục
   gia hạn, không hứa dùng đến termEnd đã qua hoặc giữ nguyên toàn bộ grace sau khi hủy.
 - Gap còn lại: API read giá/phút add-on và capability bán gói; không hardcode để lấp gap.
+- Thẻ khôi phục rút gọn thành Hoàn tất đăng ký/Hoàn tất nâng cấp, tên gói và số Credit,
+  một câu giải thích chưa xác nhận thanh toán/không thu trùng, nút Tiếp tục thanh toán.
+  Bỏ lỗi lặp trong thẻ vì đã có toast; không đổi điều kiện hiện thẻ hoặc cách gửi lại.
 
 ## Chẩn đoán đăng ký trên điện thoại
 
@@ -38,6 +41,28 @@
   này là DB của API điện thoại: endpoint mobile cấu hình trả 401 khi gọi catalog không token.
 - Không có thiết bị ADB kết nối để lấy raw response; không gửi giao dịch thật, chạy migration,
   seed, chỉnh cấu hình hoặc thay backend. Chưa xác nhận đăng ký thành công sau khi mở cờ.
+- Lượt kiểm tra tiếp: người dùng bấm Tiếp tục thanh toán và nhận “Không thể hoàn tất.
+  Vui lòng thử lại.”, khác câu map từ `SUBSCRIPTIONS_DISABLED`. Đọc console iPhone
+  qua Runtime.enable của Metro inspector thấy lịch sử lỗi HTTP 500, kind `http`, code
+  `UNKNOWN`, request bị che thành `POST /me/:id`. Chưa đối chiếu timestamp với lần bấm
+  đang kiểm tra, nên KHÔNG đủ bằng chứng khẳng định dòng này là request mua gói mới.
+  Đính chính kết luận 500 chắc chắn trước đó. Không thu token/payload hoặc tự gửi POST.
+- API cấu hình hiện trả readiness 200; Swagger đã có POST `/api/v1/me/subscription`.
+  GET catalog không token trả 401. Chưa có log exception phía Coolify/API hoặc raw response
+  có xác thực để kết luận nguyên nhân request hiện tại, DB/config hoặc thiếu Credit.
+  Chưa xác nhận mua thành công; card giữ intent khi chưa rõ kết quả.
+- Người dùng xác nhận thấy chưa trừ tiền nhưng recovery vẫn giữ/chặn mua mới.
+  Đã đối chiếu controller subscription: chưa có lookup kết quả theo key. Chuẩn bị
+  [đề xuất lookup/retire](recovery-proposal.md), theo cơ chế voucher đã có, để mở lại
+  mua mới sau xác nhận chưa xử lý và khóa request cũ đến muộn. Chưa đổi backend,
+  chưa gọi endpoint đề xuất, chưa xóa intent theo suy đoán từ số dư.
+- Bổ sung log dev có timestamp ISO và endpoint subscription tĩnh, tiếp tục che ID/query.
+  Phân biệt lỗi HTTP với lỗi kiểm tra định dạng phản hồi (`kind: protocol`, status 0),
+  ghi nhận cả lỗi parse membership sau POST. Không đổi request, replay hoặc xử lý tiền;
+  production không phát log. Chờ bắt log đúng lần bấm mới trước khi kết luận lỗi BE.
+- Sau yêu cầu thử lại, người dùng báo “được rồi”; dừng theo dõi debug. Không có
+  response mới được quan sát trong cửa sổ theo dõi để quy nguyên nhân, và chưa có
+  xác nhận riêng số dư/gói sau thanh toán. Đề xuất lookup BE chưa được duyệt/triển khai.
 
 ## Bằng chứng
 
@@ -48,6 +73,9 @@
 | Regression sau redesign | 16 đạt | Subscription/storage suite chạy lại; không cộng với các bộ trên. Không đổi API/coordinator/ledger. |
 | Sửa feedback lỗi | 16 đạt; TypeScript, scoped ESLint, formatting và structure đạt (1109 files) | Bổ sung `SUBSCRIPTIONS_DISABLED` 403: giữ lỗi để báo toast, xóa intent bị từ chối, không tự gửi lại; auth/403 khác vẫn giữ recovery. Chưa nghiệm thu toast trên điện thoại. |
 | Rà lỗi lifecycle/xác nhận | 23 đạt; TypeScript, scoped ESLint, formatting và structure đạt | Test trước sửa tái hiện PATCH bỏ qua invalidate khi blur, toast cũ khi refocus và xác nhận chấp nhận row khác trùng version. Sau sửa kiểm tra cả mất phản hồi, đổi phiên và nhấn lặp. Native/API còn mở; không thêm field DTO BE. |
+| Rút gọn thẻ khôi phục | Scoped ESLint và formatting đạt | Chỉ sửa nội dung/trình bày lỗi; không chạy lại full suite cho thay đổi này. Chưa nghiệm thu trên điện thoại; ảnh cũ không phản ánh nội dung mới. |
+| Log đối chiếu request | 28 test đạt; TypeScript, scoped ESLint, structure (1157 files) và formatting đạt | Kiểm tra timestamp/endpoint, ẩn ID/query, HTTP khác protocol và parse response sau POST. Chưa có bằng chứng response mới từ lần bấm đang kiểm tra; người dùng báo “được rồi”. |
+| Bỏ thao tác phụ ở Quản lý gói | TypeScript, scoped ESLint và formatting đạt | Bỏ Đổi gói/Ví Credit, props và style không còn dùng; không đổi API hoặc thao tác gia hạn. Không chạy lại full suite cho thay đổi trình bày. |
 | TypeScript | Đạt | `tsc --noEmit`, binary cục bộ tương ứng script mobile |
 | ESLint/structure | Đạt, 1109 source files | Rà lỗi cuối: ESLint toàn mobile max-warnings 0, structure và formatting các file sửa đạt. Không sửa config để bỏ qua source. |
 | Full tests | 1299 đạt, 0 failed/skipped | Chạy sau các sửa lifecycle/xác nhận/GRACE, gồm test regression mới. Không thay nghiệm thu API/native. |
@@ -61,6 +89,7 @@
 [quản lý 320px](evidence/manage-320.jpg), đều là component preview có nhãn dữ liệu thử.
 Quản lý gói mới: [390px](evidence/manage-refined-390.jpg), [320px](evidence/manage-refined-320.jpg).
 Ảnh quản lý giữ bố cục ba nhóm, chụp trước lần thay nút Bật/Tắt bằng dòng Hủy/Tiếp tục gia hạn.
+Ảnh cũng chưa phản ánh việc bỏ nút Đổi gói và hàng Ví Credit.
 Logs cục bộ `.cache/subscription-*.log` (ignored). Preview và export tạm đã dọn sau kiểm tra;
 không có route/fixture fallback trong app thật. App entry luôn dùng API/session hiện hành.
 Đầu vào và tiêu chí ở [plan](plan.md); contract/gap ở [subscriptions](../../contracts/subscriptions.md).

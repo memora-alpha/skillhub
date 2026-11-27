@@ -2,6 +2,7 @@ import { z } from "zod";
 import { parse, parsePage, pageQuery } from "@/lib/http/contracts";
 import type { RequestOptions } from "@/lib/http/client";
 import { AppError } from "@/lib/http/errors";
+import { requestDiagnostics } from "@/lib/http/request-diagnostics";
 import {
   planSchema,
   membershipSchema,
@@ -47,20 +48,22 @@ export function createSubscriptionsApi(
     },
     async send(input: SubscriptionIntent) {
       const { key, command } = parse(intentSchema, input);
-      return parse(
-        membershipSchema,
-        await call(
-          command.kind === "purchase"
-            ? "/me/subscription"
-            : "/me/subscription/upgrade",
-          {
-            method: "POST",
-            body: command.body,
-            idempotencyKey: key,
-            replayAfterRenewal: false,
-          },
-        ),
-      );
+      const path =
+        command.kind === "purchase"
+          ? "/me/subscription"
+          : "/me/subscription/upgrade";
+      const response = await call(path, {
+        method: "POST",
+        body: command.body,
+        idempotencyKey: key,
+        replayAfterRenewal: false,
+      });
+      try {
+        return parse(membershipSchema, response);
+      } catch (error) {
+        requestDiagnostics.failed(path, "POST", error, "server");
+        throw error;
+      }
     },
     async update(input: SubscriptionUpdate) {
       return parse(
