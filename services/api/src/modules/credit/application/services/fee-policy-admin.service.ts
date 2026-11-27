@@ -92,6 +92,24 @@ export class FeePolicyAdminService {
       throw new ForbiddenException("FEE_ADMIN_REQUIRED");
     return live;
   }
+  private async lockDraft(
+    tx: TransactionContext,
+    actor: Principal,
+    id: string,
+  ) {
+    await this.authorize(tx, actor);
+    await lockUsers(tx, [actor.userId]);
+    const live = await this.authorize(tx, actor);
+    let row = await tx.feePolicyVersion.findUnique({ where: { id } });
+    if (!row) throw new NotFoundException("FEE_POLICY_NOT_FOUND");
+    const lockKey = `fee-policy:${row.policyCode}`;
+    await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
+    row = await tx.feePolicyVersion.findUnique({ where: { id } });
+    if (!row) throw new NotFoundException("FEE_POLICY_NOT_FOUND");
+    if (row.status !== "DRAFT")
+      throw new ConflictException("FEE_POLICY_ALREADY_DECIDED");
+    return { live, row };
+  }
   list(actor: Principal, query: { limit?: number; cursor?: string }) {
     const scope = JSON.stringify(["fee-policies-v1", actor.userId]),
       { limit, cursor } = listInput(query, scope);
@@ -252,17 +270,7 @@ export class FeePolicyAdminService {
       throw new BadRequestException("INVALID_FEE_POLICY");
     const reason = validateReason(input.reason, { min: 3, max: 1000 });
     return this.transactions.run(async (tx) => {
-      await this.authorize(tx, actor);
-      await lockUsers(tx, [actor.userId]);
-      const live = await this.authorize(tx, actor);
-      let row = await tx.feePolicyVersion.findUnique({ where: { id } });
-      if (!row) throw new NotFoundException("FEE_POLICY_NOT_FOUND");
-      const lockKey = `fee-policy:${row.policyCode}`;
-      await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
-      row = await tx.feePolicyVersion.findUnique({ where: { id } });
-      if (!row) throw new NotFoundException("FEE_POLICY_NOT_FOUND");
-      if (row.status !== "DRAFT")
-        throw new ConflictException("FEE_POLICY_ALREADY_DECIDED");
+      const { live, row } = await this.lockDraft(tx, actor, id);
       const previousFeeBps = feeBpsFromRule(row.calculationRule);
       await this.reauth.consumeReauth(tx, live, input.reauthToken);
       const result = await tx.feePolicyVersion.update({
@@ -301,17 +309,7 @@ export class FeePolicyAdminService {
   ) {
     const reason = validateReason(input.reason, { min: 3, max: 1000 });
     return this.transactions.run(async (tx) => {
-      await this.authorize(tx, actor);
-      await lockUsers(tx, [actor.userId]);
-      const live = await this.authorize(tx, actor);
-      let row = await tx.feePolicyVersion.findUnique({ where: { id } });
-      if (!row) throw new NotFoundException("FEE_POLICY_NOT_FOUND");
-      const lockKey = `fee-policy:${row.policyCode}`;
-      await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
-      row = await tx.feePolicyVersion.findUnique({ where: { id } });
-      if (!row) throw new NotFoundException("FEE_POLICY_NOT_FOUND");
-      if (row.status !== "DRAFT")
-        throw new ConflictException("FEE_POLICY_ALREADY_DECIDED");
+      const { live, row } = await this.lockDraft(tx, actor, id);
       const feeBps = feeBpsFromRule(row.calculationRule);
       await this.reauth.consumeReauth(tx, live, input.reauthToken);
       const deleted = await tx.feePolicyVersion.deleteMany({
@@ -351,17 +349,7 @@ export class FeePolicyAdminService {
   ) {
     const reason = validateReason(input.reason, { min: 3, max: 1000 });
     return this.transactions.run(async (tx) => {
-      await this.authorize(tx, actor);
-      await lockUsers(tx, [actor.userId]);
-      const live = await this.authorize(tx, actor);
-      let row = await tx.feePolicyVersion.findUnique({ where: { id } });
-      if (!row) throw new NotFoundException("FEE_POLICY_NOT_FOUND");
-      const lockKey = `fee-policy:${row.policyCode}`;
-      await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
-      row = await tx.feePolicyVersion.findUnique({ where: { id } });
-      if (!row) throw new NotFoundException("FEE_POLICY_NOT_FOUND");
-      if (row.status !== "DRAFT")
-        throw new ConflictException("FEE_POLICY_ALREADY_DECIDED");
+      const { live, row } = await this.lockDraft(tx, actor, id);
       const now = await databaseNow(tx),
         effectiveAt = input.effectiveAt ? feeTimestamp(input.effectiveAt) : now;
       if (!Number.isFinite(+effectiveAt) || effectiveAt < now)
