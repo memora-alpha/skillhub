@@ -50,10 +50,10 @@
 
 ## Phase 6 — Recording
 
-- [ ] T025 Request requires the requester's recording entitlement and remaining minutes
-- [ ] T026 Charge minutes once at `egress_ended`; cap at allowance; snapshot retention at start
-- [ ] T027 Add-on purchase endpoint
-- [ ] T028 Amend spec 020 D2/D6/D9 and tests: free requester, exhausted minutes, duplicate webhook, overrun, expiry after recording
+- [x] T025 Request requires the requester's recording entitlement and remaining minutes
+- [x] T026 Charge minutes once at `egress_ended`; cap at allowance; snapshot retention at start
+- [x] T027 Add-on purchase endpoint
+- [x] T028 Amend spec 020 D2/D6/D9 and tests: free requester, exhausted minutes, duplicate webhook, overrun, expiry after recording
 
 ## Phase 7 — Material storage (blocked by G5)
 

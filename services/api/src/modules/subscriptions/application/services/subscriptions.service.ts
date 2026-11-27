@@ -43,11 +43,14 @@ import {
   databaseNow,
   humanActor,
   lockSubscriptionOwner,
+  periodUsage,
   priceFor,
   requireSubscriptionPermission,
+  savePeriodUsage,
   sha256,
   subscriptionAudit,
   subscriptionView,
+  versionEntitlements,
 } from "./subscription-support";
 
 type CurrentRow = UserSubscription & { planVersion: SubscriptionPlanVersion };
@@ -128,8 +131,9 @@ export class SubscriptionsService {
     input: {
       subscriptionId: string;
       userId: string;
-      kind: "PURCHASE" | "UPGRADE";
+      kind: "PURCHASE" | "UPGRADE" | "RECORDING_ADDON";
       planVersionId: string;
+      quantity?: number;
       key: string;
       command: Record<string, string>;
     },
@@ -142,7 +146,7 @@ export class SubscriptionsService {
         kind: input.kind,
         planVersionId: input.planVersionId,
         amount: charge.amount,
-        quantity: 1,
+        quantity: input.quantity ?? 1,
         operationId: charge.operationId,
         idempotencyKey: sha256(`${input.kind}:${input.key}`),
         requestDigest: fingerprintCommand(input.command),
@@ -417,6 +421,86 @@ export class SubscriptionsService {
   ): SubscriptionInterval | null | undefined {
     if (requested === undefined || requested === null) return requested;
     return requested === row.interval ? null : requested;
+  }
+
+  /**
+   * Spec 021 D14: add-on recording minutes for the current term, sold only on a plan that
+   * allows them. The price comes from `subscription.recordingAddon`; the client confirms
+   * the per-pack price it showed, so a price change between display and payment is refused.
+   */
+  async buyRecordingMinutes(
+    principal: Principal,
+    input: { packs: number; expectedPriceCredit: number },
+    idempotencyKey: string | undefined,
+  ) {
+    requireSubscriptionPermission(principal, "subscription:manage:self");
+    const key = requireIdempotencyKey(idempotencyKey);
+    if (!Number.isInteger(input.packs) || input.packs < 1 || input.packs > 10)
+      throw new BadRequestException("RECORDING_ADDON_PACKS_INVALID");
+    const command = {
+      packs: String(input.packs),
+      expectedPriceCredit: String(input.expectedPriceCredit),
+    };
+    await this.idempotency.execute(
+      {
+        scope: `subscription:${principal.userId}`,
+        operation: "recording-addon",
+        key,
+        command,
+        conflictMessage: "IDEMPOTENCY_KEY_REUSED",
+      },
+      async (tx) => {
+        await this.assertEnabled(tx);
+        await lockSubscriptionOwner(tx, principal.userId);
+        const now = await databaseNow(tx);
+        const row = await this.current(tx, principal.userId, now);
+        if (!row || !versionEntitlements(row.planVersion).recordingAddonAllowed)
+          throw new ConflictException("RECORDING_ADDON_NOT_ALLOWED");
+        const { values } = await this.configuration.getSnapshot(
+          ["subscription.recordingAddon"],
+          tx,
+        );
+        const addon = values["subscription.recordingAddon"];
+        if (addon.priceCredit !== input.expectedPriceCredit)
+          throw new ConflictException("RECORDING_ADDON_PRICE_CHANGED");
+        const minutes = addon.minutes * input.packs;
+        const charge = await this.debit(
+          tx,
+          principal.userId,
+          // Config prices are whole Credit; amounts are hundredths.
+          BigInt(addon.priceCredit) * BigInt(input.packs) * 100n,
+        );
+        const usage = await periodUsage(tx, row, now);
+        const addonMinutesRemaining = usage.addonMinutesRemaining + minutes;
+        await savePeriodUsage(tx, row.id, { ...usage, addonMinutesRemaining });
+        await this.recordCharge(tx, charge, {
+          subscriptionId: row.id,
+          userId: principal.userId,
+          kind: "RECORDING_ADDON",
+          planVersionId: row.planVersionId,
+          quantity: input.packs,
+          key,
+          command,
+        });
+        await this.audit.append(tx, {
+          actor: humanActor(principal),
+          action: "SUBSCRIPTION_RECORDING_ADDON",
+          target: { type: "USER_SUBSCRIPTION", id: row.id },
+          after: {
+            planCode: row.planCode,
+            packs: input.packs,
+            minutes,
+            addonMinutesRemaining,
+            chargeAmount: charge.amount.toString(),
+            operationId: charge.operationId,
+          },
+          reason: "Recording add-on purchase",
+          context: auditContext(),
+        });
+        return { id: row.id, status: row.status };
+      },
+    );
+    return (await this.me(principal)).usage;
   }
 
   async me(principal: Principal) {

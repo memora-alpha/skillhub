@@ -13,7 +13,6 @@ import {
   decideAtTermEnd,
   grantsEntitlements,
   proratedUpgradeAmount,
-  raisedRetentionDays,
   recordedMinutes,
   termEndFor,
   tierFeePolicyCode,
@@ -198,10 +197,4 @@ test("fee policy codes map tiers and never tier TWO_WAY", () => {
   assert.equal(baseFeePolicyCode("MATERIAL_PAID_CREATOR"), "MATERIAL_PAID");
   assert.equal(baseFeePolicyCode("TWO_WAY"), "TWO_WAY");
   assert.equal(baseFeePolicyCode("ONE_WAY_PROMO"), "ONE_WAY_PROMO");
-});
-
-test("whiteboard retention snapshot only grows", () => {
-  assert.equal(raisedRetentionDays(null, [30, 365]), 365);
-  assert.equal(raisedRetentionDays(365, [30, 30]), 365);
-  assert.equal(raisedRetentionDays(30, [180]), 180);
 });

@@ -61,9 +61,13 @@ scheduled change; omitted fields keep their value. A scheduled plan must not be 
 
 ### `POST /me/subscription/recording-minutes`
 
-Header `Idempotency-Key`. Body `{ packs: 1–10, expectedPriceCredit }`. `201` with the updated usage.
-Errors: `409 RECORDING_ADDON_NOT_ALLOWED`, `409 RECORDING_ADDON_PRICE_CHANGED`,
-`409 INSUFFICIENT_AVAILABLE_CREDIT`.
+Header `Idempotency-Key`. Body `{ packs: 1–10, expectedPriceCredit }`, where `expectedPriceCredit` is the
+whole-Credit price per pack shown to the user. `201` with the updated usage. The charge is
+`packs × priceCredit`; the minutes are `packs × minutes` from `subscription.recordingAddon`, valid until the
+term ends. Audit action `SUBSCRIPTION_RECORDING_ADDON`.
+Errors: `400 RECORDING_ADDON_PACKS_INVALID`, `409 RECORDING_ADDON_NOT_ALLOWED` (no current plan, or the plan
+does not allow add-ons), `409 RECORDING_ADDON_PRICE_CHANGED`, `409 INSUFFICIENT_AVAILABLE_CREDIT`,
+`409 SUBSCRIPTION_RENEWAL_PENDING`, `409 IDEMPOTENCY_KEY_REUSED`.
 
 ### `GET /me/subscription/charges?cursor&limit`
 

@@ -10,6 +10,7 @@ import {
   IsString,
   IsUUID,
   Length,
+  Max,
   MaxLength,
   Min,
   ValidateIf,
@@ -25,6 +26,20 @@ export class PurchaseSubscriptionDto {
   @ApiProperty({ enum: PLAN_CODES }) @IsIn(PLAN_CODES) planCode!: PlanCode;
   @ApiProperty({ enum: INTERVALS }) @IsIn(INTERVALS) interval!: Interval;
   @ApiProperty() @IsUUID("4") expectedPlanVersionId!: string;
+}
+
+/** Spec 021 D14: packs of `subscription.recordingAddon.minutes` at the confirmed price. */
+export class BuyRecordingMinutesDto {
+  @ApiProperty({ minimum: 1, maximum: 10 })
+  @IsInt()
+  @Min(1)
+  @Max(10)
+  packs!: number;
+  /** Whole Credit per pack, as shown to the user. */
+  @ApiProperty({ minimum: 1 })
+  @IsInt()
+  @Min(1)
+  expectedPriceCredit!: number;
 }
 
 export class UpgradeQuoteQueryDto {

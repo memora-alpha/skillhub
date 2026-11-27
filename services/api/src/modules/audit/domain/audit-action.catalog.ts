@@ -67,6 +67,7 @@ export const AUDIT_ACTIONS = [
   "SUBSCRIPTION_RENEW",
   "SUBSCRIPTION_GRACE",
   "SUBSCRIPTION_EXPIRE",
+  "SUBSCRIPTION_RECORDING_ADDON",
   "SUBSCRIPTION_PLAN_CREATE",
   "SUBSCRIPTION_PLAN_APPROVE",
   "SUBSCRIPTION_PLAN_RETIRE",
@@ -286,6 +287,14 @@ const subscription = z.strictObject({
     .nullable(),
   operationId: uuid.nullable(),
 });
+const subscriptionAddon = z.strictObject({
+  planCode,
+  packs: z.number().int().positive(),
+  minutes: z.number().int().positive(),
+  addonMinutesRemaining: z.number().int().nonnegative(),
+  chargeAmount: z.string().regex(/^[1-9]\d*$/),
+  operationId: uuid,
+});
 const subscriptionPlan = z.strictObject({
   planCode,
   versionNo: z.number().int().positive(),
@@ -415,6 +424,7 @@ const projectionByAction: Record<
   SUBSCRIPTION_RENEW: subscription,
   SUBSCRIPTION_GRACE: subscription,
   SUBSCRIPTION_EXPIRE: subscription,
+  SUBSCRIPTION_RECORDING_ADDON: subscriptionAddon,
   SUBSCRIPTION_PLAN_CREATE: subscriptionPlan,
   SUBSCRIPTION_PLAN_APPROVE: subscriptionPlan,
   SUBSCRIPTION_PLAN_RETIRE: subscriptionPlan,

@@ -152,11 +152,3 @@ export {
   tierFeePolicyCode,
   type BaseFeePolicyCode,
 } from "../../credit/domain/fee-policy-codes";
-
-/** Spec 021 D10: a board snapshot only ever grows. */
-export function raisedRetentionDays(
-  current: number | null,
-  candidates: readonly number[],
-): number {
-  return Math.max(current ?? 0, ...candidates);
-}

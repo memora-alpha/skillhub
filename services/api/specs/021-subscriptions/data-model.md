@@ -94,11 +94,15 @@ Index: `(userId, createdAt desc, id desc)`.
 | subscriptionId          | uuid PK/FK     |                                      |
 | periodStart             | timestamptz PK |                                      |
 | recordingMinutesAllowed | int            | snapshot of the plan at period start |
-| recordingMinutesUsed    | int            | `>= 0`, capped at allowed + add-on   |
+| recordingMinutesUsed    | int            | `>= 0`, period minutes, <= allowed   |
 | addonMinutesRemaining   | int            | `>= 0`; purchased packs for the term |
 | updatedAt               | timestamptz    |                                      |
 
 Add-on minutes carry across periods inside a term: the next period row copies `addonMinutesRemaining`.
+A recording spends period minutes first (`recordingMinutesUsed`), then add-on minutes
+(`addonMinutesRemaining` decreases); minutes beyond both are absorbed and not stored. A period row is created
+on the first charge or add-on purchase under the subscription owner lock. During GRACE, usage stays in the
+term's last period.
 
 Whiteboard retention: a board is kept `max(retention_days, whiteboard.retentionDays)` days after `endAt`. The
 config value is the Free value and the floor, so Free participants never write a snapshot and the reader is
@@ -106,12 +110,12 @@ queried through `paidEntitlements`, which reads no configuration.
 
 ## Columns on existing tables
 
-| Table                 | Column            | Type     | Notes                                                  |
-| --------------------- | ----------------- | -------- | ------------------------------------------------------ |
-| `session_whiteboards` | `retention_days`  | int?     | D10 snapshot raised on each save; null = Free/legacy   |
-| `session_recordings`  | `retention_days`  | int?     | D12 snapshot at start; null = legacy, use config       |
-| `session_recordings`  | `charged_minutes` | int?     | set once at `egress_ended`; non-null = already charged |
-| `session_recordings`  | `subscription_id` | uuid? FK | subscription charged                                   |
+| Table                 | Column            | Type     | Notes                                                |
+| --------------------- | ----------------- | -------- | ---------------------------------------------------- |
+| `session_whiteboards` | `retention_days`  | int?     | D10 snapshot raised on each save; null = Free/legacy |
+| `session_recordings`  | `retention_days`  | int?     | D12 snapshot at start; null = legacy, use config     |
+| `session_recordings`  | `charged_minutes` | int?     | minutes the plan paid, set once at `egress_ended`    |
+| `session_recordings`  | `subscription_id` | uuid? FK | subscription charged                                 |
 
 ## Ownership
 

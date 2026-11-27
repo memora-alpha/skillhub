@@ -21,6 +21,7 @@ import { parseCredit } from "../../../credit/domain/money";
 import { SubscriptionPlansService } from "../../application/services/subscription-plans.service";
 import { SubscriptionsService } from "../../application/services/subscriptions.service";
 import {
+  BuyRecordingMinutesDto,
   PurchaseSubscriptionDto,
   UpdateSubscriptionDto,
   UpgradeQuoteQueryDto,
@@ -98,6 +99,20 @@ export class SubscriptionsController {
     @Body() body: UpdateSubscriptionDto,
   ) {
     return success(await this.subscriptions.update(actor, body));
+  }
+
+  @Post("me/subscription/recording-minutes")
+  @Header("Cache-Control", "no-store")
+  @ApiHeader({ name: "Idempotency-Key", required: true })
+  async buyRecordingMinutes(
+    @CurrentIdentity() actor: Principal,
+    @Headers("idempotency-key") key: string | undefined,
+    @Body() body: BuyRecordingMinutesDto,
+  ) {
+    return success(
+      await this.subscriptions.buyRecordingMinutes(actor, body, key),
+      "Recording minutes added.",
+    );
   }
 
   @Get("me/subscription/charges")

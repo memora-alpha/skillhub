@@ -175,3 +175,34 @@ export const buy = (
     },
     key,
   );
+
+/**
+ * Seeds a current plan for `userId` directly, for suites that only read plans (whiteboard,
+ * recording). `entitlements` overrides the plan defaults.
+ */
+export function seedSubscription(db, userId, planCode, termEnd, options = {}) {
+  const version = db.seed("subscriptionPlanVersion", {
+    planCode,
+    versionNo: 1,
+    monthPrice: 9_900n,
+    yearPrice: 95_000n,
+    entitlements: {
+      ...DEFAULT_PLAN_ENTITLEMENTS[planCode],
+      ...options.entitlements,
+    },
+    status: "APPROVED",
+    effectiveAt: new Date("2026-10-01T00:00:00Z"),
+    approvedAt: new Date("2026-10-01T00:00:00Z"),
+    createdByUserId: userId,
+  });
+  return db.seed("userSubscription", {
+    userId,
+    planCode,
+    planVersionId: version.id,
+    interval: "MONTH",
+    status: options.status ?? "ACTIVE",
+    termStart: options.termStart ?? new Date("2026-10-15T00:00:00Z"),
+    termEnd,
+    graceUntil: options.graceUntil ?? null,
+  });
+}

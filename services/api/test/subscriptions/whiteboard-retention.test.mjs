@@ -8,7 +8,6 @@ import {
   whiteboardRetentionDays,
 } from "../../dist/modules/learning-sessions/domain/whiteboard.policy.js";
 import { SessionWhiteboardService } from "../../dist/modules/learning-sessions/application/services/session-whiteboard.service.js";
-import { DEFAULT_PLAN_ENTITLEMENTS } from "../../dist/modules/subscriptions/domain/plan-entitlements.js";
 import { SubscriptionEntitlementsReader } from "../../dist/modules/subscriptions/application/services/subscription-entitlements.reader.js";
 import {
   A,
@@ -17,6 +16,7 @@ import {
   setup,
 } from "../learning-platform/fixtures.mjs";
 import { runner } from "../learning-platform/fake-db.mjs";
+import { seedSubscription } from "./support.mjs";
 
 const DAY = 86_400_000;
 const participant = (userId) => ({
@@ -34,29 +34,7 @@ const scene = (id) => ({
 // Session 2026-11-02 10:00-11:00 UTC; edits close 24 hours after it ends.
 const END = new Date("2026-11-02T11:00:00Z");
 
-/** Seeds a current plan for `userId` ending at `termEnd`. */
-function subscribe(db, userId, planCode, termEnd) {
-  const version = db.seed("subscriptionPlanVersion", {
-    planCode,
-    versionNo: 1,
-    monthPrice: 9_900n,
-    yearPrice: 95_000n,
-    entitlements: DEFAULT_PLAN_ENTITLEMENTS[planCode],
-    status: "APPROVED",
-    effectiveAt: new Date("2026-10-01T00:00:00Z"),
-    approvedAt: new Date("2026-10-01T00:00:00Z"),
-    createdByUserId: userId,
-  });
-  return db.seed("userSubscription", {
-    userId,
-    planCode,
-    planVersionId: version.id,
-    interval: "MONTH",
-    status: "ACTIVE",
-    termStart: new Date("2026-10-15T00:00:00Z"),
-    termEnd,
-  });
-}
+const subscribe = seedSubscription;
 
 async function ready({ withPlans = true } = {}) {
   const ctx = setup({

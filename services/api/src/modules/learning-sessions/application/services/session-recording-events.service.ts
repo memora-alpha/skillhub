@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   Injectable,
   Logger,
   ServiceUnavailableException,
@@ -6,6 +7,7 @@ import {
 import { PrismaService } from "../../../../infrastructure/database/prisma.service";
 import { TransactionRunner } from "../../../../infrastructure/database/transaction-runner";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
+import { SubscriptionEntitlementsReader } from "../../../subscriptions/application/services/subscription-entitlements.reader";
 import { SystemConfigurationService } from "../../../system-configuration/application/services/system-configuration.service";
 import {
   canTransition,
@@ -51,6 +53,8 @@ type Row = {
   egressId: string | null;
   startedAt: Date | null;
   stopReason: RecordingStopReason | null;
+  subscriptionId: string | null;
+  chargedMinutes: number | null;
   session: { roomName: string | null };
 };
 
@@ -62,6 +66,8 @@ const rowSelect = {
   egressId: true,
   startedAt: true,
   stopReason: true,
+  subscriptionId: true,
+  chargedMinutes: true,
   session: { select: { roomName: true } },
 } as const;
 
@@ -113,6 +119,7 @@ export class SessionRecordingEventsService {
     private readonly transactions: TransactionRunner,
     private readonly configuration: SystemConfigurationService,
     private readonly egress: LiveKitEgressService,
+    private readonly plans?: SubscriptionEntitlementsReader,
   ) {}
 
   /** Applies one Egress state inside the caller's transaction. Unknown Egress ids are ignored. */
@@ -189,6 +196,7 @@ export class SessionRecordingEventsService {
     now: Date,
   ): Promise<Applied> {
     if (!canTransition(row.status, "READY")) return unchanged;
+    const endedAt = snapshot.endedAt ?? now;
     const moved = await tx.sessionRecording.updateMany({
       where: { id: row.id, status: row.status },
       data: {
@@ -197,12 +205,42 @@ export class SessionRecordingEventsService {
         bytes: snapshot.file!.bytes,
         durationMs: snapshot.file!.durationMs,
         startedAt: row.startedAt ?? snapshot.startedAt ?? now,
-        endedAt: snapshot.endedAt ?? now,
+        endedAt,
         // Ended without a participant or the worker stopping it: the room closed.
         stopReason: row.stopReason ?? "ROOM_FINISHED",
       },
     });
-    return moved.count === 1 ? this.cleared(row) : unchanged;
+    if (moved.count !== 1) return unchanged;
+    await this.chargeMinutes(tx, row, snapshot.file!.durationMs, endedAt);
+    return this.cleared(row);
+  }
+
+  /**
+   * Spec 021 D11: a finished recording charges its requester's pinned subscription once, in
+   * the transaction that marks it READY. `charged_minutes` records what the plan paid; a
+   * second delivery finds it set and charges nothing. A failed Egress is never charged.
+   */
+  private async chargeMinutes(
+    tx: TransactionContext,
+    row: Row,
+    durationMs: bigint,
+    endedAt: Date,
+  ) {
+    if (!this.plans || !row.subscriptionId || row.chargedMinutes !== null)
+      return;
+    const charge = await this.plans.chargeRecordingMinutes(
+      tx,
+      row.subscriptionId,
+      durationMs,
+      endedAt,
+    );
+    const saved = await tx.sessionRecording.updateMany({
+      where: { id: row.id, chargedMinutes: null },
+      data: { chargedMinutes: charge.charged },
+    });
+    // Another delivery charged it first; throwing rolls this charge back.
+    if (saved.count !== 1)
+      throw new ConflictException("RECORDING_ALREADY_CHARGED");
   }
 
   private async failed(

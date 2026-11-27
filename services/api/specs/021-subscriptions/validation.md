@@ -97,6 +97,31 @@ Design notes:
 - Saves read plans through `paidEntitlements`, which reads no configuration, so an unseeded
   `subscription.freeEntitlements` cannot block whiteboard saves.
 
+## Phase 6 — Recording (2026-11-27)
+
+| Check                                                                                                                            | Result                                                                                                                                                                                                                                                                                                                                                                                     |
+| -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `check-types`, `build`, ESLint                                                                                                   | Pass                                                                                                                                                                                                                                                                                                                                                                                       |
+| `test/subscriptions/recording-minutes.test.mjs`                                                                                  | 14/14 pass: Free and no-recording plans refused; start pins plan and 30-day retention; 90 s charges 2 minutes; duplicate webhook; overrun spends period then add-on and absorbs the rest, then exhausted; plan ended before `egress_ended`; plan lapsed before accept; snapshot vs legacy retention sweep; legacy wiring; GRACE period; add-on charge, replay, carry and renewal; refusals |
+| Spec 020 suites (`test/learning-sessions/recording*.test.mjs`)                                                                   | Pass unchanged                                                                                                                                                                                                                                                                                                                                                                             |
+| Regression set: subscriptions, learning-sessions, learning-platform, reports, audit, materials and credit unit suites, bootstrap | 388/388 pass                                                                                                                                                                                                                                                                                                                                                                               |
+
+Design notes:
+
+- The plan is checked on request and on accept; accept pins `subscription_id` and `retention_days`, which is
+  the "start" of D12.
+- `charged_minutes` stores what the plan paid (period plus add-on), not the recorded length. The row moves to
+  READY and is charged in one transaction; a second delivery cannot move it again, and the
+  `charged_minutes IS NULL` update is a second guard that rolls the charge back.
+- A recording snapshot replaces `recording.retentionDays` even when shorter (Creator 30 vs config 90), unlike
+  the whiteboard floor. The sweep therefore bounds snapshot rows by the 1-day minimum and checks each row.
+- Usage allowance is the plan value when the period row is created. An upgrade mid-period does not raise it
+  until the next period (data model "snapshot of the plan at period start"); flagged for product review.
+- `subscription.policy.raisedRetentionDays` from Phase 1 was unused after Phase 5 and was removed.
+
+Not covered: real PostgreSQL concurrency between an `egress_ended` charge and an add-on purchase (both take the
+owner lock); T030.
+
 ## Pending
 
 - Apply the migration to an isolated PostgreSQL and check the CHECKs, the partial unique index
