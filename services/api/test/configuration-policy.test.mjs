@@ -17,10 +17,6 @@ test("approved defaults and mutability are explicit", () => {
     1000,
   );
   assert.deepEqual(
-    CONFIGURATION_DEFINITIONS["credit.pathSettlementBps"].defaultValue,
-    { returned: 9600, fee: 400 },
-  );
-  assert.deepEqual(
     CONFIGURATION_DEFINITIONS["session.durationMinutes"].defaultValue,
     { min: 60, max: 180 },
   );
@@ -38,7 +34,6 @@ test("approved defaults and mutability are explicit", () => {
   );
   assert.deepEqual(Object.keys(CONFIGURATION_DEFINITIONS).sort(), [
     "contentModeration.profanityRuleSet",
-    "credit.pathSettlementBps",
     "credit.topUpVndPerCredit",
     "learningPath.changeRequests",
     "learningPath.minCreditPerUser",
@@ -161,23 +156,14 @@ test("rejects unknown and secret-like keys", () => {
   }
 });
 
-test("strict values reject malformed objects and invalid split", () => {
-  assert.deepEqual(
+test("strict values reject malformed objects", () => {
+  assert.equal(isConfigurationKey("credit.pathSettlementBps"), false);
+  assert.throws(() =>
     parseConfigurationValue("credit.pathSettlementBps", {
       returned: 9600,
       fee: 400,
     }),
-    { returned: 9600, fee: 400 },
   );
-  for (const value of [
-    { returned: 9600, fee: 500 },
-    { returned: 9600, fee: 400, password: "secret" },
-    { returned: -1, fee: 10_001 },
-  ]) {
-    assert.throws(() =>
-      parseConfigurationValue("credit.pathSettlementBps", value),
-    );
-  }
   assert.throws(() =>
     parseConfigurationValue("session.durationMinutes", { min: 180, max: 60 }),
   );

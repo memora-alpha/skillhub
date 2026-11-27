@@ -141,16 +141,16 @@ function absent(ctx, both = false) {
   return session;
 }
 
-test("4% is charged on both original Holds even before any lesson; bilateral consent posts once", async () => {
+test("no fee is charged before any lesson; bilateral consent posts once", async () => {
   const ctx = await fixture();
   const quote = await ctx.stop.quote(user(A), ctx.path.id);
   assert.equal(
     quote.allocations.reduce((sum, item) => sum + Number(item.platformFee), 0),
-    8,
+    0,
   );
   assert.deepEqual(
     quote.allocations.map((item) => item.refund),
-    ["96.00", "96.00"],
+    ["100.00", "100.00"],
   );
   for (const item of quote.allocations) {
     const own = item.sessionCredits.filter(
@@ -189,16 +189,16 @@ test("teacher-only absence compensates the partner using its own plan denominato
   const quote = await ctx.stop.quote(user(A), ctx.path.id);
   const owner = quote.allocations.find((row) => row.userId === A);
   assert.equal(owner.counterpartyPayment, "20.00");
-  assert.equal(owner.refund, "76.00");
-  assert.equal(owner.platformFee, "4.00");
+  assert.equal(owner.refund, "80.00");
+  assert.equal(owner.platformFee, "0.00");
   await consent(ctx);
   assert.equal(
     ctx.db.rows("creditWallet").find((row) => row.userId === A).availableCredit,
-    17600n,
+    18000n,
   );
   assert.equal(
     ctx.db.rows("creditWallet").find((row) => row.userId === B).availableCredit,
-    21600n,
+    22000n,
   );
 });
 
@@ -234,7 +234,7 @@ test("compensation is capped at Held after fees and never creates debt", async (
   const quote = await ctx.stop.quote(user(A), ctx.path.id);
   const owner = quote.allocations.find((row) => row.userId === A);
   assert.equal(owner.requestedCompensationCredit, "100.00");
-  assert.equal(owner.compensationCredit, "96.00");
+  assert.equal(owner.compensationCredit, "100.00");
   assert.equal(owner.refund, "0.00");
   await consent(ctx);
   assert.equal(
@@ -270,7 +270,7 @@ test("approval keeps an ongoing lesson, cancels future lessons and settles autom
       .rows("creditTransaction")
       .filter((row) => row.type === "PLATFORM_FEE")
       .reduce((sum, row) => sum + row.amount, 0n),
-    800n,
+    80n,
   );
 });
 
@@ -329,7 +329,7 @@ test("Staff approves the server formula without general credit adjustment powers
   );
 });
 
-test("the total 4% fee is rounded once before allocating hundredths to the two Holds", () => {
+test("equal Holds pay equal independently rounded fees", () => {
   const fees = allocateHeldFee(
     [
       { userId: A, amount: 10013n },
@@ -337,13 +337,14 @@ test("the total 4% fee is rounded once before allocating hundredths to the two H
     ],
     400,
   );
-  assert.equal(fees.get(A) + fees.get(B), 801n);
-  assert.equal(fees.get(A), 401n);
+  assert.equal(fees.get(A) + fees.get(B), 800n);
+  assert.equal(fees.get(A), 400n);
   assert.equal(fees.get(B), 400n);
 });
 
-test("ordinary completed settlement uses the same total Held rounding as termination", async () => {
+test("ordinary completed settlement rounds each equal Hold symmetrically", async () => {
   const ctx = await fixture([5, 3], "100.13");
+  assert.equal(ctx.db.rows("learningPathVersion")[0].feeAmountSnapshot, 800n);
   const row = ctx.db.rows("learningPath")[0];
   row.status = "ACTIVE";
   const sessions = ctx.db.rows("session");
@@ -352,12 +353,12 @@ test("ordinary completed settlement uses the same total Held rounding as termina
     Math.max(...sessions.map((session) => +session.endAt)) + 49 * 3600000,
   );
   const result = await ctx.sessions.settlePath(user(A), ctx.path.id);
-  assert.equal(result.fee, "8.01");
+  assert.equal(result.fee, "8.00");
   assert.equal(
     ctx.db
       .rows("creditWallet")
       .reduce((sum, wallet) => sum + wallet.availableCredit, 0n),
-    39199n,
+    39200n,
   );
 });
 
@@ -397,7 +398,7 @@ test("finalizing an in-flight absence after approval creates no new makeup and r
   assert.equal(final.status, "APPLIED");
   assert.equal(
     ctx.db.rows("creditWallet").find((row) => row.userId === A).availableCredit,
-    17600n,
+    18000n,
   );
 });
 

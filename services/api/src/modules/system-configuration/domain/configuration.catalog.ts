@@ -11,13 +11,6 @@ import {
 } from "../../subscriptions/domain/plan-entitlements";
 
 const positiveInt = z.number().int().safe().positive();
-const settlement = z
-  .object({
-    returned: z.number().int().min(0).max(10_000),
-    fee: z.number().int().min(0).max(10_000),
-  })
-  .strict()
-  .refine((value) => value.returned + value.fee === 10_000);
 const duration = z
   .object({
     min: positiveInt,
@@ -111,13 +104,6 @@ export const CONFIGURATION_DEFINITIONS = {
     schema: z.literal(1000),
     mutable: false,
     defaultValue: 1000,
-  },
-  "credit.pathSettlementBps": {
-    schema: settlement.refine(
-      (value) => value.returned === 9600 && value.fee === 400,
-    ),
-    mutable: false,
-    defaultValue: { returned: 9600, fee: 400 },
   },
   "session.durationMinutes": {
     schema: duration.refine((value) => value.min === 60 && value.max === 180),

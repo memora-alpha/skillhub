@@ -62,19 +62,22 @@ expectedUpdatedAt, reason}`. Rechecks authorization under sorted user locks;
 
 - `GET /admin/fee-policies?limit=&cursor=`: all policy versions, plus `effective`
   only for the currently selected approved/effective version of each code.
+- `GET /admin/fee-policies/next-version?policyCode=`: the next series version,
+  independent of history pagination.
 - `POST /admin/fee-policies/material`: `{versionNo,feeBps,reason,reauthToken}`.
   versionNo is latest existing material version + 1; concurrent duplicate version
-  returns 409 without consuming proof. feeBps is integer 0..9999 (500 = 5%).
-  Creates an immutable DRAFT; corrections use a new version.
+  returns 409 without consuming proof. feeBps is integer 100..1000 (500 = 5%).
+  Creates a DRAFT. `PATCH /admin/fee-policies/:id` changes its fee and
+  `DELETE /admin/fee-policies/:id` discards it; both require reason and reauth.
 - `POST /admin/fee-policies/:id/approve`: `{reason,reauthToken,effectiveAt?}`.
-  DRAFT MATERIAL_PAID only. Omitted effectiveAt uses database now; past dates,
-  nonincreasing effective times and version regressions rejected. A higher version
-  scheduled for the future does not affect purchases before its effectiveAt.
+  DRAFT policy only. Omitted effectiveAt uses database now; past dates and version
+  regressions are rejected. A newer version may take effect immediately before an
+  already-approved future schedule; effective selection remains based on effectiveAt.
   Explicit effectiveAt, report from and report to require a timezone (Z or offset).
 - Both commands require ADMIN + `fee-policy:manage`, current one-use reauth proof,
   serialized policy-series lock and audit. Same Admin can create and approve.
-  Approved policies have no update/delete API. Learning policy changes are rejected;
-  ONE_WAY/TWO_WAY remain 4%. Existing order snapshots/rounding are preserved.
+  Approved policies have no update/delete API. Existing order/path snapshots are
+  preserved and `fee_policy_versions` is the only active fee-policy authority.
 - `GET /admin/fee-revenue?from=&to=&granularity=day|month`: ADMIN + `credit:read:any`.
   Range is `[from,to)` up to 366 days; UTC day/month grouping by operation type.
   Returns decimal-string `collectedCredit`, `refundedCredit`, `netCredit`.

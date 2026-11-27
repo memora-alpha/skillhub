@@ -133,13 +133,6 @@ test(
             reason: "Skipped one-way learning fee",
             reauthToken: await proof(),
           });
-          await assert.rejects(
-            fees.approve(admin.principal, skippedOneWay.id, {
-              reason: "Try approving out of order",
-              reauthToken: await proof(),
-            }),
-            /FEE_POLICY_EFFECTIVE_ORDER_CONFLICT/,
-          );
           const approvedOneWay = await fees.approve(
             admin.principal,
             oneWay.id,
@@ -152,6 +145,29 @@ test(
             returnedBps: 9450,
             feeBps: 550,
           });
+          const updatedSkipped = await fees.updateDraft(
+            admin.principal,
+            skippedOneWay.id,
+            {
+              feeBps: 650,
+              reason: "Correct skipped one-way draft",
+              reauthToken: await proof(),
+            },
+          );
+          assert.deepEqual(updatedSkipped.calculationRule, {
+            returnedBps: 9350,
+            feeBps: 650,
+          });
+          await fees.deleteDraft(admin.principal, skippedOneWay.id, {
+            reason: "Discard skipped one-way draft",
+            reauthToken: await proof(),
+          });
+          assert.equal(
+            await f.db.feePolicyVersion.count({
+              where: { id: skippedOneWay.id },
+            }),
+            0,
+          );
           await assert.rejects(
             fees.approve(admin.principal, draft.id, {
               reason: "Duplicate decision",
@@ -778,13 +794,11 @@ test(
             }),
             /FEE_POLICY_EFFECTIVE_TIME_IN_PAST/,
           );
-          await assert.rejects(
-            fees.approve(admin.principal, next.id, {
-              reason: "Cannot supersede future version early",
-              reauthToken: await proof(),
-            }),
-            /FEE_POLICY_EFFECTIVE_ORDER_CONFLICT/,
-          );
+          const hotfix = await fees.approve(admin.principal, next.id, {
+            reason: "Apply urgent fee hotfix now",
+            reauthToken: await proof(),
+          });
+          assert.ok(hotfix.effectiveAt < new Date(effectiveAt));
         },
       );
     } finally {

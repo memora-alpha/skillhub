@@ -7,14 +7,23 @@ duyệt chính sách phí cho `ONE_WAY`, `TWO_WAY` và `MATERIAL_PAID`. Mức se
 ## Nguyên tắc
 
 - Mỗi phiên bản bắt đầu ở `DRAFT`, cần re-authentication và lý do vận hành.
+- Bản nháp có thể sửa mức phí hoặc xóa; bản đã duyệt là bất biến. Phiên bản
+  mới hơn có thể bỏ qua một bản nháp cũ.
 - Phiên bản chỉ có hiệu lực sau khi được phê duyệt; có thể đặt thời điểm hiệu
-  lực trong tương lai nhưng không được backdate hoặc đảo thứ tự phiên bản.
+  lực trong tương lai nhưng không được backdate. Một phiên bản mới hơn có thể
+  hiệu lực ngay để hotfix dù phiên bản trước đã được lên lịch trong tương lai;
+  khi tới lịch, phiên bản có `effectiveAt` mới nhất sẽ được chọn.
 - Khi Learning Path được khóa, server ghim `feePolicyId`, tỷ lệ và số phí dự
   kiến vào PathVersion. Hold cũng lưu `feeBps` bất biến trong snapshot Credit.
 - Thay đổi chính sách không tính lại Path, Hold, settlement hoặc termination đã
   được ghim trước đó.
-- Phí dùng basis points nguyên trong khoảng `0..9999`; phần còn lại luôn là
-  `10000 - feeBps`. Làm tròn xuống ở precision Credit hiện hành.
+- Phí Admin được phép tạo nằm trong biên kinh doanh `100..1000` basis points
+  (1%–10%); phần còn lại luôn là
+  `10000 - feeBps`. Làm tròn xuống ở precision Credit hiện hành, độc lập theo
+  từng người trả để hai khoản Hold bằng nhau chịu phí bằng nhau.
+- `fee_policy_versions` là nguồn sự thật duy nhất cho phí lộ trình và tài liệu.
+  Khóa cấu hình cũ `credit.pathSettlementBps` không còn thuộc configuration
+  catalog và không được trả như một chính sách phí song song.
 - Tỷ giá nạp `1.000 VND/Credit`, giới hạn Credit tối thiểu và việc không hỗ trợ
   cash-out vẫn là cấu hình chỉ đọc trong thay đổi này.
 
@@ -24,8 +33,14 @@ duyệt chính sách phí cho `ONE_WAY`, `TWO_WAY` và `MATERIAL_PAID`. Mức se
   chính sách phí học đang hiệu lực.
 - `GET /api/v1/admin/fee-policies`: lịch sử phiên bản có phân trang.
 - `GET /api/v1/admin/fee-policies/current`: phiên bản hiện hành của từng loại.
+- `GET /api/v1/admin/fee-policies/next-version?policyCode=...`: số phiên bản
+  kế tiếp của cả series, không phụ thuộc trang lịch sử Web đang hiển thị.
 - `POST /api/v1/admin/fee-policies`: tạo draft với `policyCode`, `versionNo`,
   `feeBps`, `reason`, `reauthToken`.
+- `PATCH /api/v1/admin/fee-policies/:id`: sửa `feeBps` của `DRAFT`, kèm lý do
+  và re-authentication.
+- `DELETE /api/v1/admin/fee-policies/:id`: xóa `DRAFT`, kèm lý do và
+  re-authentication.
 - `POST /api/v1/admin/fee-policies/:id/approve`: phê duyệt ngay hoặc đặt
   `effectiveAt`.
 

@@ -60,7 +60,8 @@ class _AgreementTypeScreenState extends ConsumerState<AgreementTypeScreen> {
           children: [
             EmptyState(
               title: 'Chọn cuộc trao đổi',
-              description: 'Mở lộ trình từ một cuộc trao đổi đã được chấp nhận.',
+              description:
+                  'Mở lộ trình từ một cuộc trao đổi đã được chấp nhận.',
             ),
           ],
         );
@@ -262,10 +263,7 @@ class PathDetailScreen extends ConsumerWidget {
                 ),
               ],
               if (path.status == 'ACTIVE')
-                RouteButton(
-                  href: '/paths/$id/sessions',
-                  label: 'Các buổi học',
-                ),
+                RouteButton(href: '/paths/$id/sessions', label: 'Các buổi học'),
               if (path.status == 'COMPLETED') ...[
                 RouteButton(
                   href: '/paths/$id/settlement',
@@ -283,7 +281,11 @@ class PathDetailScreen extends ConsumerWidget {
                   message:
                       'Lộ trình đang có tranh chấp. Quyết toán cuối đang được giữ để xem xét.',
                 ),
-              if (const ['PROPOSED', 'ACTIVE', 'CANCELLED'].contains(path.status))
+              if (const [
+                'PROPOSED',
+                'ACTIVE',
+                'CANCELLED',
+              ].contains(path.status))
                 RouteButton(
                   secondary: true,
                   href: '/paths/$id/cancel',
@@ -551,7 +553,11 @@ class _TeachPlanFormState extends State<_TeachPlanForm> {
     validator: integerRule(1, _maxSessions),
   );
   late final List<AppField> _sessions = [
-    for (var i = 0; i < (widget.initialOutline.isEmpty ? 2 : widget.initialOutline.length); i++)
+    for (
+      var i = 0;
+      i < (widget.initialOutline.isEmpty ? 2 : widget.initialOutline.length);
+      i++
+    )
       AppField(
         text: i < widget.initialOutline.length ? widget.initialOutline[i] : '',
         validator: _sessionRule,
@@ -600,7 +606,9 @@ class _TeachPlanFormState extends State<_TeachPlanForm> {
     final outline = [
       for (final field in _sessions.take(_visible)) field.text.trim(),
     ];
-    setState(() => _error = widget.onSubmit(_skill, _goal.text.trim(), outline));
+    setState(
+      () => _error = widget.onSubmit(_skill, _goal.text.trim(), outline),
+    );
   }
 
   @override
@@ -615,11 +623,7 @@ class _TeachPlanFormState extends State<_TeachPlanForm> {
           value: _skill,
           onChange: (value) => setState(() => _skill = value),
         ),
-        AppInput(
-          field: _goal,
-          label: 'Mục tiêu kế hoạch',
-          multiline: true,
-        ),
+        AppInput(field: _goal, label: 'Mục tiêu kế hoạch', multiline: true),
         AppInput(
           field: _count,
           label: 'Số buổi',
@@ -642,7 +646,8 @@ class _TeachPlanFormState extends State<_TeachPlanForm> {
               ),
           ],
         ),
-        if (_error != null) FormNotice(tone: NoticeTone.error, message: _error!),
+        if (_error != null)
+          FormNotice(tone: NoticeTone.error, message: _error!),
         AppButton(
           label: 'Gửi kế hoạch mẫu',
           variant: ButtonVariant.craft,
@@ -801,8 +806,7 @@ class ScheduleEditorScreen extends ConsumerWidget {
                     rule: (v) => parseLocalDateTime(v.trim()) == null
                         ? 'Nhập YYYY-MM-DDTHH:mm hợp lệ.'
                         : null,
-                    hint:
-                        'Giờ địa phương ($timeZone). Ví dụ 2026-10-20T19:00.',
+                    hint: 'Giờ địa phương ($timeZone). Ví dụ 2026-10-20T19:00.',
                   ),
                   DataField(
                     name: 'duration$i',
@@ -871,7 +875,8 @@ class _HoldScreenState extends ConsumerState<HoldScreen> {
     final path = notifier.find(id);
     final occupied = [
       for (final s in ref.watch(sessionsProvider))
-        if (s.pathId != id && const ['CONFIRMED', 'DISPUTED'].contains(s.status))
+        if (s.pathId != id &&
+            const ['CONFIRMED', 'DISPUTED'].contains(s.status))
           s.slot,
     ];
     String? validate() => finalValidation(
@@ -1016,7 +1021,7 @@ class _PathCancellationScreenState
               const FormNotice(
                 tone: NoticeTone.info,
                 message:
-                    'Không dùng mức quyết toán 96%/4% của lộ trình hoàn thành để tính tiền hủy. Bản xem thử không hoàn Credit hoặc trừ uy tín.',
+                    'Không dùng mức phí quyết toán đã chốt của lộ trình hoàn thành để tự tính tiền hủy. Bản xem thử không hoàn Credit hoặc trừ uy tín.',
               ),
               if (_draft case final draft?) ...[
                 Copy('Người đề nghị: bạn · ${viDateTime(draft.at)}'),
@@ -1105,19 +1110,7 @@ class SettlementScreen extends ConsumerWidget {
                 accent: true,
                 children: [
                   Copy(path.title),
-                  Copy(
-                    path.type == 'TWO_WAY'
-                        ? 'Mỗi người nhận lại 96% khoản tạm giữ của chính mình. Phí nền tảng 4%.'
-                        : 'Người dạy nhận 96% giá toàn lộ trình. Phí nền tảng 4%; người học không được hoàn lại giá dạy.',
-                  ),
-                  if (path.id == 'path-completed')
-                    const Copy(
-                      'Snapshot mẫu: người học trả 100 CR → người dạy nhận 96 CR · phí 4 CR.',
-                    ),
-                  if (path.id == 'path-completed-two-way')
-                    const Copy(
-                      'Snapshot mẫu: mỗi người giữ 40 CR → nhận lại 38.40 CR vào ví của chính mình · phí 1.60 CR/người.',
-                    ),
+                  Copy(_settlementSummary(path.type, path.feeRateSnapshot)),
                   const Copy(
                     'Kết quả số tiền và làm tròn thực tế phải lấy từ sổ cái backend. Hoàn thành từng buổi không tạo quyết toán riêng.',
                     muted: true,
@@ -1133,6 +1126,22 @@ class SettlementScreen extends ConsumerWidget {
             ],
     );
   }
+}
+
+String _percentFromBps(int bps) =>
+    (bps / 100).toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '');
+
+String _settlementSummary(String type, String? feeRateSnapshot) {
+  final rate = double.tryParse(feeRateSnapshot ?? '');
+  if (rate == null || !rate.isFinite || rate < 0 || rate >= 1) {
+    return 'Tỷ lệ phí quyết toán đang chờ snapshot đã chốt từ máy chủ.';
+  }
+  final feeBps = (rate * 10000).round();
+  final fee = '${_percentFromBps(feeBps)}%';
+  final returned = '${_percentFromBps(10000 - feeBps)}%';
+  return type == 'TWO_WAY'
+      ? 'Mỗi người nhận lại $returned khoản tạm giữ của chính mình. Phí nền tảng $fee.'
+      : 'Người dạy nhận $returned giá toàn lộ trình. Phí nền tảng $fee; người học không được hoàn lại giá dạy.';
 }
 
 class TermsEditorScreen extends ConsumerStatefulWidget {

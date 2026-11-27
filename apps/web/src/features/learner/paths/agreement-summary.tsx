@@ -9,6 +9,7 @@ export function AgreementSummary({
   learnerId,
   amount,
   locked = false,
+  feeRateSnapshot,
   counterpartId,
 }: Readonly<{
   exchangeType: string;
@@ -16,6 +17,7 @@ export function AgreementSummary({
   learnerId?: string | null;
   amount?: string | null;
   locked?: boolean;
+  feeRateSnapshot?: string | null;
   counterpartId?: string;
 }>) {
   const { actor } = useUserSession();
@@ -28,6 +30,7 @@ export function AgreementSummary({
     if (id) return <ProfileName id={id} />;
     return "Chưa xác định";
   };
+  const fee = feeTerms(feeRateSnapshot);
   return (
     <section className={styles.summary} aria-label="Thỏa thuận">
       <div className={styles.line}>
@@ -49,15 +52,12 @@ export function AgreementSummary({
           <>
             <p>Người học, bên trả: {who(learnerId)}</p>
             <p>Người hướng dẫn, bên nhận: {who(teacherId)}</p>
-            <p>
-              Cho toàn lộ trình. Người hướng dẫn nhận 96% khi quyết toán; phí
-              4%.
-            </p>
+            <p>Cho toàn lộ trình. {fee.oneWay}</p>
           </>
         ) : (
           <>
             <p>Bạn và {who(counterpartId)} cùng học và hướng dẫn nhau.</p>
-            <p>Mỗi người nhận lại 96% Credit đã giữ khi quyết toán; phí 4%.</p>
+            <p>{fee.twoWay}</p>
           </>
         )}
         {!locked && <p>Credit chỉ được giữ khi chốt lịch thành công.</p>}
@@ -78,6 +78,7 @@ export function PathAgreementSummary({
         path.agreement.negotiatedCredit ?? path.agreement.totalCreditPerUser
       }
       locked={path.lockedVersion !== null}
+      feeRateSnapshot={path.agreement.feeRateSnapshot}
       counterpartId={
         path.participantAId === actor.userId
           ? path.participantBId
@@ -85,4 +86,21 @@ export function PathAgreementSummary({
       }
     />
   );
+}
+
+function feeTerms(rate: string | null | undefined) {
+  const value = rate === null || rate === undefined ? NaN : Number(rate);
+  if (!Number.isFinite(value) || value < 0 || value >= 1)
+    return {
+      oneWay:
+        "Mức người hướng dẫn nhận và phí nền tảng sẽ được chốt khi khóa lịch.",
+      twoWay: "Mức hoàn Credit và phí nền tảng sẽ được chốt khi khóa lịch.",
+    };
+  const bps = Math.round(value * 10_000);
+  const fee = `${bps / 100}%`;
+  const returned = `${(10_000 - bps) / 100}%`;
+  return {
+    oneWay: `Người hướng dẫn nhận ${returned} khi quyết toán; phí ${fee}.`,
+    twoWay: `Mỗi người nhận lại ${returned} Credit đã giữ khi quyết toán; phí ${fee}.`,
+  };
 }

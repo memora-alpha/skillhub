@@ -100,9 +100,16 @@ export function SettlementPanel({
 }
 
 function settlementOutcome(path: LearningPath, userId: string) {
+  const snapshot = path.agreement.feeRateSnapshot;
+  const rate = snapshot === null ? NaN : Number(snapshot);
+  if (!Number.isFinite(rate) || rate < 0 || rate >= 1)
+    return "Mức quyết toán đang chờ snapshot phí đã chốt từ máy chủ.";
+  const bps = Math.round(rate * 10_000);
+  const fee = `${bps / 100}%`;
+  const returned = `${(10_000 - bps) / 100}%`;
   if (path.agreement.exchangeType === "TWO_WAY")
-    return "Mỗi người được hoàn 96% Credit đã giữ của chính mình; 4% là phí nền tảng.";
+    return `Mỗi người được hoàn ${returned} Credit đã giữ của chính mình; ${fee} là phí nền tảng.`;
   if (path.agreement.teacherId === userId)
-    return "Bạn là người dạy: nhận 96% Credit thỏa thuận; 4% là phí nền tảng.";
-  return "Học một chiều: 96% Credit đã giữ được trả cho người dạy; 4% là phí nền tảng.";
+    return `Bạn là người dạy: nhận ${returned} Credit thỏa thuận; ${fee} là phí nền tảng.`;
+  return `Học một chiều: ${returned} Credit đã giữ được trả cho người dạy; ${fee} là phí nền tảng.`;
 }
