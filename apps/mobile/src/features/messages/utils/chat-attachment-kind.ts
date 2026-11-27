@@ -8,6 +8,6 @@ export function chatAttachmentNoun(mimeType?: string) {
 
 export function attachmentCopy(copy: string, mimeType?: string) {
   return isChatImage(mimeType)
-    ? copy.replace(/(^|[.!?]\s+)Tệp/g, "$1Ảnh").replace(/tệp/g, "ảnh")
+    ? copy.replace(/(^|[.!?]\s+)Tệp/g, "$1Ảnh").replaceAll("tệp", "ảnh")
     : copy;
 }

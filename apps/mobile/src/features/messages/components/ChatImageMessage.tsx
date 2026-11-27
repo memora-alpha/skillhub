@@ -42,19 +42,16 @@ export function ChatImageMessage(props: Props) {
         }}
       />
     );
+  let status: "pending" | "unavailable" | undefined = "unavailable";
+  if (availability === "PENDING_SCAN")
+    status = props.mine && local.uri ? undefined : "pending";
   return (
     <ChatImageCard
       filename={file.filename}
       uri={
         availability === "PENDING_SCAN" && props.mine ? local.uri : undefined
       }
-      status={
-        availability === "PENDING_SCAN"
-          ? props.mine && local.uri
-            ? undefined
-            : "pending"
-          : "unavailable"
-      }
+      status={status}
     />
   );
 }

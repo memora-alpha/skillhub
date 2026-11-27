@@ -13,6 +13,21 @@ import { ChatFileCard } from "./ChatFileCard";
 import { ChatImageCard } from "./ChatImageCard";
 import { chatAttachmentNoun, isChatImage } from "../utils/chat-attachment-kind";
 
+function queuedImageStatus(entry: QueuedText) {
+  if (entry.state !== "failed") return undefined;
+  const unavailable = [
+    "CONTENT_MODERATION_BLOCKED",
+    "CHAT_FILE_BLOCKED",
+    "CHAT_FILE_REJECTED",
+    "CHAT_FILE_REVOKED",
+    "CHAT_FILE_REMOTE_UNAVAILABLE",
+    "CHAT_FILE_DELETED",
+  ];
+  return unavailable.includes(entry.failureCode ?? "")
+    ? ("unavailable" as const)
+    : undefined;
+}
+
 export function QueuedMessageBubble({
   entry,
   offline,
@@ -48,17 +63,7 @@ export function QueuedMessageBubble({
             <ChatImageCard
               filename={entry.attachment.name}
               uri={entry.attachment.uri}
-              status={
-                entry.state === "failed" &&
-                (entry.failureCode === "CONTENT_MODERATION_BLOCKED" ||
-                  entry.failureCode === "CHAT_FILE_BLOCKED" ||
-                  entry.failureCode === "CHAT_FILE_REJECTED" ||
-                  entry.failureCode === "CHAT_FILE_REVOKED" ||
-                  entry.failureCode === "CHAT_FILE_REMOTE_UNAVAILABLE" ||
-                  entry.failureCode === "CHAT_FILE_DELETED")
-                  ? "unavailable"
-                  : undefined
-              }
+              status={queuedImageStatus(entry)}
             />
           ) : (
             <ChatFileCard

@@ -38,10 +38,44 @@ export function waitForUploadCheck(ms: number, signal: AbortSignal) {
     else signal.addEventListener("abort", cancel, { once: true });
   });
 }
-function uploadCheckDelay(elapsed: number) {
+export function uploadCheckDelay(elapsed: number) {
   if (elapsed < 10_000) return 1000;
   if (elapsed < 30_000) return 2000;
   return 5000;
+}
+
+export function isTemporaryUploadReadError(error: unknown) {
+  return (
+    error instanceof AppError &&
+    (error.kind === "network" || (error.kind === "http" && error.status >= 500))
+  );
+}
+
+async function readUploadStatus(
+  read: (id: string, signal: AbortSignal) => Promise<UploadStatus>,
+  fileId: string,
+  signal: AbortSignal,
+) {
+  const row = await read(fileId, signal);
+  if (row.fileId !== fileId) throw new AppError("protocol");
+  if (
+    row.moderationStatus !== undefined &&
+    !fileModerationStatusSchema.safeParse(row.moderationStatus).success
+  )
+    throw new AppError("protocol");
+  if (
+    !uploadNeedsCheck(row.state) &&
+    ![
+      "READY",
+      "REJECTED",
+      "SCAN_FAILED",
+      "UPLOAD_FAILED",
+      "CLEANUP_PENDING",
+      "DELETED",
+    ].includes(row.state)
+  )
+    throw new AppError("protocol");
+  return row;
 }
 
 export async function watchUploadStatus({
@@ -71,40 +105,14 @@ export async function watchUploadStatus({
     if (now() - started >= UPLOAD_SCAN_TIMEOUT_MS)
       throw new UploadScanPending();
     const results = await Promise.all(
-      waiting.map(async (file) => {
-        const row = await read(file.fileId, signal);
-        if (row.fileId !== file.fileId) throw new AppError("protocol");
-        if (
-          row.moderationStatus !== undefined &&
-          !fileModerationStatusSchema.safeParse(row.moderationStatus).success
-        )
-          throw new AppError("protocol");
-        if (
-          !uploadNeedsCheck(row.state) &&
-          ![
-            "READY",
-            "REJECTED",
-            "SCAN_FAILED",
-            "UPLOAD_FAILED",
-            "CLEANUP_PENDING",
-            "DELETED",
-          ].includes(row.state)
-        )
-          throw new AppError("protocol");
-        return row;
-      }),
+      waiting.map((file) => readUploadStatus(read, file.fileId, signal)),
     ).catch((cause: unknown) => {
       if (!active() || signal.aborted) return undefined;
       failedReads++;
-      const temporary =
-        cause instanceof AppError &&
-        (cause.kind === "network" ||
-          (cause.kind === "http" && cause.status >= 500));
-      if (!temporary || failedReads > 2) throw cause;
+      if (!isTemporaryUploadReadError(cause) || failedReads > 2) throw cause;
       return undefined;
     });
     if (!active() || signal.aborted) return;
-    if (results) failedReads = 0;
     const next = files().map((file) => {
       if (!results) return file;
       const row = results.find((result) => result.fileId === file.fileId);
@@ -115,7 +123,10 @@ export async function watchUploadStatus({
       else updated.moderationStatus = row.moderationStatus;
       return updated;
     });
-    if (results) update(next);
+    if (results) {
+      failedReads = 0;
+      update(next);
+    }
     if (
       !next.some((file) => uploadNeedsCheck(file.state, file.moderationStatus))
     )

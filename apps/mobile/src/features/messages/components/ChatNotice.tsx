@@ -23,6 +23,7 @@ export function ChatNotice({
 }>) {
   const success = tone === "success";
   const accent = success ? appColors.forest : appColors.primary;
+  const summaryHint = summary ? `. ${summary}` : "";
   return (
     <View style={[styles.card, success ? styles.success : styles.info]}>
       <View style={styles.row}>
@@ -59,7 +60,7 @@ export function ChatNotice({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={actionLabel}
-          accessibilityHint={`${label}. ${title}${summary ? `. ${summary}` : ""}`}
+          accessibilityHint={`${label}. ${title}${summaryHint}`}
           onPress={onPress}
           style={({ pressed }) => [
             styles.action,

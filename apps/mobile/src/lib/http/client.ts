@@ -4,6 +4,8 @@ import { readPayload, readPagePayload, type Page } from "./response";
 import { connectionStore } from "../network/connection-store";
 import { RequestCoordinator, retryAfterAt } from "./rate-limit";
 import { requestDiagnostics } from "./request-diagnostics";
+import { readBinaryResponse } from "./binary-response";
+import { retrySessionRequest } from "./session-request-retry";
 
 export type RequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
@@ -55,28 +57,8 @@ function readResponse(
 ) {
   const retryAt =
     response.status === 429 ? retryAfterAt(response.headers["retry-after"]) : 0;
-  if (options.responseType) {
-    const data = response.data;
-    const bytes =
-      data instanceof ArrayBuffer
-        ? new Uint8Array(data)
-        : ArrayBuffer.isView(data)
-          ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
-          : undefined;
-    if (response.status >= 200 && response.status < 300) {
-      if (!bytes?.byteLength) throw new AppError("protocol");
-      return bytes;
-    }
-    let payload = data;
-    if (bytes) {
-      try {
-        payload = JSON.parse(new TextDecoder().decode(bytes));
-      } catch {
-        payload = undefined;
-      }
-    }
-    return readPayload(response.status, payload, false, retryAt);
-  }
+  if (options.responseType)
+    return readBinaryResponse(response.status, response.data, retryAt);
   if (options.paginated)
     return readPagePayload(response.status, response.data, retryAt);
   return readPayload(
@@ -209,33 +191,15 @@ export function createHttpClient(
           if (error.code === "ACCOUNT_NOT_ACTIVE") await transport.expire();
           throw error;
         }
-        await transport.renew(token);
-        assertCurrentSession();
-        // Upload bytes are not an idempotent JSON intent. Let the owner retry.
-        if (options.replayAfterRenewal === false) throw error;
-        const nextToken = await transport.getToken();
-        assertCurrentSession();
-        if (!nextToken) throw new AppError("session");
-        try {
-          const result = await send(
-            path,
-            options,
-            nextToken,
-            policy,
-            assertCurrentSession,
-          );
-          assertCurrentSession();
-          return result;
-        } catch (retryError) {
-          assertCurrentSession();
-          if (
-            retryError instanceof AppError &&
-            (retryError.status === 401 ||
-              retryError.code === "ACCOUNT_NOT_ACTIVE")
-          )
-            await transport.expire();
-          throw retryError;
-        }
+        return retrySessionRequest({
+          request: options,
+          transport,
+          staleToken: token,
+          originalError: error,
+          assertCurrent: assertCurrentSession,
+          send: (nextToken) =>
+            send(path, options, nextToken, policy, assertCurrentSession),
+        });
       }
     },
   };

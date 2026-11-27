@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Avatar } from "@/components/Avatar";
+import { ChatParticipantAvatar } from "./ChatParticipantAvatar";
 import { Icon } from "@/components/Icon";
 import { ChatNotice } from "./ChatNotice";
 import {
@@ -46,13 +46,15 @@ export function ChatWorkflowCard({
   confirmed: boolean;
   onPress: () => void;
 }>) {
+  const status = badgeLabel ?? (confirmed ? "Đã xác nhận" : "Được chia sẻ");
+  const versionHint = version ? `, bản ${version}` : "";
   if (variant === "notice")
     return (
       <ChatNotice
         label={label}
         title={title}
         summary={summary}
-        status={badgeLabel ?? (confirmed ? "Đã xác nhận" : "Được chia sẻ")}
+        status={status}
         tone={confirmed ? "success" : "info"}
         icon={confirmed ? "check-circle" : "calendar"}
         actionLabel={actionText}
@@ -62,43 +64,22 @@ export function ChatWorkflowCard({
   return (
     <View style={styles.wrapper}>
       <View style={[styles.row, mine && styles.mine]}>
-        {!mine &&
-          (showAvatar ? (
-            <Avatar
-              name={partner}
-              userId={partnerId}
-              sourceUri={avatarUrl}
-              size={24}
-            />
-          ) : (
-            <View style={{ width: 24 }} />
-          ))}
+        <ChatParticipantAvatar
+          mine={mine}
+          showAvatar={showAvatar}
+          partner={partner}
+          partnerId={partnerId}
+          avatarUrl={avatarUrl}
+          size={24}
+        />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={action}
-          accessibilityHint={`${label}${version ? `, bản ${version}` : ""}. ${title}. ${summary}`}
+          accessibilityHint={`${label}${versionHint}. ${title}. ${summary}`}
           onPress={onPress}
           style={({ pressed }) => [styles.card, pressed && { opacity: 0.75 }]}
         >
-          <View style={styles.header}>
-            <View style={[styles.icon, confirmed && styles.confirmed]}>
-              <Icon
-                name={confirmed ? "check-circle" : "clipboard"}
-                size={18}
-                color={confirmed ? colors.forest : colors.primary}
-              />
-            </View>
-            <View style={styles.heading}>
-              <Text style={styles.label}>{label}</Text>
-            </View>
-            <View style={[styles.badge, confirmed && styles.confirmed]}>
-              <Text
-                style={[styles.badgeLabel, confirmed && styles.confirmedLabel]}
-              >
-                {badgeLabel ?? (confirmed ? "Đã xác nhận" : "Được chia sẻ")}
-              </Text>
-            </View>
-          </View>
+          <WorkflowHeader confirmed={confirmed} label={label} status={status} />
           <Text numberOfLines={2} style={styles.title}>
             {title}
           </Text>
@@ -125,6 +106,31 @@ export function ChatWorkflowCard({
       {!!time && (
         <Text style={[styles.time, !mine && styles.theirTime]}>{time}</Text>
       )}
+    </View>
+  );
+}
+function WorkflowHeader({
+  confirmed,
+  label,
+  status,
+}: Readonly<{ confirmed: boolean; label: string; status: string }>) {
+  return (
+    <View style={styles.header}>
+      <View style={[styles.icon, confirmed && styles.confirmed]}>
+        <Icon
+          name={confirmed ? "check-circle" : "clipboard"}
+          size={18}
+          color={confirmed ? colors.forest : colors.primary}
+        />
+      </View>
+      <View style={styles.heading}>
+        <Text style={styles.label}>{label}</Text>
+      </View>
+      <View style={[styles.badge, confirmed && styles.confirmed]}>
+        <Text style={[styles.badgeLabel, confirmed && styles.confirmedLabel]}>
+          {status}
+        </Text>
+      </View>
     </View>
   );
 }

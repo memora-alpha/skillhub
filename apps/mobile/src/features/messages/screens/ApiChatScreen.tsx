@@ -192,7 +192,7 @@ function ApiChatConversation({
       current = false;
     };
   }, [last?.id, focused, thread.error, api, id, runtime, sender.offline]);
-  const send = async (text: string) => {
+  const send = (text: string) => {
     if (
       sending.current ||
       draftRef.current !== text ||
@@ -202,9 +202,7 @@ function ApiChatConversation({
       return;
     sending.current = true;
     try {
-      if (
-        attachment.file ? await attachment.send(text) : await sender.send(text)
-      ) {
+      if (attachment.file ? attachment.send(text) : sender.send(text)) {
         if (draftRef.current === text) updateDraft("");
         atLatest.current = true;
         setHasNewMessages(false);

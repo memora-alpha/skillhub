@@ -7,6 +7,21 @@ import { ChatImageViewer } from "./ChatImageViewer";
 import { appRadius, fonts, typography } from "@/constants/theme";
 import { messageColors as colors } from "../constants/theme";
 
+function imagePlaceholderText(
+  status: string | undefined,
+  error: string | undefined,
+  failed: boolean,
+  loading: boolean,
+) {
+  if (status === "unavailable") return "Ảnh không còn khả dụng.";
+  if (status === "review") return "Ảnh cần kiểm tra thêm.";
+  if (status === "pending") return "Đang tải lên…";
+  if (error !== undefined) return error;
+  if (failed) return "Không đọc được ảnh.";
+  if (loading) return "Đang tải ảnh…";
+  return "Ảnh không còn khả dụng.";
+}
+
 export function ChatImageCard({
   filename,
   uri,
@@ -73,18 +88,7 @@ export function ChatImageCard({
         <View style={styles.placeholder}>
           <Icon name="image" size={28} color={colors.muted} />
           <Text accessibilityLiveRegion="polite" style={styles.copy}>
-            {status === "unavailable"
-              ? "Ảnh không còn khả dụng."
-              : status === "review"
-                ? "Ảnh cần kiểm tra thêm."
-                : status === "pending"
-                  ? "Đang tải lên…"
-                  : (error ??
-                    (failedUri
-                      ? "Không đọc được ảnh."
-                      : loading
-                        ? "Đang tải ảnh…"
-                        : "Ảnh không còn khả dụng."))}
+            {imagePlaceholderText(status, error, !!failedUri, loading)}
           </Text>
           {!status && !!error && onRetry && (
             <Button

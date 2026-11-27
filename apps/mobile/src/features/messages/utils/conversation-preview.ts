@@ -103,12 +103,42 @@ function inboxMessageText(message: ApiMessage) {
     return `Đã xác nhận ${confirmedFormLabels[form.kind].toLowerCase()}`;
   if (readPlanShare(message.messageText)) return "Lộ trình học được chia sẻ";
   if (message.messageText.trim()) return message.messageText.trim();
-  return message.messageType === "FILE"
-    ? message.attachments.length &&
-      message.attachments.every((file) => isChatImage(file.mimeType))
-      ? "Đã gửi một ảnh"
-      : "Đã gửi một tệp"
-    : "";
+  if (message.messageType !== "FILE") return "";
+  const imageOnly =
+    message.attachments.length > 0 &&
+    message.attachments.every((file) => isChatImage(file.mimeType));
+  return imageOnly ? "Đã gửi một ảnh" : "Đã gửi một tệp";
+}
+
+function visibleInboxText(message: ApiMessage | null, userId: string) {
+  if (!message) return { text: "", visible: null };
+  const visible = visibleChatMessage(message, userId);
+  const revokedOnly =
+    !visible.messageText.trim() &&
+    !visible.attachments.some((file) => file.availability !== "REVOKED") &&
+    message.attachments.some((file) => file.availability === "REVOKED") &&
+    message.senderId !== userId;
+  if (!revokedOnly) return { text: inboxMessageText(visible), visible };
+  const imageOnly = message.attachments.every((file) =>
+    isChatImage(file.mimeType),
+  );
+  const mime = imageOnly ? message.attachments[0]?.mimeType : undefined;
+  return { text: attachmentCopy("Tệp không còn khả dụng.", mime), visible };
+}
+
+function queuedInboxPreview(
+  conversation: ApiConversation,
+  pending: QueuedText,
+  userId: string,
+): InboxConversation {
+  const attachment = isChatImage(pending.attachment?.mimeType) ? "Ảnh" : "Tệp";
+  return {
+    conversation,
+    preview: `Bạn: ${pending.messageText || attachment}`,
+    activityAt: conversationActivityAt(conversation, pending.createdAt),
+    state: pending.state === "failed" ? "failed" : "pending",
+    previewSenderId: userId,
+  };
 }
 export function conversationInbox(
   conversations: ApiConversation[],
@@ -138,29 +168,8 @@ export function conversationInbox(
         (!message ||
           Date.parse(pending.createdAt) >= Date.parse(message.sentAt))
       )
-        return {
-          conversation,
-          preview: `Bạn: ${pending.messageText || (isChatImage(pending.attachment?.mimeType) ? "Ảnh" : "Tệp")}`,
-          activityAt: conversationActivityAt(conversation, pending.createdAt),
-          state: pending.state === "failed" ? "failed" : "pending",
-          previewSenderId: userId,
-        };
-      const visible = message && visibleChatMessage(message, userId);
-      const text =
-        visible &&
-        !visible.messageText.trim() &&
-        !visible.attachments.some((file) => file.availability !== "REVOKED") &&
-        message?.attachments.some((file) => file.availability === "REVOKED") &&
-        message.senderId !== userId
-          ? attachmentCopy(
-              "Tệp không còn khả dụng.",
-              message.attachments.every((file) => isChatImage(file.mimeType))
-                ? message.attachments[0]?.mimeType
-                : undefined,
-            )
-          : visible
-            ? inboxMessageText(visible)
-            : "";
+        return queuedInboxPreview(conversation, pending, userId);
+      const { visible, text } = visibleInboxText(message, userId);
       const sender = message?.senderId === userId ? "Bạn: " : "";
       return {
         conversation,

@@ -6,7 +6,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import type { ReactNode } from "react";
-import { Avatar } from "@/components/Avatar";
+import { ChatParticipantAvatar } from "./ChatParticipantAvatar";
 import { Icon } from "@/components/Icon";
 import {
   avatarSizes,
@@ -52,17 +52,14 @@ export function MessageBubble({
           mine && failed && styles.failedSpacing,
         ]}
       >
-        {!mine &&
-          (showAvatar ? (
-            <Avatar
-              name={partner}
-              userId={partnerId}
-              sourceUri={avatarUrl}
-              size={avatarSizes.inline}
-            />
-          ) : (
-            <View style={{ width: avatarSizes.inline }} />
-          ))}
+        <ChatParticipantAvatar
+          mine={mine}
+          showAvatar={showAvatar}
+          partner={partner}
+          partnerId={partnerId}
+          avatarUrl={avatarUrl}
+          size={avatarSizes.inline}
+        />
         <View
           style={[
             styles.bubble,

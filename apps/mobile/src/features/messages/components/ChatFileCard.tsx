@@ -54,6 +54,7 @@ export function ChatFileCard({
       ? undefined
       : attachmentAvailabilityLabel(availability, mimeType, moderationStatus);
   const canOpen = available && !!onPress;
+  const statusSuffix = status ? `. ${status}` : "";
   const content = (
     <>
       <View style={[styles.icon, mine && styles.myIcon]}>
@@ -88,7 +89,7 @@ export function ChatFileCard({
     return (
       <View
         accessible
-        accessibilityLabel={`${filename}${status ? `. ${status}` : ""}`}
+        accessibilityLabel={`${filename}${statusSuffix}`}
         style={[styles.card, mine && styles.mine]}
       >
         {content}

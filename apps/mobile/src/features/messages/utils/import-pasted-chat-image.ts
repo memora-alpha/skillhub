@@ -8,9 +8,13 @@ export type ChatImagePaste =
   | Readonly<{ files: readonly globalThis.File[] }>;
 
 // The event supplies the bytes the user pasted; do not read a newer clipboard.
-export async function importPastedChatImage(
+export function importPastedChatImage(
   image: ChatImagePaste,
 ): Promise<ChatFile> {
+  return Promise.resolve().then(() => readPastedChatImage(image));
+}
+
+function readPastedChatImage(image: ChatImagePaste): ChatFile {
   if (!("uris" in image))
     throw new FileSelectionError("Không đọc được ảnh đã dán.");
   const { uris } = image;

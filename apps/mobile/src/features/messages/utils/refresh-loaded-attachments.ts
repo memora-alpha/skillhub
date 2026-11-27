@@ -22,11 +22,13 @@ export async function refreshLoadedAttachments(
   let result = messages;
   while (remaining.length) {
     if (signal.aborted) throw new AppError("network");
-    const oldest = remaining.reduce((a, b) =>
-      BigInt(a.sequence) < BigInt(b.sequence) ? a : b,
+    const oldest = remaining.reduce(
+      (a, b) => (BigInt(a.sequence) < BigInt(b.sequence) ? a : b),
+      remaining[0]!,
     );
     const sequence = BigInt(oldest.sequence);
     if (sequence < 1n) throw new AppError("protocol");
+    // The next batch depends on which loaded IDs this page returns; do not parallelize.
     const page = await api.history(id, {
       afterSequence: String(sequence - 1n),
       limit: 100,

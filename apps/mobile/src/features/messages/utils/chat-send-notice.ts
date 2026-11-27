@@ -20,17 +20,20 @@ export function isContentRejection(code?: string) {
   );
 }
 
+function blockedMessageDetail(entry: QueuedText) {
+  if (entry.failureCode === "CONTACT_INFORMATION_NOT_ALLOWED")
+    return "Không được gửi thông tin cá nhân.";
+  if (entry.attachment)
+    return chatFailureCopy("CHAT_FILE_REJECTED", entry.attachment.mimeType)!;
+  return "Nội dung tin nhắn không phù hợp.";
+}
+
 export function chatSendNotice(entry: QueuedText, offline: boolean) {
   if (entry.state === "failed" && isContentRejection(entry.failureCode))
     return {
       tone: "blocked" as const,
       title: "Không gửi được tin nhắn",
-      detail:
-        entry.failureCode === "CONTACT_INFORMATION_NOT_ALLOWED"
-          ? "Không được gửi thông tin cá nhân."
-          : entry.attachment
-            ? chatFailureCopy("CHAT_FILE_REJECTED", entry.attachment.mimeType)!
-            : "Nội dung tin nhắn không phù hợp.",
+      detail: blockedMessageDetail(entry),
     };
   if (entry.state === "failed")
     return {

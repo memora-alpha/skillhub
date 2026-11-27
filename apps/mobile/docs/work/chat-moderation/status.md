@@ -4,7 +4,17 @@ Trạng thái: Ready for review — source complete; native/API acceptance pendi
 
 Nghiệm thu người dùng: chưa thực hiện.
 
-## Hiện hành: đồng bộ khôi phục tệp chat với BE
+## Hiện hành: sửa các finding Sonar người dùng gửi
+
+2026-11-27T23:00:58+07:00: Đã đối chiếu danh sách Sonar với source sau `dd2a4d43`, sửa initial reduce, replaceAll literal, async/await thừa, nested ternary/template và giảm complexity bằng cách tách UI/header/avatar, preview, chuẩn bị/khôi phục/delivery/failure của outbox và HTTP binary/session retry. Giữ thứ tự persist→POST, file/upload/message identity, generation guards, trạng thái kiểm duyệt, timeout/backoff và cleanup; không sửa backend/web/shared packages hoặc dependency/lockfile ứng dụng. HTTP/watcher là phần dùng chung bên trong mobile, đã kiểm các consumer bằng full workspace regression.
+
+Full mobile đạt1361/1361, không failed/skipped/cancelled (`.expo/chat-sonar-full.log`); focused chat/HTTP/upload/preview trước đó đạt126/126 (`.expo/chat-sonar-focused.log`). Full ESLint max-warnings0, TypeScript noEmit kèm noUnusedLocals/noUnusedParameters, structure1128, Prettier source/tests và diff check đạt. Bộ kiểm tra tĩnh cục bộ trên28 file dùng eslint-plugin-sonarjs4.2.3 và các rule type-aware liên quan: 0errors; mọi function trong phạm vi kiểm không vượt cognitive complexity15, không còn nested conditional/template, reduce thiếu initial hay async/await thừa theo các rule đã bật. Tool/report nằm trong `.expo` ignored, không thêm cấu hình suppression.
+
+Còn8 cảnh báo no-await-in-loop cục bộ cần tuần tự theo source; danh sách người dùng nêu5 vị trí gốc, hai vị trí outbox nay chuyển sang helper delivery. [Sonar review](sonar-review.md) ghi rationale và đề xuất Accepted theo S9382 cho từng nhóm: delivery backoff/GET, status polling, batch phụ thuộc sequence và test event-loop polling. Chưa áp dụng disposition trên SonarCloud, chưa có scan cloud mới hoặc xác nhận Quality Gate. Không chạy API/provider/thiết bị thật.
+
+2026-11-27T23:01:59+07:00: Người dùng yêu cầu commit lượt sửa Sonar. Đã kiểm lại phạm vi mobile và diff, dùng lại kết quả checks đạt bên trên; giữ đầy đủ lint-staged/commitlint và không push.
+
+## Đồng bộ khôi phục tệp chat với BE
 
 2026-11-27T22:41:43+07:00: Dọn code trước commit theo yêu cầu: dùng chung callback hủy operation ở lifecycle, gom điều kiện chạy async và trả một trạng thái pending cho UI; bỏ truy cập props trùng với giá trị đã destructure. Giữ contract, owner/lifecycle guards và hành vi retry hiện có. Full mobile đạt1361/1361, không failed/skipped/cancelled (`.expo/chat-recovery-commit-tests.log`); full ESLint max-warnings0, TypeScript noEmit kèm noUnusedLocals/noUnusedParameters, structure1122, Prettier source/tests, diff check và6/6 test scope commitlint đạt. Chuẩn bị commit toàn bộ delta chat đã rà trên nhánh `fix/mobile-chat-moderation`; native/API acceptance vẫn chưa thực hiện. Corepack shim pnpm10.24.0 chỉ tạo trong `.expo/git-tools` ignored để hooks dùng đúng phiên bản, không thay hook/config/dependency.
 

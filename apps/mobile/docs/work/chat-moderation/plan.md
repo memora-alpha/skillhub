@@ -20,6 +20,8 @@ Nguồn: `services/api/src/modules/conversations/presentation/http/conversations
 
 ## Tasks
 
+- [x] Rà danh sách Sonar người dùng gửi: tách các hàm phức tạp của UI/outbox/HTTP và watcher, bỏ nested ternary/template, async/await thừa, thêm initial value reduce và replaceAll literal. Kiểm tra rule cục bộ; ghi các await tuần tự cần giữ và giới hạn cloud tại [sonar-review](sonar-review.md).
+
 - [x] Dọn code lặp trong recovery (hủy operation, điều kiện async và trạng thái pending), giữ contract/guards; chạy full mobile và kiểm biến/import không dùng trước commit delta chat đã rà.
 
 - [x] Rà lại delta khôi phục tệp: tái hiện và sửa nút bị kẹt busy khi background→foreground nhanh; hủy operation đồng bộ, giữ chặn POST và không cho phản hồi cũ tác động lần mới. Thêm regression trước/sau sửa, chạy toàn nhóm chat và checks phù hợp; API/native acceptance giữ riêng.

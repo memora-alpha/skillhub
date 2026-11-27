@@ -2,9 +2,13 @@ import { FileSelectionError } from "@/lib/http/picked-image";
 import { validateChatFile, type ChatFile } from "./chat-file";
 import type { ChatImagePaste } from "./import-pasted-chat-image";
 
-export async function importPastedChatImage(
+export function importPastedChatImage(
   image: ChatImagePaste,
 ): Promise<ChatFile> {
+  return Promise.resolve().then(() => readPastedChatImage(image));
+}
+
+function readPastedChatImage(image: ChatImagePaste): ChatFile {
   if (!("files" in image) || image.files.length !== 1)
     throw new FileSelectionError("Mỗi lần chỉ gửi được một ảnh.");
   const file = image.files[0]!;

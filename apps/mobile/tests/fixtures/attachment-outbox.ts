@@ -40,6 +40,7 @@ export const delivered: Delivery = {
 export const flush = () =>
   new Promise<void>((resolve) => setImmediate(resolve));
 export async function until(done: () => boolean) {
+  // Observe each event-loop turn before deciding if another turn is needed.
   for (let i = 0; i < 30 && !done(); i++) await flush();
   assert.ok(done(), "operation did not settle");
 }
@@ -67,29 +68,29 @@ export function attachmentFixture() {
     state: "READY",
   } as Awaited<ReturnType<ReturnType<typeof createMessagesApi>["fileStatus"]>>;
   const api: OutboxOptions["api"] = {
-    send: async (_id, body) => {
+    send: (_id, body) => {
       sent.push(body);
-      return delivered;
+      return Promise.resolve(delivered);
     },
-    delivery: async () => {
+    delivery: () => {
       checks++;
-      return delivered;
+      return Promise.resolve(delivered);
     },
   };
   const files: Pick<
     ReturnType<typeof createMessagesApi>,
     "upload" | "fileStatus" | "retryAttachment"
   > = {
-    upload: async (_id, body) => {
+    upload: (_id, body) => {
       assert.ok(body.has("file"));
       uploads++;
-      return { fileId: fixtureId(40), state: "QUARANTINED" };
+      return Promise.resolve({ fileId: fixtureId(40), state: "QUARANTINED" });
     },
-    fileStatus: async () => {
+    fileStatus: () => {
       reads++;
-      return status;
+      return Promise.resolve(status);
     },
-    retryAttachment: async () => status,
+    retryAttachment: () => Promise.resolve(status),
   };
   const options: OutboxOptions = {
     ownerId: fixtureId(1),
@@ -98,9 +99,10 @@ export function attachmentFixture() {
     createId: () => fixtureId(nextId++),
     now: () => now,
     storage: {
-      read: async () => raw,
-      write: async (value) => {
+      read: () => Promise.resolve(raw),
+      write: (value) => {
         raw = value;
+        return Promise.resolve();
       },
     },
     api,

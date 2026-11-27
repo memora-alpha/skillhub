@@ -1,13 +1,23 @@
-import { AppError } from "@/lib/http/errors";
 import {
   UploadScanPending,
   UPLOAD_SCAN_TIMEOUT_MS,
+  isTemporaryUploadReadError,
+  uploadCheckDelay,
 } from "@/lib/http/watch-upload-status";
 import type { ChatFileStatus } from "../api/chat-attachment-contracts";
 import {
   requireReadyAttachment,
   AttachmentSendError,
 } from "./attachment-errors";
+
+function pendingReadFailure(error: unknown, failedReads: number) {
+  if (error instanceof AttachmentSendError) {
+    if (error.code !== "CHAT_ATTACHMENT_PENDING") throw error;
+    return failedReads;
+  }
+  if (!isTemporaryUploadReadError(error) || failedReads >= 2) throw error;
+  return failedReads + 1;
+}
 
 // Chat can publish a pending card; the generic upload monitor waits for final approval.
 export async function waitForChatAttachment(options: {
@@ -19,28 +29,23 @@ export async function waitForChatAttachment(options: {
 }) {
   const started = options.now();
   let failedReads = 0;
-  while (options.active() && !options.signal.aborted) {
+  const active = () => options.active() && !options.signal.aborted;
+  while (active()) {
     const elapsed = options.now() - started;
     if (elapsed >= UPLOAD_SCAN_TIMEOUT_MS) throw new UploadScanPending();
     try {
+      // Polling must wait for each verdict before deciding whether another GET is needed.
       const status = await options.read(options.signal);
-      if (!options.active() || options.signal.aborted) return;
+      if (!active()) return;
       failedReads = 0;
       requireReadyAttachment(status);
       return;
     } catch (error) {
-      if (!options.active() || options.signal.aborted) return;
-      if (error instanceof AttachmentSendError) {
-        if (error.code !== "CHAT_ATTACHMENT_PENDING") throw error;
-      } else {
-        const temporary =
-          error instanceof AppError &&
-          (error.kind === "network" ||
-            (error.kind === "http" && error.status >= 500));
-        if (!temporary || ++failedReads > 2) throw error;
-      }
+      if (!active()) return;
+      failedReads = pendingReadFailure(error, failedReads);
     }
-    const delay = elapsed < 10_000 ? 1000 : elapsed < 30_000 ? 2000 : 5000;
+    const delay = uploadCheckDelay(elapsed);
+    // This delay provides backoff and the next iteration's deadline; it is sequential by design.
     await options.sleep(
       Math.min(delay, UPLOAD_SCAN_TIMEOUT_MS - elapsed),
       options.signal,

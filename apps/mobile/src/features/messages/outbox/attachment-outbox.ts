@@ -1,23 +1,21 @@
-import { AppError, errorMessage } from "@/lib/http/errors";
-import { filePickerError } from "@/lib/http/file-picker-error";
+import { AppError } from "@/lib/http/errors";
 import { UPLOAD_SCAN_TIMEOUT_MS } from "@/lib/http/watch-upload-status";
-import { waitForChatAttachment } from "./watch-chat-attachment";
-import type { createMessagesApi, Delivery } from "../api/messages-api";
-import { chatFileFormData, type ChatFile } from "../utils/chat-file";
+import type { ApiMessage, Delivery } from "../api/messages-api";
+import type { ChatFile } from "../utils/chat-file";
 import { OutboxState, type OutboxOptions } from "./outbox-state";
 import type { QueuedText } from "./outbox-types";
-import {
-  AttachmentSendError,
-  requireReadyAttachment,
-} from "./attachment-errors";
+import { AttachmentSendError } from "./attachment-errors";
 import { AttachmentWait } from "./attachment-wait";
 import { SentChatImages } from "./sent-chat-images";
-import { retryChatAttachment } from "../utils/retry-chat-attachment";
-
-type FileApi = Pick<
-  ReturnType<typeof createMessagesApi>,
-  "upload" | "fileStatus" | "retryAttachment"
->;
+import {
+  prepareAttachment,
+  type AttachmentFileApi,
+} from "./attachment-preparation";
+import {
+  recoverAttachmentDelivery,
+  waitForAttachmentDelivery,
+} from "./attachment-delivery";
+import { attachmentFailure, type AttachmentStage } from "./attachment-failure";
 
 // Separate from the text worker: slow OCR must not hold up ordinary messages.
 export class AttachmentOutbox extends OutboxState {
@@ -32,7 +30,7 @@ export class AttachmentOutbox extends OutboxState {
   private readonly cleanups = new Map<string, () => void>();
   constructor(
     options: OutboxOptions,
-    private readonly fileApi: FileApi,
+    private readonly fileApi: AttachmentFileApi,
   ) {
     super(options);
   }
@@ -131,8 +129,7 @@ export class AttachmentOutbox extends OutboxState {
       wait = new AttachmentWait();
     const id = entry.clientMessageId;
     let timedOut = false;
-    let stage: "upload" | "status" | "send" =
-      entry.phase === "check" ? "send" : "upload";
+    let stage: AttachmentStage = entry.phase === "check" ? "send" : "upload";
     this.abort = control;
     this.observing = { fileId: entry.attachment?.fileId, wait };
     const active = () =>
@@ -162,90 +159,34 @@ export class AttachmentOutbox extends OutboxState {
     try {
       await this.persist();
       assertActive();
-      // A manual retry reconciles the old identity before considering another POST.
-      let result: Delivery | undefined;
-      if (entry.phase === "check") {
-        try {
-          result = await this.options.api.delivery(
-            entry.conversationId,
-            id,
-            control.signal,
-          );
-        } catch (error) {
-          if (!(error instanceof AppError && error.status === 404)) throw error;
-        }
-        assertActive();
-        if (
-          result &&
-          result.deliveryStatus !== "DELIVERED" &&
-          (result.deliveryStatus === "PREPARING" || result.failureCode)
-        )
-          result = undefined;
-      }
+      // Reconcile the old command before considering another message POST.
+      let result: Delivery | undefined = await recoverAttachmentDelivery(
+        this.options.api,
+        entry,
+        control.signal,
+        assertActive,
+      );
       if (!result) {
-        let attachment = entry.attachment;
-        if (!attachment) throw new AppError("protocol");
-        if (!attachment.fileId) {
-          const blob = this.blobs.get(id);
-          if (!blob && attachment.uri.startsWith("blob:"))
-            throw new AttachmentSendError(
-              "Không còn đọc được tệp gốc. Hãy chọn lại tệp để gửi.",
-              "CHAT_FILE_UNAVAILABLE",
-            );
-          assertActive();
-          const uploaded = await this.fileApi.upload(
-            entry.conversationId,
-            chatFileFormData({ ...attachment, file: blob }),
-            control.signal,
-            `chat-upload:${id}`,
-          );
-          // Preserve an acknowledged upload even if the app just went inactive;
-          // the pause still prevents status work and POST until manual recovery.
-          if (!this.current(epoch)) return;
-          attachment = { ...attachment, fileId: uploaded.fileId };
-          this.update(id, { attachment });
-          await this.persist();
-          assertActive();
-        }
-        const fileId = attachment.fileId!;
-        this.observing.fileId = fileId;
-        stage = "status";
-        if (entry.attempts > 0) {
-          await retryChatAttachment({
-            read: () =>
-              this.fileApi.fileStatus(
-                entry.conversationId,
-                fileId,
-                control.signal,
-              ),
-            retry: () =>
-              this.fileApi.retryAttachment(
-                entry.conversationId,
-                fileId,
-                control.signal,
-              ),
-            current: active,
-          });
-          assertActive();
-        }
-        await waitForChatAttachment({
-          read: (signal) =>
-            this.fileApi.fileStatus(entry.conversationId, fileId, signal),
-          active,
+        const fileId = await prepareAttachment({
+          entry,
+          api: this.fileApi,
+          blob: this.blobs.get(id),
           signal: control.signal,
-          sleep: wait.wait,
+          current: () => this.current(epoch),
+          active,
+          assertActive,
           now: this.now,
+          sleep: wait.wait,
+          uploaded: async (attachment) => {
+            this.update(id, { attachment });
+            await this.persist();
+          },
+          checking: (fileId) => {
+            this.observing = { fileId, wait };
+            stage = "status";
+          },
         });
-        assertActive();
-        // Rules may change while the file was waiting. Fresh HTTP still gates POST.
-        requireReadyAttachment(
-          await this.fileApi.fileStatus(
-            entry.conversationId,
-            fileId,
-            control.signal,
-          ),
-        );
-        assertActive();
+        if (!fileId) return;
         this.update(id, { phase: "check" });
         await this.persist();
         assertActive();
@@ -260,77 +201,19 @@ export class AttachmentOutbox extends OutboxState {
           control.signal,
         );
       }
-      while (result.deliveryStatus !== "DELIVERED") {
-        assertActive();
-        if (result.failureCode)
-          throw new AppError("http", 409, result.failureCode);
-        this.update(id, { state: "processing", messageId: result.messageId });
-        await wait.wait(2000, control.signal);
-        assertActive();
-        result = await this.options.api.delivery(
-          entry.conversationId,
-          id,
-          control.signal,
-        );
-      }
-      if (!this.current(epoch)) return;
-      const local = this.snapshot.items.find(
-        (item) => item.clientMessageId === id,
-      )?.attachment;
-      const retained =
-        result.message.senderId === this.options.ownerId &&
-        local &&
-        this.images.retain(result.message, local, this.cleanups.get(id));
-      if (retained) this.cleanups.delete(id);
-      this.update(id, {
-        state: "sent",
-        messageId: result.message.id,
-        message: result.message,
-        failure: undefined,
-        failureCode: undefined,
+      const message = await waitForAttachmentDelivery(result, {
+        api: this.options.api,
+        entry,
+        signal: control.signal,
+        assertActive,
+        sleep: wait.wait,
+        processing: (messageId) =>
+          this.update(id, { state: "processing", messageId }),
       });
-      this.blobs.delete(id);
-      this.options.delivered(result.message);
-      try {
-        if (!retained) this.cleanups.get(id)?.();
-      } catch {
-        /* A cache cleanup cannot undo delivery. */
-      }
-      this.cleanups.delete(id);
-      await this.persist().catch(() => {});
+      if (this.current(epoch)) await this.complete(id, message);
     } catch (cause) {
       if (!this.current(epoch)) return;
-      const restartRequired =
-        cause instanceof AppError &&
-        ["CHAT_UPLOAD_KEY_CONFLICT", "CHAT_UPLOAD_RESTART_REQUIRED"].includes(
-          cause.code ?? "",
-        );
-      const error = restartRequired
-        ? new AttachmentSendError(
-            "Không thể tiếp tục lần tải này. Chọn lại tệp.",
-            "CHAT_FILE_UPLOAD_RESTART_REQUIRED",
-          )
-        : cause;
-      const interrupted = !active();
-      this.update(id, {
-        state: "failed",
-        failureCode: timedOut
-          ? "CHAT_ATTACHMENT_TIMEOUT"
-          : interrupted
-            ? "CHAT_ATTACHMENT_INTERRUPTED"
-            : error instanceof AppError || error instanceof AttachmentSendError
-              ? error.code
-              : undefined,
-        failure: timedOut
-          ? "Tệp chưa gửi xong. Bấm Thử lại để kiểm tra tiếp."
-          : interrupted
-            ? "Lần gửi tệp bị gián đoạn. Bấm Thử lại để tiếp tục."
-            : error instanceof AttachmentSendError
-              ? error.message
-              : stage === "send"
-                ? errorMessage(error)
-                : filePickerError(error, stage),
-      });
+      this.update(id, attachmentFailure(cause, stage, timedOut, !active()));
       await this.persist().catch(() =>
         this.update(id, {
           state: "failed",
@@ -346,5 +229,31 @@ export class AttachmentOutbox extends OutboxState {
       this.busy = false;
       this.wake();
     }
+  }
+  private async complete(id: string, message: ApiMessage) {
+    const local = this.snapshot.items.find(
+      (item) => item.clientMessageId === id,
+    )?.attachment;
+    const retained =
+      message.senderId === this.options.ownerId &&
+      local &&
+      this.images.retain(message, local, this.cleanups.get(id));
+    if (retained) this.cleanups.delete(id);
+    this.update(id, {
+      state: "sent",
+      messageId: message.id,
+      message,
+      failure: undefined,
+      failureCode: undefined,
+    });
+    this.blobs.delete(id);
+    this.options.delivered(message);
+    try {
+      if (!retained) this.cleanups.get(id)?.();
+    } catch {
+      // Cache cleanup cannot undo confirmed delivery.
+    }
+    this.cleanups.delete(id);
+    await this.persist().catch(() => {});
   }
 }

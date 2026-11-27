@@ -11,18 +11,20 @@ export function createChatMediaFile(
 }
 
 export function prepareChatDownload(filename: string, mime: string) {
-  return Promise.resolve(async (bytes: Uint8Array, signal: AbortSignal) => {
-    signal.throwIfAborted();
-    const file = createChatMediaFile(bytes, mime);
-    const anchor = document.createElement("a");
-    try {
-      anchor.href = file.uri;
-      anchor.download = filename.replace(/[\\/]/g, "_") || "tep";
-      document.body.appendChild(anchor);
-      anchor.click();
-    } finally {
-      anchor.remove();
-      setTimeout(file.dispose, 30_000);
-    }
-  });
+  return Promise.resolve((bytes: Uint8Array, signal: AbortSignal) =>
+    Promise.resolve().then(() => {
+      signal.throwIfAborted();
+      const file = createChatMediaFile(bytes, mime);
+      const anchor = document.createElement("a");
+      try {
+        anchor.href = file.uri;
+        anchor.download = filename.replace(/[\\/]/g, "_") || "tep";
+        document.body.appendChild(anchor);
+        anchor.click();
+      } finally {
+        anchor.remove();
+        setTimeout(file.dispose, 30_000);
+      }
+    }),
+  );
 }

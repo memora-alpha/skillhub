@@ -136,7 +136,7 @@ export function ChatOutboxProvider({
   }, [store, attachmentStore, offline]);
   useEffect(
     () =>
-      events.subscribe(async (frame, signal) => {
+      events.subscribe((frame, signal) => {
         if (signal.aborted || !runtime.isCurrent()) return;
         const wake = attachmentEventWake(frame);
         if (wake) attachmentStore.refresh(wake.fileId);

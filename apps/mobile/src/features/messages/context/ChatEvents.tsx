@@ -65,7 +65,10 @@ async function consumeEvents(
   }
 }
 
-type EventListener = (frame: SseFrame, signal: AbortSignal) => Promise<unknown>;
+type EventListener = (
+  frame: SseFrame,
+  signal: AbortSignal,
+) => void | Promise<unknown>;
 const Context = createContext<{
   connected: boolean;
   error: unknown;
@@ -107,7 +110,9 @@ export function ChatEventsProvider({
     const hydration = createChatEventHydrator({
       receive: async (frame, signal) => {
         await Promise.all(
-          [...listeners].map((listener) => listener(frame, signal)),
+          [...listeners].map((listener) =>
+            Promise.resolve().then(() => listener(frame, signal)),
+          ),
         );
       },
       assertCurrent: runtime.assertCurrent,
