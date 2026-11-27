@@ -80,8 +80,8 @@ CREATE TABLE "subscription_charges" (
     "amount" BIGINT NOT NULL,
     "quantity" INTEGER NOT NULL DEFAULT 1,
     "operation_id" UUID NOT NULL,
-    "idempotency_key" CHAR(64) NOT NULL,
-    "request_digest" CHAR(64) NOT NULL,
+    "idempotency_key" VARCHAR(64) NOT NULL,
+    "request_digest" VARCHAR(64) NOT NULL,
     "created_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "subscription_charges_pkey" PRIMARY KEY ("id")
@@ -187,6 +187,8 @@ CREATE UNIQUE INDEX "user_subscriptions_one_current_per_user" ON "user_subscript
 -- Charges: positive amounts; only add-on charges carry a quantity above one.
 ALTER TABLE "subscription_charges" ADD CONSTRAINT "subscription_charges_amount_check" CHECK ("amount" > 0);
 ALTER TABLE "subscription_charges" ADD CONSTRAINT "subscription_charges_quantity_check" CHECK ("quantity" >= 1 AND ("kind" = 'RECORDING_ADDON' OR "quantity" = 1));
+-- Both digests are SHA-256 hex, always 64 characters.
+ALTER TABLE "subscription_charges" ADD CONSTRAINT "subscription_charges_digest_length_check" CHECK (char_length("idempotency_key") = 64 AND char_length("request_digest") = 64);
 
 ALTER TABLE "subscription_usage" ADD CONSTRAINT "subscription_usage_minutes_check" CHECK ("recording_minutes_allowed" >= 0 AND "recording_minutes_used" >= 0 AND "addon_minutes_remaining" >= 0);
 

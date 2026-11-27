@@ -100,9 +100,9 @@ model SubscriptionCharge {
   quantity       Int                    @default(1)
   operationId    String                 @unique @map("operation_id") @db.Uuid
   // SHA-256 of the client key (user routes) or the job key `renewal:<subscriptionId>:<termEnd>`.
-  idempotencyKey String                 @map("idempotency_key") @db.Char(64)
+  idempotencyKey String                 @map("idempotency_key") @db.VarChar(64)
   // SHA-256 of the canonical request body, to detect key reuse with another body.
-  requestDigest  String                 @map("request_digest") @db.Char(64)
+  requestDigest  String                 @map("request_digest") @db.VarChar(64)
   createdAt      DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
 
   subscription UserSubscription        @relation("SubscriptionCharge_subscription", fields: [subscriptionId], references: [id], onDelete: Restrict, onUpdate: Restrict)

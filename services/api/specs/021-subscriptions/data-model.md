@@ -81,8 +81,8 @@ Period start for usage = `termStart + floor((now − termStart) / 30 days) × 30
 | amount         | bigint                  | > 0                                                                                 |
 | quantity       | int                     | add-on packs; 1 otherwise                                                           |
 | operationId    | uuid FK CreditOperation | unique                                                                              |
-| idempotencyKey | varchar(255)            | unique `(userId, key digest)`; job charges use `renewal:<subscriptionId>:<termEnd>` |
-| requestDigest  | char(64)                | detects key reuse with another body                                                 |
+| idempotencyKey | varchar(64)             | unique `(userId, key digest)`; job charges use `renewal:<subscriptionId>:<termEnd>` |
+| requestDigest  | varchar(64)             | detects key reuse with another body; both digests CHECK length 64                   |
 | createdAt      | timestamptz             |                                                                                     |
 
 Index: `(userId, createdAt desc, id desc)`.

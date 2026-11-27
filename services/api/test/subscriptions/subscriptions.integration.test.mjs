@@ -56,10 +56,11 @@ test("subscriptions on isolated PostgreSQL", async (t) => {
               "session_whiteboards_retention_days_check",
               "session_recordings_retention_days_check",
               "session_recordings_charged_minutes_check",
+              "subscription_charges_digest_length_check",
             ],
           ],
         );
-        assert.equal(rows.length, 4);
+        assert.equal(rows.length, 5);
       },
     );
 
