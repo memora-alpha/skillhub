@@ -102,6 +102,7 @@ class LearningPath {
     this.meVersion,
     this.partnerVersion,
     this.teacher,
+    this.feeRateSnapshot,
     this.reviewed = false,
     this.review,
     this.cancellation,
@@ -119,6 +120,7 @@ class LearningPath {
   final String status;
   final List<Plan> plans;
   final String? teacher;
+  final String? feeRateSnapshot;
   final int completedSessions;
   final bool reviewed;
   final PathReview? review;
@@ -135,6 +137,7 @@ class LearningPath {
     String? status,
     List<Plan>? plans,
     Object? teacher = _unset,
+    Object? feeRateSnapshot = _unset,
     int? completedSessions,
     bool? reviewed,
     PathReview? review,
@@ -154,6 +157,9 @@ class LearningPath {
     status: status ?? this.status,
     plans: plans ?? this.plans,
     teacher: teacher == _unset ? this.teacher : teacher as String?,
+    feeRateSnapshot: feeRateSnapshot == _unset
+        ? this.feeRateSnapshot
+        : feeRateSnapshot as String?,
     completedSessions: completedSessions ?? this.completedSessions,
     reviewed: reviewed ?? this.reviewed,
     review: review ?? this.review,
@@ -296,8 +302,7 @@ class PathsNotifier extends Notifier<List<LearningPath>> {
     return const [];
   }
 
-  LearningPath? find(String? id) =>
-      state.where((p) => p.id == id).firstOrNull;
+  LearningPath? find(String? id) => state.where((p) => p.id == id).firstOrNull;
 
   void save(LearningPath path) =>
       state = [path, ...state.where((p) => p.id != path.id)];

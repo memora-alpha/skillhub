@@ -87,6 +87,30 @@ test("TWO_WAY freezes each teaching plan denominator and charges its full commit
   assert.equal(result.completedCredit - result.platformFee, 9600n);
 });
 
+test("TWO_WAY termination charges only completed teaching Credit", () => {
+  const rows = makeSessions(2, 2);
+  const snapshot = createSessionCreditSnapshot(2000n, twoWay, rows, 400, "a");
+  const none = calculateSessionCredit(
+    snapshot,
+    2000n,
+    twoWay,
+    rows.map((row) => ({ ...row, status: "CONFIRMED" })),
+  );
+  assert.equal(none.completedCredit, 0n);
+  assert.equal(none.platformFee, 0n);
+  const partial = calculateSessionCredit(
+    snapshot,
+    2000n,
+    twoWay,
+    rows.map((row, index) => ({
+      ...row,
+      status: index === 0 ? "COMPLETED" : "CONFIRMED",
+    })),
+  );
+  assert.equal(partial.completedCredit, 1000n);
+  assert.equal(partial.platformFee, 40n);
+});
+
 test("makeup keeps the same original share; only a completed occurrence counts", () => {
   const rows = makeSessions(2, 2);
   const snapshot = createSessionCreditSnapshot(2001n, twoWay, rows, 400, "a");

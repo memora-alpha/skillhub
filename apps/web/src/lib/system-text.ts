@@ -47,15 +47,15 @@ const labels: Readonly<Record<string, string>> = {
     "Khoảng báo cáo chưa hợp lệ. Chọn ngày kết thúc từ ngày bắt đầu và tối đa 366 ngày.",
   INVALID_FEE_TIMESTAMP: "Ngày giờ chưa hợp lệ. Vui lòng chọn lại thời điểm.",
   INVALID_MATERIAL_FEE_POLICY:
-    "Phiên bản phải là số nguyên dương, mức phí từ 0% đến 99,99%.",
+    "Phiên bản phải là số nguyên dương, mức phí từ 1% đến 10%.",
   INVALID_FEE_POLICY:
-    "Chọn đúng phạm vi phí, phiên bản số nguyên dương và mức phí từ 0% đến 99,99%.",
+    "Chọn đúng phạm vi phí, phiên bản số nguyên dương và mức phí từ 1% đến 10%.",
   FEE_POLICY_NOT_FOUND:
     "Không tìm thấy chính sách phí. Tải lại danh sách để kiểm tra.",
   FEE_POLICY_ALREADY_DECIDED:
     "Phiên bản này đã được duyệt hoặc không còn là bản nháp. Tải lại danh sách.",
   FEE_POLICY_EFFECTIVE_ORDER_CONFLICT:
-    "Thời điểm hiệu lực không khớp thứ tự phiên bản. Kiểm tra các phiên bản đã duyệt.",
+    "Phiên bản này cũ hơn một bản đã duyệt. Hãy xóa bản nháp hoặc tạo phiên bản mới hơn.",
   STALE_PROFILE_VERSION:
     "Hồ sơ vừa được cập nhật. Tải lại để xem nội dung mới nhất trước khi kiểm duyệt.",
   STALE_REVIEW_VERSION:

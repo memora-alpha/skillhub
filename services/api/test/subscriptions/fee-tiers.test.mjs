@@ -210,3 +210,103 @@ test("fee policy admin drafts tier series with the rule shape of their base", as
   // TWO_WAY has no tier series; create validates synchronously.
   assert.throws(() => draft("TWO_WAY_PRO", 200), /INVALID_FEE_POLICY/);
 });
+
+test("fee policy admin can hotfix before a future version and manage skipped drafts", async () => {
+  const db = createFakeDb({ now: () => NOW });
+  seedPolicy(db, "ONE_WAY", { returnedBps: 9600, feeBps: 400 });
+  const admin = {
+    userId: A,
+    roles: ["ADMIN"],
+    permissions: ["fee-policy:manage"],
+  };
+  const audits = [];
+  const service = new FeePolicyAdminService(
+    { run: (work) => work(db) },
+    { assertLive: async () => admin },
+    { consumeReauth: async () => {} },
+    { append: async (_tx, entry) => audits.push(entry) },
+    undefined,
+  );
+  const create = (versionNo, feeBps) =>
+    service.create(admin, {
+      policyCode: "ONE_WAY",
+      versionNo,
+      feeBps,
+      reason: "Manage learning fee",
+      reauthToken: "token",
+    });
+  const future = await create(2, 300);
+  const futureAt = new Date(NOW.getTime() + DAY);
+  await service.approve(admin, future.id, {
+    effectiveAt: futureAt.toISOString(),
+    reason: "Schedule next month fee",
+    reauthToken: "token",
+  });
+  const hotfix = await create(3, 500);
+  const approvedHotfix = await service.approve(admin, hotfix.id, {
+    reason: "Apply urgent fee hotfix",
+    reauthToken: "token",
+  });
+  assert.ok(approvedHotfix.effectiveAt < futureAt);
+  const effectiveEvent = db
+    .rows("outboxEvent")
+    .find((row) => row.dedupeKey === `fee-policy-effective:${hotfix.id}`);
+  assert.equal(effectiveEvent.payload.previousFeeBps, 400);
+
+  const skipped = await create(4, 600);
+  const current = await create(5, 700);
+  await service.approve(admin, current.id, {
+    reason: "Approve newer fee version",
+    reauthToken: "token",
+  });
+  const updated = await service.updateDraft(admin, skipped.id, {
+    feeBps: 650,
+    reason: "Correct skipped draft",
+    reauthToken: "token",
+  });
+  assert.deepEqual(updated.calculationRule, {
+    returnedBps: 9350,
+    feeBps: 650,
+  });
+  assert.equal(
+    (
+      await service.deleteDraft(admin, skipped.id, {
+        reason: "Discard skipped draft",
+        reauthToken: "token",
+      })
+    ).status,
+    "DELETED",
+  );
+  assert.equal(
+    db.rows("feePolicyVersion").some((row) => row.id === skipped.id),
+    false,
+  );
+  assert.deepEqual(await service.nextVersion(admin, "ONE_WAY"), {
+    policyCode: "ONE_WAY",
+    nextVersion: 6,
+  });
+  assert.deepEqual(
+    audits.slice(-2).map((entry) => entry.action),
+    ["LEARNING_FEE_POLICY_UPDATE", "LEARNING_FEE_POLICY_DELETE"],
+  );
+});
+
+test("fee policy admin enforces the approved 1% to 10% business range", () => {
+  const service = new FeePolicyAdminService({}, {}, {}, {}, undefined);
+  for (const feeBps of [0, 99, 1001, 4000, 9999]) {
+    assert.throws(
+      () =>
+        service.create(
+          {},
+          {
+            policyCode: "ONE_WAY",
+            versionNo: 1,
+            feeBps,
+            reason: "Invalid fee boundary",
+            reauthToken: "token",
+          },
+        ),
+      /INVALID_FEE_POLICY/,
+    );
+  }
+});

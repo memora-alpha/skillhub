@@ -123,6 +123,7 @@ function path(overrides: Partial<LearningPath> = {}): LearningPath {
       learnerId: "learner",
       negotiatedCredit: "100",
       totalCreditPerUser: null,
+      feeRateSnapshot: "0.04",
       participantAConfirmedAt: null,
       participantBConfirmedAt: null,
     },

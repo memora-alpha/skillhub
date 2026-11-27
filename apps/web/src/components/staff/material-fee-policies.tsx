@@ -25,11 +25,22 @@ type Fee = {
   effectiveAt: string | null;
   calculationRule: { feeBps?: number; platformFeeBps?: number };
 };
-type FeePolicyCode = "ONE_WAY" | "TWO_WAY" | "MATERIAL_PAID";
+type FeePolicyCode =
+  | "ONE_WAY"
+  | "TWO_WAY"
+  | "MATERIAL_PAID"
+  | "ONE_WAY_CREATOR"
+  | "ONE_WAY_PRO"
+  | "MATERIAL_PAID_CREATOR"
+  | "MATERIAL_PAID_PRO";
 const feePolicyCodes: readonly FeePolicyCode[] = [
   "TWO_WAY",
   "ONE_WAY",
+  "ONE_WAY_CREATOR",
+  "ONE_WAY_PRO",
   "MATERIAL_PAID",
+  "MATERIAL_PAID_CREATOR",
+  "MATERIAL_PAID_PRO",
 ];
 type Revenue = {
   timezone: string;
@@ -45,28 +56,132 @@ export function MaterialFeePolicies() {
   const { api } = useStaffSession();
   const list = useStaffListPages<Fee>("fee-policies?limit=20");
   const operation = useOperation();
-  const [mode, setMode] = useState("create");
+  const [mode, setMode] = useState<"create" | "approve" | "edit" | "delete">(
+    "create",
+  );
+  const [selected, setSelected] = useState<Fee>();
   const [policyCode, setPolicyCode] = useState<FeePolicyCode>("MATERIAL_PAID");
+  const nextVersionResource = useStaffResource<{
+    policyCode: FeePolicyCode;
+    nextVersion: number;
+  }>(`fee-policies/next-version?${new URLSearchParams({ policyCode })}`, {
+    retainOnReload: true,
+  });
   const [version, setVersion] = useState<number>();
-  const nextVersion =
-    Math.max(
-      0,
-      ...list.items
-        .filter((fee) => fee.policyCode === policyCode)
-        .map((fee) => fee.versionNo),
-    ) + 1;
-  const [bps, setBps] = useState(500);
+  const nextVersion = nextVersionResource.data?.nextVersion;
+  const [feePercent, setFeePercent] = useState("5");
   const [reason, setReason] = useState("");
   const [password, setPassword] = useState("");
   const [effectiveAt, setEffectiveAt] = useState("");
+  function resetSelection() {
+    setMode("create");
+    setSelected(undefined);
+    setVersion(undefined);
+    setReason("");
+    setPassword("");
+    setEffectiveAt("");
+  }
+  function selectDraft(fee: Fee, action: "approve" | "edit" | "delete") {
+    setSelected(fee);
+    setMode(action);
+    if (feePolicyCodes.includes(fee.policyCode as FeePolicyCode))
+      setPolicyCode(fee.policyCode as FeePolicyCode);
+    if (action === "edit" && typeof fee.calculationRule.feeBps === "number")
+      setFeePercent(String(fee.calculationRule.feeBps / 100));
+    setPassword("");
+    setReason("");
+    setEffectiveAt("");
+  }
   function saveLabel() {
     if (operation.busy) {
       return "Đang lưu…";
     }
-    if (mode === "create") {
-      return "Tạo bản nháp";
-    }
+    if (mode === "create") return "Tạo bản nháp";
+    if (mode === "edit") return "Lưu bản nháp";
+    if (mode === "delete") return "Xóa bản nháp";
     return "Duyệt phiên bản";
+  }
+  function selectionLabel() {
+    if (mode === "approve") return "Duyệt";
+    if (mode === "edit") return "Sửa";
+    return "Xóa";
+  }
+  const feePercentField = (
+    <label>
+      <span>Mức phí (%)</span>
+      <input
+        className="input"
+        type="number"
+        min={1}
+        max={10}
+        step={0.01}
+        required
+        value={feePercent}
+        onChange={(e) => setFeePercent(e.target.value)}
+      />
+    </label>
+  );
+  function policyFields() {
+    if (mode === "create") {
+      return (
+        <>
+          <label>
+            <span>Phạm vi áp dụng</span>
+            <select
+              className="select"
+              value={policyCode}
+              onChange={(e) => {
+                setPolicyCode(e.target.value as FeePolicyCode);
+                setVersion(undefined);
+              }}
+            >
+              {feePolicyCodes.map((code) => (
+                <option value={code} key={code}>
+                  {financeLabel(code)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Phiên bản</span>
+            <input
+              className="input"
+              type="number"
+              min={1}
+              step={1}
+              required
+              value={version ?? nextVersion ?? ""}
+              onChange={(e) =>
+                setVersion(
+                  e.target.value === "" ? undefined : Number(e.target.value),
+                )
+              }
+            />
+          </label>
+          {feePercentField}
+        </>
+      );
+    }
+    if (mode === "approve") {
+      return (
+        <label>
+          <span>Hiệu lực từ (để trống: ngay khi duyệt)</span>
+          <input
+            className="input"
+            type="datetime-local"
+            value={effectiveAt}
+            onChange={(e) => setEffectiveAt(e.target.value)}
+          />
+        </label>
+      );
+    }
+    if (mode === "edit") return feePercentField;
+    return (
+      <p className={styles.hint}>
+        Bản nháp bị xóa sẽ không có hiệu lực và phiên bản đó có thể được tạo lại
+        nếu chưa có phiên bản mới hơn.
+      </p>
+    );
   }
   return (
     <div className={styles.workspace}>
@@ -125,23 +240,29 @@ export function MaterialFeePolicies() {
                       </td>
                       <td data-label="Thao tác">
                         {f.status === "DRAFT" && (
-                          <button
-                            type="button"
-                            className="btn"
-                            onClick={() => {
-                              setMode(f.id);
-                              if (
-                                feePolicyCodes.includes(
-                                  f.policyCode as FeePolicyCode,
-                                )
-                              )
-                                setPolicyCode(f.policyCode as FeePolicyCode);
-                              setPassword("");
-                              setReason("");
-                            }}
-                          >
-                            Chọn để duyệt
-                          </button>
+                          <div className="row">
+                            <button
+                              type="button"
+                              className="btn"
+                              onClick={() => selectDraft(f, "approve")}
+                            >
+                              Duyệt
+                            </button>
+                            <button
+                              type="button"
+                              className="btn"
+                              onClick={() => selectDraft(f, "edit")}
+                            >
+                              Sửa
+                            </button>
+                            <button
+                              type="button"
+                              className="btn"
+                              onClick={() => selectDraft(f, "delete")}
+                            >
+                              Xóa
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -159,14 +280,14 @@ export function MaterialFeePolicies() {
           <summary>
             {mode === "create"
               ? "Tạo phiên bản chính sách phí"
-              : "Duyệt phiên bản đã chọn"}
+              : `${selectionLabel()} ${financeLabel(selected?.policyCode ?? policyCode)} v${selected?.versionNo ?? "—"}`}
           </summary>
           <form
             onSubmit={(e) => {
               e.preventDefault();
               void operation.run(async () => {
                 if (
-                  mode !== "create" &&
+                  mode === "approve" &&
                   effectiveAt &&
                   new Date(effectiveAt).getTime() <= Date.now()
                 )
@@ -185,18 +306,31 @@ export function MaterialFeePolicies() {
                   reason: reason.trim(),
                   reauthToken: auth.data.reauthToken,
                 };
-                if (mode === "create")
+                const feeBps = Math.round(Number(feePercent) * 100);
+                if (
+                  ["create", "edit"].includes(mode) &&
+                  (!/^\d+(?:\.\d{1,2})?$/.test(feePercent) ||
+                    feeBps < 100 ||
+                    feeBps > 1000)
+                )
+                  throw new Error("Mức phí phải từ 1% đến 10%.");
+                if (mode === "create") {
+                  const versionNo = version ?? nextVersion;
+                  if (!versionNo)
+                    throw new Error(
+                      "Chưa tải được phiên bản kế tiếp. Vui lòng thử lại.",
+                    );
                   await api("fee-policies", {
                     method: "POST",
                     body: {
                       ...body,
                       policyCode,
-                      versionNo: version ?? nextVersion,
-                      feeBps: bps,
+                      versionNo,
+                      feeBps,
                     },
                   });
-                else
-                  await api(`fee-policies/${mode}/approve`, {
+                } else if (mode === "approve" && selected) {
+                  await api(`fee-policies/${selected.id}/approve`, {
                     method: "POST",
                     body: {
                       ...body,
@@ -205,73 +339,25 @@ export function MaterialFeePolicies() {
                         : {}),
                     },
                   });
+                } else if (mode === "edit" && selected) {
+                  await api(`fee-policies/${selected.id}`, {
+                    method: "PATCH",
+                    body: { ...body, feeBps },
+                  });
+                } else if (mode === "delete" && selected) {
+                  await api(`fee-policies/${selected.id}`, {
+                    method: "DELETE",
+                    body,
+                  });
+                }
                 await list.reload();
-                setMode("create");
-                setVersion(undefined);
-                setReason("");
-                setEffectiveAt("");
+                await nextVersionResource.reload();
+                resetSelection();
               });
             }}
           >
             <fieldset className={styles.form} disabled={operation.busy}>
-              {mode === "create" ? (
-                <>
-                  <label>
-                    <span>Phạm vi áp dụng</span>
-                    <select
-                      className="select"
-                      value={policyCode}
-                      onChange={(e) => {
-                        setPolicyCode(e.target.value as FeePolicyCode);
-                        setVersion(undefined);
-                      }}
-                    >
-                      {feePolicyCodes.map((code) => (
-                        <option value={code} key={code}>
-                          {financeLabel(code)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    <span>Phiên bản</span>
-                    <input
-                      className="input"
-                      type="number"
-                      min={1}
-                      step={1}
-                      required
-                      value={version ?? nextVersion}
-                      onChange={(e) => setVersion(Number(e.target.value))}
-                    />
-                  </label>
-                  <label>
-                    <span>Mức phí (%)</span>
-                    <input
-                      className="input"
-                      type="number"
-                      min={0}
-                      max={99.99}
-                      step={0.01}
-                      required
-                      value={bps / 100}
-                      onChange={(e) =>
-                        setBps(Math.round(Number(e.target.value) * 100))
-                      }
-                    />
-                  </label>
-                </>
-              ) : (
-                <label>
-                  <span>Hiệu lực từ (để trống: ngay khi duyệt)</span>
-                  <input
-                    className="input"
-                    type="datetime-local"
-                    value={effectiveAt}
-                    onChange={(e) => setEffectiveAt(e.target.value)}
-                  />
-                </label>
-              )}
+              {policyFields()}
               <label>
                 <span>Lý do</span>
                 <textarea
@@ -304,7 +390,7 @@ export function MaterialFeePolicies() {
                   <LoadingButton
                     className="btn"
                     type="button"
-                    onClick={() => setMode("create")}
+                    onClick={resetSelection}
                     loading={!!operation.busy}
                   >
                     Hủy chọn

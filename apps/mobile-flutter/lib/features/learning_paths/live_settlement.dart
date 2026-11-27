@@ -6,6 +6,7 @@ import '../../components/misc.dart';
 import '../../core/http/app_error.dart';
 import '../auth/session/auth_session.dart';
 import '../remote/refresh_signal.dart';
+import 'live_paths.dart';
 import 'settlement_presentation.dart';
 
 final settlementReadProvider =
@@ -88,6 +89,7 @@ class _LiveSettlementScreenState extends ConsumerState<LiveSettlementScreen> {
   @override
   Widget build(BuildContext context) {
     final query = ref.watch(settlementReadProvider(widget.id));
+    final pathQuery = ref.watch(livePathProvider(widget.id));
     final row = query.isLoading || query.hasError
         ? const <String, dynamic>{}
         : query.value ?? const <String, dynamic>{};
@@ -107,6 +109,13 @@ class _LiveSettlementScreenState extends ConsumerState<LiveSettlementScreen> {
       'READY': 'Đủ điều kiện kiểm tra quyết toán',
     };
     final consentMessage = settlementConsentMessage(row);
+    final agreement = pathQuery.value?['agreement'] is Map
+        ? pathQuery.value!['agreement'] as Map
+        : const {};
+    final feeSummary = _liveFeeSummary(
+      agreement['exchangeType'],
+      agreement['feeRateSnapshot'],
+    );
     return WaitingRefresh(
       enabled:
           !_busy &&
@@ -121,9 +130,7 @@ class _LiveSettlementScreenState extends ConsumerState<LiveSettlementScreen> {
           const Copy(
             'Sau khi hoàn thành toàn bộ thỏa thuận, hai bên đồng ý giải ngân thì hệ thống xử lý tự động. Xác nhận học xong từng buổi là bước riêng.',
           ),
-          const Copy(
-            'Hai chiều: mỗi người nhận lại 96% Credit đã giữ của mình. Một chiều: người dạy nhận 96% Credit thỏa thuận. Phần còn lại là phí nền tảng.',
-          ),
+          Copy(feeSummary),
           if (query.isLoading) const Center(child: CircularProgressIndicator()),
           if (query.hasError)
             FormNotice(
@@ -169,4 +176,20 @@ class _LiveSettlementScreenState extends ConsumerState<LiveSettlementScreen> {
       ),
     );
   }
+}
+
+String _feePercent(int bps) =>
+    (bps / 100).toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '');
+
+String _liveFeeSummary(Object? exchangeType, Object? snapshot) {
+  final rate = double.tryParse(snapshot is String ? snapshot : '');
+  if (rate == null || !rate.isFinite || rate < 0 || rate >= 1) {
+    return 'Tỷ lệ phí quyết toán đang chờ snapshot đã chốt từ máy chủ.';
+  }
+  final feeBps = (rate * 10000).round();
+  final fee = '${_feePercent(feeBps)}%';
+  final returned = '${_feePercent(10000 - feeBps)}%';
+  return exchangeType == 'TWO_WAY'
+      ? 'Mỗi người nhận lại $returned Credit đã giữ của mình; $fee là phí nền tảng.'
+      : 'Người dạy nhận $returned Credit thỏa thuận; $fee là phí nền tảng.';
 }

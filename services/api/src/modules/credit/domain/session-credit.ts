@@ -216,9 +216,7 @@ export function calculateSessionCredit(
       sum + (item.teacherAbsentWithoutMakeup ? BigInt(item.creditUnits) : 0n),
     0n,
   );
-  const feeBasis =
-    agreement.exchangeType === "TWO_WAY" ? total : completedCredit;
-  const fee = (feeBasis * BigInt(data.feeBps)) / 10_000n;
+  const fee = (completedCredit * BigInt(data.feeBps)) / 10_000n;
   return {
     sessions,
     completedCredit,
@@ -229,15 +227,12 @@ export function calculateSessionCredit(
   };
 }
 
-/** Round the agreement's total fee once; distribute hundredths deterministically. */
+/** Floor each payer's fee independently so equal Holds always pay equal fees. */
 export function allocateHeldFee(
   rows: readonly { userId: string; amount: bigint }[],
   feeBps: number,
 ) {
-  const ordered = [...rows].sort((a, b) =>
-    a.userId < b.userId ? -1 : Number(a.userId > b.userId),
-  );
-  const total = ordered.reduce((sum, row) => sum + row.amount, 0n);
+  const total = rows.reduce((sum, row) => sum + row.amount, 0n);
   if (
     total <= 0n ||
     !Number.isInteger(feeBps) ||
@@ -245,16 +240,7 @@ export function allocateHeldFee(
     feeBps >= 10_000
   )
     throw new ConflictException("INVALID_CREDIT_AMOUNT");
-  const fee = (total * BigInt(feeBps)) / 10_000n;
-  const fees = ordered.map((row) => ({
-    userId: row.userId,
-    fee: (fee * row.amount) / total,
-  }));
-  let remainder = fee - fees.reduce((sum, row) => sum + row.fee, 0n);
-  for (const row of fees) {
-    if (remainder === 0n) break;
-    row.fee += 1n;
-    remainder -= 1n;
-  }
-  return new Map(fees.map((row) => [row.userId, row.fee]));
+  return new Map(
+    rows.map((row) => [row.userId, (row.amount * BigInt(feeBps)) / 10_000n]),
+  );
 }

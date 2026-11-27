@@ -32,6 +32,9 @@ import {
   type FeePolicyCode,
 } from "../../domain/fee-policy-codes";
 
+export const MIN_FEE_POLICY_BPS = 100;
+export const MAX_FEE_POLICY_BPS = 1_000;
+
 /** Material series store `feeBps` only; learning series also store the returned share. */
 function feeCalculationRule(policyCode: FeePolicyCode, feeBps: number) {
   return isMaterialSeries(policyCode)
@@ -51,6 +54,14 @@ function feeBpsFromRule(value: unknown): number {
   )
     throw new ConflictException("FEE_POLICY_INVALID");
   return feeBps as number;
+}
+
+function validBusinessFeeBps(value: number) {
+  return (
+    Number.isInteger(value) &&
+    value >= MIN_FEE_POLICY_BPS &&
+    value <= MAX_FEE_POLICY_BPS
+  );
 }
 
 /** Admin scheduling and reports require an explicit timezone, independent of server TZ. */
@@ -80,6 +91,24 @@ export class FeePolicyAdminService {
     if (!live.roles.includes("ADMIN") || !live.permissions.includes(permission))
       throw new ForbiddenException("FEE_ADMIN_REQUIRED");
     return live;
+  }
+  private async lockDraft(
+    tx: TransactionContext,
+    actor: Principal,
+    id: string,
+  ) {
+    await this.authorize(tx, actor);
+    await lockUsers(tx, [actor.userId]);
+    const live = await this.authorize(tx, actor);
+    let row = await tx.feePolicyVersion.findUnique({ where: { id } });
+    if (!row) throw new NotFoundException("FEE_POLICY_NOT_FOUND");
+    const lockKey = `fee-policy:${row.policyCode}`;
+    await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
+    row = await tx.feePolicyVersion.findUnique({ where: { id } });
+    if (!row) throw new NotFoundException("FEE_POLICY_NOT_FOUND");
+    if (row.status !== "DRAFT")
+      throw new ConflictException("FEE_POLICY_ALREADY_DECIDED");
+    return { live, row };
   }
   list(actor: Principal, query: { limit?: number; cursor?: string }) {
     const scope = JSON.stringify(["fee-policies-v1", actor.userId]),
@@ -111,6 +140,19 @@ export class FeePolicyAdminService {
           effective: effectiveIds.has(row.id),
         })),
       };
+    });
+  }
+  nextVersion(actor: Principal, policyCode: FeePolicyCode) {
+    if (!isFeePolicyCode(policyCode))
+      throw new BadRequestException("INVALID_FEE_POLICY");
+    return this.transactions.run(async (tx) => {
+      await this.authorize(tx, actor);
+      const latest = await tx.feePolicyVersion.findFirst({
+        where: { policyCode },
+        orderBy: { versionNo: "desc" },
+        select: { versionNo: true },
+      });
+      return { policyCode, nextVersion: (latest?.versionNo ?? 0) + 1 };
     });
   }
   current(actor: Principal) {
@@ -174,9 +216,7 @@ export class FeePolicyAdminService {
       !isFeePolicyCode(policyCode) ||
       !Number.isSafeInteger(input.versionNo) ||
       input.versionNo < 1 ||
-      !Number.isInteger(input.feeBps) ||
-      input.feeBps < 0 ||
-      input.feeBps >= 10000
+      !validBusinessFeeBps(input.feeBps)
     )
       throw new BadRequestException("INVALID_FEE_POLICY");
     return this.transactions.run(async (tx) => {
@@ -221,6 +261,87 @@ export class FeePolicyAdminService {
       return result;
     });
   }
+  updateDraft(
+    actor: Principal,
+    id: string,
+    input: { feeBps: number; reason: string; reauthToken: string },
+  ) {
+    if (!validBusinessFeeBps(input.feeBps))
+      throw new BadRequestException("INVALID_FEE_POLICY");
+    const reason = validateReason(input.reason, { min: 3, max: 1000 });
+    return this.transactions.run(async (tx) => {
+      const { live, row } = await this.lockDraft(tx, actor, id);
+      const previousFeeBps = feeBpsFromRule(row.calculationRule);
+      await this.reauth.consumeReauth(tx, live, input.reauthToken);
+      const result = await tx.feePolicyVersion.update({
+        where: { id },
+        data: {
+          calculationRule: feeCalculationRule(row.policyCode, input.feeBps),
+        },
+      });
+      await this.audit.append(tx, {
+        actorId: live.userId,
+        actorRole: "ADMIN",
+        action: isMaterialSeries(row.policyCode)
+          ? "MATERIAL_FEE_POLICY_UPDATE"
+          : "LEARNING_FEE_POLICY_UPDATE",
+        targetType: "FeePolicyVersion",
+        targetId: id,
+        reason,
+        before: {
+          policyCode: row.policyCode,
+          feeBps: previousFeeBps,
+          versionNo: row.versionNo,
+        },
+        after: {
+          policyCode: row.policyCode,
+          feeBps: input.feeBps,
+          versionNo: row.versionNo,
+        },
+      });
+      return result;
+    });
+  }
+  deleteDraft(
+    actor: Principal,
+    id: string,
+    input: { reason: string; reauthToken: string },
+  ) {
+    const reason = validateReason(input.reason, { min: 3, max: 1000 });
+    return this.transactions.run(async (tx) => {
+      const { live, row } = await this.lockDraft(tx, actor, id);
+      const feeBps = feeBpsFromRule(row.calculationRule);
+      await this.reauth.consumeReauth(tx, live, input.reauthToken);
+      const deleted = await tx.feePolicyVersion.deleteMany({
+        where: { id, status: "DRAFT" },
+      });
+      if (deleted.count !== 1)
+        throw new ConflictException("FEE_POLICY_ALREADY_DECIDED");
+      await this.audit.append(tx, {
+        actorId: live.userId,
+        actorRole: "ADMIN",
+        action: isMaterialSeries(row.policyCode)
+          ? "MATERIAL_FEE_POLICY_DELETE"
+          : "LEARNING_FEE_POLICY_DELETE",
+        targetType: "FeePolicyVersion",
+        targetId: id,
+        reason,
+        before: {
+          policyCode: row.policyCode,
+          feeBps,
+          versionNo: row.versionNo,
+          status: row.status,
+        },
+        after: { status: "DELETED" },
+      });
+      return {
+        id,
+        policyCode: row.policyCode,
+        versionNo: row.versionNo,
+        status: "DELETED" as const,
+      };
+    });
+  }
   approve(
     actor: Principal,
     id: string,
@@ -228,40 +349,40 @@ export class FeePolicyAdminService {
   ) {
     const reason = validateReason(input.reason, { min: 3, max: 1000 });
     return this.transactions.run(async (tx) => {
-      await this.authorize(tx, actor);
-      await lockUsers(tx, [actor.userId]);
-      const live = await this.authorize(tx, actor);
-      let row = await tx.feePolicyVersion.findUnique({ where: { id } });
-      if (!row) throw new NotFoundException("FEE_POLICY_NOT_FOUND");
-      const lockKey = `fee-policy:${row.policyCode}`;
-      await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
-      row = await tx.feePolicyVersion.findUnique({ where: { id } });
-      if (!row) throw new NotFoundException("FEE_POLICY_NOT_FOUND");
-      if (row.status !== "DRAFT")
-        throw new ConflictException("FEE_POLICY_ALREADY_DECIDED");
+      const { live, row } = await this.lockDraft(tx, actor, id);
       const now = await databaseNow(tx),
         effectiveAt = input.effectiveAt ? feeTimestamp(input.effectiveAt) : now;
       if (!Number.isFinite(+effectiveAt) || effectiveAt < now)
         throw new BadRequestException("FEE_POLICY_EFFECTIVE_TIME_IN_PAST");
-      const latestApproved = await tx.feePolicyVersion.findFirst({
+      const latestApprovedVersion = await tx.feePolicyVersion.findFirst({
         where: {
           policyCode: row.policyCode,
           status: "APPROVED",
           approvedAt: { not: null },
           effectiveAt: { not: null },
         },
-        orderBy: { effectiveAt: "desc" },
+        orderBy: { versionNo: "desc" },
       });
-      const expectedVersion = (latestApproved?.versionNo ?? 0) + 1;
       if (
-        row.versionNo !== expectedVersion ||
-        (latestApproved?.effectiveAt &&
-          effectiveAt <= latestApproved.effectiveAt)
+        latestApprovedVersion &&
+        row.versionNo <= latestApprovedVersion.versionNo
       )
         throw new ConflictException("FEE_POLICY_EFFECTIVE_ORDER_CONFLICT");
       const feeBps = feeBpsFromRule(row.calculationRule);
-      const previousFeeBps = latestApproved
-        ? feeBpsFromRule(latestApproved.calculationRule)
+      if (!validBusinessFeeBps(feeBps))
+        throw new BadRequestException("INVALID_FEE_POLICY");
+      const previousEffective = await tx.feePolicyVersion.findFirst({
+        where: {
+          id: { not: row.id },
+          policyCode: row.policyCode,
+          status: "APPROVED",
+          approvedAt: { not: null },
+          effectiveAt: { lte: effectiveAt },
+        },
+        orderBy: [{ effectiveAt: "desc" }, { versionNo: "desc" }],
+      });
+      const previousFeeBps = previousEffective
+        ? feeBpsFromRule(previousEffective.calculationRule)
         : null;
       await this.reauth.consumeReauth(tx, live, input.reauthToken);
       const result = await tx.feePolicyVersion.update({

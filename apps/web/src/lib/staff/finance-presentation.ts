@@ -11,7 +11,11 @@ export function financeNumber(value: string) {
 const labels: Record<string, string> = {
   TWO_WAY: "Trao đổi hai chiều",
   ONE_WAY: "Học một chiều",
+  ONE_WAY_CREATOR: "Học một chiều · Creator",
+  ONE_WAY_PRO: "Học một chiều · Pro",
   MATERIAL_PAID: "Tài liệu trả phí",
+  MATERIAL_PAID_CREATOR: "Tài liệu trả phí · Creator",
+  MATERIAL_PAID_PRO: "Tài liệu trả phí · Pro",
   DRAFT: "Bản nháp",
   APPROVED: "Đã duyệt",
   SETTLEMENT: "Tất toán lộ trình",

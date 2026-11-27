@@ -11,9 +11,11 @@ import {
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -33,7 +35,11 @@ import type { Principal } from "../../../auth/application/services/sessions.serv
 import { success, paginated } from "../../../../shared/http/response";
 import { ListPageQuery } from "../../../../shared/http/list-page";
 import { StaffDto } from "../../../users/presentation/http/users.dto";
-import { FeePolicyAdminService } from "../../application/services/fee-policy-admin.service";
+import {
+  FeePolicyAdminService,
+  MAX_FEE_POLICY_BPS,
+  MIN_FEE_POLICY_BPS,
+} from "../../application/services/fee-policy-admin.service";
 import {
   FEE_POLICY_CODES,
   type FeePolicyCode,
@@ -45,22 +51,34 @@ export class CreateFeePolicyDto extends StaffDto {
 
   @ApiProperty({ minimum: 1 }) @IsInt() @Min(1) versionNo!: number;
   @ApiProperty({
-    minimum: 0,
-    maximum: 9999,
+    minimum: MIN_FEE_POLICY_BPS,
+    maximum: MAX_FEE_POLICY_BPS,
     description: "Basis points: 500 means 5%",
   })
   @IsInt()
-  @Min(0)
-  @Max(9999)
+  @Min(MIN_FEE_POLICY_BPS)
+  @Max(MAX_FEE_POLICY_BPS)
   feeBps!: number;
 }
 export class CreateMaterialFeeDto extends StaffDto {
   @ApiProperty({ minimum: 1 }) @IsInt() @Min(1) versionNo!: number;
-  @ApiProperty({ minimum: 0, maximum: 9999 })
+  @ApiProperty({ minimum: MIN_FEE_POLICY_BPS, maximum: MAX_FEE_POLICY_BPS })
   @IsInt()
-  @Min(0)
-  @Max(9999)
+  @Min(MIN_FEE_POLICY_BPS)
+  @Max(MAX_FEE_POLICY_BPS)
   feeBps!: number;
+}
+export class UpdateFeePolicyDto extends StaffDto {
+  @ApiProperty({ minimum: MIN_FEE_POLICY_BPS, maximum: MAX_FEE_POLICY_BPS })
+  @IsInt()
+  @Min(MIN_FEE_POLICY_BPS)
+  @Max(MAX_FEE_POLICY_BPS)
+  feeBps!: number;
+}
+export class NextFeePolicyVersionQuery {
+  @ApiProperty({ enum: FEE_POLICY_CODES })
+  @IsIn(FEE_POLICY_CODES)
+  policyCode!: FeePolicyCode;
 }
 export class ApproveMaterialFeeDto extends StaffDto {
   @ApiPropertyOptional({
@@ -108,6 +126,13 @@ export class FeePolicyAdminController {
   async current(@CurrentIdentity() actor: Principal) {
     return success(await this.fees.current(actor));
   }
+  @Get("fee-policies/next-version")
+  async nextVersion(
+    @CurrentIdentity() actor: Principal,
+    @Query() query: NextFeePolicyVersionQuery,
+  ) {
+    return success(await this.fees.nextVersion(actor, query.policyCode));
+  }
   @Get("credit-policy")
   @ApiSuccessResponse(200, CreditPolicyResponse)
   async creditPolicy(@CurrentIdentity() actor: Principal) {
@@ -133,6 +158,23 @@ export class FeePolicyAdminController {
         policyCode: "MATERIAL_PAID",
       }),
     );
+  }
+  @Patch("fee-policies/:id")
+  @ApiSuccessResponse(200, FeePolicyResponse)
+  async updateDraft(
+    @CurrentIdentity() actor: Principal,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() body: UpdateFeePolicyDto,
+  ) {
+    return success(await this.fees.updateDraft(actor, id, body));
+  }
+  @Delete("fee-policies/:id")
+  async deleteDraft(
+    @CurrentIdentity() actor: Principal,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() body: StaffDto,
+  ) {
+    return success(await this.fees.deleteDraft(actor, id, body));
   }
   @Post("fee-policies/:id/approve")
   @ApiSuccessResponse(201, FeePolicyResponse)

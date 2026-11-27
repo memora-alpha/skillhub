@@ -12,7 +12,6 @@ import {
   calculateSessionCredit,
   ONE_WAY_SESSION_POLICY,
   TWO_WAY_SESSION_POLICY,
-  allocateHeldFee,
   sessionCreditFeeBps,
 } from "../../domain/session-credit";
 import { readSessionCreditState } from "./session-credit-state.reader";
@@ -57,7 +56,6 @@ export async function readTerminationQuote(
   const sessions = await readSessionCreditState(tx, input.pathId);
   const oneWay = input.exchangeType === "ONE_WAY";
   const reasons = new Set<string>();
-  let heldFees = new Map<string, bigint>();
   if (!oneWay && held.length) {
     try {
       const feeRates = new Set(
@@ -65,11 +63,9 @@ export async function readTerminationQuote(
       );
       if (feeRates.size !== 1)
         throw new ConflictException("SESSION_CREDIT_SNAPSHOT_MISMATCH");
-      heldFees = allocateHeldFee(held, [...feeRates][0]!);
     } catch (error) {
       if (!(error instanceof ConflictException)) throw error;
       reasons.add(error.message);
-      heldFees = new Map(held.map((row) => [row.userId, 0n]));
     }
   }
   const count = input.exchangeType === "TWO_WAY" ? 2 : 1;
@@ -102,7 +98,7 @@ export async function readTerminationQuote(
         input,
         sessions,
       );
-      const fee = oneWay ? calculation.platformFee : heldFees.get(row.userId)!;
+      const fee = calculation.platformFee;
       const availableForCompensation = row.amount - fee;
       let compensation = oneWay ? 0n : calculation.compensationCredit;
       if (compensation > availableForCompensation)

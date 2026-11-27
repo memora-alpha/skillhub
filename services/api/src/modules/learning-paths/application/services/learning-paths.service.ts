@@ -511,6 +511,7 @@ export class LearningPathsService {
           exchangeType: agreement.exchangeType,
           totalCreditPerUser: creditText(agreement.totalCreditPerUser),
           negotiatedCredit: creditText(agreement.negotiatedCredit),
+          feeRateSnapshot: agreement.feeRateSnapshot?.toString() ?? null,
           teacherId: agreement.teacherId,
           learnerId: agreement.learnerId,
           participantAConfirmedAt: agreement.participantAConfirmedAt,
@@ -1555,8 +1556,9 @@ export class LearningPathsService {
       agreement.exchangeType === "TWO_WAY"
         ? agreement.totalCreditPerUser!
         : agreement.negotiatedCredit!;
-    const feeSnapshot =
-      (grossPerPayer * payerCount * BigInt(feeRule.feeBps as number)) / 10_000n;
+    const feePerPayer =
+      (grossPerPayer * BigInt(feeRule.feeBps as number)) / 10_000n;
+    const feeSnapshot = feePerPayer * payerCount;
     await tx.learningPathVersion.update({
       where: { pathId_versionNo: { pathId, versionNo: expectedVersion } },
       data: {

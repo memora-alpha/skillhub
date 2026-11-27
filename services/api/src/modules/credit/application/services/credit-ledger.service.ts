@@ -270,7 +270,7 @@ export class CreditLedgerService {
     ).length;
     if (planPolicyCount > 0 && planPolicyCount !== allocations.length)
       throw new ConflictException("SESSION_CREDIT_SNAPSHOT_MISMATCH");
-    // Historical Holds retain their frozen per-Hold rounding; V2 charges the agreement total once.
+    // Historical Holds retain their frozen rounding; V2 floors each payer independently.
     const heldFees =
       planPolicyCount > 0
         ? allocateHeldFee(allocations, calculation.feeBps as number)

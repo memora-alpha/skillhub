@@ -6,6 +6,7 @@ import { useUserSession } from "../auth/session";
 import { useUserCommand } from "../hooks/use-user-command";
 import { CommandFeedback, Panel, formatTime } from "../components/common";
 import type { LearningPath } from "../types";
+import { feeRatePresentation } from "./fee-rate-presentation";
 import {
   allSessionsCompleted,
   settlementReceipt,
@@ -100,9 +101,12 @@ export function SettlementPanel({
 }
 
 function settlementOutcome(path: LearningPath, userId: string) {
+  const presentation = feeRatePresentation(path.agreement.feeRateSnapshot);
+  if (!presentation)
+    return "Mức quyết toán đang chờ snapshot phí đã chốt từ máy chủ.";
   if (path.agreement.exchangeType === "TWO_WAY")
-    return "Mỗi người được hoàn 96% Credit đã giữ của chính mình; 4% là phí nền tảng.";
+    return `Mỗi người được hoàn ${presentation.returned} Credit đã giữ của chính mình; ${presentation.fee} là phí nền tảng.`;
   if (path.agreement.teacherId === userId)
-    return "Bạn là người dạy: nhận 96% Credit thỏa thuận; 4% là phí nền tảng.";
-  return "Học một chiều: 96% Credit đã giữ được trả cho người dạy; 4% là phí nền tảng.";
+    return `Bạn là người dạy: nhận ${presentation.returned} Credit thỏa thuận; ${presentation.fee} là phí nền tảng.`;
+  return `Học một chiều: ${presentation.returned} Credit đã giữ được trả cho người dạy; ${presentation.fee} là phí nền tảng.`;
 }

@@ -180,6 +180,7 @@ export type LearningPath = {
     learnerId: string | null;
     negotiatedCredit: string | null;
     totalCreditPerUser: string | null;
+    feeRateSnapshot: string | null;
     participantAConfirmedAt: string | null;
     participantBConfirmedAt: string | null;
   };
