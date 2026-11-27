@@ -12,8 +12,10 @@ import type {
 } from "../../../../generated/prisma/client";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
 import { TransactionRunner } from "../../../../infrastructure/database/transaction-runner";
-import { fingerprintCommand } from "../../../../infrastructure/idempotency/idempotency.service";
-import { IdempotencyService } from "../../../../infrastructure/idempotency/idempotency.service";
+import {
+  fingerprintCommand,
+  IdempotencyService,
+} from "../../../../infrastructure/idempotency/idempotency.service";
 import {
   listBoundary,
   listInput,

@@ -397,6 +397,13 @@ test("a plan without add-ons refuses the sale", async () => {
     addon(ctx, 1, "addon-key-1", 30, V),
     "RECORDING_ADDON_NOT_ALLOWED",
   );
+  assert.equal(
+    ctx.db
+      .rows("subscriptionCharge")
+      .filter((row) => row.kind === "RECORDING_ADDON").length,
+    0,
+  );
+  assert.equal(ctx.db.rows("subscriptionUsage").length, 0);
 });
 
 // --- Upgrade mid-period ---

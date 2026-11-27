@@ -205,6 +205,13 @@ test("upgrade needs an ACTIVE subscription", async () => {
     ctx.service.upgradeQuote(self(), "PRO"),
     "SUBSCRIPTION_NOT_ACTIVE",
   );
+  // A refused quote changes nothing.
+  assert.equal(row.planCode, "CREATOR");
+  assert.equal(
+    ctx.db.rows("subscriptionCharge").filter((c) => c.kind === "UPGRADE")
+      .length,
+    0,
+  );
 });
 
 test("PATCH keeps omitted fields, clears with null and refuses upgrades", async () => {

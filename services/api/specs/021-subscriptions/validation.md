@@ -192,6 +192,22 @@ downgrade still waits for renewal, so an allowance never falls inside a period.
 | `test/subscriptions/recording-minutes.test.mjs`      | 2 new tests pass: stored period 100/120 + 60 add-on becomes 100/400 + 60 (360 left); no stored row starts at 400 |
 | `lint`, `check-types`, `build`, `test:subscriptions` | Pass                                                                                                             |
 
+## SonarCloud — PR #138 (2026-11-27)
+
+Quality Gate failed on one condition: new reliability rating C (two `plsql:CharVarchar` bugs). All other
+conditions passed (security A, maintainability A, duplication 0.6%, hotspots 100% reviewed).
+
+| Finding                      | Location                                                            | Disposition                                                                                                                                                                                                                    |
+| ---------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `plsql:CharVarchar` ×2 (BUG) | `20261127000000_subscriptions/migration.sql:83-84`                  | False Positive: PostgreSQL DDL; `VARCHAR2` is Oracle. `CHAR(64)` holds a fixed-length SHA-256 hex digest, the repo's convention (payments, learning cancellation). `VARCHAR(64)` would raise `plsql:VarcharUsageCheck` instead |
+| `plsql:S1192` ×3             | same migration, enum literals                                       | Accepted: PostgreSQL enum and CHECK literals cannot use a procedural constant (same as earlier migrations)                                                                                                                     |
+| `javascript:S2699` ×2        | `recording-minutes.test.mjs`, `subscriptions.test.mjs`              | Fixed: the `rejects()` helper hid the assertion; both tests now also assert no charge or plan change                                                                                                                           |
+| `typescript:S3863` ×2        | `subscriptions.service.ts`                                          | Fixed: one import from `idempotency.service`                                                                                                                                                                                   |
+| `typescript:S9382` ×2        | `subscription-renewal.service.ts`, `subscription-renewal.worker.ts` | Accepted: sequential on purpose (per-row owner and wallet locks; the next batch depends on the previous claim), explained in code                                                                                              |
+
+Marking False Positive or Accepted needs a SonarCloud project member; a fresh analysis of the fix revision
+must confirm the gate before it is reported as passing.
+
 ## Pending
 
 - Product gates before `subscription.enabled` goes on in production: G3 (plan values), G4 (SRS

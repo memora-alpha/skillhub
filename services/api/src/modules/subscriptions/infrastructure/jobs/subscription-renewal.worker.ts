@@ -41,6 +41,8 @@ export class SubscriptionRenewalWorker
     let total = 0;
     try {
       let claimed: number;
+      // Sequential on purpose: another batch is claimed only after a full one, and each claim
+      // must see the leases the previous batch set.
       do {
         claimed = await this.renewals.renewDue(BATCH);
         total += claimed;
