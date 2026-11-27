@@ -17,6 +17,7 @@ import { ChatEventsProvider, ChatOutboxProvider } from "@/features/messages";
 import { ProfilePreviewProvider, AvatarUploadToasts } from "@/features/profile";
 import { ConnectionsProvider } from "@/features/connections";
 import { RewardsProvider } from "@/features/rewards";
+import { SubscriptionsProvider } from "@/features/subscriptions";
 import { LearningProviders } from "./learning-providers";
 import { SkillsProvider } from "@/features/skills";
 import { WalletProvider } from "@/features/wallet";
@@ -71,9 +72,11 @@ export function AppProviders({ children }: { children: ReactNode }) {
                               <ChatEventsProvider>
                                 <ChatOutboxProvider>
                                   <RewardsProvider>
-                                    <LearningProviders>
-                                      {children}
-                                    </LearningProviders>
+                                    <SubscriptionsProvider>
+                                      <LearningProviders>
+                                        {children}
+                                      </LearningProviders>
+                                    </SubscriptionsProvider>
                                   </RewardsProvider>
                                 </ChatOutboxProvider>
                               </ChatEventsProvider>

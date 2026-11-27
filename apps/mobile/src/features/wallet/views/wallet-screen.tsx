@@ -49,6 +49,13 @@ export function WalletOverview() {
           />
           <Button
             variant="paper"
+            leadingIcon="award"
+            onPress={() => router.push("/membership")}
+          >
+            Gói thành viên
+          </Button>
+          <Button
+            variant="paper"
             leadingIcon="ticket"
             onPress={() => router.push("/vouchers")}
           >

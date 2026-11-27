@@ -14,6 +14,7 @@ const labels: Record<string, string> = {
   REFUND: "Ghi nhận hoàn Credit",
   PENALTY: "Khấu trừ",
   ADJUSTMENT: "Điều chỉnh",
+  SUBSCRIPTION_PURCHASE: "Thanh toán gói thành viên",
 };
 const states: Record<string, string> = {
   PENDING: "Đang chờ",
@@ -33,6 +34,7 @@ const references: Record<string, string> = {
   DISPUTE: "Tranh chấp",
   MATERIAL_ORDER: "Đơn tài liệu",
   SYSTEM: "Hệ thống",
+  SUBSCRIPTION_CHARGE: "Gói thành viên",
 };
 export const referenceLabel = (code: string) =>
   references[code] ?? systemCodeLabel(code, "Hoạt động liên quan");

@@ -2,6 +2,7 @@ import { StyleSheet, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { useAuthSession } from "@/features/auth";
 import { OwnProfileSkillList } from "@/features/skills";
+import { MembershipShortcut } from "@/features/subscriptions";
 import { ProfileLayout } from "../components/ProfileLayout";
 import { AvatarUploadNotice } from "../components/AvatarUploadNotice";
 import { ProfileAbout, ProfileSummary } from "../components/ProfileSummary";
@@ -31,6 +32,7 @@ export function ProfileScreen() {
           <ProfileModerationNotice
             onEdit={() => router.push("/edit-profile")}
           />
+          <MembershipShortcut />
           <ProfileShortcuts onOpen={open} />
           <ProfileAbout bio={profile.bio} />
           <ProfileReviews userId={profile.userId} own />

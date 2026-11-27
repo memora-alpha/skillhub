@@ -30,3 +30,7 @@ Backend: Có trong source / Chưa có / Chưa xác minh deployment. Mobile: API 
 ## Voucher
 
 [Voucher/rewards](rewards.md): danh mục, đổi Credit, lịch sử, mã riêng tư và recovery theo owner/environment; hiện dùng provider demo của BE.
+
+## Gói thành viên
+
+[Gói thành viên](subscriptions.md): quyền lợi, mua/nâng cấp bằng Credit, gia hạn, lịch sử và durable recovery; gap giá/phút add-on theo BE.

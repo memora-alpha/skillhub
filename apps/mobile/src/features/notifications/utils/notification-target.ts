@@ -83,6 +83,14 @@ export function notificationTarget(item: InboxNotification): Href | undefined {
     return;
   const payload = item.payload as Record<string, unknown>;
   const valid = (field: string) => uuid.safeParse(payload[field]).success;
+  if (
+    [
+      "subscription.renewed",
+      "subscription.grace-started",
+      "subscription.expired",
+    ].includes(item.type)
+  )
+    return "/membership";
   const sessionTarget = sessionNotificationTarget(item.type, payload, valid);
   if (sessionTarget) return sessionTarget;
   if (

@@ -1,6 +1,8 @@
 import { connectionError } from "@/features/connections";
 import { AppError } from "@/lib/http/errors";
 const messages: Readonly<Record<string, string>> = {
+  MATERIAL_STORAGE_QUOTA_EXCEEDED:
+    "Dung lượng tài liệu vượt hạn mức gói. Hãy giải phóng dung lượng hoặc xem Gói thành viên trong Hồ sơ.",
   MATERIAL_DELETE_REQUIRES_DRAFT:
     "Chỉ có thể xóa tài liệu còn là bản nháp. Tải lại để kiểm tra trạng thái.",
   MATERIAL_DELETE_NOT_ALLOWED:

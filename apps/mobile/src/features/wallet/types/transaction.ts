@@ -17,6 +17,7 @@ export const transactionTypes = [
   "REFUND",
   "PENALTY",
   "ADJUSTMENT",
+  "SUBSCRIPTION_PURCHASE",
 ] as const;
 export const referenceTypes = [
   "PAYMENT",
@@ -26,6 +27,7 @@ export const referenceTypes = [
   "DISPUTE",
   "MATERIAL_ORDER",
   "SYSTEM",
+  "SUBSCRIPTION_CHARGE",
 ] as const;
 export type HistoryFilters = Readonly<{
   type?: (typeof transactionTypes)[number];
