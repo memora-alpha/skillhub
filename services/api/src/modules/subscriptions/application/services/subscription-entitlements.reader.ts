@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
 import { SystemConfigurationService } from "../../../system-configuration/application/services/system-configuration.service";
+import type { FeeTier } from "../../../credit/domain/fee-policy-codes";
 import { grantsEntitlements } from "../../domain/subscription.policy";
 import type { UserEntitlements } from "../contracts/subscription-entitlements";
 import { databaseNow, versionEntitlements } from "./subscription-support";
@@ -21,6 +22,23 @@ export class SubscriptionEntitlementsReader {
   ): Promise<UserEntitlements> {
     const [result] = await this.forUsers(tx, [userId], at);
     return result!;
+  }
+
+  /**
+   * Spec 021 D8: the fee tier of a user's current plan, or null for the base fee. Reads no
+   * configuration, so fee pinning never depends on subscription settings being seeded.
+   */
+  async feeTier(
+    tx: TransactionContext,
+    userId: string,
+    at: Date,
+  ): Promise<FeeTier | null> {
+    const row = await tx.userSubscription.findFirst({
+      where: { userId, status: { in: ["ACTIVE", "GRACE"] } },
+      include: { planVersion: true },
+    });
+    if (!row || !grantsEntitlements(row, at)) return null;
+    return versionEntitlements(row.planVersion).feeTier;
   }
 
   /** One query for every user; results follow the input order. */

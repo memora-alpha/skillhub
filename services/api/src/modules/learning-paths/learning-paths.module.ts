@@ -24,6 +24,7 @@ import { LearningChangeReviewController } from "./presentation/http/learning-cha
 import { PathTerminationRecoveryWorker } from "./infrastructure/jobs/path-termination-recovery.worker";
 import { AdminLearningPathReaderPort } from "./application/ports/admin-learning-path.reader";
 import { AdminLearningPathSourceReader } from "./application/services/admin-learning-path-source.reader";
+import { SubscriptionsModule } from "../subscriptions/subscriptions.module";
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { AdminLearningPathSourceReader } from "./application/services/admin-lear
     LearningChangeStateModule,
     SessionChangesModule,
     ReportsModule,
+    SubscriptionsModule,
   ],
   controllers: [
     PathOverviewController,

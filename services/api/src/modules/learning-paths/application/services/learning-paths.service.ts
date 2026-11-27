@@ -36,6 +36,8 @@ import type {
   CreateLearningPathDto,
   CreateLearningPlanDto,
 } from "../../presentation/http/learning-paths.dto";
+import { effectiveFeePolicy } from "../../../credit/application/services/fee-policy.reader";
+import { SubscriptionEntitlementsReader } from "../../../subscriptions/application/services/subscription-entitlements.reader";
 
 /** SRS 1.6: a TWO_WAY agreement commits at least 20 Credit per user. */
 const minimumTwoWayCreditUnits = 2000n;
@@ -316,6 +318,7 @@ export class LearningPathsService {
     private readonly requestPaths: LearningRequestPathReader,
     private readonly overview?: PathOverviewReader,
     private readonly moderation?: ContentModerationService,
+    private readonly feeTiers?: SubscriptionEntitlementsReader,
   ) {}
 
   async listMine(actor: Principal) {
@@ -1513,15 +1516,20 @@ export class LearningPathsService {
     agreement: LearningPathVersion,
     now: Date,
   ) {
-    const feePolicy = await tx.feePolicyVersion.findFirst({
-      where: {
-        policyCode: agreement.exchangeType,
-        status: "APPROVED",
-        approvedAt: { not: null },
-        effectiveAt: { lte: now },
-      },
-      orderBy: [{ effectiveAt: "desc" }, { versionNo: "desc" }],
-    });
+    // Spec 021 D8: ONE_WAY uses the teacher's plan tier at the moment the fee is pinned;
+    // the pinned rate then holds until settlement whatever happens to the plan.
+    const tier =
+      agreement.exchangeType === "ONE_WAY" &&
+      agreement.teacherId &&
+      this.feeTiers
+        ? await this.feeTiers.feeTier(tx, agreement.teacherId, now)
+        : null;
+    const feePolicy = await effectiveFeePolicy(
+      tx,
+      agreement.exchangeType,
+      tier,
+      now,
+    );
     if (!feePolicy) throw new ConflictException("APPROVED_FEE_POLICY_REQUIRED");
     const feeRule = feePolicy.calculationRule as {
       returnedBps?: unknown;

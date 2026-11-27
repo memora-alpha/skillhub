@@ -661,6 +661,11 @@ model("CreditOperation", (block) =>
 );
 schema +=
   "\n" + readFileSync(new URL("subscription-support.prisma", root), "utf8");
+// Spec 021 D8: one versioned fee policy series per plan tier.
+schema = schema.replace(
+  /(enum FeePolicyCode \{[\s\S]*?)\r?\n\}/,
+  "$1\n  ONE_WAY_CREATOR\n  ONE_WAY_PRO\n  MATERIAL_PAID_CREATOR\n  MATERIAL_PAID_PRO\n}",
+);
 
 schema = schema.replace(
   /^\/\/ Logical v3[^\r\n]*\r?\n(?:\/\/[^\r\n]*\r?\n)*\r?\n/,

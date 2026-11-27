@@ -1,5 +1,3 @@
-import type { SubscriptionPlanCode } from "./plan-entitlements";
-
 export const DAY_MS = 86_400_000;
 /** Spec 021 D4: usage allowances reset every 30 days inside a term. */
 export const USAGE_PERIOD_MS = 30 * DAY_MS;
@@ -148,21 +146,12 @@ export function allocateRecordingMinutes(input: {
   };
 }
 
-export type BaseFeePolicyCode = "ONE_WAY" | "TWO_WAY" | "MATERIAL_PAID";
-
-/** Spec 021 D8: tier policy code to try first; TWO_WAY never has a tier. */
-export function tierFeePolicyCode(
-  base: BaseFeePolicyCode,
-  tier: SubscriptionPlanCode | null,
-): string {
-  if (tier === null || base === "TWO_WAY") return base;
-  return `${base}_${tier}`;
-}
-
-/** Maps a stored fee policy code back to its base code for settlement checks. */
-export function baseFeePolicyCode(code: string): string {
-  return code.replace(/_(?:CREATOR|PRO)$/, "");
-}
+// Fee policy codes are owned by the credit module (spec 021 D8).
+export {
+  baseFeePolicyCode,
+  tierFeePolicyCode,
+  type BaseFeePolicyCode,
+} from "../../credit/domain/fee-policy-codes";
 
 /** Spec 021 D10: a board snapshot only ever grows. */
 export function raisedRetentionDays(

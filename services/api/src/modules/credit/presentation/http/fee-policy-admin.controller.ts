@@ -34,10 +34,14 @@ import { success, paginated } from "../../../../shared/http/response";
 import { ListPageQuery } from "../../../../shared/http/list-page";
 import { StaffDto } from "../../../users/presentation/http/users.dto";
 import { FeePolicyAdminService } from "../../application/services/fee-policy-admin.service";
+import {
+  FEE_POLICY_CODES,
+  type FeePolicyCode,
+} from "../../domain/fee-policy-codes";
 export class CreateFeePolicyDto extends StaffDto {
-  @ApiProperty({ enum: ["ONE_WAY", "TWO_WAY", "MATERIAL_PAID"] })
-  @IsIn(["ONE_WAY", "TWO_WAY", "MATERIAL_PAID"])
-  policyCode!: "ONE_WAY" | "TWO_WAY" | "MATERIAL_PAID";
+  @ApiProperty({ enum: FEE_POLICY_CODES })
+  @IsIn(FEE_POLICY_CODES)
+  policyCode!: FeePolicyCode;
 
   @ApiProperty({ minimum: 1 }) @IsInt() @Min(1) versionNo!: number;
   @ApiProperty({

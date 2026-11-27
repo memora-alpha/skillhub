@@ -14,9 +14,10 @@ New models live in `prisma/subscription-support.prisma`, appended by
 - New `SubscriptionStatus`: `ACTIVE`, `GRACE`, `EXPIRED`
 - New `SubscriptionChargeKind`: `PURCHASE`, `RENEWAL`, `UPGRADE`, `RECORDING_ADDON`
 
-Fee policy codes are a string column; add `ONE_WAY_CREATOR`, `ONE_WAY_PRO`,
-`MATERIAL_PAID_CREATOR`, `MATERIAL_PAID_PRO` to the allowed vocabulary in
-`FeePolicyAdminService`, its DTOs, responses and the fee-policy notification handler.
+`FeePolicyCode` is a database enum. Migration `20261127010000_fee_policy_tiers` adds
+`ONE_WAY_CREATOR`, `ONE_WAY_PRO`, `MATERIAL_PAID_CREATOR` and `MATERIAL_PAID_PRO`. The code list and
+the tier-to-base mapping live in `credit/domain/fee-policy-codes.ts`; no tier policy is seeded, so
+every tier falls back to its base series until an Admin approves one.
 
 ## SubscriptionPlanVersion — `subscription_plan_versions`
 

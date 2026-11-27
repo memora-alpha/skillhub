@@ -12,6 +12,7 @@ import {
   TWO_WAY_SESSION_POLICY,
 } from "../../domain/session-credit";
 import { readSessionCreditState } from "./session-credit-state.reader";
+import { baseFeePolicyCode } from "../../domain/fee-policy-codes";
 
 @Injectable()
 export class CreditLedgerService {
@@ -179,7 +180,8 @@ export class CreditLedgerService {
       precision?: unknown;
     };
     if (
-      policy.policyCode !== input.exchangeType ||
+      // A tier series (spec 021 D8) settles like its base series.
+      baseFeePolicyCode(policy.policyCode) !== input.exchangeType ||
       policy.status !== "APPROVED" ||
       !policy.approvedAt ||
       !policy.effectiveAt ||

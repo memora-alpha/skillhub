@@ -54,6 +54,28 @@ Findings fixed during this phase:
 Not covered: `renewDue` (its claim is raw SQL the fake database does not run) and real
 concurrent workers; both belong to T030.
 
+## Phase 4 — Fee tiers (2026-11-27)
+
+| Check                                                                       | Result                                                                                                                                                                                                                                                                                                                              |
+| --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `db:generate:runtime-schema`, `db:validate`, `check-types`, `build`, ESLint | Pass                                                                                                                                                                                                                                                                                                                                |
+| Migration `20261127010000_fee_policy_tiers`                                 | Four `ALTER TYPE "FeePolicyCode" ADD VALUE`. Not applied to a database                                                                                                                                                                                                                                                              |
+| `test/subscriptions/fee-tiers.test.mjs`                                     | 6/6 pass: ONE_WAY pins the teacher's tier and settles at 2% after the plan ended; tier without an approved policy falls back to 4%; TWO_WAY never reads a tier; `effectiveFeePolicy` ordering, future and DRAFT versions; `feeTier` reads no configuration; fee admin drafts tier series with the right rule shape and audit action |
+| Full regression set (with the materials unit suites and bootstrap)          | 451/451 pass                                                                                                                                                                                                                                                                                                                        |
+
+Design notes:
+
+- `FeePolicyCode` turned out to be a database enum, not a string column; the data model was corrected.
+- `feeTier` reads the subscription only. Using `forUser` would read `subscription.freeEntitlements`
+  for every Free user and make ONE_WAY scheduling and material purchases fail if that key was
+  not seeded.
+- Tier fee policies notify the approving Admin only; the all-user broadcast stays for base series.
+- `LearningPathsService` and `MaterialPurchaseService` take the reader as their last constructor
+  argument. Both modules import `SubscriptionsModule`; the bootstrap test resolves them.
+
+Not covered: the material purchase path with a tier seller runs only in the PostgreSQL integration
+suite (`test/materials/purchase.test.mjs`), which was not run. `effectiveFeePolicy` it calls is unit tested.
+
 ## Pending
 
 - Apply the migration to an isolated PostgreSQL and check the CHECKs, the partial unique index

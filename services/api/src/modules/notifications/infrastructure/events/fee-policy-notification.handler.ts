@@ -6,13 +6,17 @@ import {
   type OutboxMessage,
   type OutboxPublisher,
 } from "../../../../infrastructure/events/outbox.types";
+import {
+  baseFeePolicyCode,
+  FEE_POLICY_CODES,
+} from "../../../credit/domain/fee-policy-codes";
 import { NotificationDispatcher } from "../../application/services/notification-dispatcher";
 
 const eventTypes = [
   "admin.fee-policy.approved",
   "credit.fee-policy.effective",
 ] as const;
-const policyCodes = ["ONE_WAY", "TWO_WAY", "MATERIAL_PAID"] as const;
+const policyCodes = FEE_POLICY_CODES;
 const batchSize = 500;
 
 type FeePolicyPayload = {
@@ -67,9 +71,14 @@ function rate(bps: number): string {
 }
 
 function policyLabel(code: FeePolicyPayload["policyCode"]): string {
-  if (code === "ONE_WAY") return "học một chiều";
-  if (code === "TWO_WAY") return "trao đổi hai chiều";
-  return "tài liệu trả phí";
+  const base = baseFeePolicyCode(code);
+  let label = "tài liệu trả phí";
+  if (base === "ONE_WAY") label = "học một chiều";
+  else if (base === "TWO_WAY") label = "trao đổi hai chiều";
+  // Spec 021 D8: tier series apply to subscribers of that plan only.
+  if (code.endsWith("_PRO")) return `${label} cho gói Creator Pro`;
+  if (code.endsWith("_CREATOR")) return `${label} cho gói Creator`;
+  return label;
 }
 
 function deterministicEventId(eventId: string, batch: number): string {
@@ -120,8 +129,10 @@ export class FeePolicyNotificationHandler
       return;
     }
 
+    // Tier series concern subscribers only; the plan listing shows them, so no broadcast.
+    if (baseFeePolicyCode(data.policyCode) !== data.policyCode) return;
     const suffix =
-      data.policyCode === "MATERIAL_PAID"
+      baseFeePolicyCode(data.policyCode) === "MATERIAL_PAID"
         ? "Chỉ áp dụng cho giao dịch mua mới từ thời điểm này."
         : "Chỉ áp dụng cho thỏa thuận được khóa sau thời điểm này.";
     let cursor: string | undefined;

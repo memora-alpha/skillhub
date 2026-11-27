@@ -36,11 +36,11 @@
 
 ## Phase 4 — Fee tiers
 
-- [ ] T017 Fee-policy admin, DTOs, responses and notification handler accept tier codes; `MATERIAL_PAID_*` use the material rule shape (`feeBps` only), `ONE_WAY_*` the path shape
-- [ ] T018 `pinSettlementFee` uses the ONE_WAY teacher's tier; base fallback
-- [ ] T019 Settlement validation maps tier code to base code; rate snapshot check unchanged
-- [ ] T020 Material purchase uses the seller's tier; base fallback
-- [ ] T021 Tests: pinned tier survives expiry, TWO_WAY unaffected, missing tier policy fallback, material order snapshot
+- [x] T017 Fee-policy admin, DTOs, responses and notification handler accept tier codes; `MATERIAL_PAID_*` use the material rule shape (`feeBps` only), `ONE_WAY_*` the path shape
+- [x] T018 `pinSettlementFee` uses the ONE_WAY teacher's tier; base fallback
+- [x] T019 Settlement validation maps tier code to base code; rate snapshot check unchanged
+- [x] T020 Material purchase uses the seller's tier; base fallback
+- [x] T021 Tests: pinned tier survives expiry, TWO_WAY unaffected, missing tier policy fallback, material order snapshot
 
 ## Phase 5 — Whiteboard retention
 
