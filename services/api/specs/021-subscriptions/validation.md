@@ -122,6 +122,32 @@ Design notes:
 Not covered: real PostgreSQL concurrency between an `egress_ended` charge and an add-on purchase (both take the
 owner lock); T030.
 
+## Phase 7 — Material storage (2026-11-27)
+
+Built on the documented defaults of Q3 (Free 1 GB, existing data kept) and Q4 (removed materials stop
+counting at once). G5 stays open: PO approval of those defaults is still required.
+
+| Check                                                    | Result                                                                                                                                                                                                                                                                                        |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `check-types`, `build`, ESLint                           | Pass                                                                                                                                                                                                                                                                                          |
+| `test/subscriptions/material-storage.test.mjs`           | 7/7 pass: refusal past the allowance rolls back, exactly at the limit allowed; replacing a file excludes its old file; removed stops counting, archived counts; flag off or unwired applies none; plan raises it and expiry keeps data but refuses new; `GET /me/subscription` and admin view |
+| Regression set incl. materials unit suites and bootstrap | 416/416 pass; `fee-tiers` now scopes its no-configuration guard to `feeTier`, since `me()` reads the flag for `materialStorage.enforced`                                                                                                                                                      |
+
+Design notes:
+
+- Quota applies only while `subscription.enabled` is on. With plans off a 1 GB Free limit would block
+  uploads with no way to buy more space.
+- The check runs after the upload is bound, in the same transaction, under the advisory lock
+  `material-storage:<ownerId>`; a refusal rolls the binding back so the upload stays attachable.
+- Only a material's current file counts. Covers, replaced files kept for buyers, and other upload
+  purposes do not.
+- `usage` lost `materialStorageBytesUsed/Allowed`: usage exists only for subscribers, so storage moved to
+  a top-level `materialStorage` returned for every user. The admin user view now also returns usage,
+  entitlements and storage, which its contract already promised.
+- The fake database maps the `materials` FOR UPDATE lock, so `MaterialsService` runs in unit tests.
+
+Not covered: two concurrent attaches near the limit on PostgreSQL (US8 independent test); T030.
+
 ## Pending
 
 - Apply the migration to an isolated PostgreSQL and check the CHECKs, the partial unique index

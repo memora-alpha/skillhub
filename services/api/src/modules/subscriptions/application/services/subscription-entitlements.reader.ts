@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, ServiceUnavailableException } from "@nestjs/common";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
 import { SystemConfigurationService } from "../../../system-configuration/application/services/system-configuration.service";
 import type { FeeTier } from "../../../credit/domain/fee-policy-codes";
@@ -161,6 +161,32 @@ export class SubscriptionEntitlementsReader {
         addonMinutesRemaining: usage.addonMinutesRemaining - split.fromAddon,
       });
     return { charged: split.fromAllowance + split.fromAddon, ...split };
+  }
+
+  /**
+   * Spec 021 D9: the owner's material storage allowance in bytes, or null when no quota
+   * applies. Quotas apply only while `subscription.enabled` is on: with plans off nobody can
+   * buy more space, so the new Free limit would only block uploads.
+   */
+  async materialStorageAllowance(
+    tx: TransactionContext,
+    userId: string,
+    at: Date,
+  ): Promise<bigint | null> {
+    let enabled: boolean;
+    try {
+      const { values } = await this.configuration.getSnapshot(
+        ["subscription.enabled"],
+        tx,
+      );
+      enabled = values["subscription.enabled"];
+    } catch (error) {
+      if (error instanceof ServiceUnavailableException) return null;
+      throw error;
+    }
+    if (!enabled) return null;
+    const { entitlements } = await this.forUser(tx, userId, at);
+    return BigInt(entitlements.materialStorageBytes);
   }
 
   /** One query for every user; results follow the input order. */

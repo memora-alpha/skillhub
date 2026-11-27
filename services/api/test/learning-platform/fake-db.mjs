@@ -176,6 +176,7 @@ const lockTables = {
   sessions: ["session", "id"],
   credit_wallets: ["creditWallet", "userId"],
   users: ["user", "id"],
+  materials: ["material", "id"],
 };
 
 const operators = new Set([

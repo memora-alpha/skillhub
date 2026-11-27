@@ -24,13 +24,15 @@ Effective approved versions. Response item:
 
 ### `GET /me/subscription`
 
-`200` with `{ subscription | null, entitlements, usage | null }`.
+`200` with `{ subscription | null, entitlements, usage | null, materialStorage }`.
 
 - `subscription`: `{ id, planCode, planVersionId, interval, status, autoRenew, termStart, termEnd,
 graceUntil, scheduledPlanCode, scheduledInterval, version }`.
 - `entitlements`: the effective values for the user (FREE values when no subscription).
 - `usage`: `{ periodStart, periodEnd, recordingMinutesAllowed, recordingMinutesUsed,
-addonMinutesRemaining, materialStorageBytesUsed, materialStorageBytesAllowed }`.
+addonMinutesRemaining }`, only with a current subscription.
+- `materialStorage`: `{ usedBytes, allowedBytes, enforced }` for every user, Free included. Byte counts
+  are decimal strings. `enforced` is `false` while `subscription.enabled` is off, when no quota applies.
 
 ### `POST /me/subscription`
 
@@ -82,19 +84,19 @@ Cursor pagination, newest first. Item `{ id, kind, planCode, amount, quantity, c
 | POST   | `/plans/:planVersionId/approve` | `subscription:manage` | Body `{ effectiveAt, reason }`; `effectiveAt` not in the past                  |
 | POST   | `/plans/:planVersionId/retire`  | `subscription:manage` | Body `{ reason }`; existing subscriptions keep their snapshot until renewal    |
 | GET    | `/`                             | `subscription:read`   | Filter by status, plan, userId; cursor pagination                              |
-| GET    | `/users/:userId`                | `subscription:read`   | Subscriptions, usage and charges for one user                                  |
+| GET    | `/users/:userId`                | `subscription:read`   | Subscriptions, entitlements, usage, materialStorage and charges for one user   |
 
 Each admin write writes an audit entry with the reason.
 
 ## Changed contracts in other modules
 
-| Route / flow                                      | Change                                                                       |
-| ------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `POST /sessions/:sessionId/recordings` (spec 020) | New errors `403 RECORDING_PLAN_REQUIRED`, `409 RECORDING_MINUTES_EXHAUSTED`. |
-| Recording list/detail responses                   | Add `retentionDays`; `expiresAt` uses the snapshot.                          |
-| Whiteboard responses (spec 019)                   | Add `retentionDays` once the Session has ended.                              |
-| Material attach/upload                            | New error `409 MATERIAL_STORAGE_QUOTA_EXCEEDED` (Phase 4).                   |
-| Admin fee policies                                | `policyCode` accepts the four tier codes.                                    |
+| Route / flow                                      | Change                                                                                                   |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `POST /sessions/:sessionId/recordings` (spec 020) | New errors `403 RECORDING_PLAN_REQUIRED`, `409 RECORDING_MINUTES_EXHAUSTED`.                             |
+| Recording list/detail responses                   | Add `retentionDays`; `expiresAt` uses the snapshot.                                                      |
+| Whiteboard responses (spec 019)                   | Add `retentionDays` once the Session has ended.                                                          |
+| Material create/PATCH with `fileId`               | New error `409 MATERIAL_STORAGE_QUOTA_EXCEEDED` with `usedBytes`, `allowedBytes`, `fileBytes` (Phase 7). |
+| Admin fee policies                                | `policyCode` accepts the four tier codes.                                                                |
 
 ## Events (outbox)
 

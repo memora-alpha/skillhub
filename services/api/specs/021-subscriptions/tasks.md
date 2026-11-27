@@ -55,9 +55,9 @@
 - [x] T027 Add-on purchase endpoint
 - [x] T028 Amend spec 020 D2/D6/D9 and tests: free requester, exhausted minutes, duplicate webhook, overrun, expiry after recording
 
-## Phase 7 — Material storage (blocked by G5)
+## Phase 7 — Material storage (built on the Q3/Q4 defaults; G5 approval still open)
 
-- [ ] T029 Quota check on material file attach under owner lock; usage in `GET /me/subscription`
+- [x] T029 Quota check on material file attach under owner lock; usage in `GET /me/subscription`
 
 ## Verification
 

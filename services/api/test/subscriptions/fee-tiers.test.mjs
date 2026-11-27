@@ -153,19 +153,24 @@ test("effectiveFeePolicy prefers an effective tier version and falls back to the
 
 test("feeTier reads the current plan without reading configuration", async () => {
   const ctx = setup();
-  // A configuration read would throw here; fee pinning must not depend on it.
-  ctx.reader.configuration = {
-    getSnapshot: async () => {
-      throw new Error("configuration must not be read");
-    },
+  const configuration = ctx.reader.configuration;
+  // A configuration read throws inside feeTier; fee pinning must not depend on it.
+  const feeTier = async (at) => {
+    ctx.reader.configuration = {
+      getSnapshot: async () => {
+        throw new Error("configuration must not be read");
+      },
+    };
+    try {
+      return await ctx.reader.feeTier(ctx.db, U, at);
+    } finally {
+      ctx.reader.configuration = configuration;
+    }
   };
-  assert.equal(await ctx.reader.feeTier(ctx.db, U, START), null);
+  assert.equal(await feeTier(START), null);
   await buy(ctx, "PRO");
-  assert.equal(await ctx.reader.feeTier(ctx.db, U, START), "PRO");
-  assert.equal(
-    await ctx.reader.feeTier(ctx.db, U, new Date(START.getTime() + 30 * DAY)),
-    null,
-  );
+  assert.equal(await feeTier(START), "PRO");
+  assert.equal(await feeTier(new Date(START.getTime() + 30 * DAY)), null);
 });
 
 test("fee policy admin drafts tier series with the rule shape of their base", async () => {

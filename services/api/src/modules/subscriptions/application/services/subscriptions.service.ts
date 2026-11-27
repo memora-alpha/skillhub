@@ -35,6 +35,7 @@ import {
   usagePeriod,
   type SubscriptionInterval,
 } from "../../domain/subscription.policy";
+import { materialStorageUsed } from "../../../materials/application/services/material-storage";
 import { SubscriptionEntitlementsReader } from "./subscription-entitlements.reader";
 import { SubscriptionPlansService } from "./subscription-plans.service";
 import {
@@ -523,8 +524,31 @@ export class SubscriptionsService {
         subscription: current ? subscriptionView(current) : null,
         entitlements: effective.entitlements,
         usage: current ? await this.usage(tx, current, now, effective) : null,
+        materialStorage: await this.materialStorage(
+          tx,
+          principal.userId,
+          now,
+          effective.entitlements.materialStorageBytes,
+        ),
       };
     });
+  }
+
+  /** Spec 021 D9: storage for every user, Free included; `enforced` follows the flag. */
+  private async materialStorage(
+    tx: TransactionContext,
+    userId: string,
+    now: Date,
+    allowedBytes: string,
+  ) {
+    const enforced =
+      (await this.entitlements.materialStorageAllowance(tx, userId, now)) !==
+      null;
+    return {
+      usedBytes: (await materialStorageUsed(tx, userId)).toString(),
+      allowedBytes,
+      enforced,
+    };
   }
 
   private async usage(
@@ -550,9 +574,6 @@ export class SubscriptionsService {
         effective.entitlements.recordingMinutesPerPeriod,
       recordingMinutesUsed: stored?.recordingMinutesUsed ?? 0,
       addonMinutesRemaining: stored?.addonMinutesRemaining ?? 0,
-      // Material storage usage arrives with Phase 7 (spec 021 US8).
-      materialStorageBytesUsed: null,
-      materialStorageBytesAllowed: effective.entitlements.materialStorageBytes,
     };
   }
 
@@ -619,19 +640,40 @@ export class SubscriptionsService {
 
   async adminUser(principal: Principal, userId: string) {
     requireSubscriptionPermission(principal, "subscription:read");
-    const [subscriptions, charges] = await Promise.all([
-      this.transactions.run((tx) =>
-        tx.userSubscription.findMany({
+    const [current, charges] = await Promise.all([
+      this.transactions.run(async (tx) => {
+        const now = await databaseNow(tx);
+        const subscriptions = await tx.userSubscription.findMany({
           where: { userId },
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           take: 50,
-        }),
-      ),
+        });
+        const live = subscriptions.find(
+          (row) =>
+            (row.status === "ACTIVE" || row.status === "GRACE") &&
+            grantsEntitlements(row, now),
+        );
+        const effective = await this.entitlements.forUser(tx, userId, now);
+        return {
+          subscriptions,
+          entitlements: effective.entitlements,
+          usage: live ? await this.usage(tx, live, now, effective) : null,
+          materialStorage: await this.materialStorage(
+            tx,
+            userId,
+            now,
+            effective.entitlements.materialStorageBytes,
+          ),
+        };
+      }),
       this.chargePage(userId, { limit: 50 }, "admin-subscription-charges"),
     ]);
     return {
       userId,
-      subscriptions: subscriptions.map(subscriptionView),
+      subscriptions: current.subscriptions.map(subscriptionView),
+      entitlements: current.entitlements,
+      usage: current.usage,
+      materialStorage: current.materialStorage,
       charges: charges.data,
     };
   }
