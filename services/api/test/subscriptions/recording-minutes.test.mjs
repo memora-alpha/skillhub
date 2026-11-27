@@ -453,3 +453,70 @@ test("an upgrade before any usage row starts the period at the new allowance", a
   assert.equal(upgraded.usage.recordingMinutesAllowed, 400);
   assert.equal(ctx.db.rows("subscriptionUsage").length, 0);
 });
+
+// --- Add-on balance across periods (one balance per term) ---
+
+const TERM_START = new Date("2026-12-01T00:00:00Z");
+const atDay = (days) => new Date(TERM_START.getTime() + days * DAY);
+
+function yearPlan(ctx, entitlements = {}) {
+  return seedSubscription(ctx.db, U, "CREATOR", atDay(365), {
+    termStart: TERM_START,
+    entitlements: { recordingMinutesPerPeriod: 0, ...entitlements },
+  });
+}
+
+test("a late charge for an earlier period spends the term's one add-on balance", async () => {
+  const ctx = addonSetup();
+  const subscription = yearPlan(ctx);
+  ctx.db.seed("subscriptionUsage", {
+    subscriptionId: subscription.id,
+    periodStart: TERM_START,
+    recordingMinutesAllowed: 0,
+    recordingMinutesUsed: 0,
+    addonMinutesRemaining: 10,
+  });
+  const charge = (minutes, at) =>
+    ctx.reader.chargeRecordingMinutes(
+      ctx.db,
+      subscription.id,
+      BigInt(minutes * 60_000),
+      at,
+    );
+  // A second-period recording spends 5 of the 10 add-on minutes.
+  assert.equal((await charge(5, atDay(31))).fromAddon, 5);
+  // A first-period recording delivered late finds only the 5 left, not a stale 10.
+  const late = await charge(10, atDay(20));
+  assert.deepEqual([late.fromAddon, late.absorbed], [5, 5]);
+  const allowance = await ctx.reader.recordingAllowance(ctx.db, U, atDay(32));
+  assert.equal(allowance.remainingMinutes, 0);
+});
+
+test("add-on minutes stay visible after a period boundary inside the term", async () => {
+  const ctx = addonSetup();
+  await buy(ctx, "CREATOR", "purchase-key-1", "YEAR");
+  await addon(ctx, 1);
+  ctx.clock.now = new Date(START.getTime() + 31 * DAY);
+  const { usage } = await ctx.service.me(self(U));
+  // The second period has no stored row yet; the term's balance still shows.
+  assert.equal(usage.addonMinutesRemaining, 60);
+  assert.equal(usage.recordingMinutesUsed, 0);
+  assert.deepEqual(
+    new Date(usage.periodStart),
+    new Date(START.getTime() + 30 * DAY),
+  );
+});
+
+test("a renewal before egress_ended is processed charges the renewed term", async () => {
+  const ctx = await ready();
+  // The plan renewed at 10:20; the Egress ended at 10:15 in the term that has closed since.
+  const subscription = ctx.subscribeLearner({
+    termStart: new Date("2026-11-02T10:20:00Z"),
+    termEnd: new Date("2026-12-02T10:20:00Z"),
+  });
+  const id = await ctx.record(180_000n, new Date("2026-11-02T10:15:00Z"));
+  assert.equal(ctx.row(id).chargedMinutes, 3);
+  const [period] = ctx.usage();
+  assert.deepEqual(period.periodStart, subscription.termStart);
+  assert.equal(period.recordingMinutesUsed, 3);
+});

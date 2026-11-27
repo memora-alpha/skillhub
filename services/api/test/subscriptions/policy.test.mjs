@@ -141,6 +141,14 @@ test("term end decisions follow auto-renew, payment and grace", () => {
   assert.deepEqual(decideAtTermEnd({ ...grace, canPay: true, at: at(32) }), {
     action: "RENEW",
   });
+  // A wallet topped up after the grace deadline does not revive the plan.
+  assert.deepEqual(decideAtTermEnd({ ...grace, canPay: true, at: at(33) }), {
+    action: "EXPIRE",
+  });
+  assert.deepEqual(
+    decideAtTermEnd({ ...grace, canPay: true, graceUntil: null, at: at(31) }),
+    { action: "EXPIRE" },
+  );
   assert.deepEqual(
     decideAtTermEnd({ ...base, status: "EXPIRED", at: at(40) }),
     {

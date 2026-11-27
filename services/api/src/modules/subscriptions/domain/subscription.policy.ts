@@ -101,6 +101,9 @@ export function decideAtTermEnd(input: {
 }): TermEndDecision {
   if (input.status === "EXPIRED") return { action: "WAIT" };
   if (input.termEnd.getTime() > input.at.getTime()) return { action: "WAIT" };
+  // A grace period that has run out ends the plan, even if the wallet was topped up later.
+  if (input.status === "GRACE" && graceElapsed(input.graceUntil, input.at))
+    return { action: "EXPIRE" };
   if (!input.autoRenew) return { action: "EXPIRE" };
   if (input.canPay) return { action: "RENEW" };
   if (input.status === "ACTIVE") {
@@ -110,10 +113,14 @@ export function decideAtTermEnd(input: {
       graceUntil: new Date(input.termEnd.getTime() + input.graceDays * DAY_MS),
     };
   }
-  const graceUntil = input.graceUntil?.getTime() ?? 0;
-  return graceUntil > input.at.getTime()
-    ? { action: "WAIT" }
-    : { action: "EXPIRE" };
+  return graceElapsed(input.graceUntil, input.at)
+    ? { action: "EXPIRE" }
+    : { action: "WAIT" };
+}
+
+/** A GRACE row without a deadline counts as elapsed. */
+export function graceElapsed(graceUntil: Date | null, at: Date): boolean {
+  return (graceUntil?.getTime() ?? 0) <= at.getTime();
 }
 
 /** Spec 021 D11: minutes charged for a finished recording, rounded up. */

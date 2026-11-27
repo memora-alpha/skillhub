@@ -236,3 +236,22 @@ test("notification handler renders each renewal event for the owner only", async
     await assert.rejects(handler.publish(bad), /INVALID_SUBSCRIPTION_EVENT/);
   assert.equal(sent.length, 2);
 });
+
+test("a top-up after graceUntil does not renew: the plan expires without a charge", async () => {
+  const ctx = await subscribed();
+  const id = row(ctx).id;
+  setWallet(ctx, 0n);
+  ctx.clock.now = at(30);
+  assert.equal(await ctx.renewals.processOne(id), "GRACE");
+  // The job is late: the deadline passed, and the user topped up in between.
+  setWallet(ctx, 50_000n);
+  ctx.clock.now = at(34);
+  assert.equal(await ctx.renewals.processOne(id), "EXPIRED");
+  assert.equal(row(ctx).status, "EXPIRED");
+  assert.deepEqual(row(ctx).endedAt, at(33));
+  assert.equal(charges(ctx, "RENEWAL").length, 0);
+  assert.equal(
+    ctx.db.rows("outboxEvent").at(-1).payload.reason,
+    "GRACE_ELAPSED",
+  );
+});

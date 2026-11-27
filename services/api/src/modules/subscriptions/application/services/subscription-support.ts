@@ -183,9 +183,19 @@ type UsageSubscription = UserSubscription & {
 
 export type UsageValues = {
   periodStart: Date;
+  periodEnd: Date;
   recordingMinutesAllowed: number;
   recordingMinutesUsed: number;
   addonMinutesRemaining: number;
+};
+
+/** A period's usage plus where its values are stored. */
+export type PeriodUsage = UsageValues & {
+  stored: boolean;
+  /** The period row's own add-on copy, kept as is when a later row holds the balance. */
+  storedAddon: number;
+  /** A later period of the term that holds the add-on balance, or null for this period. */
+  addonHolder: Date | null;
 };
 
 /**
@@ -199,66 +209,81 @@ function usageInstant(row: UserSubscription, at: Date): Date {
 }
 
 /**
- * Spec 021 data model: the stored row for the period, or the values it would start with.
- * A new period snapshots the plan allowance and carries the add-on minutes left from the
- * latest earlier period of the same term; add-on minutes expire with the term.
+ * Spec 021 data model: the period's allowance and use, from its row or the values it would
+ * start with (the plan allowance, nothing used). Add-on minutes belong to the whole term:
+ * the latest period row of the term holds the one balance, so a period that is charged late,
+ * after a later period started, spends that same balance instead of an outdated copy.
  */
 export async function periodUsage(
   tx: TransactionContext,
   row: UsageSubscription,
   at: Date,
-): Promise<UsageValues & { stored: boolean }> {
+): Promise<PeriodUsage> {
   const period = usagePeriod(row.termStart, row.termEnd, usageInstant(row, at));
-  const stored = await tx.subscriptionUsage.findUnique({
-    where: {
-      subscriptionId_periodStart: {
-        subscriptionId: row.id,
-        periodStart: period.start,
+  const [stored, latest] = await Promise.all([
+    tx.subscriptionUsage.findUnique({
+      where: {
+        subscriptionId_periodStart: {
+          subscriptionId: row.id,
+          periodStart: period.start,
+        },
       },
-    },
-  });
-  if (stored) return { ...stored, stored: true };
-  const previous = await tx.subscriptionUsage.findFirst({
-    where: {
-      subscriptionId: row.id,
-      periodStart: { gte: row.termStart, lt: period.start },
-    },
-    orderBy: { periodStart: "desc" },
-  });
+    }),
+    tx.subscriptionUsage.findFirst({
+      where: { subscriptionId: row.id, periodStart: { gte: row.termStart } },
+      orderBy: { periodStart: "desc" },
+    }),
+  ]);
+  const holder =
+    latest && latest.periodStart.getTime() > period.start.getTime()
+      ? latest.periodStart
+      : null;
   return {
     periodStart: period.start,
-    recordingMinutesAllowed: versionEntitlements(row.planVersion)
-      .recordingMinutesPerPeriod,
-    recordingMinutesUsed: 0,
-    addonMinutesRemaining: previous?.addonMinutesRemaining ?? 0,
-    stored: false,
+    periodEnd: period.end,
+    recordingMinutesAllowed:
+      stored?.recordingMinutesAllowed ??
+      versionEntitlements(row.planVersion).recordingMinutesPerPeriod,
+    recordingMinutesUsed: stored?.recordingMinutesUsed ?? 0,
+    addonMinutesRemaining: latest?.addonMinutesRemaining ?? 0,
+    stored: stored !== null,
+    storedAddon: stored?.addonMinutesRemaining ?? 0,
+    addonHolder: holder,
   };
 }
 
-/** Writes the period row; the caller holds the subscription owner lock. */
+/**
+ * Writes the period row and, when a later period holds it, the term's add-on balance. The
+ * caller holds the subscription owner lock.
+ */
 export async function savePeriodUsage(
   tx: TransactionContext,
   subscriptionId: string,
-  usage: UsageValues & { stored: boolean },
+  usage: PeriodUsage,
 ): Promise<void> {
   const values = {
     recordingMinutesAllowed: usage.recordingMinutesAllowed,
     recordingMinutesUsed: usage.recordingMinutesUsed,
-    addonMinutesRemaining: usage.addonMinutesRemaining,
+    addonMinutesRemaining: usage.addonHolder
+      ? usage.storedAddon
+      : usage.addonMinutesRemaining,
   };
+  const key = (periodStart: Date) => ({
+    subscriptionId_periodStart: { subscriptionId, periodStart },
+  });
   if (usage.stored)
     await tx.subscriptionUsage.update({
-      where: {
-        subscriptionId_periodStart: {
-          subscriptionId,
-          periodStart: usage.periodStart,
-        },
-      },
+      where: key(usage.periodStart),
       data: values,
     });
   else
     await tx.subscriptionUsage.create({
       data: { subscriptionId, periodStart: usage.periodStart, ...values },
+    });
+  if (usage.addonHolder)
+    await tx.subscriptionUsage.update({
+      where: key(usage.addonHolder),
+      data: { addonMinutesRemaining: usage.addonMinutesRemaining },
     });
 }
 

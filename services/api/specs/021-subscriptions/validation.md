@@ -208,6 +208,21 @@ conditions passed (security A, maintainability A, duplication 0.6%, hotspots 100
 Marking False Positive or Accepted needs a SonarCloud project member; a fresh analysis of the fix revision
 must confirm the gate before it is reported as passing.
 
+## CodeRabbit review — PR #138 (2026-11-27)
+
+| Comment                                                                                | Disposition                                                                                                                                             |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GRACE row renewed after `graceUntil` when the wallet was topped up late                | Fixed: `decideAtTermEnd` expires an elapsed GRACE row before `canPay`; expiry reason `GRACE_ELAPSED`. Policy and renewal tests                          |
+| Add-on minutes spent twice when an earlier period is charged after a later one started | Fixed: the latest period row of the term holds the one add-on balance; `periodUsage`/`savePeriodUsage` read and write it. Out-of-order test             |
+| `usage()` showed 0 add-on minutes at a period boundary                                 | Fixed: `usage()` uses `periodUsage`, the same balance as the charge path. Boundary test in a YEAR term                                                  |
+| Renewal before `egress_ended` processing absorbed the minutes                          | Fixed: the charge instant is the Egress end time; a subscription that renewed since pays from its renewed term's first period. Spec D11 states it. Test |
+| D10 said config applies only to legacy rows                                            | Fixed: D10 states `max(snapshot, config)`                                                                                                               |
+| `update()` comment contradicted the 409 in the lapse window                            | Fixed: comment describes the documented behaviour; no product change                                                                                    |
+| Integration fixture leaked the schema on setup failure                                 | Fixed: dispose and rethrow                                                                                                                              |
+| Duplicate `idempotency.service` import                                                 | Fixed in `35fcf780`                                                                                                                                     |
+
+Checks after the fixes: lint, check-types, 348 unit/regression tests, 12 PostgreSQL integration tests pass.
+
 ## Pending
 
 - Product gates before `subscription.enabled` goes on in production: G3 (plan values), G4 (SRS

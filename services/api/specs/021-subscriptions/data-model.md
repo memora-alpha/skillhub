@@ -98,7 +98,7 @@ Index: `(userId, createdAt desc, id desc)`.
 | addonMinutesRemaining   | int            | `>= 0`; purchased packs for the term  |
 | updatedAt               | timestamptz    |                                       |
 
-Add-on minutes carry across periods inside a term: the next period row copies `addonMinutesRemaining`.
+Add-on minutes belong to the term: the latest period row of the term holds the one `addonMinutesRemaining` balance (earlier rows keep an outdated copy that is never read). A new period starts from it, and a recording charged late to an earlier period spends it too.
 A recording spends period minutes first (`recordingMinutesUsed`), then add-on minutes
 (`addonMinutesRemaining` decreases); minutes beyond both are absorbed and not stored. A period row is created
 on the first charge or add-on purchase under the subscription owner lock. During GRACE, usage stays in the

@@ -400,7 +400,9 @@ export class SubscriptionsService {
     },
   ) {
     requireSubscriptionPermission(principal, "subscription:manage:self");
-    // No kill-switch check: a paying user must always be able to stop renewal.
+    // No kill-switch check: with plans switched off a subscriber can still stop renewal.
+    // Inside the lapse window (term ended, job not yet run) `current` answers 409
+    // SUBSCRIPTION_RENEWAL_PENDING like every other change, as the contract documents.
     await this.transactions.run(async (tx) => {
       await lockSubscriptionOwner(tx, principal.userId);
       const now = await databaseNow(tx);
@@ -540,6 +542,7 @@ export class SubscriptionsService {
           userId: principal.userId,
           status: { in: ["ACTIVE", "GRACE"] },
         },
+        include: { planVersion: true },
       });
       const current = row && grantsEntitlements(row, now) ? row : null;
       const effective = await this.entitlements.forUser(
@@ -550,7 +553,7 @@ export class SubscriptionsService {
       return {
         subscription: current ? subscriptionView(current) : null,
         entitlements: effective.entitlements,
-        usage: current ? await this.usage(tx, current, now, effective) : null,
+        usage: current ? await this.usage(tx, current, now) : null,
         materialStorage: await this.materialStorage(
           tx,
           principal.userId,
@@ -578,29 +581,15 @@ export class SubscriptionsService {
     };
   }
 
-  private async usage(
-    tx: TransactionContext,
-    row: UserSubscription,
-    now: Date,
-    effective: Awaited<ReturnType<SubscriptionEntitlementsReader["forUser"]>>,
-  ) {
-    const period = usagePeriod(row.termStart, row.termEnd, now);
-    const stored = await tx.subscriptionUsage.findUnique({
-      where: {
-        subscriptionId_periodStart: {
-          subscriptionId: row.id,
-          periodStart: period.start,
-        },
-      },
-    });
+  /** The same period and add-on balance the charge path uses. */
+  private async usage(tx: TransactionContext, row: CurrentRow, now: Date) {
+    const usage = await periodUsage(tx, row, now);
     return {
-      periodStart: period.start.toISOString(),
-      periodEnd: period.end.toISOString(),
-      recordingMinutesAllowed:
-        stored?.recordingMinutesAllowed ??
-        effective.entitlements.recordingMinutesPerPeriod,
-      recordingMinutesUsed: stored?.recordingMinutesUsed ?? 0,
-      addonMinutesRemaining: stored?.addonMinutesRemaining ?? 0,
+      periodStart: usage.periodStart.toISOString(),
+      periodEnd: usage.periodEnd.toISOString(),
+      recordingMinutesAllowed: usage.recordingMinutesAllowed,
+      recordingMinutesUsed: usage.recordingMinutesUsed,
+      addonMinutesRemaining: usage.addonMinutesRemaining,
     };
   }
 
@@ -675,16 +664,23 @@ export class SubscriptionsService {
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           take: 50,
         });
-        const live = subscriptions.find(
+        const current = subscriptions.find(
           (row) =>
             (row.status === "ACTIVE" || row.status === "GRACE") &&
             grantsEntitlements(row, now),
         );
+        // Only the current row's plan version is needed, for its period usage.
+        const live = current
+          ? await tx.userSubscription.findUniqueOrThrow({
+              where: { id: current.id },
+              include: { planVersion: true },
+            })
+          : null;
         const effective = await this.entitlements.forUser(tx, userId, now);
         return {
           subscriptions,
           entitlements: effective.entitlements,
-          usage: live ? await this.usage(tx, live, now, effective) : null,
+          usage: live ? await this.usage(tx, live, now) : null,
           materialStorage: await this.materialStorage(
             tx,
             userId,

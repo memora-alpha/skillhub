@@ -22,84 +22,93 @@ export const buyer = (account) => ({
 
 export async function subscriptionFixture() {
   const f = await createMaterialFixture();
-  const values = {
-    "subscription.enabled": true,
-    "subscription.freeEntitlements": DEFAULT_FREE_ENTITLEMENTS,
-    "subscription.graceDays": 3,
-    "subscription.renewalRetryHours": 24,
-    "subscription.recordingAddon": { minutes: 60, priceCredit: 30 },
-  };
-  const configuration = {
-    values,
-    getSnapshot: async (keys) => ({
-      values: Object.fromEntries(keys.map((key) => [key, values[key]])),
-    }),
-  };
-  const reader = new SubscriptionEntitlementsReader(configuration);
-  const plans = new SubscriptionPlansService(f.transactions, f.audit);
-  const service = new SubscriptionsService(
-    f.transactions,
-    f.commands,
-    f.credits,
-    f.audit,
-    configuration,
-    plans,
-    reader,
-  );
-  const renewals = new SubscriptionRenewalService(
-    f.transactions,
-    f.credits,
-    f.audit,
-    configuration,
-    plans,
-  );
-  const admin = await f.account("ADMIN");
-  const past = new Date(Date.now() - DAY);
-  const version = (planCode, monthPrice, yearPrice, entitlements = {}) =>
-    f.db.subscriptionPlanVersion.create({
-      data: {
-        planCode,
-        versionNo: 1,
-        monthPrice,
-        yearPrice,
-        entitlements: {
-          ...DEFAULT_PLAN_ENTITLEMENTS[planCode],
-          ...entitlements,
-        },
-        status: "APPROVED",
-        effectiveAt: past,
-        approvedAt: past,
-        approvedByUserId: admin.user.id,
-        createdByUserId: admin.user.id,
-      },
-    });
-  const creator = await version("CREATOR", 9_900n, 95_000n, {
-    materialStorageBytes: "3000",
-  });
-  const pro = await version("PRO", 29_900n, 287_000n);
-  const purchase = (account, key = randomUUID(), planCode = "CREATOR") =>
-    service.purchase(
-      buyer(account),
-      {
-        planCode,
-        interval: "MONTH",
-        expectedPlanVersionId: planCode === "PRO" ? pro.id : creator.id,
-      },
-      key,
+  try {
+    const values = {
+      "subscription.enabled": true,
+      "subscription.freeEntitlements": DEFAULT_FREE_ENTITLEMENTS,
+      "subscription.graceDays": 3,
+      "subscription.renewalRetryHours": 24,
+      "subscription.recordingAddon": { minutes: 60, priceCredit: 30 },
+    };
+    const configuration = {
+      values,
+      getSnapshot: async (keys) => ({
+        values: Object.fromEntries(keys.map((key) => [key, values[key]])),
+      }),
+    };
+    const reader = new SubscriptionEntitlementsReader(configuration);
+    const plans = new SubscriptionPlansService(f.transactions, f.audit);
+    const service = new SubscriptionsService(
+      f.transactions,
+      f.commands,
+      f.credits,
+      f.audit,
+      configuration,
+      plans,
+      reader,
     );
-  const wallet = async (account) =>
-    (await f.db.creditWallet.findUnique({ where: { userId: account.user.id } }))
-      ?.availableCredit ?? 0n;
-  return {
-    ...f,
-    values,
-    reader,
-    plans,
-    service,
-    renewals,
-    creator,
-    pro,
-    purchase,
-    wallet,
-  };
+    const renewals = new SubscriptionRenewalService(
+      f.transactions,
+      f.credits,
+      f.audit,
+      configuration,
+      plans,
+    );
+    const admin = await f.account("ADMIN");
+    const past = new Date(Date.now() - DAY);
+    const version = (planCode, monthPrice, yearPrice, entitlements = {}) =>
+      f.db.subscriptionPlanVersion.create({
+        data: {
+          planCode,
+          versionNo: 1,
+          monthPrice,
+          yearPrice,
+          entitlements: {
+            ...DEFAULT_PLAN_ENTITLEMENTS[planCode],
+            ...entitlements,
+          },
+          status: "APPROVED",
+          effectiveAt: past,
+          approvedAt: past,
+          approvedByUserId: admin.user.id,
+          createdByUserId: admin.user.id,
+        },
+      });
+    const creator = await version("CREATOR", 9_900n, 95_000n, {
+      materialStorageBytes: "3000",
+    });
+    const pro = await version("PRO", 29_900n, 287_000n);
+    const purchase = (account, key = randomUUID(), planCode = "CREATOR") =>
+      service.purchase(
+        buyer(account),
+        {
+          planCode,
+          interval: "MONTH",
+          expectedPlanVersionId: planCode === "PRO" ? pro.id : creator.id,
+        },
+        key,
+      );
+    const wallet = async (account) =>
+      (
+        await f.db.creditWallet.findUnique({
+          where: { userId: account.user.id },
+        })
+      )?.availableCredit ?? 0n;
+    return {
+      ...f,
+      values,
+      reader,
+      plans,
+      service,
+      renewals,
+      creator,
+      pro,
+      purchase,
+      wallet,
+    };
+  } catch (error) {
+    // A failed setup must not leak the schema or pool handles.
+    await f.dispose();
+    throw error;
+  }
 }

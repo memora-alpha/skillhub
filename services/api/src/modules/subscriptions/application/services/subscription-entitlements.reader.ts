@@ -116,8 +116,8 @@ export class SubscriptionEntitlementsReader {
   /**
    * Spec 021 D11/D14: charges a finished recording, `ceil(durationMs / 60000)` minutes, to the
    * subscription pinned at its start: period allowance first, then add-on minutes; the rest
-   * is absorbed. A subscription that
-   * no longer grants entitlements at `at` absorbs everything. The caller guards against a
+   * is absorbed. `at` is the Egress end time; a subscription that renewed since is charged in
+   * its renewed term, and one that no longer grants entitlements absorbs everything. The caller guards against a
    * second charge for the same recording (`charged_minutes IS NULL`).
    */
   async chargeRecordingMinutes(
@@ -145,9 +145,12 @@ export class SubscriptionEntitlementsReader {
       where: { id: subscriptionId },
       include: { planVersion: true },
     });
-    // Minutes recorded before a renewal belong to a term that is already closed.
-    if (!grantsEntitlements(row, at) || at < row.termStart) return absorbedAll;
-    const usage = await periodUsage(tx, row, at);
+    // The subscription renewed after the Egress ended but before this delivery: its earlier
+    // term is closed, so the renewed term pays, starting with its first period.
+    const chargeAt = at < row.termStart ? row.termStart : at;
+    // A plan that no longer grants entitlements (expired, grace elapsed) absorbs the minutes.
+    if (!grantsEntitlements(row, chargeAt)) return absorbedAll;
+    const usage = await periodUsage(tx, row, chargeAt);
     const split = allocateRecordingMinutes({
       minutes,
       allowed: usage.recordingMinutesAllowed,

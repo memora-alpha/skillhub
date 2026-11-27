@@ -11,7 +11,11 @@ import { fingerprintCommand } from "../../../../infrastructure/idempotency/idemp
 import { AuditWriter } from "../../../audit/application/services/audit-writer";
 import { CreditOperationsService } from "../../../credit/application/services/credit-operations.service";
 import { SystemConfigurationService } from "../../../system-configuration/application/services/system-configuration.service";
-import { decideAtTermEnd, termEndFor } from "../../domain/subscription.policy";
+import {
+  decideAtTermEnd,
+  graceElapsed,
+  termEndFor,
+} from "../../domain/subscription.policy";
 import { SubscriptionPlansService } from "./subscription-plans.service";
 import {
   auditContext,
@@ -109,7 +113,14 @@ export class SubscriptionRenewalService {
         return "NOT_DUE";
       }
       if (first.action === "EXPIRE")
-        return this.expire(tx, row, now, "AUTO_RENEW_OFF");
+        return this.expire(
+          tx,
+          row,
+          now,
+          row.status === "GRACE" && graceElapsed(row.graceUntil, now)
+            ? "GRACE_ELAPSED"
+            : "AUTO_RENEW_OFF",
+        );
       const target = await this.renewalTarget(tx, row, now);
       if (!target) return this.expire(tx, row, now, "PLAN_UNAVAILABLE");
       if (await this.tryRenew(tx, row, target, now)) return "RENEWED";
