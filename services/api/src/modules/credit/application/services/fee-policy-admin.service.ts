@@ -26,14 +26,21 @@ import { formatCredit } from "../../domain/money";
 import { parseAbsoluteTimestamp } from "../../../../shared/time/timestamp.policy";
 import { SystemConfigurationService } from "../../../system-configuration/application/services/system-configuration.service";
 import { randomUUID } from "node:crypto";
+import {
+  baseFeePolicyCode,
+  isFeePolicyCode,
+  type FeePolicyCode,
+} from "../../domain/fee-policy-codes";
 
-type FeePolicyCode = "ONE_WAY" | "TWO_WAY" | "MATERIAL_PAID";
-
+/** Material series store `feeBps` only; learning series also store the returned share. */
 function feeCalculationRule(policyCode: FeePolicyCode, feeBps: number) {
-  return policyCode === "MATERIAL_PAID"
+  return isMaterialSeries(policyCode)
     ? { feeBps }
     : { returnedBps: 10_000 - feeBps, feeBps };
 }
+
+const isMaterialSeries = (policyCode: string) =>
+  baseFeePolicyCode(policyCode) === "MATERIAL_PAID";
 
 function feeBpsFromRule(value: unknown): number {
   const feeBps = (value as { feeBps?: unknown } | null)?.feeBps;
@@ -164,7 +171,7 @@ export class FeePolicyAdminService {
     const reason = validateReason(input.reason, { min: 3, max: 1000 });
     const policyCode = input.policyCode ?? "MATERIAL_PAID";
     if (
-      !["ONE_WAY", "TWO_WAY", "MATERIAL_PAID"].includes(policyCode) ||
+      !isFeePolicyCode(policyCode) ||
       !Number.isSafeInteger(input.versionNo) ||
       input.versionNo < 1 ||
       !Number.isInteger(input.feeBps) ||
@@ -199,10 +206,9 @@ export class FeePolicyAdminService {
       await this.audit.append(tx, {
         actorId: live.userId,
         actorRole: "ADMIN",
-        action:
-          policyCode === "MATERIAL_PAID"
-            ? "MATERIAL_FEE_POLICY_CREATE"
-            : "LEARNING_FEE_POLICY_CREATE",
+        action: isMaterialSeries(policyCode)
+          ? "MATERIAL_FEE_POLICY_CREATE"
+          : "LEARNING_FEE_POLICY_CREATE",
         targetType: "FeePolicyVersion",
         targetId: result.id,
         reason,
@@ -270,10 +276,9 @@ export class FeePolicyAdminService {
       await this.audit.append(tx, {
         actorId: live.userId,
         actorRole: "ADMIN",
-        action:
-          row.policyCode === "MATERIAL_PAID"
-            ? "MATERIAL_FEE_POLICY_APPROVE"
-            : "LEARNING_FEE_POLICY_APPROVE",
+        action: isMaterialSeries(row.policyCode)
+          ? "MATERIAL_FEE_POLICY_APPROVE"
+          : "LEARNING_FEE_POLICY_APPROVE",
         targetType: "FeePolicyVersion",
         targetId: id,
         reason,

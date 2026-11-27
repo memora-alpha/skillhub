@@ -37,6 +37,7 @@ import { CreditModule } from "./modules/credit/credit.module";
 import { PaymentsModule } from "./modules/payments/payments.module";
 import { MaterialsModule } from "./modules/materials/materials.module";
 import { RewardsModule } from "./modules/rewards/rewards.module";
+import { SubscriptionsModule } from "./modules/subscriptions/subscriptions.module";
 import { AdminQaAdjustmentsModule } from "./modules/admin-qa-adjustments/admin-qa-adjustments.module";
 import { AdministrationModule } from "./modules/administration/administration.module";
 import { AdminDashboardModule } from "./modules/admin-dashboard/admin-dashboard.module";
@@ -94,6 +95,7 @@ import { ContentModerationModule } from "./modules/content-moderation/content-mo
     PaymentsModule,
     MaterialsModule,
     RewardsModule,
+    SubscriptionsModule,
     AdminQaAdjustmentsModule,
     AdminDashboardModule,
     AdministrationModule,

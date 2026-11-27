@@ -47,6 +47,31 @@ export function checkWhiteboardScene(input: unknown): WhiteboardSceneCheck {
   return { ok: true, scene: parsed.data, bytes };
 }
 
+/**
+ * Spec 021 D10: a board's retention snapshot never decreases. It rises to the longest
+ * paid-plan value among the participants; with none and no prior snapshot it stays null.
+ */
+export function raisedRetentionDays(
+  current: number | null,
+  planDays: readonly number[],
+): number | null {
+  return planDays.reduce<number | null>(
+    (max, days) => (max === null || days > max ? days : max),
+    current,
+  );
+}
+
+/**
+ * Days a board is kept after its Session ends. `whiteboard.retentionDays` is the Free value
+ * and the floor: a snapshot never shortens it, and legacy rows without one use it as is.
+ */
+export function whiteboardRetentionDays(
+  snapshot: number | null,
+  configDays: number,
+): number {
+  return snapshot === null ? configDays : Math.max(snapshot, configDays);
+}
+
 /** Report statuses that let Staff read a board and that hold it from deletion. */
 export const WHITEBOARD_HOLD_REPORT_STATUSES = [
   "OPEN",

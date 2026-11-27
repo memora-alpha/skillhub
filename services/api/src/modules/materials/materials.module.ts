@@ -34,6 +34,7 @@ import {
 import { MaterialReviewModerationController } from "./presentation/http/material-review-moderation.controller";
 import { MaterialFavoritesService } from "./application/services/material-favorites.service";
 import { ContentModerationModule } from "../content-moderation/content-moderation.module";
+import { SubscriptionsModule } from "../subscriptions/subscriptions.module";
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { ContentModerationModule } from "../content-moderation/content-moderatio
     IdempotencyModule,
     QueueModule,
     OutboxModule,
+    SubscriptionsModule,
     BullModule.registerQueue({ name: MATERIAL_THUMBNAIL_QUEUE }),
   ],
   controllers: [

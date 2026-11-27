@@ -576,15 +576,67 @@ export class CreditOperationsService {
   ): Promise<{ operationId: string; lots: SpentLots["lots"] }> {
     if (input.amount <= 0n)
       throw new ConflictException("INVALID_VOUCHER_PRICE");
+    return this.debitAvailable(tx, {
+      userId: input.userId,
+      amount: input.amount,
+      type: "VOUCHER_REDEMPTION",
+      referenceId: input.redemptionId,
+      key: `voucher-redeem:${input.redemptionId}`,
+    });
+  }
+
+  /**
+   * Spec 021 D3: one subscription charge (purchase, renewal, upgrade or add-on minutes),
+   * paid from any lot source, oldest first. Idempotent per charge id through the operation key.
+   */
+  async chargeSubscription(
+    tx: TransactionContext,
+    input: { chargeId: string; userId: string; amount: bigint },
+  ): Promise<{ operationId: string; lots: SpentLots["lots"] }> {
+    if (input.amount <= 0n)
+      throw new ConflictException("INVALID_SUBSCRIPTION_PRICE");
+    return this.debitAvailable(tx, {
+      userId: input.userId,
+      amount: input.amount,
+      type: "SUBSCRIPTION",
+      referenceId: input.chargeId,
+      key: `subscription-charge:${input.chargeId}`,
+    });
+  }
+
+  /** One-entry debit of available Credit from the oldest lots; the caller validated the amount. */
+  private async debitAvailable(
+    tx: TransactionContext,
+    input: {
+      userId: string;
+      amount: bigint;
+      type: "VOUCHER_REDEMPTION" | "SUBSCRIPTION";
+      referenceId: string;
+      key: string;
+    },
+  ): Promise<{ operationId: string; lots: SpentLots["lots"] }> {
+    const kinds = {
+      VOUCHER_REDEMPTION: {
+        operationType: "VOUCHER_REDEMPTION",
+        referenceType: "VOUCHER_REDEMPTION",
+        transactionType: "VOUCHER_REDEMPTION",
+      },
+      SUBSCRIPTION: {
+        operationType: "SUBSCRIPTION_CHARGE",
+        referenceType: "SUBSCRIPTION_CHARGE",
+        transactionType: "SUBSCRIPTION_PURCHASE",
+      },
+    } as const;
+    const kind = kinds[input.type];
     const wallet = await this.lockWallet(tx, input.userId);
     if (wallet.availableCredit < input.amount)
       throw new ConflictException("INSUFFICIENT_AVAILABLE_CREDIT");
-    const key = `voucher-redeem:${input.redemptionId}`;
+    const key = input.key;
     const operation = await tx.creditOperation.create({
       data: {
-        operationType: "VOUCHER_REDEMPTION",
-        referenceType: "VOUCHER_REDEMPTION",
-        referenceId: input.redemptionId,
+        operationType: kind.operationType,
+        referenceType: kind.referenceType,
+        referenceId: input.referenceId,
         idempotencyKey: key,
         status: "SUCCESS",
       },
@@ -609,7 +661,7 @@ export class CreditOperationsService {
         userId: input.userId,
         operationId: operation.id,
         entryNo: 1,
-        type: "VOUCHER_REDEMPTION",
+        type: kind.transactionType,
         amount: input.amount,
         availableDelta: -input.amount,
         heldDelta: 0n,

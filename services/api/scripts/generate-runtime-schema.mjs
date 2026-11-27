@@ -635,6 +635,38 @@ schema +=
   "\n" +
   readFileSync(new URL("session-recording-support.prisma", root), "utf8");
 
+// Subscriptions (spec 021): Credit-paid plans, charges and usage.
+schema = schema.replace(
+  /(enum CreditTransactionType \{[\s\S]*?)\r?\n\}/,
+  "$1\n  SUBSCRIPTION_PURCHASE\n}",
+);
+schema = schema.replace(
+  /(enum CreditReferenceType \{[\s\S]*?)\r?\n\}/,
+  "$1\n  SUBSCRIPTION_CHARGE\n}",
+);
+model("User", (block) =>
+  fields(
+    block,
+    '  subscriptionPlansApproved SubscriptionPlanVersion[] @relation("SubscriptionPlanVersion_approved_by")\n' +
+      '  subscriptionPlansCreated SubscriptionPlanVersion[] @relation("SubscriptionPlanVersion_created_by")\n' +
+      '  subscriptions UserSubscription[] @relation("UserSubscription_user")\n' +
+      '  subscriptionCharges SubscriptionCharge[] @relation("SubscriptionCharge_user")',
+  ),
+);
+model("CreditOperation", (block) =>
+  fields(
+    block,
+    '  subscriptionCharge SubscriptionCharge? @relation("SubscriptionCharge_operation")',
+  ),
+);
+schema +=
+  "\n" + readFileSync(new URL("subscription-support.prisma", root), "utf8");
+// Spec 021 D8: one versioned fee policy series per plan tier.
+schema = schema.replace(
+  /(enum FeePolicyCode \{[\s\S]*?)\r?\n\}/,
+  "$1\n  ONE_WAY_CREATOR\n  ONE_WAY_PRO\n  MATERIAL_PAID_CREATOR\n  MATERIAL_PAID_PRO\n}",
+);
+
 schema = schema.replace(
   /^\/\/ Logical v3[^\r\n]*\r?\n(?:\/\/[^\r\n]*\r?\n)*\r?\n/,
   "// Runtime: v3 domain models plus implemented foundation support.\n" +

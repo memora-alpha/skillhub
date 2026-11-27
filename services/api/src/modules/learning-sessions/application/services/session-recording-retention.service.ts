@@ -6,18 +6,22 @@ import {
   type ObjectStorage,
 } from "../../../../infrastructure/storage/object-storage.port";
 import { SystemConfigurationService } from "../../../system-configuration/application/services/system-configuration.service";
+import { recordingExpiresAt } from "../../domain/recording.policy";
 import { sessionsHeldByReport } from "./report-hold";
 import { removeRecordingObject } from "./session-recording.service";
 import { databaseNow } from "./session-tx";
 
 const DAY_MS = 86_400_000;
+/** Lower bound of a retention snapshot (migration CHECK and plan entitlement schema). */
+const MIN_RETENTION_DAYS = 1;
 
 export type RetentionPage = { expired: number; next: string | null };
 
 /**
- * Spec 020 D6: READY recordings expire `recording.retentionDays` after the Session ends,
- * unless an open report on the Session holds them. Expired and deleted rows keep their
- * metadata; only the object is removed.
+ * Spec 020 D6 amended by spec 021 D12: READY recordings expire their `retention_days` snapshot
+ * after the Session ends, or `recording.retentionDays` for rows without one, unless an open
+ * report on the Session holds them. Expired and deleted rows keep their metadata; only the
+ * object is removed.
  */
 @Injectable()
 export class SessionRecordingRetentionService {
@@ -42,25 +46,46 @@ export class SessionRecordingRetentionService {
         ["recording.retentionDays"],
         tx,
       );
-      const cutoff = new Date(
-        +now - values["recording.retentionDays"] * DAY_MS,
-      );
+      const configDays = values["recording.retentionDays"];
+      const endedBefore = (days: number) => ({
+        is: { endAt: { lte: new Date(+now - days * DAY_MS) } },
+      });
+      // A snapshot may be shorter than the config value (Creator 30, config 90), so rows
+      // with one are bounded by the shortest allowed retention and checked per row below.
       const due = await tx.sessionRecording.findMany({
         where: {
           status: "READY",
-          session: { is: { endAt: { lte: cutoff } } },
+          OR: [
+            { retentionDays: null, session: endedBefore(configDays) },
+            {
+              retentionDays: { not: null },
+              session: endedBefore(MIN_RETENTION_DAYS),
+            },
+          ],
           ...(after ? { id: { gt: after } } : {}),
         },
         orderBy: { id: "asc" },
         take: limit,
-        select: { id: true, sessionId: true },
+        select: {
+          id: true,
+          sessionId: true,
+          retentionDays: true,
+          session: { select: { endAt: true } },
+        },
       });
       if (due.length === 0) return { expired: 0, next: null };
+      const expired = due.filter(
+        (row) =>
+          recordingExpiresAt(
+            row.session.endAt,
+            row.retentionDays ?? configDays,
+          ) <= now,
+      );
       const held = await sessionsHeldByReport(
         tx,
-        due.map((row) => row.sessionId),
+        expired.map((row) => row.sessionId),
       );
-      const ids = due
+      const ids = expired
         .filter((row) => !held.has(row.sessionId))
         .map((row) => row.id);
       const { count } = ids.length

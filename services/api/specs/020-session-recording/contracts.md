@@ -24,6 +24,7 @@ recording bucket is not configured).
   "durationMs": 3340000,
   "bytes": 512000000,
   "stopReason": "PARTICIPANT",
+  "retentionDays": 90,
   "expiresAt": "2027-03-01T11:00:00.000Z",
   "heldByReport": false,
   "deletedAt": null
@@ -31,18 +32,22 @@ recording bucket is not configured).
 ```
 
 `status` ∈ `REQUESTED`, `DECLINED`, `REQUEST_EXPIRED`, `STARTING`, `RECORDING`, `STOPPING`, `READY`,
-`FAILED`, `EXPIRED`, `DELETED`. `expiresAt` is `endAt + recording.retentionDays`. No URL or object key
-is ever part of this object.
+`FAILED`, `EXPIRED`, `DELETED`. `retentionDays` is the requester's plan snapshot taken when the
+recording started (spec 021 D12); recordings made before plans have none, and the list shows
+`recording.retentionDays` for them. `expiresAt` is `endAt + retentionDays`. No URL or object key is ever
+part of this object.
 
 ## `POST /api/v1/sessions/:sessionId/recordings`
 
 Asks the other participant to agree. Body: none. `201` → recording object with `REQUESTED`.
 
-| Status | message                      | When                                                                  |
-| ------ | ---------------------------- | --------------------------------------------------------------------- |
-| 409    | `RECORDING_ALREADY_ACTIVE`   | Another request or recording is active for this Session.              |
-| 409    | `RECORDING_WINDOW_NOT_OPEN`  | Outside the join window, or the Session is not `READY`/`ONGOING`.     |
-| 409    | `RECORDING_ROOM_NOT_STARTED` | No participant has joined yet, so there is no LiveKit room to record. |
+| Status | message                       | When                                                                  |
+| ------ | ----------------------------- | --------------------------------------------------------------------- |
+| 409    | `RECORDING_ALREADY_ACTIVE`    | Another request or recording is active for this Session.              |
+| 409    | `RECORDING_WINDOW_NOT_OPEN`   | Outside the join window, or the Session is not `READY`/`ONGOING`.     |
+| 409    | `RECORDING_ROOM_NOT_STARTED`  | No participant has joined yet, so there is no LiveKit room to record. |
+| 403    | `RECORDING_PLAN_REQUIRED`     | The requester has no current plan that includes recording (spec 021). |
+| 409    | `RECORDING_MINUTES_EXHAUSTED` | The requester has no period or add-on minute left (spec 021).         |
 
 The other participant is notified (phase 3). An unanswered request becomes `REQUEST_EXPIRED` after 2
 minutes; the list reports it as expired at once, and the next request or the worker stores it.
@@ -50,7 +55,9 @@ minutes; the list reports it as expired at once, and the next request or the wor
 ## `POST /api/v1/sessions/:sessionId/recordings/:recordingId/accept`
 
 Only the participant who did not request, while the request window of `POST …/recordings` still holds
-(the same `409` and `503` codes apply). `200` → recording object with `STARTING`. The API then starts
+(the same `409` and `503` codes apply). The requester's plan and minutes are checked again, so
+`403 RECORDING_PLAN_REQUIRED` and `409 RECORDING_MINUTES_EXHAUSTED` also apply; accepting pins the
+requester's subscription and retention on the recording. `200` → recording object with `STARTING`. The API then starts
 Egress; `egress_started` moves it to `RECORDING` and sets the room metadata indicator. If Egress cannot
 start, the response is the recording with `FAILED`, and a new request may follow.
 

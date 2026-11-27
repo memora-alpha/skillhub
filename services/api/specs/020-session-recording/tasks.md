@@ -48,6 +48,7 @@
 
 - [x] T019 PostgreSQL integration test: migration, partial unique index, concurrent requests
 - [ ] T020 (needs a LiveKit Cloud test project and bucket; steps in `docs/session-recording-setup.vi.md` §5) Manual run against LiveKit Cloud and a test bucket; record real file sizes per hour
+- [x] T025 Spec 021 amendment: plan gate on request and accept, minutes charged at `egress_ended`, per-recording retention snapshot
 - [x] T021 Docs: `livekit-sessions.vi.md` (replace "not recorded"), Egress and bucket setup, put-only key policy
 
 ## Follow-ups (separate specs)

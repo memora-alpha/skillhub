@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { validateEnvironment } from "../dist/configs/environment.js";
 import { HttpExceptionFilter } from "../dist/shared/http/http-exception.filter.js";
-import { BadRequestException, ConflictException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  ServiceUnavailableException,
+} from "@nestjs/common";
 import { HealthController } from "../dist/health.controller.js";
 
 const valid = {
@@ -78,6 +82,18 @@ test("unexpected database errors do not expose secrets in HTTP responses", () =>
     message: "Internal server error",
   });
   assert.doesNotMatch(JSON.stringify(result), /private-password/);
+});
+
+test("recording capability codes stay visible on 503 responses", () => {
+  for (const code of ["RECORDING_DISABLED", "RECORDING_UNAVAILABLE"]) {
+    const result = invokeFilter(new ServiceUnavailableException(code));
+    assert.equal(result.code, 503);
+    assert.equal(result.body.message, code);
+  }
+  const hidden = invokeFilter(
+    new ServiceUnavailableException("internal provider detail"),
+  );
+  assert.equal(hidden.body.message, "Internal server error");
 });
 
 test("validation errors preserve field messages and HTTP status", () => {

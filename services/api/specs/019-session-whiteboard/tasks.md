@@ -15,6 +15,7 @@
 - [x] T012 P1 edit window: config key `whiteboard.editWindow` (teacher preparation, post-session grace), per-role access, frozen statuses, `editableFrom`/`editableUntil`
 - [ ] T011 PO approves P1–P4 in [spec.md](spec.md); adjust `whiteboard.editWindow` values if needed
 - [x] T013 P3 retention: config key `whiteboard.retentionDays` (default 30, min 8), `purgeExpired` paging, hourly `SessionWhiteboardRetentionWorker`, open-report hold
+- [x] T013a Spec 021 D10: per-board `retention_days` snapshot raised on save; worker keeps a board `max(snapshot, config)` days
 - [x] T014 P2 `GET /sessions/:id/whiteboard/staff-review?caseId=`: handler of an open case only, audited as `REPORT_EVIDENCE_READ`
 - [x] T015 P4: no moderation in the first release (documented)
 - [x] T017 Freeze the board while an open report targets or relates to the Session (`SESSION_UNDER_REPORT`); add release seed request `session-whiteboard-20261125`

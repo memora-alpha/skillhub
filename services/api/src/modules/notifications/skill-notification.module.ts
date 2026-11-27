@@ -15,6 +15,7 @@ import { ScheduleConfirmationNotificationHandler } from "./infrastructure/events
 import { MaterialNotificationHandler } from "./infrastructure/events/material-notification.handler";
 import { LearningRequestRejectionPublisher } from "./infrastructure/events/learning-request-rejection.publisher";
 import { FeePolicyNotificationHandler } from "./infrastructure/events/fee-policy-notification.handler";
+import { SubscriptionNotificationHandler } from "./infrastructure/events/subscription-notification.handler";
 import {
   ENABLED_NOTIFICATION_CHANNELS,
   NotificationDispatcher,
@@ -38,6 +39,7 @@ import { PrismaInAppNotificationAdapter } from "./infrastructure/channels/prisma
     MaterialNotificationHandler,
     LearningRequestRejectionPublisher,
     FeePolicyNotificationHandler,
+    SubscriptionNotificationHandler,
     NotificationDispatcher,
     {
       provide: InAppNotificationPort,

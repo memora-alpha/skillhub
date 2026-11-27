@@ -54,6 +54,25 @@ retention limit, and a way to withdraw consent. Data may only serve the purpose 
 | D9  | **Cost and failure.** The platform pays. `recording.enabled` is the kill switch. The D3 cap bounds one recording; `recording.monthlyAlertMinutes` raises an ops alert. An Egress failure marks the recording `FAILED` and notifies both participants; the Session continues and is never cancelled or rescheduled for it.                                                                                                                                                                                                                                        |
 | D10 | **Staff review: handler of an open report only.** Mirrors spec 019 P2. The caller needs `report:moderate`, the STAFF or ADMIN role, and must be the case `handlerId`. The case must be `OPEN`, `UNDER_REVIEW` or `NEED_MORE_INFO` and target the Session or have it as `relatedSessionId`. Staff watch through the same 5-minute inline URL and cannot delete or download through the API. Each URL issued writes `REPORT_EVIDENCE_READ` (target `SESSION_RECORDING`) in the same transaction; a refused request writes no audit entry. Admin has no other path. |
 
+## Amendment by spec 021 (implemented)
+
+[Spec 021](../021-subscriptions/spec.md) makes recording a plan entitlement. These points override D2, D6 and D9.
+
+- D2 (spec 021 D11): only a participant whose active plan includes recording may request; the other participant
+  still has to accept and keeps equal rights. New errors `403 RECORDING_PLAN_REQUIRED` and
+  `409 RECORDING_MINUTES_EXHAUSTED`.
+- D2 detail: the plan and remaining minutes are checked on request and again on accept. Accepting pins the
+  requester's subscription and retention on the recording, so a plan that lapses inside the 2-minute request
+  window stops the start.
+- D6 (spec 021 D12): each recording stores a `retention_days` snapshot from the requester's plan at start (Creator
+  30, Pro 90 by default). The snapshot replaces the config value, even when shorter. Rows without a snapshot keep
+  using `recording.retentionDays`. The open-report hold is unchanged.
+- D9 (spec 021 D11, D14): minutes are charged to the requester once at `egress_ended`,
+  `ceil(durationMs / 60000)`, in the transaction that marks the recording `READY`. A recording in progress
+  always finishes; minutes over the allowance are absorbed by the platform. A plan that ended before
+  `egress_ended` absorbs them all. A failed Egress is not charged. Subscribers may buy add-on minutes.
+  `recording.enabled` stays the kill switch.
+
 ## Deferred (not in the first release)
 
 - A teacher preference to refuse all recordings. A teacher can decline each request meanwhile.

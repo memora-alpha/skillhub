@@ -5,6 +5,10 @@ import {
   profanityRuleSetSchema,
 } from "../../content-moderation/domain/profanity-rule-set";
 import { moderationRuleSetSchema } from "./moderation-rule-set.schema";
+import {
+  DEFAULT_FREE_ENTITLEMENTS,
+  planEntitlementsSchema,
+} from "../../subscriptions/domain/plan-entitlements";
 
 const positiveInt = z.number().int().safe().positive();
 const settlement = z
@@ -173,6 +177,42 @@ export const CONFIGURATION_DEFINITIONS = {
     schema: z.number().int().min(1).max(48),
     mutable: true,
     defaultValue: 6,
+  },
+  // Spec 021: Credit-paid plans. Off until the SRS amendment and PO approval (policies Q1/Q2).
+  "subscription.enabled": {
+    schema: z.boolean(),
+    mutable: true,
+    defaultValue: false,
+  },
+  // Days a subscription keeps its entitlements after a failed renewal; 0 expires at once.
+  "subscription.graceDays": {
+    schema: z.number().int().min(0).max(14),
+    mutable: true,
+    defaultValue: 3,
+  },
+  "subscription.renewalRetryHours": {
+    schema: z.number().int().min(1).max(72),
+    mutable: true,
+    defaultValue: 24,
+  },
+  // One add-on pack of recording minutes and its price in whole Credit.
+  "subscription.recordingAddon": {
+    schema: z
+      .object({
+        minutes: positiveInt.max(600),
+        priceCredit: positiveInt.max(100_000),
+      })
+      .strict(),
+    mutable: true,
+    defaultValue: { minutes: 60, priceCredit: 30 },
+  },
+  // What a user without an active subscription gets.
+  "subscription.freeEntitlements": {
+    schema: planEntitlementsSchema.refine(
+      (value) => value.feeTier === null && !value.recordingAddonAllowed,
+    ),
+    mutable: true,
+    defaultValue: DEFAULT_FREE_ENTITLEMENTS,
   },
   "storage.downloadTtlSeconds": {
     schema: z.number().int().min(1).max(300),

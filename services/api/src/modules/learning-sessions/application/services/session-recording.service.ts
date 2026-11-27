@@ -18,6 +18,7 @@ import type { TransactionContext } from "../../../../infrastructure/database/tra
 import { CLOCK, type Clock } from "../../../../shared/time/clock";
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import { AuditWriter } from "../../../audit/application/services/audit-writer";
+import { SubscriptionEntitlementsReader } from "../../../subscriptions/application/services/subscription-entitlements.reader";
 import { SystemConfigurationService } from "../../../system-configuration/application/services/system-configuration.service";
 import {
   ACTIVE_RECORDING_STATUSES,
@@ -87,6 +88,7 @@ const recordingSelect = {
   stopReason: true,
   objectKey: true,
   deletedAt: true,
+  retentionDays: true,
 } as const;
 
 type Reader = Pick<TransactionContext, "session" | "sessionRecording">;
@@ -112,6 +114,7 @@ type RecordingRow = {
   stopReason: string | null;
   objectKey: string | null;
   deletedAt: Date | null;
+  retentionDays: number | null;
 };
 
 type RecordingSettings = {
@@ -154,6 +157,7 @@ export class SessionRecordingService {
     private readonly egress: LiveKitEgressService,
     @Inject(OBJECT_STORAGE) private readonly objects: ObjectStorage,
     private readonly audit: AuditWriter,
+    private readonly plans?: SubscriptionEntitlementsReader,
   ) {}
 
   async request(actor: Principal, sessionId: string) {
@@ -164,6 +168,7 @@ export class SessionRecordingService {
         const settings = await this.enabledSettings(tx);
         const now = await databaseNow(tx);
         this.requireRequestWindow(session, now, settings);
+        await this.requireRecordingMinutes(tx, actor.userId, now);
         await this.expireStaleRequests(tx, sessionId, now);
         const active = await tx.sessionRecording.findFirst({
           where: { sessionId, status: { in: [...ACTIVE_RECORDING_STATUSES] } },
@@ -211,9 +216,22 @@ export class SessionRecordingService {
       const settings = await this.enabledSettings(tx);
       const now = await databaseNow(tx);
       this.requireRequestWindow(session, now, settings);
+      // Spec 021 D11/D12: checked again at start, which pins the plan that pays the minutes
+      // and the retention the recording keeps.
+      const allowance = await this.requireRecordingMinutes(
+        tx,
+        row.requestedByUserId,
+        now,
+      );
+      const pinned = allowance
+        ? {
+            subscriptionId: allowance.subscriptionId,
+            retentionDays: allowance.retentionDays,
+          }
+        : {};
       const moved = await tx.sessionRecording.updateMany({
         where: { id: recordingId, status: "REQUESTED" },
-        data: { status: "STARTING", acceptedByUserId: actor.userId },
+        data: { status: "STARTING", acceptedByUserId: actor.userId, ...pinned },
       });
       if (moved.count !== 1) throw stateConflict(row.status);
       return {
@@ -222,6 +240,7 @@ export class SessionRecordingService {
           ...row,
           status: "STARTING" as const,
           acceptedByUserId: actor.userId,
+          retentionDays: allowance?.retentionDays ?? row.retentionDays,
         },
       };
     });
@@ -282,7 +301,7 @@ export class SessionRecordingService {
       orderBy: { requestedAt: "desc" },
       select: recordingSelect,
     })) as RecordingRow[];
-    const retentionDays = await this.retentionDays();
+    const configDays = await this.retentionDays();
     const held = (await sessionsHeldByReport(this.db, [sessionId])).has(
       sessionId,
     );
@@ -294,11 +313,13 @@ export class SessionRecordingService {
           recordingRequestExpired(row.requestedAt, now)
             ? "REQUEST_EXPIRED"
             : row.status;
+        // Spec 021 D12: the snapshot taken at start; legacy rows use the config value.
+        const retentionDays = row.retentionDays ?? configDays;
         const expiresAt =
           status === "READY" && retentionDays !== null
             ? recordingExpiresAt(session.endAt, retentionDays)
             : null;
-        return this.view({ ...row, status }, expiresAt, held);
+        return this.view({ ...row, status, retentionDays }, expiresAt, held);
       }),
     };
   }
@@ -314,7 +335,7 @@ export class SessionRecordingService {
     if (row.status !== "READY" || !row.objectKey)
       throw new ConflictException("RECORDING_NOT_READY");
     const now = this.clock.now();
-    const retentionDays = await this.retentionDays();
+    const retentionDays = row.retentionDays ?? (await this.retentionDays());
     const expired =
       retentionDays === null ||
       now >= recordingExpiresAt(session.endAt, retentionDays);
@@ -524,6 +545,23 @@ export class SessionRecordingService {
       throw new ConflictException("RECORDING_ROOM_NOT_STARTED");
   }
 
+  /**
+   * Spec 021 D11: only a requester whose current plan includes recording, with at least one
+   * minute left, may record. Without the plan reader (unit wiring) no plan is required.
+   */
+  private async requireRecordingMinutes(
+    tx: TransactionContext,
+    userId: string,
+    now: Date,
+  ) {
+    if (!this.plans) return null;
+    const allowance = await this.plans.recordingAllowance(tx, userId, now);
+    if (!allowance) throw new ForbiddenException("RECORDING_PLAN_REQUIRED");
+    if (allowance.remainingMinutes < 1)
+      throw new ConflictException("RECORDING_MINUTES_EXHAUSTED");
+    return allowance;
+  }
+
   private requirePermission(actor: Principal) {
     if (!actor.permissions.includes(RECORDING_PERMISSION))
       throw new ForbiddenException("SESSION_ACCESS_DENIED");
@@ -611,6 +649,7 @@ export class SessionRecordingService {
       durationMs: toNumber(row.durationMs),
       bytes: toNumber(row.bytes),
       stopReason: row.stopReason,
+      retentionDays: row.retentionDays,
       expiresAt,
       heldByReport: held,
       deletedAt: row.deletedAt,

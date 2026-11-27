@@ -37,6 +37,9 @@ const eventChannels: Record<string, readonly NotificationChannelCode[]> = {
   "material.review.hidden": ["IN_APP", "EMAIL", "PUSH"],
   "material.review.restored": ["IN_APP", "EMAIL", "PUSH"],
   "learning-request.rejected": ["IN_APP", "EMAIL", "PUSH"],
+  // Spec 021: a failed renewal and an ended plan reach the user on every enabled channel.
+  "subscription.grace-started": ["IN_APP", "EMAIL", "PUSH"],
+  "subscription.expired": ["IN_APP", "EMAIL", "PUSH"],
 };
 
 /** NOTIFICATION_CHANNELS is a comma list of channel codes; in-app only by default. */

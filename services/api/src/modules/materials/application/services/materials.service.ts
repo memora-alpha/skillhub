@@ -33,7 +33,9 @@ import {
   ContentModerationService,
   requireAllowed,
 } from "../../../content-moderation/application/content-moderation.service";
+import { SubscriptionEntitlementsReader } from "../../../subscriptions/application/services/subscription-entitlements.reader";
 import { MaterialThumbnailsService } from "./material-thumbnails.service";
+import { assertMaterialStorage } from "./material-storage";
 import {
   materialFilterScope,
   materialListWhere,
@@ -78,6 +80,7 @@ export class MaterialsService {
     private readonly thumbnails: MaterialThumbnailsService,
     private readonly moderation?: ContentModerationService,
     private readonly fileModeration?: FileContentModeration,
+    private readonly plans?: SubscriptionEntitlementsReader,
   ) {}
 
   // Public methods that validate before the transaction are async so every
@@ -489,6 +492,12 @@ export class MaterialsService {
       id: materialId,
       purpose: "MATERIAL",
     });
+    await this.assertStorage(
+      tx,
+      principal.userId,
+      materialId,
+      BigInt(file.size),
+    );
     return {
       storageKey: file.key,
       originalFilename: file.originalName,
@@ -498,6 +507,31 @@ export class MaterialsService {
       scanStatus: "CLEAN",
       uploadedAt: file.uploadedAt,
     };
+  }
+
+  /**
+   * Spec 021 D9: runs after the upload is bound, in the same transaction, so a refusal rolls
+   * the binding back and the upload stays attachable once space is freed.
+   */
+  private async assertStorage(
+    tx: TransactionContext,
+    ownerId: string,
+    materialId: string,
+    sizeBytes: bigint,
+  ) {
+    if (!this.plans) return;
+    const allowedBytes = await this.plans.materialStorageAllowance(
+      tx,
+      ownerId,
+      new Date(),
+    );
+    if (allowedBytes === null) return;
+    await assertMaterialStorage(tx, {
+      ownerId,
+      materialId,
+      sizeBytes,
+      allowedBytes,
+    });
   }
 
   private async attachCover(

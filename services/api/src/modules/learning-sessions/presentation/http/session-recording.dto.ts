@@ -55,9 +55,17 @@ export class SessionRecordingResponse {
   stopReason!: string | null;
 
   @ApiPropertyOptional({
+    type: Number,
+    nullable: true,
+    description:
+      "Days kept after the Session ends: the requester's plan snapshot taken when the recording started. In the list, recordings without one show recording.retentionDays.",
+  })
+  retentionDays!: number | null;
+
+  @ApiPropertyOptional({
     ...nullableDate,
     description:
-      "READY recordings only: endAt + recording.retentionDays. An open report keeps the recording past it (heldByReport).",
+      "READY recordings only: endAt + retentionDays. An open report keeps the recording past it (heldByReport).",
   })
   expiresAt!: Date | null;
 

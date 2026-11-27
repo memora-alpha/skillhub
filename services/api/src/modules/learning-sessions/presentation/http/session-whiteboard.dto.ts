@@ -39,6 +39,14 @@ export class SessionWhiteboardResponse {
   @ApiPropertyOptional({ type: String, format: "uuid", nullable: true })
   updatedByUserId!: string | null;
 
+  @ApiPropertyOptional({
+    type: Number,
+    nullable: true,
+    description:
+      "Days the board is kept after the Session ends: the longer of its participants' plan snapshot and whiteboard.retentionDays. Null before the Session ends or when no board exists",
+  })
+  retentionDays!: number | null;
+
   @ApiProperty({
     description:
       "True outside the caller's edit window (whiteboard.editWindow) or when the Session is cancelled, disputed or otherwise frozen",

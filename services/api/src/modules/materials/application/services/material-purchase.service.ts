@@ -34,6 +34,8 @@ import {
   requirePermission,
   roleCodes,
 } from "./material-support";
+import { effectiveFeePolicy } from "../../../credit/application/services/fee-policy.reader";
+import { SubscriptionEntitlementsReader } from "../../../subscriptions/application/services/subscription-entitlements.reader";
 
 @Injectable()
 export class MaterialPurchaseService {
@@ -42,6 +44,7 @@ export class MaterialPurchaseService {
     private readonly credit: CreditOperationsService,
     private readonly audit: AuditWriter,
     private readonly idempotency: IdempotencyService,
+    private readonly feeTiers?: SubscriptionEntitlementsReader,
   ) {}
 
   /**
@@ -87,7 +90,11 @@ export class MaterialPurchaseService {
         if (owned?.status === "ACTIVE" && owned.sourceOrderIdRecord)
           return { id: owned.sourceOrderIdRecord.id, status: "EXISTING" };
         assertPurchasable(material, principal.userId, expectedListingVersion);
-        const policy = await activeFeePolicy(tx);
+        const policy = await activeFeePolicy(
+          tx,
+          material.ownerId,
+          this.feeTiers,
+        );
         const { fee, net } = materialFee(material.priceCredit, policy.feeBps);
         const orderId = randomUUID();
         const { operationId } = await this.credit.purchaseMaterial(tx, {
@@ -565,22 +572,25 @@ function refundEligibilityView(
   };
 }
 
-/** BR-44: PAID purchase stays locked until an APPROVED, effective policy exists. */
-async function activeFeePolicy(tx: TransactionContext) {
+/**
+ * BR-44: PAID purchase stays locked until an APPROVED, effective policy exists.
+ * Spec 021 D8: the seller's plan tier at purchase time selects the tier series, with the
+ * base MATERIAL_PAID series as fallback.
+ */
+async function activeFeePolicy(
+  tx: TransactionContext,
+  sellerId: string,
+  feeTiers: SubscriptionEntitlementsReader | undefined,
+) {
   const [clock] = await tx.$queryRaw<
     { now: Date }[]
   >`SELECT CURRENT_TIMESTAMP AS now`;
   if (!(clock?.now instanceof Date))
     throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
-  const policy = await tx.feePolicyVersion.findFirst({
-    where: {
-      policyCode: "MATERIAL_PAID",
-      status: "APPROVED",
-      approvedAt: { not: null },
-      effectiveAt: { lte: clock.now },
-    },
-    orderBy: [{ effectiveAt: "desc" }, { versionNo: "desc" }],
-  });
+  const tier = feeTiers
+    ? await feeTiers.feeTier(tx, sellerId, clock.now)
+    : null;
+  const policy = await effectiveFeePolicy(tx, "MATERIAL_PAID", tier, clock.now);
   const rounding = policy?.roundingRule as {
     mode?: unknown;
     precision?: unknown;

@@ -12,6 +12,7 @@ import { SKILL_PERMISSIONS } from "../../../skills/domain/skill-policy";
 import { TAG_PERMISSIONS } from "../../../skills/domain/tag-policy";
 import { MATERIAL_PERMISSIONS } from "../../../materials/domain/material.policy";
 import { REWARD_PERMISSIONS } from "../../../rewards/domain/reward.permissions";
+import { SUBSCRIPTION_PERMISSIONS } from "../../../subscriptions/domain/subscription.permissions";
 import type { PermissionCode } from "../../../../shared/authorization/permission.catalog";
 @Injectable()
 export class PrismaUsersRepository extends UsersRepository {
@@ -335,6 +336,7 @@ export class PrismaUsersRepository extends UsersRepository {
         ...Object.values(TAG_PERMISSIONS).flat(),
         ...Object.values(MATERIAL_PERMISSIONS).flat(),
         ...Object.values(REWARD_PERMISSIONS).flat(),
+        ...Object.values(SUBSCRIPTION_PERMISSIONS).flat(),
       ]),
     ];
     await tx.permission.createMany({
@@ -396,6 +398,13 @@ export class PrismaUsersRepository extends UsersRepository {
           roleCode: roleCode as RoleCode,
           permissionCode,
         })),
+      ),
+      ...Object.entries(SUBSCRIPTION_PERMISSIONS).flatMap(
+        ([roleCode, grants]) =>
+          grants.map((permissionCode) => ({
+            roleCode: roleCode as RoleCode,
+            permissionCode,
+          })),
       ),
     ];
     await tx.rolePermission.createMany({

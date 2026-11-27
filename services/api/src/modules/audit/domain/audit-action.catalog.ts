@@ -61,6 +61,16 @@ export const AUDIT_ACTIONS = [
   "VOUCHER_REVEAL",
   "VOUCHER_RESOLVE",
   "REWARD_PRODUCT_UPDATE",
+  "SUBSCRIPTION_PURCHASE",
+  "SUBSCRIPTION_UPGRADE",
+  "SUBSCRIPTION_UPDATE",
+  "SUBSCRIPTION_RENEW",
+  "SUBSCRIPTION_GRACE",
+  "SUBSCRIPTION_EXPIRE",
+  "SUBSCRIPTION_RECORDING_ADDON",
+  "SUBSCRIPTION_PLAN_CREATE",
+  "SUBSCRIPTION_PLAN_APPROVE",
+  "SUBSCRIPTION_PLAN_RETIRE",
   "ADMIN_WORK_ITEM_READ",
   "ADMIN_LEARNING_PATH_READ",
 ] as const;
@@ -258,6 +268,41 @@ const rewardProduct = z.strictObject({
   priceVersion: z.number().int().positive(),
   status: z.enum(["ACTIVE", "INACTIVE", "REMOVED"]),
 });
+// Spec 021: subscription and plan-version projections; amounts are Credit hundredths.
+const planCode = z.enum(["CREATOR", "PRO"]);
+const interval = z.enum(["MONTH", "YEAR"]);
+const subscription = z.strictObject({
+  planCode,
+  planVersionId: uuid,
+  interval,
+  status: z.enum(["ACTIVE", "GRACE", "EXPIRED"]),
+  autoRenew: z.boolean(),
+  termEnd: z.iso.datetime({ precision: 3 }),
+  scheduledPlanCode: planCode.nullable(),
+  scheduledInterval: interval.nullable(),
+  version: z.number().int().positive(),
+  chargeAmount: z
+    .string()
+    .regex(/^[1-9]\d*$/)
+    .nullable(),
+  operationId: uuid.nullable(),
+});
+const subscriptionAddon = z.strictObject({
+  planCode,
+  packs: z.number().int().positive(),
+  minutes: z.number().int().positive(),
+  addonMinutesRemaining: z.number().int().nonnegative(),
+  chargeAmount: z.string().regex(/^[1-9]\d*$/),
+  operationId: uuid,
+});
+const subscriptionPlan = z.strictObject({
+  planCode,
+  versionNo: z.number().int().positive(),
+  status: z.enum(["DRAFT", "APPROVED", "RETIRED"]),
+  monthPrice: z.string().regex(/^[1-9]\d*$/),
+  yearPrice: z.string().regex(/^[1-9]\d*$/),
+  effectiveAt: z.iso.datetime({ precision: 3 }).nullable(),
+});
 const materialReview = z.strictObject({
   materialId: uuid,
   rating: z.number().int().min(1).max(5),
@@ -373,6 +418,16 @@ const projectionByAction: Record<
   VOUCHER_REVEAL: voucherRedemption,
   VOUCHER_RESOLVE: voucherRedemption,
   REWARD_PRODUCT_UPDATE: rewardProduct,
+  SUBSCRIPTION_PURCHASE: subscription,
+  SUBSCRIPTION_UPGRADE: subscription,
+  SUBSCRIPTION_UPDATE: subscription,
+  SUBSCRIPTION_RENEW: subscription,
+  SUBSCRIPTION_GRACE: subscription,
+  SUBSCRIPTION_EXPIRE: subscription,
+  SUBSCRIPTION_RECORDING_ADDON: subscriptionAddon,
+  SUBSCRIPTION_PLAN_CREATE: subscriptionPlan,
+  SUBSCRIPTION_PLAN_APPROVE: subscriptionPlan,
+  SUBSCRIPTION_PLAN_RETIRE: subscriptionPlan,
   ADMIN_WORK_ITEM_READ: adminDetailRead,
   ADMIN_LEARNING_PATH_READ: adminDetailRead,
 };

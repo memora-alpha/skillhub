@@ -70,5 +70,10 @@ collaboration state between the two participants of a Session.
     retries the page.
   - After deletion, `GET` returns `revision 0` and `sceneData null`, still read-only. Deletion writes no audit entry,
     only a log count.
+  - **Amendment (spec 021 D10, implemented):** each save raises the board's `retention_days` snapshot to the
+    longest paid plan of its two participants at that moment (Creator 180, Pro 365 by default). It never decreases
+    and stops changing when the edit window closes. Free adds nothing: `whiteboard.retentionDays` is the Free value
+    and the floor, so the worker deletes a board `max(snapshot, config)` days after `endAt`, and rows without a
+    snapshot use the config value. The open-report hold is unchanged. See [spec 021](../021-subscriptions/spec.md).
 - P4 (D7, decided): There is no moderation in the first release. The fallback is a Session report together with P2.
 - Recording stays out of scope until the SRS is amended.

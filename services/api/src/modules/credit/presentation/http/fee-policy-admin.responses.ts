@@ -1,7 +1,8 @@
+import { FEE_POLICY_CODES } from "../../domain/fee-policy-codes";
 import { ApiProperty } from "@nestjs/swagger";
 export class FeePolicyResponse {
   @ApiProperty({ format: "uuid" }) id!: string;
-  @ApiProperty({ enum: ["ONE_WAY", "TWO_WAY", "MATERIAL_PAID"] })
+  @ApiProperty({ enum: FEE_POLICY_CODES })
   policyCode!: string;
   @ApiProperty() versionNo!: number;
   @ApiProperty({ type: Object }) calculationRule!: unknown;
