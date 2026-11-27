@@ -398,3 +398,51 @@ test("a plan without add-ons refuses the sale", async () => {
     "RECORDING_ADDON_NOT_ALLOWED",
   );
 });
+
+// --- Upgrade mid-period ---
+
+async function upgradeToPro(ctx) {
+  ctx.clock.now = new Date(START.getTime() + 15 * DAY);
+  const quote = await ctx.service.upgradeQuote(self(U), "PRO");
+  return ctx.service.upgrade(
+    self(U),
+    {
+      planCode: "PRO",
+      expectedPlanVersionId: quote.planVersionId,
+      expectedAmount: 10_000n,
+      expectedVersion: quote.version,
+    },
+    "upgrade-key-1",
+  );
+}
+
+test("an upgrade raises the current period's allowance and keeps minutes used", async () => {
+  const ctx = addonSetup();
+  await buy(ctx, "CREATOR");
+  const subscription = ctx.db.rows("userSubscription")[0];
+  ctx.db.seed("subscriptionUsage", {
+    subscriptionId: subscription.id,
+    periodStart: subscription.termStart,
+    recordingMinutesAllowed: 120,
+    recordingMinutesUsed: 100,
+    addonMinutesRemaining: 60,
+  });
+  const upgraded = await upgradeToPro(ctx);
+  assert.equal(upgraded.usage.recordingMinutesAllowed, 400);
+  assert.equal(upgraded.usage.recordingMinutesUsed, 100);
+  assert.equal(upgraded.usage.addonMinutesRemaining, 60);
+  const allowance = await ctx.reader.recordingAllowance(
+    ctx.db,
+    U,
+    ctx.clock.now,
+  );
+  assert.equal(allowance.remainingMinutes, 300 + 60);
+});
+
+test("an upgrade before any usage row starts the period at the new allowance", async () => {
+  const ctx = addonSetup();
+  await buy(ctx, "CREATOR");
+  const upgraded = await upgradeToPro(ctx);
+  assert.equal(upgraded.usage.recordingMinutesAllowed, 400);
+  assert.equal(ctx.db.rows("subscriptionUsage").length, 0);
+});

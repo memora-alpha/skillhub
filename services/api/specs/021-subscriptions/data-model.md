@@ -89,14 +89,14 @@ Index: `(userId, createdAt desc, id desc)`.
 
 ## SubscriptionUsage — `subscription_usage`
 
-| Field                   | Type           | Notes                                |
-| ----------------------- | -------------- | ------------------------------------ |
-| subscriptionId          | uuid PK/FK     |                                      |
-| periodStart             | timestamptz PK |                                      |
-| recordingMinutesAllowed | int            | snapshot of the plan at period start |
-| recordingMinutesUsed    | int            | `>= 0`, period minutes, <= allowed   |
-| addonMinutesRemaining   | int            | `>= 0`; purchased packs for the term |
-| updatedAt               | timestamptz    |                                      |
+| Field                   | Type           | Notes                                 |
+| ----------------------- | -------------- | ------------------------------------- |
+| subscriptionId          | uuid PK/FK     |                                       |
+| periodStart             | timestamptz PK |                                       |
+| recordingMinutesAllowed | int            | plan value; raised at once by upgrade |
+| recordingMinutesUsed    | int            | `>= 0`, period minutes, <= allowed    |
+| addonMinutesRemaining   | int            | `>= 0`; purchased packs for the term  |
+| updatedAt               | timestamptz    |                                       |
 
 Add-on minutes carry across periods inside a term: the next period row copies `addonMinutesRemaining`.
 A recording spends period minutes first (`recordingMinutesUsed`), then add-on minutes

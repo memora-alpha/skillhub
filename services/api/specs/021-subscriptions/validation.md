@@ -115,8 +115,8 @@ Design notes:
   `charged_minutes IS NULL` update is a second guard that rolls the charge back.
 - A recording snapshot replaces `recording.retentionDays` even when shorter (Creator 30 vs config 90), unlike
   the whiteboard floor. The sweep therefore bounds snapshot rows by the 1-day minimum and checks each row.
-- Usage allowance is the plan value when the period row is created. An upgrade mid-period does not raise it
-  until the next period (data model "snapshot of the plan at period start"); flagged for product review.
+- Usage allowance is the plan value when the period row is created. Resolved later the same day: an
+  upgrade raises the current period's allowance at once (see "Upgrade allowance" below).
 - `subscription.policy.raisedRetentionDays` from Phase 1 was unused after Phase 5 and was removed.
 
 Not covered: real PostgreSQL concurrency between an `egress_ended` charge and an add-on purchase (both take the
@@ -181,9 +181,19 @@ Notes:
   (the check dropped its main schema but not the one a v3 migration creates). They hold no spec data and
   can be dropped by the developer.
 
+## Upgrade allowance (2026-11-27)
+
+Decision: an upgrade raises the current period's recording allowance to the new plan at once, because
+the prorated price pays for the rest of the term. Minutes used and add-on minutes are unchanged; a
+downgrade still waits for renewal, so an allowance never falls inside a period.
+
+| Check                                                | Result                                                                                                           |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `test/subscriptions/recording-minutes.test.mjs`      | 2 new tests pass: stored period 100/120 + 60 add-on becomes 100/400 + 60 (360 left); no stored row starts at 400 |
+| `lint`, `check-types`, `build`, `test:subscriptions` | Pass                                                                                                             |
+
 ## Pending
 
 - Product gates before `subscription.enabled` goes on in production: G3 (plan values), G4 (SRS
   amendment), G5 (Q3/Q4 defaults used by Phase 7), G6 (LiveKit Egress quote).
-- Product question: whether an upgrade mid-period should raise the current period's recording allowance.
 - Real production-like run of the release pipeline (`scripts/release.mjs`) on a staging database.

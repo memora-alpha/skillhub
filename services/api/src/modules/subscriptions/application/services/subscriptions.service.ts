@@ -335,6 +335,7 @@ export class SubscriptionsService {
             version: { increment: 1 },
           },
         });
+        await this.raisePeriodAllowance(tx, row, target, now);
         if (charge)
           await this.recordCharge(tx, charge, {
             subscriptionId: row.id,
@@ -357,6 +358,30 @@ export class SubscriptionsService {
       },
     );
     return this.me(principal);
+  }
+
+  /**
+   * An upgrade is paid for the rest of the term, so the current period's recording allowance
+   * rises to the new plan at once; minutes already used stay used. A period without a stored
+   * row needs nothing: it starts from the subscription's (now upgraded) plan version. Downgrades
+   * apply at renewal, so an allowance never decreases inside a period.
+   */
+  private async raisePeriodAllowance(
+    tx: TransactionContext,
+    row: UserSubscription,
+    target: SubscriptionPlanVersion,
+    now: Date,
+  ) {
+    const allowed = versionEntitlements(target).recordingMinutesPerPeriod;
+    const period = usagePeriod(row.termStart, row.termEnd, now);
+    await tx.subscriptionUsage.updateMany({
+      where: {
+        subscriptionId: row.id,
+        periodStart: period.start,
+        recordingMinutesAllowed: { lt: allowed },
+      },
+      data: { recordingMinutesAllowed: allowed },
+    });
   }
 
   /**
