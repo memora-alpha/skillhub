@@ -1,8 +1,12 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useNavigationDrawer } from "@/components/use-navigation-drawer";
+import {
+  useCollapsibleNavGroups,
+  type CollapsibleNavGroupConfig,
+} from "@/components/use-collapsible-nav-groups";
 import { useQueryClient, type Query } from "@tanstack/react-query";
 import { eventAffectsResource } from "../api/events";
 import { createLearnerEventConnection } from "../api/live-events";
@@ -26,42 +30,54 @@ function queryAffected(
   );
 }
 
+function isActiveNavLink(pathname: string, href: string) {
+  return (
+    pathname === href || (href !== "/learn" && pathname.startsWith(href + "/"))
+  );
+}
+
+const pinnedHome = ["/learn", "Tổng quan", "home"] as const;
+
 const navSections = [
   {
-    title: "Không gian học",
+    id: "discover",
+    title: "Kết nối & Trao đổi",
+    defaultOpen: true,
     items: [
-      ["/learn", "Tổng quan", "home"],
       ["/learn/explore", "Khám phá", "search"],
       ["/learn/connections", "Đề nghị học tập", "users"],
       ["/learn/messages", "Tin nhắn", "chat"],
     ],
   },
   {
+    id: "learning",
     title: "Học & Dạy 1:1",
+    defaultOpen: true,
     items: [
       ["/learn/paths", "Lộ trình học", "book"],
       ["/learn/calendar", "Lịch học", "calendar"],
       ["/learn/materials", "Kho tài liệu", "file"],
-    ],
-  },
-  {
-    title: "Hồ sơ & Uy tín",
-    items: [
       ["/learn/skills", "Kỹ năng của tôi", "check"],
-      ["/learn/reputation", "Điểm uy tín", "shield"],
-      ["/learn/achievements", "Thành tích", "award"],
     ],
   },
   {
+    id: "billing-support",
     title: "Ví & Hỗ trợ",
+    defaultOpen: false,
     items: [
       ["/learn/wallet", "Ví Credit", "wallet"],
+      ["/learn/subscription", "Gói thành viên", "star"],
       ["/learn/vouchers", "Voucher & phần thưởng", "award"],
-      ["/learn/reviews", "Đánh giá của tôi", "star"],
       ["/learn/reports", "Báo cáo & hỗ trợ", "filter"],
     ],
   },
 ] as const;
+
+const learnerNavGroupConfigs: readonly CollapsibleNavGroupConfig[] =
+  navSections.map((section) => ({
+    id: section.id,
+    defaultOpen: section.defaultOpen,
+  }));
 
 export function LearnerShell({
   children,
@@ -146,8 +162,20 @@ export function LearnerShell({
     };
   }, [request, refresh, cache, actor.userId]);
 
+  const navIdPrefix = useId();
+  const activeSectionId = navSections.find((section) =>
+    section.items.some(([href]) => isActiveNavLink(pathname, href)),
+  )?.id;
+  const { isExpanded, toggle } = useCollapsibleNavGroups({
+    storageKey: "skillhub:sidebar:learner",
+    groups: learnerNavGroupConfigs,
+    activeGroupId: activeSectionId,
+    pathname,
+  });
+
   const Sidebar = open ? "dialog" : "aside";
   const hasHeld = wallet.data && Number(wallet.data.heldCredit) > 0;
+  const [homeHref, homeLabel, homeIcon] = pinnedHome;
   return (
     <div className="learner-root workspace">
       <a className="product-skip" href="#learning-content" inert={open}>
@@ -197,27 +225,78 @@ export function LearnerShell({
           </button>
         </div>
         <nav aria-label="Điều hướng học tập">
-          {navSections.map((section) => (
-            <div className="nav-section" key={section.title}>
-              <span className="nav-section-title">{section.title}</span>
-              {section.items.map(([href, label, icon]) => (
-                <Link
-                  key={href}
-                  href={href}
-                  onClick={() => close(false)}
-                  aria-current={
-                    pathname === href ||
-                    (href !== "/learn" && pathname.startsWith(href + "/"))
-                      ? "page"
-                      : undefined
-                  }
+          <div className="nav-pinned">
+            <Link
+              href={homeHref}
+              onClick={() => close(false)}
+              aria-current={
+                isActiveNavLink(pathname, homeHref) ? "page" : undefined
+              }
+            >
+              <ProductIcon name={homeIcon} size={18} />
+              <span>{homeLabel}</span>
+            </Link>
+          </div>
+          {navSections.map((section) => {
+            const expanded = isExpanded(section.id);
+            const hasActive = activeSectionId === section.id;
+            const panelId = `${navIdPrefix}-${section.id}`;
+            return (
+              <div
+                className="nav-section"
+                key={section.id}
+                data-expanded={expanded}
+                data-has-active={hasActive || undefined}
+              >
+                <button
+                  type="button"
+                  className="nav-section-toggle"
+                  aria-expanded={expanded}
+                  aria-controls={panelId}
+                  onClick={() => toggle(section.id)}
                 >
-                  <ProductIcon name={icon} size={18} />
-                  <span>{label}</span>
-                </Link>
-              ))}
-            </div>
-          ))}
+                  <span className="nav-section-label">
+                    {section.title}
+                    {!expanded && hasActive && (
+                      <span className="nav-section-dot" aria-hidden="true" />
+                    )}
+                  </span>
+                  <span className="nav-section-meta" aria-hidden="true">
+                    {!expanded && (
+                      <span className="nav-section-count">
+                        {section.items.length}
+                      </span>
+                    )}
+                    <span className="nav-section-chevron">
+                      <ProductIcon name="chevron" size={14} />
+                    </span>
+                  </span>
+                </button>
+                <div
+                  id={panelId}
+                  className="nav-section-panel"
+                  data-open={expanded}
+                  inert={!expanded}
+                >
+                  <div className="nav-section-items">
+                    {section.items.map(([href, label, icon]) => (
+                      <Link
+                        key={href}
+                        href={href}
+                        onClick={() => close(false)}
+                        aria-current={
+                          isActiveNavLink(pathname, href) ? "page" : undefined
+                        }
+                      >
+                        <ProductIcon name={icon} size={18} />
+                        <span>{label}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </nav>
         {actor.roles.includes("STAFF") && (
           <div className="sidebar-footer">
@@ -270,6 +349,11 @@ export function LearnerShell({
                 className="header-reputation"
                 href="/learn/reputation"
                 data-low={reputationScore < 40}
+                aria-current={
+                  isActiveNavLink(pathname, "/learn/reputation")
+                    ? "page"
+                    : undefined
+                }
                 aria-label={`Điểm uy tín: ${reputationScore} trên 100`}
               >
                 <ProductIcon name="shield" size={18} />
@@ -284,6 +368,9 @@ export function LearnerShell({
             <Link
               className="header-wallet"
               href="/learn/wallet"
+              aria-current={
+                isActiveNavLink(pathname, "/learn/wallet") ? "page" : undefined
+              }
               aria-label={
                 wallet.data
                   ? "Ví Credit: " + wallet.data.availableCredit + " CR khả dụng"

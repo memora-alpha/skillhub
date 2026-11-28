@@ -28,6 +28,8 @@ export function notificationDestination(payload: unknown) {
   ] as const) {
     if (typeof p[key] === "string" && uuid.test(p[key])) return prefix + p[key];
   }
+  if (typeof p.subscriptionId === "string" && uuid.test(p.subscriptionId))
+    return "/learn/subscription";
   if (typeof p.paymentId === "string" && uuid.test(p.paymentId))
     return "/learn/wallet/topup?paymentId=" + p.paymentId;
   if (typeof p.feePolicyId === "string" && uuid.test(p.feePolicyId))

@@ -5,6 +5,7 @@ import { formText } from "../components/form-data";
 import { useUserSession } from "../auth/session";
 import { useUserCommand } from "../hooks/use-user-command";
 import { CommandFeedback } from "../components/common";
+import { ProductIcon } from "../components/product-icon";
 import { UserApiError } from "../api/client";
 import type { LearningSession } from "../types";
 import styles from "./session-detail.module.css";
@@ -27,6 +28,7 @@ export function SessionCompletionActions({
   const [decisionNote, setDecisionNote] = useState("");
   const allowed = session.allowedActions ?? [];
   const disabled = blocked || command.pending || command.uncertain;
+
   return (
     <div className={styles.forms}>
       {allowed.includes("CONFIRM_COMPLETION") && (
@@ -58,15 +60,20 @@ export function SessionCompletionActions({
           }}
         >
           <label>
-            Ghi chú hoàn thành (không bắt buộc)
+            <span>Ghi chú hoàn thành (không bắt buộc)</span>
             <textarea
               maxLength={1000}
+              placeholder="Ghi lại nội dung đã hoàn thành hoặc lưu ý cho buổi tiếp theo…"
               value={completionNote}
               disabled={disabled}
               onChange={(event) => setCompletionNote(event.target.value)}
             />
           </label>
-          <label className={styles.checkbox}>
+          <label
+            className={
+              styles.checkbox + (confirm ? ` ${styles.checkboxChecked}` : "")
+            }
+          >
             <input
               type="checkbox"
               checked={confirm}
@@ -81,10 +88,12 @@ export function SessionCompletionActions({
             disabled={!confirm || disabled}
             loading={!!command.pending}
           >
+            <ProductIcon name="check" size={16} />
             {command.pending ? "Đang xác nhận…" : "Xác nhận đã học"}
           </LoadingButton>
         </form>
       )}
+
       {session.excuse && (
         <div className={styles.inset}>
           <strong>Lý do vắng học</strong>
@@ -92,6 +101,7 @@ export function SessionCompletionActions({
           <span>{excuseLabels[session.excuse.status] ?? "Đang cập nhật"}</span>
         </div>
       )}
+
       {allowed.includes("SUBMIT_EXCUSE") && (
         <form
           className="learner-form"
@@ -117,6 +127,7 @@ export function SessionCompletionActions({
               maxLength={1000}
               required
               disabled={disabled}
+              placeholder="Trình bày rõ lý do vắng học để đối tác xem xét…"
               rows={4}
             />
           </label>
@@ -126,47 +137,53 @@ export function SessionCompletionActions({
             disabled={disabled}
             loading={!!command.pending}
           >
+            <ProductIcon name="send" size={15} />
             {command.pending ? "Đang gửi…" : "Gửi giải trình"}
           </LoadingButton>
         </form>
       )}
+
       {allowed.includes("DECIDE_EXCUSE") && (
         <div className={styles.decisions}>
           <label>
-            Ghi chú quyết định (không bắt buộc)
+            <span>Ghi chú quyết định (không bắt buộc)</span>
             <textarea
               maxLength={1000}
+              placeholder="Thêm phản hồi ngắn cho đối tác nếu cần…"
               value={decisionNote}
               disabled={disabled}
               onChange={(event) => setDecisionNote(event.target.value)}
             />
           </label>
-          {[true, false].map((accept) => (
-            <LoadingButton
-              type="button"
-              className={accept ? "btn btn-primary" : "btn"}
-              key={String(accept)}
-              disabled={disabled}
-              onClick={() => {
-                void command.run(
-                  "decide:" + session.id + ":" + accept + ":" + decisionNote,
-                  () =>
-                    request(
-                      "sessions/" + session.id + "/absence-excuse/decision",
-                      {
-                        method: "POST",
-                        body: { accept, note: decisionNote.trim() },
-                      },
-                    ),
-                );
-              }}
-              loading={!!command.pending}
-            >
-              {accept ? "Chấp nhận và học bù" : "Không chấp nhận lý do"}
-            </LoadingButton>
-          ))}
+          <div className={styles.decisionButtons}>
+            {[true, false].map((accept) => (
+              <LoadingButton
+                type="button"
+                className={accept ? "btn btn-primary" : "btn"}
+                key={String(accept)}
+                disabled={disabled}
+                onClick={() => {
+                  void command.run(
+                    "decide:" + session.id + ":" + accept + ":" + decisionNote,
+                    () =>
+                      request(
+                        "sessions/" + session.id + "/absence-excuse/decision",
+                        {
+                          method: "POST",
+                          body: { accept, note: decisionNote.trim() },
+                        },
+                      ),
+                  );
+                }}
+                loading={!!command.pending}
+              >
+                {accept ? "Chấp nhận và học bù" : "Không chấp nhận lý do"}
+              </LoadingButton>
+            ))}
+          </div>
         </div>
       )}
+
       <CommandFeedback command={command} />
     </div>
   );

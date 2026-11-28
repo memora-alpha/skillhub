@@ -1,14 +1,15 @@
 "use client";
 import { LoadingButton } from "@/components/loading-button";
 import { formText } from "../components/form-data";
-
 import { useState } from "react";
 import type { LearningPath, LearningSession } from "../types";
 import { useUserSession } from "../auth/session";
 import { useUserCommand } from "../hooks/use-user-command";
 import { CommandFeedback, formatTime } from "../components/common";
+import { ProductIcon } from "../components/product-icon";
 import { vietnamInstant } from "./session-policy";
 import styles from "./session-detail.module.css";
+
 export function SessionReschedule({
   session,
   path,
@@ -18,13 +19,15 @@ export function SessionReschedule({
   path: LearningPath;
   disabled?: boolean;
 }>) {
-  const { request, actor } = useUserSession(),
-    command = useUserCommand(),
-    [error, setError] = useState<string>(),
-    [revising, setRevising] = useState(false);
+  const { request, actor } = useUserSession();
+  const command = useUserCommand();
+  const [error, setError] = useState<string>();
+  const [revising, setRevising] = useState(false);
+
   const schedule = path.plans.find(
     (plan) => plan.id === session.planId,
   )?.schedule;
+
   if (schedule?.appliedVersion == null)
     return (
       <p className="learner-notice">
@@ -32,15 +35,16 @@ export function SessionReschedule({
         tác.
       </p>
     );
-  const pending = schedule.version > schedule.appliedVersion,
-    ownConfirmed =
-      actor.userId === path.participantAId
-        ? schedule.participantAConfirmedAt
-        : schedule.participantBConfirmedAt,
-    partnerConfirmed =
-      actor.userId === path.participantAId
-        ? schedule.participantBConfirmedAt
-        : schedule.participantAConfirmedAt;
+
+  const pending = schedule.version > schedule.appliedVersion;
+  const ownConfirmed =
+    actor.userId === path.participantAId
+      ? schedule.participantAConfirmedAt
+      : schedule.participantBConfirmedAt;
+  const partnerConfirmed =
+    actor.userId === path.participantAId
+      ? schedule.participantBConfirmedAt
+      : schedule.participantAConfirmedAt;
   const makeup = session.status === "MAKEUP_REQUIRED";
   const blocked =
     disabled ||
@@ -53,6 +57,7 @@ export function SessionReschedule({
     path.plans
       .find((plan) => plan.id === session.planId)
       ?.sessions.find((item) => item.id === session.id)?.sessionNo;
+
   function checkDeadline() {
     if (
       makeup &&
@@ -63,6 +68,7 @@ export function SessionReschedule({
         "Đã hết hạn chốt lịch học bù. Tải lại buổi học để xem hướng xử lý.",
       );
   }
+
   function confirmationMessage() {
     if (ownConfirmed && partnerConfirmed) {
       return "Hai bên đã xác nhận. Đang chờ máy chủ áp dụng lịch mới.";
@@ -72,24 +78,19 @@ export function SessionReschedule({
     }
     return "Bạn cần xác nhận phiên bản lịch này, kể cả khi bạn là người gửi đề xuất.";
   }
+
   function confirmationLabel() {
-    if (ownConfirmed) {
-      return "Đã xác nhận · chờ đối tác";
-    }
-    if (command.pending) {
-      return "Đang xác nhận…";
-    }
+    if (ownConfirmed) return "Đã xác nhận · chờ đối tác";
+    if (command.pending) return "Đang xác nhận…";
     return "Xác nhận lịch đề xuất";
   }
+
   function proposalLabel() {
-    if (command.pending) {
-      return "Đang gửi đề xuất…";
-    }
-    if (makeup) {
-      return "Gửi đề xuất lịch học bù";
-    }
+    if (command.pending) return "Đang gửi đề xuất…";
+    if (makeup) return "Gửi đề xuất lịch học bù";
     return "Gửi đề nghị lịch mới";
   }
+
   return (
     <div className="learner-stack">
       {pending && !revising ? (
@@ -101,71 +102,99 @@ export function SessionReschedule({
               thời gian trước khi đồng ý.
             </p>
             <ul className={styles.proposedTimes}>
-              {schedule.items.map((item) => (
-                <li key={item.sessionNo}>
-                  <strong>
-                    Buổi {item.sessionNo}
-                    {item.sessionNo === sessionNo ? " · Buổi đang xem" : ""}
-                  </strong>
-                  <span>
-                    {formatTime(item.startAt)} – {formatTime(item.endAt)}
-                  </span>
-                </li>
-              ))}
+              {schedule.items.map((item) => {
+                const isCurrent = item.sessionNo === sessionNo;
+                return (
+                  <li
+                    key={item.sessionNo}
+                    className={
+                      styles.proposedTimeRow +
+                      (isCurrent ? ` ${styles.proposedTimeCurrent}` : "")
+                    }
+                  >
+                    <strong>
+                      Buổi {item.sessionNo}
+                      {isCurrent && (
+                        <span className={styles.selfTag}>Đang xem</span>
+                      )}
+                    </strong>
+                    <span>
+                      {formatTime(item.startAt)} – {formatTime(item.endAt)}
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           </div>
+
           <dl
             className={styles.confirmations}
             aria-label="Tiến trình xác nhận lịch mới"
           >
-            <div>
+            <div
+              className={
+                styles.confirmTile +
+                (ownConfirmed ? ` ${styles.confirmTileDone}` : "")
+              }
+            >
               <dt>Bạn</dt>
               <dd>{ownConfirmed ? "Đã xác nhận" : "Chưa xác nhận"}</dd>
             </div>
-            <div>
+            <div
+              className={
+                styles.confirmTile +
+                (partnerConfirmed ? ` ${styles.confirmTileDone}` : "")
+              }
+            >
               <dt>Đối tác</dt>
               <dd>{partnerConfirmed ? "Đã xác nhận" : "Chưa xác nhận"}</dd>
             </div>
           </dl>
+
           <output className="muted">{confirmationMessage()}</output>
-          <button
-            type="button"
-            className="btn"
-            disabled={blocked}
-            onClick={() => setRevising(true)}
-          >
-            Đề xuất thời gian khác
-          </button>
-          <LoadingButton
-            type="button"
-            className="btn btn-primary"
-            disabled={!!ownConfirmed || blocked}
-            onClick={() => {
-              if (blocked) return;
-              setError(undefined);
-              try {
-                checkDeadline();
-              } catch (cause) {
-                setError(
-                  cause instanceof Error
-                    ? cause.message
-                    : "Không thể xác nhận lịch.",
+
+          <div className={styles.rescheduleActions}>
+            <LoadingButton
+              type="button"
+              className="btn btn-primary"
+              disabled={!!ownConfirmed || blocked}
+              onClick={() => {
+                if (blocked) return;
+                setError(undefined);
+                try {
+                  checkDeadline();
+                } catch (cause) {
+                  setError(
+                    cause instanceof Error
+                      ? cause.message
+                      : "Không thể xác nhận lịch.",
+                  );
+                  return;
+                }
+                void command.run(
+                  "confirm:" + schedule.id + ":" + schedule.version,
+                  () =>
+                    request("schedule-proposals/" + schedule.id + "/confirm", {
+                      method: "POST",
+                      body: { expectedVersion: schedule.version },
+                    }),
                 );
-                return;
-              }
-              void command.run(
-                "confirm:" + schedule.id + ":" + schedule.version,
-                () =>
-                  request("schedule-proposals/" + schedule.id + "/confirm", {
-                    method: "POST",
-                    body: { expectedVersion: schedule.version },
-                  }),
-              );
-            }}
-            loading={!!command.pending}
-          >
-            {confirmationLabel()}
-          </LoadingButton>
+              }}
+              loading={!!command.pending}
+            >
+              <ProductIcon name="check" size={16} />
+              {confirmationLabel()}
+            </LoadingButton>
+
+            <button
+              type="button"
+              className="btn"
+              disabled={blocked}
+              onClick={() => setRevising(true)}
+            >
+              Đề xuất thời gian khác
+            </button>
+          </div>
         </>
       ) : (
         <form
@@ -177,8 +206,8 @@ export function SessionReschedule({
             const values = new FormData(event.currentTarget);
             try {
               checkDeadline();
-              const startAt = vietnamInstant(formText(values, "start")),
-                duration = Number(values.get("duration"));
+              const startAt = vietnamInstant(formText(values, "start"));
+              const duration = Number(values.get("duration"));
               if (
                 Date.parse(startAt) <= Date.now() ||
                 !Number.isInteger(duration) ||
@@ -218,50 +247,58 @@ export function SessionReschedule({
                 Gửi giờ khác sẽ tạo phiên bản mới thay đề xuất đang chờ. Cả hai
                 cần xác nhận lại.
               </p>
-              <button
-                type="button"
-                className="btn"
-                disabled={blocked}
-                onClick={() => setRevising(false)}
-              >
-                Về đề xuất đang chờ
-              </button>
+              <div>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={blocked}
+                  onClick={() => setRevising(false)}
+                >
+                  Về đề xuất đang chờ
+                </button>
+              </div>
             </>
           )}
-          <label>
-            <span>{makeup ? "Giờ học bù" : "Giờ mới"} (giờ Việt Nam)</span>
-            <input
-              name="start"
-              type="datetime-local"
-              required
-              disabled={blocked}
-            />
-          </label>
-          <label>
-            <span>Thời lượng (phút)</span>
-            <input
-              name="duration"
-              type="number"
-              min={60}
-              max={180}
-              defaultValue={Math.round(
-                (Date.parse(session.endAt) - Date.parse(session.startAt)) /
-                  60000,
-              )}
-              required
-              disabled={blocked}
-            />
-          </label>
+
+          <div className={styles.rescheduleFields}>
+            <label>
+              <span>{makeup ? "Giờ học bù" : "Giờ mới"} (giờ Việt Nam)</span>
+              <input
+                name="start"
+                type="datetime-local"
+                required
+                disabled={blocked}
+              />
+            </label>
+            <label>
+              <span>Thời lượng (phút)</span>
+              <input
+                name="duration"
+                type="number"
+                min={60}
+                max={180}
+                defaultValue={Math.round(
+                  (Date.parse(session.endAt) - Date.parse(session.startAt)) /
+                    60000,
+                )}
+                required
+                disabled={blocked}
+              />
+            </label>
+          </div>
+
           <LoadingButton
             type="submit"
             className="btn btn-primary"
             disabled={blocked}
             loading={!!command.pending}
           >
+            <ProductIcon name="calendar" size={16} />
             {proposalLabel()}
           </LoadingButton>
         </form>
       )}
+
       {error && <p className="learner-error">{error}</p>}
       <CommandFeedback command={command} />
     </div>

@@ -214,6 +214,26 @@ const errorMessages: Readonly<Record<string, string>> = {
   PROFILE_MODERATION_REQUIRED:
     "Bạn chưa được cấp quyền kiểm duyệt hồ sơ người dùng.",
   REVIEW_MODERATION_REQUIRED: "Bạn chưa được cấp quyền kiểm duyệt đánh giá.",
+  SUBSCRIPTION_PERMISSION_REQUIRED:
+    "Bạn chưa được cấp quyền xem hoặc quản lý gói thành viên.",
+  SUBSCRIPTION_PLAN_NOT_FOUND:
+    "Không tìm thấy phiên bản gói thành viên đã chọn.",
+  SUBSCRIPTION_PLAN_STATE_CONFLICT:
+    "Trạng thái phiên bản gói thành viên đã thay đổi. Hãy tải lại danh sách.",
+  SUBSCRIPTION_PLAN_INVALID: "Dữ liệu quyền lợi phiên bản gói không hợp lệ.",
+  INVALID_SUBSCRIPTION_PRICE:
+    "Giá tháng và giá năm phải là số Credit dương hợp lệ.",
+  INVALID_SUBSCRIPTION_ENTITLEMENTS:
+    "Cấu hình quyền lợi gói chưa đúng quy định (kiểm tra dung lượng, số ngày lưu và bậc phí).",
+  INVALID_EFFECTIVE_AT:
+    "Thời điểm hiệu lực phải là mốc thời gian hợp lệ từ hiện tại trở đi.",
+  FEE_ADMIN_REQUIRED:
+    "Bạn chưa được cấp quyền quản lý chính sách phí nền tảng.",
+  FEE_POLICY_INVALID:
+    "Cấu hình chính sách phí chưa hợp lệ. Hãy kiểm tra lại tỷ lệ và phiên bản.",
+  APPROVED_FEE_POLICY_REQUIRED:
+    "Chưa có chính sách phí đã duyệt phù hợp cho phạm vi này.",
+  UNSUPPORTED_FEE_POLICY: "Mã chính sách phí này chưa được hỗ trợ.",
   FILE_FORMAT_UNSUPPORTED: "Định dạng tệp này không được hỗ trợ.",
   FILE_TYPE_NOT_SUPPORTED: "Định dạng tệp này chưa được hỗ trợ.",
   INVALID_CREDENTIALS: "Email hoặc mật khẩu không đúng.",

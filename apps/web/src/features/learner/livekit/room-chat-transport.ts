@@ -1,4 +1,5 @@
 import { RoomEvent, type RemoteParticipant, type Room } from "livekit-client";
+import { sanitizeIncomingRoomMessage } from "@/lib/chat/room-chat-filter";
 import {
   createEphemeralChat,
   roomChatTopic,
@@ -55,7 +56,7 @@ export function createRoomChatTransport(options: {
     peerIdentity,
     active,
     createId: options.createId,
-    changed: options.changed,
+    changed: (items) => options.changed(items.map(sanitizeIncomingRoomMessage)),
     publish: async (payload) => {
       const availability = status();
       if (availability !== "ready")

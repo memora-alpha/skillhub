@@ -4,22 +4,12 @@ import { ProfileAvatar } from "../components/profile-avatar";
 import { ProductIcon } from "../components/product-icon";
 import { formatTime } from "../components/common";
 import { formatVietnamTime } from "@/lib/vietnam-time";
+import {
+  attachmentStatusMessage,
+  visibleAttachmentFilename,
+} from "./chat-attachment-display";
 import { ChatDownload, ChatImagePreview } from "./chat-download";
 import styles from "./chat.module.css";
-
-function attachmentStatusMessage(
-  file: Message["attachments"][number],
-): string | null {
-  const status = file.accessStatus ?? file.availability;
-  if (!status || status === "AVAILABLE") return null;
-  if (status === "PENDING_SCAN")
-    return "Đang kiểm tra an toàn tệp. Tệp sẽ mở tải sau khi hoàn tất.";
-  if (status === "REVOKED")
-    return file.restrictionReason === "REVOKED"
-      ? "Tệp đã bị kiểm duyệt viên thu hồi quyền tải."
-      : "Tệp đã bị chặn do vi phạm tiêu chuẩn cộng đồng.";
-  return "Tệp hiện không khả dụng.";
-}
 
 export function ChatMessage({
   message,
@@ -28,6 +18,7 @@ export function ChatMessage({
   partner,
   showAvatar = true,
   showTime = true,
+  groupPos = "single",
   onOpenAgreement,
 }: Readonly<{
   message: Message;
@@ -36,46 +27,10 @@ export function ChatMessage({
   partner: { fullName: string; avatarUrl: string | null };
   showAvatar?: boolean;
   showTime?: boolean;
+  groupPos?: "single" | "first" | "middle" | "last";
   onOpenAgreement?: () => void;
 }>) {
-  const workflowCard =
-    message.objectType === "LEARNING_PATH" && message.objectId ? (
-      <Link
-        className={styles.workflow}
-        href={"/learn/paths/" + message.objectId}
-      >
-        <ProductIcon name="book" size={22} />
-        <span>
-          <small>THỎA THUẬN HỌC TẬP</small>
-          <strong>Xem lộ trình được chia sẻ</strong>
-        </span>
-        <ProductIcon name="arrow" size={16} />
-      </Link>
-    ) : message.objectType === "SCHEDULE_PROPOSAL" && message.objectId ? (
-      onOpenAgreement ? (
-        <button
-          type="button"
-          className={styles.workflow}
-          onClick={onOpenAgreement}
-        >
-          <ProductIcon name="calendar" size={22} />
-          <span>
-            <small>ĐỀ XUẤT LỊCH HỌC</small>
-            <strong>Mở thỏa thuận & lịch học</strong>
-          </span>
-          <ProductIcon name="arrow" size={16} />
-        </button>
-      ) : (
-        <Link className={styles.workflow} href="/learn/paths">
-          <ProductIcon name="calendar" size={22} />
-          <span>
-            <small>ĐỀ XUẤT LỊCH HỌC</small>
-            <strong>Xem lộ trình & lịch học</strong>
-          </span>
-          <ProductIcon name="arrow" size={16} />
-        </Link>
-      )
-    ) : null;
+  const workflowCard = workflowCardFor(message, onOpenAgreement);
   if (message.messageType === "SYSTEM")
     return (
       <article className={styles.system}>
@@ -84,7 +39,10 @@ export function ChatMessage({
       </article>
     );
   return (
-    <div className={styles.message + (mine ? " " + styles.mine : "")}>
+    <div
+      className={styles.message + (mine ? " " + styles.mine : "")}
+      data-pos={groupPos}
+    >
       <div className={styles.messageRow}>
         {!mine &&
           (showAvatar ? (
@@ -109,7 +67,7 @@ export function ChatMessage({
                 <div className={styles.fileBody}>
                   {blockedText ? (
                     <div className={styles.fileStatusNote}>
-                      <strong>{file.filename}</strong>
+                      <strong>{visibleAttachmentFilename(file, mine)}</strong>
                       <span>{blockedText}</span>
                     </div>
                   ) : (
@@ -151,4 +109,54 @@ export function ChatMessage({
       )}
     </div>
   );
+}
+
+function workflowCardFor(
+  message: Message,
+  onOpenAgreement: (() => void) | undefined,
+) {
+  if (message.objectType === "LEARNING_PATH" && message.objectId) {
+    return (
+      <Link
+        className={styles.workflow}
+        href={"/learn/paths/" + message.objectId}
+      >
+        <ProductIcon name="book" size={22} />
+        <span>
+          <small>THỎA THUẬN HỌC TẬP</small>
+          <strong>Xem lộ trình được chia sẻ</strong>
+        </span>
+        <ProductIcon name="arrow" size={16} />
+      </Link>
+    );
+  }
+  if (message.objectType === "SCHEDULE_PROPOSAL" && message.objectId) {
+    if (onOpenAgreement) {
+      return (
+        <button
+          type="button"
+          className={styles.workflow}
+          onClick={onOpenAgreement}
+        >
+          <ProductIcon name="calendar" size={22} />
+          <span>
+            <small>ĐỀ XUẤT LỊCH HỌC</small>
+            <strong>Mở thỏa thuận & lịch học</strong>
+          </span>
+          <ProductIcon name="arrow" size={16} />
+        </button>
+      );
+    }
+    return (
+      <Link className={styles.workflow} href="/learn/paths">
+        <ProductIcon name="calendar" size={22} />
+        <span>
+          <small>ĐỀ XUẤT LỊCH HỌC</small>
+          <strong>Xem lộ trình & lịch học</strong>
+        </span>
+        <ProductIcon name="arrow" size={16} />
+      </Link>
+    );
+  }
+  return null;
 }

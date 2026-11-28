@@ -11,15 +11,12 @@ import {
 import { useUserSession } from "../auth/session";
 import { useUserResource } from "../hooks/use-user-resource";
 import { Feedback } from "../components/common";
+import { ProductIcon } from "../components/product-icon";
 import styles from "./chat.module.css";
 import {
   contactPolicyMessage,
   detectContactInformation,
 } from "@/lib/chat/contact-policy";
-import {
-  contentPolicyMessage,
-  detectInappropriateText,
-} from "@/lib/chat/content-policy";
 import {
   isCheckableImageFile,
   moderateImageOnClient,
@@ -76,7 +73,6 @@ export function ChatFiles({
   async function preCheckFileOnClient(file: File) {
     if (file.type === "text/plain" || /\.txt$/i.test(file.name)) {
       const text = await file.text().catch(() => "");
-      if (detectInappropriateText(text)) throw new Error(contentPolicyMessage);
       if (detectContactInformation(text)) throw new Error(contactPolicyMessage);
       return;
     }
@@ -168,18 +164,23 @@ export function ChatFiles({
         </p>
       )}
       <Feedback error={error} />
-      {files.map((file) => (
-        <ChatFileRow
-          key={file.id}
-          file={file}
-          conversationId={conversationId}
-          onState={update}
-          onRemove={() =>
-            setFiles((old) => old.filter((item) => item.id !== file.id))
-          }
-          locked={locked || uploading}
-        />
-      ))}
+      {files.length > 0 && (
+        <div className={compact ? styles.compactQueue : undefined}>
+          {files.map((file) => (
+            <ChatFileRow
+              key={file.id}
+              file={file}
+              conversationId={conversationId}
+              onState={update}
+              onRemove={() =>
+                setFiles((old) => old.filter((item) => item.id !== file.id))
+              }
+              locked={locked || uploading}
+              compact={compact}
+            />
+          ))}
+        </div>
+      )}
     </fieldset>
   );
 }
@@ -199,12 +200,14 @@ function ChatFileRow({
   onState,
   onRemove,
   locked,
+  compact = false,
 }: Readonly<{
   file: ChatUpload;
   conversationId: string;
   onState: (id: string, state: string) => void;
   onRemove: () => void;
   locked: boolean;
+  compact?: boolean;
 }>) {
   const query = useUserResource<{
     fileId: string;
@@ -228,19 +231,45 @@ function ChatFileRow({
     onState(file.id, state);
   }, [file.id, state, onState]);
   const labels: Record<string, string> = {
-    READY: "Đã kiểm tra sạch, sẵn sàng gửi",
-    CHECKING: "Đang đọc trạng thái",
-    UPLOADING: "Đang tải lên",
-    QUARANTINED: "Đang chờ quét",
-    SCANNING: "Đang quét",
-    REVIEW_REQUIRED: "Cần kiểm duyệt thêm, chưa thể gửi tệp này",
+    READY: "Sẵn sàng gửi",
+    CHECKING: "Đang kiểm tra…",
+    UPLOADING: "Đang tải lên…",
+    QUARANTINED: "Đang chờ quét…",
+    SCANNING: "Đang quét…",
+    REVIEW_REQUIRED: "Cần kiểm duyệt thêm",
     REJECTED: "Bị từ chối",
-    SCAN_FAILED: "Quét tệp thất bại, hãy bỏ tệp và thử lại",
-    UPLOAD_FAILED: "Tải lên thất bại, hãy bỏ tệp và thử lại",
+    SCAN_FAILED: "Quét tệp thất bại",
+    UPLOAD_FAILED: "Tải lên thất bại",
     DELETED: "Đã xóa",
     EXPIRED: "Đã hết hạn",
-    UNAVAILABLE: "Chưa kiểm tra được hoặc đã mất quyền",
+    UNAVAILABLE: "Không khả dụng",
   };
+  if (compact) {
+    return (
+      <div
+        className={styles.compactChip}
+        data-state={state}
+        title={`${file.filename} · ${fileSizeText(file.size)} · ${labels[state] ?? "Chưa sẵn sàng"}`}
+      >
+        <ProductIcon name="file" size={16} />
+        <span className={styles.compactChipBody}>
+          <strong>{file.filename}</strong>
+          <small>
+            {fileSizeText(file.size)} · {labels[state] ?? "Chưa sẵn sàng"}
+          </small>
+        </span>
+        <button
+          type="button"
+          className={styles.compactChipRemove}
+          aria-label={`Bỏ tệp ${file.filename}`}
+          disabled={locked}
+          onClick={onRemove}
+        >
+          <ProductIcon name="close" size={14} />
+        </button>
+      </div>
+    );
+  }
   return (
     <div>
       <p>

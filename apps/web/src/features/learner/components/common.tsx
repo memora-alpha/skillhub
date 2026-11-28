@@ -42,6 +42,7 @@ const labels: Record<string, string> = {
   PENDING: "Chờ phản hồi",
   ACCEPTED: "Đã kết nối",
   WITHDRAWN: "Đã rút",
+  GRACE: "Đang chờ gia hạn",
   EXPIRED: "Đã hết hạn",
   PROPOSED: "Đang thống nhất",
   PARTIALLY_CONFIRMED: "Chờ đủ xác nhận",

@@ -10,6 +10,44 @@ export function staffQuery(path: string, query: URLSearchParams) {
     accepted.delete("status");
   return accepted.size ? `?${accepted}` : "";
 }
+const additionalQueryNames = new Map<string, readonly string[]>([
+  ["fee-revenue", ["from", "to", "granularity"]],
+  [
+    "credit/transactions",
+    [
+      "userId",
+      "from",
+      "to",
+      "before",
+      "includeTotal",
+      "operationId",
+      "referenceId",
+    ],
+  ],
+  [
+    "payments",
+    [
+      "userId",
+      "from",
+      "to",
+      "before",
+      "includeTotal",
+      "paidFrom",
+      "paidBefore",
+      "orderCode",
+      "gatewayTransactionId",
+    ],
+  ],
+  ["reports/support/queue", ["severity", "handlerId", "contentReview"]],
+  ["learning-requests", ["keyword", "skillId", "tagIds"]],
+  ["materials", ["skillId", "accessType", "ownerId", "from", "to"]],
+  [
+    "dashboard/work-items",
+    ["kind", "severity", "waitingOn", "assignee", "minAgeHours", "sort"],
+  ],
+  ["learning-paths", ["participantId"]],
+]);
+
 function staffQueryNames(path: string): string[] {
   if (
     path === "profanity-rules/revisions" ||
@@ -24,6 +62,10 @@ function staffQueryNames(path: string): string[] {
     return ["caseId"];
   if (path.startsWith("rewards/"))
     return ["limit", "cursor", "status", "productId", "userId"];
+  if (path === "subscriptions/plans")
+    return ["limit", "cursor", "planCode", "status"];
+  if (path === "subscriptions")
+    return ["limit", "cursor", "status", "planCode", "userId"];
   if (path === "audit-logs")
     return [
       "limit",
@@ -52,43 +94,5 @@ function staffQueryNames(path: string): string[] {
         "type",
         "referenceType",
       ];
-  if (path === "fee-revenue") names.push("from", "to", "granularity");
-  if (path === "credit/transactions")
-    names.push(
-      "userId",
-      "from",
-      "to",
-      "before",
-      "includeTotal",
-      "operationId",
-      "referenceId",
-    );
-  if (path === "payments")
-    names.push(
-      "userId",
-      "from",
-      "to",
-      "before",
-      "includeTotal",
-      "paidFrom",
-      "paidBefore",
-      "orderCode",
-      "gatewayTransactionId",
-    );
-  if (path === "reports/support/queue")
-    names.push("severity", "handlerId", "contentReview");
-  if (path === "learning-requests") names.push("keyword", "skillId", "tagIds");
-  if (path === "materials")
-    names.push("skillId", "accessType", "ownerId", "from", "to");
-  if (path === "dashboard/work-items")
-    names.push(
-      "kind",
-      "severity",
-      "waitingOn",
-      "assignee",
-      "minAgeHours",
-      "sort",
-    );
-  if (path === "learning-paths") names.push("participantId");
-  return names;
+  return names.concat(additionalQueryNames.get(path) ?? []);
 }

@@ -48,9 +48,17 @@ type Payment = {
   gatewayTransactionId: string | null;
   payosCheckout: { orderCode: string; topUpOperationId: string | null } | null;
 };
+type FeePolicyCode =
+  | "ONE_WAY"
+  | "ONE_WAY_CREATOR"
+  | "ONE_WAY_PRO"
+  | "TWO_WAY"
+  | "MATERIAL_PAID"
+  | "MATERIAL_PAID_CREATOR"
+  | "MATERIAL_PAID_PRO";
 type CurrentFeePolicy = {
   id: string;
-  policyCode: "ONE_WAY" | "TWO_WAY" | "MATERIAL_PAID";
+  policyCode: FeePolicyCode;
   versionNo: number;
   calculationRule: { returnedBps?: number; feeBps: number };
   effectiveAt: string;
@@ -165,11 +173,17 @@ function FinancePolicyBanner() {
   );
   const policy = resource.data;
   const allPolicies = currentFees.data ?? policy?.policies ?? [];
+  const tierFeeCodes: readonly FeePolicyCode[] = [
+    "ONE_WAY_CREATOR",
+    "ONE_WAY_PRO",
+    "MATERIAL_PAID_CREATOR",
+    "MATERIAL_PAID_PRO",
+  ];
   const feeLabel = (code: CurrentFeePolicy["policyCode"]) => {
     const row = allPolicies.find((item) => item.policyCode === code);
     if (!row) return "Chưa có policy hiệu lực";
     const feePct = row.calculationRule.feeBps / 100;
-    if (code === "MATERIAL_PAID") {
+    if (code.startsWith("MATERIAL_PAID")) {
       return `phí ${feePct}% · tác giả nhận ${(10000 - row.calculationRule.feeBps) / 100}% · v${row.versionNo}`;
     }
     const returnedPct =
@@ -185,6 +199,9 @@ function FinancePolicyBanner() {
       : "Không hỗ trợ rút Credit";
     return `${policy.topUpVndPerCredit.toLocaleString("vi-VN")} VND = 1 Credit · ${withdrawal}`;
   };
+  const activeTierPolicies = tierFeeCodes.filter((code) =>
+    allPolicies.some((item) => item.policyCode === code),
+  );
   return (
     <div className="ops-policy-banner" role="note">
       <span>
@@ -198,9 +215,16 @@ function FinancePolicyBanner() {
           </Badge>
           <Badge tone="info">ONE_WAY: {feeLabel("ONE_WAY")}</Badge>
           {canReadFeePolicies && !currentFees.loading && !currentFees.error && (
-            <Badge tone="neutral">
-              Tài liệu trả phí: {feeLabel("MATERIAL_PAID")}
-            </Badge>
+            <>
+              <Badge tone="neutral">
+                Tài liệu trả phí: {feeLabel("MATERIAL_PAID")}
+              </Badge>
+              {activeTierPolicies.map((code) => (
+                <Badge key={code} tone="neutral">
+                  {financeLabel(code)}: {feeLabel(code)}
+                </Badge>
+              ))}
+            </>
           )}
         </div>
       )}

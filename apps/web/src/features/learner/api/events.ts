@@ -13,9 +13,12 @@ export function eventAffectsResource(path: unknown, event: string) {
   if (event.startsWith("reputation."))
     return path.startsWith("reputation") || path === "me";
   if (event === "wallet.updated")
-    return ["me/wallet", "learning-paths", "me/achievements"].some((prefix) =>
-      path.startsWith(prefix),
-    );
+    return [
+      "me/wallet",
+      "me/subscription",
+      "learning-paths",
+      "me/achievements",
+    ].some((prefix) => path.startsWith(prefix));
   if (event === "payment.updated")
     return path.startsWith("payments") || path.startsWith("me/wallet");
   if (event.startsWith("chat.")) return path.startsWith("conversations");
@@ -36,6 +39,7 @@ export function eventAffectsResource(path: unknown, event: string) {
       "sessions",
       "learning-paths",
       "me/wallet",
+      "me/subscription",
       "reports/mine",
       "me/achievements",
     ].some((prefix) => path.startsWith(prefix));

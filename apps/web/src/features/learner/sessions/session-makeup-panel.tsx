@@ -1,10 +1,17 @@
 import Link from "next/link";
 import type { LearningPath, LearningSession } from "../types";
 import { Panel, formatTime } from "../components/common";
+import { ProductIcon } from "../components/product-icon";
 import { SessionCardHeading } from "./session-detail-sections";
 import { SessionReschedule } from "./session-reschedule";
 import { sessionMakeupState } from "./session-makeup-policy";
 import styles from "./session-detail.module.css";
+
+const makeupStepLabels = [
+  "Chốt kết quả điểm danh",
+  "Đề xuất lịch học bù",
+  "Hai bên xác nhận lịch mới",
+] as const;
 
 export function SessionMakeupPanel({
   session,
@@ -19,6 +26,7 @@ export function SessionMakeupPanel({
 }>) {
   const state = sessionMakeupState(session, now, path?.status);
   if (!state) return null;
+
   const granted = session.status === "MAKEUP_REQUIRED";
   const schedule = path?.plans.find(
     (plan) => plan.id === session.planId,
@@ -30,11 +38,21 @@ export function SessionMakeupPanel({
   const deadline = granted
     ? session.deadlines?.makeupBy
     : session.deadlines?.excuseOrReportBy;
+
+  function currentStepIndex() {
+    if (confirming) return 2;
+    if (granted) return 1;
+    return 0;
+  }
+
+  const activeStep = currentStepIndex();
+
   return (
     <section id="session-makeup" className={styles.after}>
       <Panel className={styles.card}>
         <SessionCardHeading
           icon="calendar"
+          tone="warn"
           title={
             granted
               ? "Thống nhất lịch học bù"
@@ -44,31 +62,23 @@ export function SessionMakeupPanel({
         />
         <div className={`${styles.content} ${styles.makeupContent}`}>
           <ol className={styles.makeupSteps} aria-label="Tiến trình học bù">
-            {[
-              "Chốt kết quả điểm danh",
-              "Đề xuất lịch học bù",
-              "Hai bên xác nhận lịch mới",
-            ].map((label, index) => {
-              function makeupStep() {
-                if (confirming) {
-                  return 2;
-                }
-                if (granted) {
-                  return 1;
-                }
-                return 0;
-              }
+            {makeupStepLabels.map((label, index) => {
+              const done = index < activeStep;
               return (
                 <li
                   key={label}
-                  aria-current={index === makeupStep() ? "step" : undefined}
+                  className={done ? styles.makeupStepDone : undefined}
+                  aria-current={index === activeStep ? "step" : undefined}
                 >
-                  <span>{index + 1}</span>
+                  <span>
+                    {done ? <ProductIcon name="check" size={14} /> : index + 1}
+                  </span>
                   {label}
                 </li>
               );
             })}
           </ol>
+
           {state === "waiting" && (
             <output>
               Kết quả cả hai vắng còn trong thời hạn phản hồi. Khi hết hạn, nếu
@@ -76,22 +86,30 @@ export function SessionMakeupPanel({
               để hai bạn thống nhất lịch mới, không cần Staff duyệt lịch.
             </output>
           )}
+
           {state === "processing" && (
             <output>
               Đang chờ máy chủ cập nhật kết quả và quyền học bù. Trang tự kiểm
               tra lại mỗi 30 giây; form chọn lịch sẽ xuất hiện khi được phép.
             </output>
           )}
+
           {deadline && state !== "blocked" && (
-            <div className={styles.inset}>
-              <strong>
-                {granted
-                  ? "Hạn hai bên chốt lịch học bù"
-                  : "Hạn phản hồi kết quả điểm danh"}
-              </strong>
-              <p>{formatTime(deadline)} (giờ Việt Nam)</p>
+            <div className={styles.deadlineCallout}>
+              <span className={styles.deadlineCalloutIcon} aria-hidden="true">
+                <ProductIcon name="clock" size={18} />
+              </span>
+              <div className={styles.deadlineCalloutBody}>
+                <strong>
+                  {granted
+                    ? "Hạn hai bên chốt lịch học bù"
+                    : "Hạn phản hồi kết quả điểm danh"}
+                </strong>
+                <p>{formatTime(deadline)} (giờ Việt Nam)</p>
+              </div>
             </div>
           )}
+
           {state === "available" && (
             <>
               <p>
@@ -121,29 +139,35 @@ export function SessionMakeupPanel({
               )}
             </>
           )}
+
           {state === "closed" && (
             <output>
               Đã hết hạn chốt lịch học bù. Không thể gửi hoặc xác nhận lịch mới;
               đang chờ hệ thống cập nhật hướng xử lý tiếp theo.
             </output>
           )}
+
           {state === "blocked" && (
             <>
               <p>
                 Buổi học hoặc thỏa thuận đang bị chặn xử lý. Theo dõi kết quả
                 trong lộ trình trước khi chọn lịch học bù.
               </p>
-              <Link className="btn" href={`/learn/paths/${session.pathId}`}>
-                Theo dõi xử lý trong lộ trình
-              </Link>
+              <div>
+                <Link className="btn" href={`/learn/paths/${session.pathId}`}>
+                  Theo dõi xử lý trong lộ trình
+                </Link>
+              </div>
             </>
           )}
+
           {state === "waiting" &&
             session.allowedActions?.includes("REPORT_NO_SHOW") && (
               <Link
-                className={styles.link}
+                className={styles.inlineLink}
                 href={`/learn/reports/new?sessionId=${session.id}`}
               >
+                <ProductIcon name="alert" size={15} />
                 Kết quả chưa đúng hoặc có sự cố? Gửi báo cáo
               </Link>
             )}

@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 type IconName =
+  | "alert"
+  | "archive"
   | "award"
   | "arrow"
   | "book"
@@ -9,9 +11,17 @@ type IconName =
   | "chevron"
   | "clock"
   | "close"
+  | "copy"
+  | "edit"
+  | "externalLink"
+  | "eye"
+  | "eyeOff"
   | "file"
   | "filter"
+  | "gift"
   | "home"
+  | "info"
+  | "lock"
   | "menu"
   | "notification"
   | "plus"
@@ -20,13 +30,60 @@ type IconName =
   | "search"
   | "send"
   | "shield"
+  | "sliders"
   | "star"
+  | "trash"
+  | "undo"
   | "user"
   | "users"
   | "video"
   | "wallet";
 
 const iconPaths: Record<IconName, ReactNode> = {
+  alert: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 8v5M12 16h.01" />
+    </>
+  ),
+  archive: (
+    <>
+      <rect x="3" y="4" width="18" height="4" rx="1" />
+      <path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8M10 12h4" />
+    </>
+  ),
+  edit: (
+    <>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </>
+  ),
+  lock: (
+    <>
+      <rect x="4" y="11" width="16" height="9" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </>
+  ),
+  sliders: (
+    <>
+      <path d="M4 6h16M4 12h16M4 18h16" />
+      <circle cx="8" cy="6" r="2" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="12" r="2" fill="currentColor" stroke="none" />
+      <circle cx="10" cy="18" r="2" fill="currentColor" stroke="none" />
+    </>
+  ),
+  trash: (
+    <>
+      <path d="M3 6h18M8 6V4h8v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14" />
+      <path d="M10 11v6M14 11v6" />
+    </>
+  ),
+  undo: (
+    <>
+      <path d="M9 14 4 9l5-5" />
+      <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+    </>
+  ),
   star: (
     <path d="m12 3 2.8 5.7 6.3.9-4.55 4.4 1.08 6.25L12 17.3l-5.63 2.95 1.08-6.25L2.9 9.6l6.3-.9L12 3Z" />
   ),
@@ -77,16 +134,58 @@ const iconPaths: Record<IconName, ReactNode> = {
     </>
   ),
   close: <path d="m6 6 12 12M18 6 6 18" />,
+  copy: (
+    <>
+      <rect x="9" y="9" width="12" height="12" rx="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </>
+  ),
+  externalLink: (
+    <>
+      <path d="M14 4h6v6" />
+      <path d="M10 14 20 4" />
+      <path d="M18 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5" />
+    </>
+  ),
+  eye: (
+    <>
+      <path d="M2 12s3.8-7 10-7 10 7 10 7-3.8 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
+  eyeOff: (
+    <>
+      <path d="M9.9 4.2A10.4 10.4 0 0 1 12 4c6.2 0 10 8 10 8a17.6 17.6 0 0 1-2.8 4" />
+      <path d="M6.6 6.6A16.5 16.5 0 0 0 2 12s3.8 8 10 8a9.8 9.8 0 0 0 4.8-1.2" />
+      <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+      <path d="m3 3 18 18" />
+    </>
+  ),
   file: (
     <>
       <path d="M6 2h8l4 4v16H6z" />
       <path d="M14 2v5h5M9 13h6M9 17h5" />
     </>
   ),
+  gift: (
+    <>
+      <rect x="3" y="8" width="18" height="4" rx="1" />
+      <path d="M12 8v13" />
+      <path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" />
+      <path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5" />
+    </>
+  ),
   home: (
     <>
       <path d="m3 11 9-8 9 8" />
       <path d="M5 10v11h14V10M9 21v-7h6v7" />
+    </>
+  ),
+  info: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 16v-4" />
+      <path d="M12 8h.01" />
     </>
   ),
   menu: <path d="M4 7h16M4 12h16M4 17h16" />,

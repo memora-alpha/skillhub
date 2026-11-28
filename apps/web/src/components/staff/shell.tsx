@@ -2,20 +2,24 @@
 import { LoadingButton } from "@/components/loading-button";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { useNavigationDrawer } from "@/components/use-navigation-drawer";
+import {
+  useCollapsibleNavGroups,
+  type CollapsibleNavGroupConfig,
+} from "@/components/use-collapsible-nav-groups";
 import { Icon, type IconName } from "@/components/console/icon";
 import { StaffSessionProvider, useStaffSession } from "./session";
 import { StaffLogin } from "./login";
 import { StaffShellSkeleton } from "./shell-skeleton";
 import {
-  adminSectionGroups,
+  adminSectionGroupConfigs,
   adminSections,
   findAdminSection,
 } from "@/lib/staff/admin-navigation";
 import {
   findStaffNavItem,
-  staffNavGroups,
+  staffNavGroupConfigs,
   visibleStaffNavItems,
 } from "@/lib/staff/staff-navigation";
 import {
@@ -35,6 +39,18 @@ type NavigationItem = Readonly<{
   label: string;
   icon: IconName;
 }>;
+
+const adminCollapsibleConfigs: readonly CollapsibleNavGroupConfig[] =
+  adminSectionGroupConfigs.map((entry) => ({
+    id: entry.id,
+    defaultOpen: entry.defaultOpen,
+  }));
+
+const staffCollapsibleConfigs: readonly CollapsibleNavGroupConfig[] =
+  staffNavGroupConfigs.map((entry) => ({
+    id: entry.id,
+    defaultOpen: entry.defaultOpen,
+  }));
 
 function NavigationLinks({
   items,
@@ -59,6 +75,69 @@ function NavigationLinks({
   ));
 }
 
+function CollapsibleNavGroup({
+  title,
+  panelId,
+  expanded,
+  hasActive,
+  items,
+  currentHref,
+  onToggle,
+  onNavigate,
+}: Readonly<{
+  title: string;
+  panelId: string;
+  expanded: boolean;
+  hasActive: boolean;
+  items: readonly NavigationItem[];
+  currentHref: string | undefined;
+  onToggle: () => void;
+  onNavigate: () => void;
+}>) {
+  return (
+    <div
+      className="nav-group"
+      data-expanded={expanded}
+      data-has-active={hasActive || undefined}
+    >
+      <button
+        type="button"
+        className="nav-group-toggle"
+        aria-expanded={expanded}
+        aria-controls={panelId}
+        onClick={onToggle}
+      >
+        <span className="nav-group-label">
+          {title}
+          {!expanded && hasActive && (
+            <span className="nav-group-dot" aria-hidden="true" />
+          )}
+        </span>
+        <span className="nav-group-meta" aria-hidden="true">
+          {!expanded && <span className="nav-group-count">{items.length}</span>}
+          <span className="nav-group-chevron">
+            <Icon name="right" size={14} />
+          </span>
+        </span>
+      </button>
+      <div
+        id={panelId}
+        className="nav-group-panel"
+        data-open={expanded}
+        inert={!expanded}
+      >
+        <div className="nav-group-items">
+          <NavigationLinks
+            items={items}
+            currentHref={currentHref}
+            onNavigate={onNavigate}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function roleDisplayLabel(roles: readonly string[]) {
   if (roles.includes("ADMIN")) return "Quản trị viên";
   if (roles.includes("STAFF")) return "Nhân viên vận hành";
@@ -71,6 +150,7 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
   const workspaceName =
     portal === "admin" ? "Quản trị hệ thống" : "Nhân viên vận hành";
   const pathname = usePathname();
+  const navIdPrefix = useId();
   const {
     open,
     show,
@@ -79,6 +159,27 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
     panel: sidebarRef,
   } = useNavigationDrawer("(min-width: 1024px)");
   const [error, setError] = useState<string | null>(null);
+
+  const adminSection =
+    portal === "admin" ? findAdminSection(pathname) : undefined;
+  const staffCurrent =
+    portal === "staff" ? findStaffNavItem(pathname) : undefined;
+  const activeGroupId =
+    portal === "admin"
+      ? adminSectionGroupConfigs.find(
+          (entry) => entry.group === adminSection?.group,
+        )?.id
+      : staffNavGroupConfigs.find(
+          (entry) => entry.group === staffCurrent?.group,
+        )?.id;
+  const { isExpanded, toggle } = useCollapsibleNavGroups({
+    storageKey:
+      portal === "admin" ? "skillhub:sidebar:admin" : "skillhub:sidebar:staff",
+    groups:
+      portal === "admin" ? adminCollapsibleConfigs : staffCollapsibleConfigs,
+    activeGroupId,
+    pathname,
+  });
 
   useEffect(() => {
     const navEl = sidebarRef.current?.querySelector<HTMLElement>(".side-nav");
@@ -96,11 +197,7 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
   if (loading) return <StaffShellSkeleton portal={portal} />;
   if (!actor) return <StaffLogin />;
 
-  const adminSection =
-    portal === "admin" ? findAdminSection(pathname) : undefined;
   const staffNav = visibleStaffNavItems(actor);
-  const staffCurrent =
-    portal === "staff" ? findStaffNavItem(pathname) : undefined;
 
   const currentHref =
     portal === "admin" ? adminSection?.href : staffCurrent?.href;
@@ -111,11 +208,18 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
       ? (adminSection?.label ??
         (pathname === "/admin/notifications" ? "Thông báo" : portalName))
       : (staffCurrent?.label ??
-        (pathname === "/staff/wallet"
-          ? "Ví cá nhân"
-          : pathname === "/staff/reputation"
-            ? "Uy tín cá nhân"
-            : portalName));
+        (pathname === "/staff/notifications"
+          ? "Thông báo"
+          : pathname === "/staff/wallet"
+            ? "Ví cá nhân"
+            : pathname === "/staff/reputation"
+              ? "Uy tín cá nhân"
+              : portalName));
+
+  const pinnedItems =
+    portal === "admin"
+      ? adminSections.filter((section) => !section.group)
+      : staffNav.filter((item) => !item.group);
 
   const grantedCount = countGrantedDelegablePermissions(actor);
   const totalDelegable = STAFF_DELEGABLE_PERMISSIONS.length;
@@ -171,12 +275,9 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
 
         <div className="ops-workspace-identity">
           <span className="avatar" aria-hidden="true">
-            <Icon name={portal === "admin" ? "shield" : "inbox"} size={17} />
+            <Icon name={portal === "admin" ? "shield" : "inbox"} size={16} />
           </span>
           <div>
-            <small>
-              {portal === "admin" ? "Admin Portal" : "Staff Console"}
-            </small>
             <strong>{workspaceName}</strong>
             <span className="ops-workspace-meta">
               {portal === "admin"
@@ -189,31 +290,50 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
         </div>
 
         <nav className="side-nav" aria-label={`Điều hướng ${portalName}`}>
+          {pinnedItems.length > 0 && (
+            <div className="nav-pinned">
+              <NavigationLinks
+                items={pinnedItems}
+                currentHref={currentHref}
+                onNavigate={() => close(false)}
+              />
+            </div>
+          )}
           {portal === "admin"
-            ? adminSectionGroups.map((group) => {
-                const items = adminSections.filter((s) => s.group === group);
+            ? adminSectionGroupConfigs.map((entry) => {
+                const items = adminSections.filter(
+                  (section) => section.group === entry.group,
+                );
                 return items.length ? (
-                  <div className="nav-group" key={group}>
-                    <div className="nav-group-heading">{group}</div>
-                    <NavigationLinks
-                      items={items}
-                      currentHref={currentHref}
-                      onNavigate={() => close(false)}
-                    />
-                  </div>
+                  <CollapsibleNavGroup
+                    key={entry.id}
+                    title={entry.group}
+                    panelId={`${navIdPrefix}-admin-${entry.id}`}
+                    expanded={isExpanded(entry.id)}
+                    hasActive={activeGroupId === entry.id}
+                    items={items}
+                    currentHref={currentHref}
+                    onToggle={() => toggle(entry.id)}
+                    onNavigate={() => close(false)}
+                  />
                 ) : null;
               })
-            : staffNavGroups.map((group) => {
-                const items = staffNav.filter((item) => item.group === group);
+            : staffNavGroupConfigs.map((entry) => {
+                const items = staffNav.filter(
+                  (item) => item.group === entry.group,
+                );
                 return items.length ? (
-                  <div className="nav-group" key={group}>
-                    <div className="nav-group-heading">{group}</div>
-                    <NavigationLinks
-                      items={items}
-                      currentHref={currentHref}
-                      onNavigate={() => close(false)}
-                    />
-                  </div>
+                  <CollapsibleNavGroup
+                    key={entry.id}
+                    title={entry.group}
+                    panelId={`${navIdPrefix}-staff-${entry.id}`}
+                    expanded={isExpanded(entry.id)}
+                    hasActive={activeGroupId === entry.id}
+                    items={items}
+                    currentHref={currentHref}
+                    onToggle={() => toggle(entry.id)}
+                    onNavigate={() => close(false)}
+                  />
                 ) : null;
               })}
         </nav>

@@ -1,23 +1,31 @@
 "use client";
 import { LoadingButton } from "@/components/loading-button";
 import { formText } from "../components/form-data";
-
 import { useState } from "react";
 import type { Plan, ScheduleItem } from "../types";
 import { useUserSession } from "../auth/session";
 import { useUserCommand } from "../hooks/use-user-command";
 import { CommandFeedback } from "../components/common";
+import { ProductIcon } from "../components/product-icon";
 import { ProfileName } from "../components/profile-name";
 import { vietnamInstant } from "../sessions/session-policy";
+import styles from "./path-detail.module.css";
+
 const local = (date: string) =>
   new Date(Date.parse(date) + 7 * 3600000).toISOString().slice(0, 16);
+
 export function ScheduleEditor({
   plan,
   onSaved,
 }: Readonly<{ plan: Plan; onSaved: () => void }>) {
-  const { request } = useUserSession(),
-    command = useUserCommand(),
-    [error, setError] = useState<string>();
+  const { request } = useUserSession();
+  const command = useUserCommand();
+  const [error, setError] = useState<string>();
+  const outlineBySessionNo = new Map(
+    plan.sessionOutline.map((item) => [item.sessionNo, item.content]),
+  );
+  const disabled = command.pending || command.uncertain;
+
   return (
     <form
       className="learner-form"
@@ -29,11 +37,11 @@ export function ScheduleEditor({
           const items: ScheduleItem[] = Array.from(
             { length: plan.totalSessions },
             (_, index) => {
-              const start = formText(values, "start-" + index),
-                duration = Number(values.get("duration-" + index)),
-                old = plan.schedule?.items.find(
-                  (item) => item.sessionNo === index + 1,
-                );
+              const start = formText(values, "start-" + index);
+              const duration = Number(values.get("duration-" + index));
+              const old = plan.schedule?.items.find(
+                (item) => item.sessionNo === index + 1,
+              );
               const startAt =
                 old && local(old.startAt) === start
                   ? old.startAt
@@ -93,30 +101,41 @@ export function ScheduleEditor({
         }
       }}
     >
-      <p className="muted">
-        Nhập giờ Việt Nam. Đối tác cần xác nhận cùng phiên bản trước khi chốt
-        lịch.
-      </p>
-      <p>
-        Người hướng dẫn: <ProfileName id={plan.teacherId} /> · Người học:{" "}
-        <ProfileName id={plan.learnerId} />.
-      </p>
+      <div className={styles.scheduleGuide}>
+        <span>
+          <strong>Giờ Việt Nam (GMT+7)</strong> · Mỗi buổi từ 60 đến 180 phút.
+          Đối tác cần xác nhận cùng phiên bản trước khi chốt lịch.
+        </span>
+        <span>
+          Hướng dẫn:{" "}
+          <strong>
+            <ProfileName id={plan.teacherId} />
+          </strong>{" "}
+          · Học:{" "}
+          <strong>
+            <ProfileName id={plan.learnerId} />
+          </strong>
+        </span>
+      </div>
+
       {Array.from({ length: plan.totalSessions }, (_, index) => {
         const old = plan.schedule?.items.find(
           (item) => item.sessionNo === index + 1,
         );
+        const topic = outlineBySessionNo.get(index + 1);
         return (
-          <fieldset key={index} className="learner-picker">
+          <fieldset key={index} className={styles.scheduleSlotCard}>
             <legend>Buổi {index + 1}</legend>
+            {topic && <p className={styles.scheduleOutlineHint}>{topic}</p>}
             <div className="learner-form-grid">
               <label>
-                <span>Bắt đầu</span>
+                <span>Thời gian bắt đầu</span>
                 <input
                   type="datetime-local"
                   name={"start-" + index}
                   defaultValue={old ? local(old.startAt) : undefined}
                   required
-                  disabled={command.pending || command.uncertain}
+                  disabled={disabled}
                 />
               </label>
               <label>
@@ -134,27 +153,31 @@ export function ScheduleEditor({
                   max={180}
                   step={1}
                   required
-                  disabled={command.pending || command.uncertain}
+                  disabled={disabled}
                 />
               </label>
             </div>
           </fieldset>
         );
       })}
+
       {error && (
         <p className="learner-error" role="alert">
           {error}
         </p>
       )}
       <CommandFeedback command={command} />
-      <LoadingButton
-        type="submit"
-        className="btn btn-primary"
-        disabled={command.pending || command.uncertain}
-        loading={!!command.pending}
-      >
-        Gửi lịch để hai bên xác nhận
-      </LoadingButton>
+      <div className={styles.actionRow}>
+        <LoadingButton
+          type="submit"
+          className="btn btn-primary"
+          disabled={disabled}
+          loading={!!command.pending}
+        >
+          <ProductIcon name="calendar" size={16} />
+          Gửi lịch để hai bên xác nhận
+        </LoadingButton>
+      </div>
     </form>
   );
 }

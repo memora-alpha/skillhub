@@ -1,14 +1,16 @@
 "use client";
 import { LoadingButton } from "@/components/loading-button";
 import { formText } from "../components/form-data";
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Conversation, Proposal, LearningPath } from "../types";
 import { useUserSession } from "../auth/session";
 import { useUserCommand } from "../hooks/use-user-command";
 import { CommandFeedback, Panel } from "../components/common";
+import { ProductIcon } from "../components/product-icon";
 import { AgreementSummary } from "./agreement-summary";
+import styles from "./path-detail.module.css";
+
 export function AgreementCreator({
   conversation,
   proposal,
@@ -20,10 +22,10 @@ export function AgreementCreator({
   path?: LearningPath;
   onSaved?: () => void;
 }>) {
-  const { actor, request } = useUserSession(),
-    command = useUserCommand(),
-    router = useRouter();
-  const [exchangeType, setExchangeType] = useState(
+  const { actor, request } = useUserSession();
+  const command = useUserCommand();
+  const router = useRouter();
+  const [exchangeType, setExchangeType] = useState<"ONE_WAY" | "TWO_WAY">(
     path?.agreement.exchangeType ??
       (proposal?.exchangeTypeHint === "TWO_WAY" ? "TWO_WAY" : "ONE_WAY"),
   );
@@ -44,14 +46,8 @@ export function AgreementCreator({
     path?.agreement.teacherId ?? proposedTeacher ?? actor.userId,
   );
   const learnerId = teacherId === actor.userId ? counterpart : actor.userId;
-  const oneWayRole =
-    teacherId === actor.userId
-      ? "Bạn hướng dẫn, đối tác học."
-      : "Đối tác hướng dẫn, bạn học.";
-  const roleDescription =
-    exchangeType === "ONE_WAY"
-      ? oneWayRole
-      : "Mỗi người tạo và giảng dạy kế hoạch riêng; cả hai cùng xác nhận lịch.";
+  const disabled = command.pending || command.uncertain;
+
   return (
     <Panel title={path ? "Điều chỉnh thỏa thuận" : "Thỏa thuận học tập"}>
       <form
@@ -86,33 +82,130 @@ export function AgreementCreator({
           }
         }}
       >
-        <label>
-          <span>Hình thức học</span>
-          <select
-            value={exchangeType}
-            onChange={(event) =>
-              setExchangeType(event.target.value as "ONE_WAY" | "TWO_WAY")
-            }
-            disabled={command.pending || command.uncertain}
-          >
-            <option value="ONE_WAY">Một chiều · một người hướng dẫn</option>
-            <option value="TWO_WAY">Hai chiều · cùng trao đổi kỹ năng</option>
-          </select>
-        </label>
-        {exchangeType === "ONE_WAY" && (
-          <label>
-            <span>Vai trò trong lộ trình một chiều</span>
-            <select
-              value={teacherId}
-              onChange={(event) => setTeacherId(event.target.value)}
-              disabled={command.pending || command.uncertain}
+        <fieldset className={styles.choiceGroup} disabled={disabled}>
+          <legend>Hình thức học</legend>
+          <div className={styles.choiceCards}>
+            <button
+              type="button"
+              className={
+                styles.choiceCard +
+                (exchangeType === "ONE_WAY"
+                  ? ` ${styles.choiceCardActive}`
+                  : "")
+              }
+              aria-pressed={exchangeType === "ONE_WAY"}
+              onClick={() => setExchangeType("ONE_WAY")}
             >
-              <option value={actor.userId}>Bạn hướng dẫn, đối tác học</option>
-              <option value={counterpart}>Đối tác hướng dẫn, bạn học</option>
-            </select>
-          </label>
+              <span className={styles.choiceCardIcon}>
+                <ProductIcon name="user" size={17} />
+              </span>
+              <span className={styles.choiceCardText}>
+                <strong>Một chiều</strong>
+                <small>Một người hướng dẫn, một người học theo kế hoạch.</small>
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className={
+                styles.choiceCard +
+                (exchangeType === "TWO_WAY"
+                  ? ` ${styles.choiceCardActive}`
+                  : "")
+              }
+              aria-pressed={exchangeType === "TWO_WAY"}
+              onClick={() => setExchangeType("TWO_WAY")}
+            >
+              <span className={styles.choiceCardIcon}>
+                <ProductIcon name="users" size={17} />
+              </span>
+              <span className={styles.choiceCardText}>
+                <strong>Hai chiều</strong>
+                <small>
+                  Cả hai cùng trao đổi kỹ năng và tạo kế hoạch riêng.
+                </small>
+              </span>
+            </button>
+          </div>
+        </fieldset>
+
+        {exchangeType === "ONE_WAY" && (
+          <fieldset className={styles.choiceGroup} disabled={disabled}>
+            <legend>Vai trò trong lộ trình một chiều</legend>
+            <div className={styles.choiceCards}>
+              <button
+                type="button"
+                className={
+                  styles.choiceCard +
+                  (teacherId === actor.userId
+                    ? ` ${styles.choiceCardActive}`
+                    : "")
+                }
+                aria-pressed={teacherId === actor.userId}
+                onClick={() => setTeacherId(actor.userId)}
+              >
+                <span className={styles.choiceCardIcon}>
+                  <ProductIcon name="book" size={17} />
+                </span>
+                <span className={styles.choiceCardText}>
+                  <strong>Bạn hướng dẫn</strong>
+                  <small>
+                    Bạn tạo kế hoạch giảng dạy, đối tác là người học.
+                  </small>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                className={
+                  styles.choiceCard +
+                  (teacherId === counterpart
+                    ? ` ${styles.choiceCardActive}`
+                    : "")
+                }
+                aria-pressed={teacherId === counterpart}
+                onClick={() => setTeacherId(counterpart)}
+              >
+                <span className={styles.choiceCardIcon}>
+                  <ProductIcon name="award" size={17} />
+                </span>
+                <span className={styles.choiceCardText}>
+                  <strong>Bạn học</strong>
+                  <small>Đối tác hướng dẫn và lập kế hoạch học cho bạn.</small>
+                </span>
+              </button>
+            </div>
+          </fieldset>
         )}
-        <p>{roleDescription}</p>
+
+        <label>
+          <span>
+            {exchangeType === "ONE_WAY"
+              ? "Credit cho cả lộ trình"
+              : "Credit mỗi người tạm giữ (tối thiểu 20 CR)"}
+          </span>
+          <div className={styles.creditFieldWrap}>
+            <input
+              name="credit"
+              type="number"
+              min={exchangeType === "TWO_WAY" ? 20 : 0.01}
+              step="0.01"
+              max="9999999999.99"
+              value={credit}
+              onChange={(event) => setCredit(event.target.value)}
+              required
+              disabled={disabled}
+            />
+            <span className={styles.creditUnit}>
+              {exchangeType === "TWO_WAY" ? "CR / người" : "CR"}
+            </span>
+          </div>
+          <small>
+            Tạo thỏa thuận chưa giữ Credit. Hai bên tiếp tục xác nhận điều
+            khoản, kế hoạch và lịch trước khi chốt.
+          </small>
+        </label>
+
         <AgreementSummary
           exchangeType={exchangeType}
           teacherId={teacherId}
@@ -120,37 +213,21 @@ export function AgreementCreator({
           amount={credit}
           counterpartId={counterpart}
         />
-        <label>
-          <span>
-            {exchangeType === "ONE_WAY"
-              ? "Credit cho cả lộ trình"
-              : "Credit mỗi người tạm giữ"}
-          </span>
-          <input
-            name="credit"
-            type="number"
-            min={exchangeType === "TWO_WAY" ? 20 : 0.01}
-            step="0.01"
-            max="9999999999.99"
-            value={credit}
-            onChange={(event) => setCredit(event.target.value)}
-            required
-            disabled={command.pending || command.uncertain}
-          />
-        </label>
-        <p className="muted">
-          Tạo thỏa thuận chưa giữ Credit. Hai bên tiếp tục xác nhận điều khoản,
-          kế hoạch và lịch trước khi chốt.
-        </p>
+
         <CommandFeedback command={command} />
-        <LoadingButton
-          type="submit"
-          className="btn btn-primary"
-          disabled={command.pending || command.uncertain}
-          loading={!!command.pending}
-        >
-          {path ? "Lưu điều chỉnh" : "Tạo thỏa thuận để cùng xác nhận"}
-        </LoadingButton>
+
+        <div className={styles.actionRow}>
+          <LoadingButton
+            type="submit"
+            className="btn btn-primary"
+            disabled={disabled}
+            loading={!!command.pending}
+          >
+            {path
+              ? "Lưu điều chỉnh thỏa thuận"
+              : "Tạo thỏa thuận để cùng xác nhận"}
+          </LoadingButton>
+        </div>
       </form>
     </Panel>
   );

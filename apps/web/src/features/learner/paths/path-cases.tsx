@@ -5,11 +5,13 @@ import { useState } from "react";
 import { useUserResource } from "../hooks/use-user-resource";
 import { Feedback, Status, formatTime } from "../components/common";
 import { CaseDrawer } from "../components/case-drawer";
+import { ProductIcon } from "../components/product-icon";
 import { PrivateCaseThread } from "../account/private-case-thread";
 import type { CaseCapabilities } from "../account/case-capabilities";
 import { reportReasonLabel } from "../account/report-reasons";
 import { reportStatusLabel } from "../account/report-status";
-import styles from "../components/learning-layout.module.css";
+import layoutStyles from "../components/learning-layout.module.css";
+import styles from "./path-detail.module.css";
 
 type CaseSummary = CaseCapabilities & {
   id: string;
@@ -19,6 +21,7 @@ type CaseSummary = CaseCapabilities & {
   blocksSettlement: boolean;
   createdAt: string | null;
 };
+
 export function PathCases({
   pathId,
   selected,
@@ -39,12 +42,14 @@ export function PathCases({
   const current = summary.data?.id === selected ? summary.data : undefined;
   const Container = compact ? "details" : "div";
   const Heading = compact ? "summary" : "h3";
+  const countLabel = `${cases.items.length}${cases.cursor ? "+" : ""}`;
+
   return (
     <section id="path-cases">
       <Container>
         <Heading>
-          Vụ việc trong lộ trình ({cases.items.length}
-          {cases.cursor ? "+" : ""})
+          <span>Vụ việc trong lộ trình ({countLabel})</span>
+          {compact && <ProductIcon name="chevron" size={15} />}
         </Heading>
         <Feedback
           loading={cases.initialLoading}
@@ -52,29 +57,36 @@ export function PathCases({
           reload={cases.reload}
           refreshing={!!(cases.loading && !cases.initialLoading)}
         />
-        <div className={styles.caseList}>
+        <div className={layoutStyles.caseList}>
           {cases.items.map((item) => (
-            <div className={styles.caseRow} key={item.id}>
+            <div className={layoutStyles.caseRow} key={item.id}>
               <div>
                 <strong>{reportReasonLabel(item.reasonCode)}</strong>
                 <Status
                   value={item.status}
                   label={reportStatusLabel(item.status)}
                 />
-                {item.blocksSettlement && <small>Đang chặn quyết toán</small>}
+                {item.blocksSettlement && (
+                  <span className={styles.blockingPill}>
+                    Đang chặn quyết toán
+                  </span>
+                )}
               </div>
               <button
                 type="button"
-                className="btn"
+                className="btn btn-sm"
                 onClick={() => onSelect(item.id)}
               >
-                Xem vụ việc →
+                Xem vụ việc
+                <ProductIcon name="arrow" size={14} />
               </button>
             </div>
           ))}
         </div>
         {!cases.loading && !cases.error && !cases.items.length && (
-          <p className="muted">Không có vụ việc trong lộ trình.</p>
+          <p className={styles.metaNote} style={{ marginTop: 8 }}>
+            Không có vụ việc nào trong lộ trình này.
+          </p>
         )}
         <ListPagination query={cases} />
       </Container>
@@ -119,6 +131,7 @@ export function PathCases({
     </section>
   );
 }
+
 export function PathCaseList({ pathId }: Readonly<{ pathId: string }>) {
   const [selected, setSelected] = useState<string>();
   return (
