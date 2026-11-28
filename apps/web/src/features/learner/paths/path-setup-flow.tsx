@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { LoadingButton } from "@/components/loading-button";
 import { useUserSession } from "../auth/session";
+import { ProductIcon } from "../components/product-icon";
 import type { LearningPath, Reply } from "../types";
 import { InvalidScheduleNotice } from "./invalid-schedule";
 import { PathSetupReview } from "./path-setup-review";
@@ -13,6 +14,13 @@ import {
   type PathSetupStep,
 } from "./path-setup-policy";
 import styles from "./path-setup-flow.module.css";
+
+const stepDescriptions: readonly string[] = [
+  "Hai bên rà soát hình thức học, vai trò và mức Credit rồi cùng xác nhận điều khoản.",
+  "Người hướng dẫn lập kế hoạch chi tiết theo từng buổi và người học xác nhận nội dung.",
+  "Đề xuất khung giờ Việt Nam cho từng buổi học và chờ cả hai bên xác nhận cùng phiên bản.",
+  "Kiểm tra tổng thể thỏa thuận, kế hoạch và lịch học trước khi chốt lịch và tạm giữ Credit.",
+];
 
 export function PathSetupFlow({
   path,
@@ -38,18 +46,21 @@ export function PathSetupFlow({
   const [failure, setFailure] = useState<unknown>();
   const index = setupSteps.findIndex((item) => item.key === step);
   const progress = pathSetupProgress(path);
+
   useEffect(() => {
     active.current = true;
     return () => {
       active.current = false;
     };
   }, []);
+
   const move = (target: PathSetupStep) => {
     setIssues([]);
     setFailure(undefined);
     onStep(target);
     requestAnimationFrame(() => heading.current?.focus());
   };
+
   async function navigate(target: number) {
     if (lock.current || target === index) return;
     const pane = content.current?.querySelector(`[data-setup-pane="${step}"]`);
@@ -115,45 +126,74 @@ export function PathSetupFlow({
       if (active.current) setChecking(false);
     }
   }
+
   if (!enabled) return <div className={styles.content}>{children}</div>;
+
+  const progressPct = Math.round(((index + 1) / setupSteps.length) * 100);
+
   return (
     <section className={styles.flow} aria-label="Thiết lập lộ trình học">
-      <nav aria-label="Bốn bước thiết lập lộ trình">
-        <ol className={styles.steps}>
-          {setupSteps.map((item, i) => (
-            <li key={item.key} data-complete={i < progress.availableStep}>
-              <button
-                type="button"
-                aria-current={i === index ? "step" : undefined}
-                disabled={checking || (i > index && i > progress.availableStep)}
-                onClick={() => void navigate(i)}
-              >
-                <span className={styles.number}>{i + 1}</span>
-                <span>
-                  {item.label}
-                  <small>
-                    {i < progress.availableStep
-                      ? "Đủ điều kiện"
-                      : i === index
-                        ? "Đang thực hiện"
-                        : "Chưa hoàn tất"}
-                  </small>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ol>
-      </nav>
-      <div className={styles.heading}>
-        <h2 ref={heading} tabIndex={-1}>
-          Bước {index + 1}: {setupSteps[index]!.label}
-        </h2>
-        <p>
-          {index === 3
-            ? "Xem lại trước khi hoàn thành thiết lập và giữ Credit theo thỏa thuận."
-            : "Hoàn tất nội dung và xác nhận ở bước này, sau đó bấm Tiếp theo để kiểm tra."}
-        </p>
+      <div className={styles.stepperCard}>
+        <div className={styles.progressBarWrap}>
+          <span>Thiết lập lộ trình · Bước {index + 1}/4</span>
+          <div className={styles.progressBarTrack} aria-hidden="true">
+            <span
+              className={styles.progressBarFill}
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+          <span>{progressPct}%</span>
+        </div>
+
+        <nav aria-label="Bốn bước thiết lập lộ trình">
+          <ol className={styles.steps}>
+            {setupSteps.map((item, i) => {
+              const complete = i < progress.availableStep;
+              const current = i === index;
+              return (
+                <li key={item.key} data-complete={complete}>
+                  <button
+                    type="button"
+                    aria-current={current ? "step" : undefined}
+                    disabled={
+                      checking || (i > index && i > progress.availableStep)
+                    }
+                    onClick={() => void navigate(i)}
+                  >
+                    <span className={styles.number}>
+                      {complete && !current ? (
+                        <ProductIcon name="check" size={15} />
+                      ) : (
+                        i + 1
+                      )}
+                    </span>
+                    <span className={styles.stepCopy}>
+                      {item.label}
+                      <small>
+                        {complete
+                          ? "Đủ điều kiện"
+                          : current
+                            ? "Đang thực hiện"
+                            : "Chưa hoàn tất"}
+                      </small>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        </nav>
       </div>
+
+      <div className={styles.heading}>
+        <div>
+          <h2 ref={heading} tabIndex={-1}>
+            Bước {index + 1}: {setupSteps[index]!.label}
+          </h2>
+          <p>{stepDescriptions[index]}</p>
+        </div>
+      </div>
+
       <fieldset
         ref={content}
         className={styles.content}
@@ -171,27 +211,32 @@ export function PathSetupFlow({
         )}
         {children}
       </fieldset>
+
       {!!issues.length && (
-        <div className="learner-notice" role="status">
-          <strong>Chưa thể chuyển bước</strong>
+        <div className={styles.issueBanner} role="status">
+          <strong>Chưa thể chuyển sang bước tiếp theo</strong>
           <ul>
             {issues.map((issue) => (
               <li key={issue}>{issue}</li>
             ))}
           </ul>
           {progress.availableStep < index && (
-            <button
-              type="button"
-              className="btn"
-              disabled={checking}
-              onClick={() => move(setupSteps[progress.availableStep]!.key)}
-            >
-              Về bước {progress.availableStep + 1} để kiểm tra
-            </button>
+            <div>
+              <button
+                type="button"
+                className="btn btn-sm"
+                disabled={checking}
+                onClick={() => move(setupSteps[progress.availableStep]!.key)}
+              >
+                Về bước {progress.availableStep + 1} để kiểm tra
+              </button>
+            </div>
           )}
         </div>
       )}
+
       <InvalidScheduleNotice error={failure} onEdit={() => move("schedule")} />
+
       <div className={styles.actions}>
         <button
           type="button"
@@ -199,10 +244,29 @@ export function PathSetupFlow({
           disabled={checking || index === 0}
           onClick={() => void navigate(index - 1)}
         >
-          Quay lại
+          ← Quay lại
         </button>
-        <span>Bước {index + 1} / 4</span>
-        {index < 3 && (
+
+        <div className={styles.stepIndicator}>
+          <span className={styles.stepDots} aria-hidden="true">
+            {setupSteps.map((item, i) => (
+              <span
+                key={item.key}
+                className={
+                  styles.stepDot +
+                  (i === index
+                    ? ` ${styles.stepDotActive}`
+                    : i < progress.availableStep
+                      ? ` ${styles.stepDotDone}`
+                      : "")
+                }
+              />
+            ))}
+          </span>
+          <span>Bước {index + 1} / 4</span>
+        </div>
+
+        {index < 3 ? (
           <LoadingButton
             type="button"
             className="btn btn-primary"
@@ -210,7 +274,10 @@ export function PathSetupFlow({
             onClick={() => void navigate(index + 1)}
           >
             Tiếp theo
+            <ProductIcon name="arrow" size={15} />
           </LoadingButton>
+        ) : (
+          <span />
         )}
       </div>
     </section>

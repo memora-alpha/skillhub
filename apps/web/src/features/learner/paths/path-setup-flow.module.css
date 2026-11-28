@@ -1,8 +1,52 @@
 .flow {
   display: grid;
-  gap: 22px;
-  margin-top: 22px;
+  gap: 20px;
+  min-width: 0;
 }
+
+.stepperCard {
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--line, #e7ddd2);
+  background: var(--surface, #ffffff);
+  box-shadow: var(--shadow-xs);
+  display: grid;
+  gap: 14px;
+}
+
+.progressBarWrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.progressBarWrap span {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--muted, #756256);
+}
+
+.progressBarTrack {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-2, #f4eee6);
+  overflow: hidden;
+}
+
+.progressBarFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    var(--app-sage, #2e6a56),
+    var(--brand, #c4512b)
+  );
+  transition: width 240ms ease;
+}
+
 .steps {
   list-style: none;
   padding: 0;
@@ -11,81 +55,127 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
+
 .steps button {
   width: 100%;
   display: flex;
-  gap: 12px;
+  gap: 11px;
   align-items: center;
   text-align: left;
-  padding: 14px 14px;
-  border: 1px solid var(--line, #e7ddd2);
+  padding: 13px 14px;
+  border: 1.5px solid var(--line, #e7ddd2);
   border-radius: 14px;
-  background: var(--surface, #ffffff);
+  background: var(--app-cream, #fbf8f3);
   color: var(--ink-2, #4b3d33);
   cursor: pointer;
   font: inherit;
-  font-weight: 600;
-  min-height: 78px;
+  font-size: 13.5px;
+  font-weight: 700;
+  min-height: 70px;
   transition:
     border-color 140ms ease,
     background-color 140ms ease,
     box-shadow 140ms ease;
 }
+
 .steps button:hover:not(:disabled) {
   border-color: var(--line-strong, #d4c4b4);
-  background: #fdfbf8;
+  background: var(--surface, #ffffff);
 }
+
+.steps [data-complete="true"] button:not([aria-current="step"]) {
+  border-color: #cbe2d7;
+  background: #f5fbf7;
+  color: var(--app-forest, #1e4639);
+}
+
 .steps button[aria-current="step"] {
   border-color: var(--brand, #c4512b);
   background: var(--brand-soft, #fff1ea);
   color: var(--brand-strong, #a63d1c);
-  box-shadow: 0 6px 16px rgb(196 81 43 / 0.1);
+  box-shadow: 0 6px 16px rgb(196 81 43 / 0.11);
 }
+
 .steps button:disabled {
   cursor: default;
-  opacity: 0.58;
+  opacity: 0.56;
 }
+
 .steps button:focus-visible,
 .heading h2:focus-visible {
   outline: 2px solid var(--brand, #c4512b);
   outline-offset: 3px;
 }
+
 .number {
   flex: 0 0 32px;
   height: 32px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: var(--surface-2, #f4eee6);
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--line, #e7ddd2);
   color: var(--ink-2, #4b3d33);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 800;
 }
+
 .steps [data-complete="true"] .number {
   background: var(--app-sage-pale, #e9f3ee);
+  border-color: #cbe2d7;
   color: var(--app-forest, #1e4639);
 }
+
 .steps [aria-current="step"] .number {
   background: var(--brand, #c4512b);
+  border-color: var(--brand, #c4512b);
   color: #ffffff;
 }
+
+.stepCopy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
 .steps small {
   display: block;
-  margin-top: 3px;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 500;
   color: var(--muted, #756256);
 }
+
+.steps [aria-current="step"] small {
+  color: var(--brand-strong, #a63d1c);
+}
+
+.heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 16px 20px;
+  border-radius: 15px;
+  border: 1px solid var(--line, #e7ddd2);
+  background: linear-gradient(135deg, #fbf8f3 0%, #ffffff 78%);
+}
+
 .heading h2 {
-  margin: 0 0 6px;
-  font-size: 20px;
+  margin: 0 0 4px;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
   color: var(--ink, #1b1410);
 }
+
 .heading p {
   color: var(--muted, #756256);
   margin: 0;
-  font-size: 14px;
+  font-size: 13.5px;
+  line-height: 1.55;
 }
+
 .content {
   display: grid;
   gap: 18px;
@@ -94,39 +184,157 @@
   padding: 0;
   border: 0;
 }
+
 .content > [data-setup-pane][hidden] {
   display: none;
 }
+
+.issueBanner {
+  display: grid;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid #f3d7aa;
+  background: var(--warn-soft, #fef3e1);
+  color: var(--ink, #1b1410);
+}
+
+.issueBanner strong {
+  color: var(--warn, #9a5512);
+  font-size: 14.5px;
+}
+
+.issueBanner ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  font-size: 13.5px;
+  color: var(--ink-2, #4b3d33);
+}
+
 .actions {
   display: flex;
   gap: 12px;
   align-items: center;
   justify-content: space-between;
-  padding-top: 18px;
-  border-top: 1px solid var(--line, #e7ddd2);
+  padding: 16px 20px;
+  border-radius: 16px;
+  border: 1px solid var(--line, #e7ddd2);
+  background: var(--surface, #ffffff);
+  box-shadow: var(--shadow-xs);
 }
-.actions > span {
+
+.stepIndicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   color: var(--muted, #756256);
-  font-size: 13.5px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
 }
+
+.stepDots {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.stepDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--line-strong, #d4c4b4);
+  transition:
+    width 180ms ease,
+    background-color 180ms ease;
+}
+
+.stepDotActive {
+  width: 20px;
+  background: var(--brand, #c4512b);
+}
+
+.stepDotDone {
+  background: var(--app-sage, #2e6a56);
+}
+
+/* ---------- Review Step Cards ---------- */
 .review {
   display: grid;
   gap: 16px;
 }
+
+.reviewSection {
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--line, #e7ddd2);
+  background: var(--app-cream, #fbf8f3);
+}
+
 .reviewHeader {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
 }
+
 .reviewHeader h3 {
   margin: 0;
+  font-size: 15.5px;
+  font-weight: 800;
+  color: var(--ink, #1b1410);
 }
+
 .reviewPlan {
-  border-top: 1px solid var(--line, #e7ddd2);
-  padding-top: 12px;
+  display: grid;
+  gap: 8px;
+  padding: 13px 15px;
+  border-radius: 12px;
+  border: 1px solid var(--line, #e7ddd2);
+  background: var(--surface, #ffffff);
 }
+
+.reviewPlanHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.reviewPlanHead strong {
+  font-size: 14.5px;
+  color: var(--ink, #1b1410);
+}
+
+.reviewList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.reviewList li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  background: var(--app-cream, #fbf8f3);
+  font-size: 13.5px;
+  color: var(--ink-2, #4b3d33);
+}
+
+.reviewList li strong {
+  color: var(--ink, #1b1410);
+  white-space: nowrap;
+}
+
 .srOnly {
   position: absolute;
   width: 1px;
@@ -136,13 +344,57 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
-@media (max-width: 860px) {
+
+@media (max-width: 900px) {
   .steps {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
   .steps button {
+    padding: 11px 12px;
+    min-height: 64px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 520px) {
+  .stepperCard {
     padding: 12px;
-    min-height: 74px;
-    font-size: 13.5px;
+  }
+
+  .steps {
+    gap: 8px;
+  }
+
+  .steps button {
+    padding: 10px;
+    gap: 8px;
+    min-height: 58px;
+    font-size: 12.5px;
+  }
+
+  .number {
+    flex: 0 0 26px;
+    height: 26px;
+    font-size: 12px;
+  }
+
+  .heading {
+    padding: 14px 16px;
+  }
+
+  .actions {
+    flex-wrap: wrap;
+    padding: 14px 16px;
+  }
+
+  .stepIndicator {
+    order: -1;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .actions > :global(.btn) {
+    flex: 1 1 120px;
   }
 }

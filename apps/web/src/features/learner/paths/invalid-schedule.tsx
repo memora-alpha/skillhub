@@ -1,6 +1,8 @@
 "use client";
 import { UserApiError } from "../api/client";
 import { formatTime } from "../components/common";
+import { ProductIcon } from "../components/product-icon";
+import styles from "./path-detail.module.css";
 
 type InvalidItem = {
   planId: string;
@@ -10,12 +12,14 @@ type InvalidItem = {
   endAt: string;
   reasons: string[];
 };
+
 const reasons: Record<string, string> = {
   START_NOT_IN_FUTURE: "Giờ bắt đầu đã qua. Hãy chọn thời gian mới.",
   END_NOT_AFTER_START: "Giờ kết thúc phải sau giờ bắt đầu.",
   DURATION_TOO_SHORT: "Thời lượng buổi học ngắn hơn mức cho phép.",
   DURATION_TOO_LONG: "Thời lượng buổi học dài hơn mức cho phép.",
 };
+
 export function invalidScheduleItems(cause: unknown): InvalidItem[] {
   if (
     !(cause instanceof UserApiError) ||
@@ -44,6 +48,7 @@ export function invalidScheduleItems(cause: unknown): InvalidItem[] {
     );
   });
 }
+
 export function InvalidScheduleNotice({
   error,
   onEdit,
@@ -58,23 +63,33 @@ export function InvalidScheduleNotice({
     Number.isFinite(Date.parse(details.evaluatedAt))
       ? details.evaluatedAt
       : undefined;
+
   return (
-    <section className="learner-notice" aria-label="Các buổi cần sửa lịch">
-      <h3>Điều chỉnh lịch trước khi chốt</h3>
-      {duration &&
-        Number.isSafeInteger(duration.min) &&
-        Number.isSafeInteger(duration.max) && (
-          <p>
-            Mỗi buổi cần từ {String(duration.min)} đến {String(duration.max)}{" "}
-            phút.
-          </p>
+    <section className={styles.invalidCard} aria-label="Các buổi cần sửa lịch">
+      <div>
+        <h3>Điều chỉnh lịch trước khi chốt</h3>
+        {duration &&
+          Number.isSafeInteger(duration.min) &&
+          Number.isSafeInteger(duration.max) && (
+            <p className={styles.metaNote}>
+              Mỗi buổi cần từ {String(duration.min)} đến {String(duration.max)}{" "}
+              phút.
+            </p>
+          )}
+        {evaluatedAt && (
+          <small className={styles.metaNote}>
+            Kiểm tra lúc {formatTime(evaluatedAt)}
+          </small>
         )}
-      {evaluatedAt && <small>Kiểm tra lúc {formatTime(evaluatedAt)}</small>}
+      </div>
+
       {items.map((item) => (
-        <div key={`${item.scheduleId}:${item.sessionNo}`}>
+        <div
+          key={`${item.scheduleId}:${item.sessionNo}`}
+          className={styles.invalidItem}
+        >
           <strong>
-            Buổi {item.sessionNo} · {formatTime(item.startAt)}
-            {" – "}
+            Buổi {item.sessionNo} · {formatTime(item.startAt)} –{" "}
             {formatTime(item.endAt)}
           </strong>
           <ul>
@@ -85,13 +100,16 @@ export function InvalidScheduleNotice({
               </li>
             ))}
           </ul>
-          <button
-            type="button"
-            className="btn"
-            onClick={() => onEdit(item.planId)}
-          >
-            Sửa lịch kế hoạch này →
-          </button>
+          <div className={styles.actionRow}>
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={() => onEdit(item.planId)}
+            >
+              Sửa lịch kế hoạch này
+              <ProductIcon name="arrow" size={14} />
+            </button>
+          </div>
         </div>
       ))}
     </section>
