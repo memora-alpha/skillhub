@@ -21,11 +21,26 @@ export type MaterialRatingSummary = {
   total: number;
   stars: Record<string, number>;
 };
-export type Skill = { id: string; name: string; status?: string };
+export type Skill = {
+  id: string;
+  name: string;
+  status?: string;
+  description?: string | null;
+};
+export type SkillLatestVerification = {
+  id?: string;
+  status?: string;
+  rejectReason?: string | null;
+  note?: string | null;
+  submittedAt?: string;
+  reviewedAt?: string | null;
+};
 export type SharingSkill = {
   version: number;
+  createdAt?: string;
   experienceYears?: string | null;
   verificationStatus?: string;
+  latestVerification?: SkillLatestVerification | null;
   id: string;
   skill: Skill;
   level: string;
@@ -299,6 +314,7 @@ export type SessionWhiteboard = {
   sceneData: Record<string, unknown> | null;
   updatedAt: string | null;
   updatedByUserId: string | null;
+  retentionDays?: number | null;
   readOnly: boolean;
   readOnlyReason: WhiteboardReadOnlyReason | null;
   editableFrom: string | null;
@@ -335,6 +351,7 @@ export type SessionRecording = {
   durationMs: number | null;
   bytes: number | null;
   stopReason: string | null;
+  retentionDays?: number | null;
   expiresAt: string | null;
   heldByReport: boolean;
   deletedAt: string | null;
@@ -344,4 +361,82 @@ export type SessionRecordingPlayback = {
   url: string;
   expiresAt: string;
   mime: string;
+};
+
+export type SubscriptionPlanCode = "CREATOR" | "PRO";
+export type EffectivePlanCode = SubscriptionPlanCode | "FREE";
+export type SubscriptionInterval = "MONTH" | "YEAR";
+export type SubscriptionStatus = "ACTIVE" | "GRACE" | "EXPIRED";
+
+export type PlanEntitlements = {
+  feeTier: SubscriptionPlanCode | null;
+  materialStorageBytes: string;
+  whiteboardRetentionDays: number;
+  recordingMinutesPerPeriod: number;
+  recordingRetentionDays: number;
+  recordingAddonAllowed: boolean;
+};
+
+export type SubscriptionPlan = {
+  planCode: SubscriptionPlanCode;
+  planVersionId: string;
+  versionNo: number;
+  monthPrice: string;
+  yearPrice: string;
+  entitlements: PlanEntitlements;
+  effectiveAt: string | null;
+};
+
+export type UserSubscriptionRecord = {
+  id: string;
+  planCode: SubscriptionPlanCode;
+  planVersionId: string;
+  interval: SubscriptionInterval;
+  status: SubscriptionStatus;
+  autoRenew: boolean;
+  termStart: string;
+  termEnd: string;
+  graceUntil: string | null;
+  scheduledPlanCode: SubscriptionPlanCode | null;
+  scheduledInterval: SubscriptionInterval | null;
+  version: number;
+};
+
+export type SubscriptionUsage = {
+  periodStart: string;
+  periodEnd: string;
+  recordingMinutesAllowed: number;
+  recordingMinutesUsed: number;
+  addonMinutesRemaining: number;
+};
+
+export type MaterialStorageUsage = {
+  usedBytes: string;
+  allowedBytes: string;
+  enforced: boolean;
+};
+
+export type MySubscriptionSnapshot = {
+  subscription: UserSubscriptionRecord | null;
+  entitlements: PlanEntitlements;
+  usage: SubscriptionUsage | null;
+  materialStorage: MaterialStorageUsage;
+};
+
+export type SubscriptionUpgradeQuote = {
+  planCode: SubscriptionPlanCode;
+  planVersionId: string;
+  amount: string;
+  termEnd: string;
+  quotedAt: string;
+  version: number;
+};
+
+export type SubscriptionCharge = {
+  id: string;
+  kind: "PURCHASE" | "RENEWAL" | "UPGRADE" | "RECORDING_ADDON";
+  planCode: string;
+  amount: string;
+  quantity: number;
+  createdAt: string;
 };

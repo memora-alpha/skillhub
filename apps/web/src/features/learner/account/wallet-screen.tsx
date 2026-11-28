@@ -18,6 +18,7 @@ import type { Wallet, LedgerEntry } from "./account-types";
 const transactionNames: Record<string, string> = {
   TOP_UP: "Nạp Credit",
   VOUCHER_REDEMPTION: "Đổi voucher",
+  SUBSCRIPTION_CHARGE: "Gói thành viên",
   DAILY_BONUS: "Thưởng hằng ngày",
   FEEDBACK_BONUS: "Thưởng phản hồi",
   HOLD: "Tạm giữ Credit",
@@ -43,9 +44,12 @@ export function WalletScreen() {
     ledger = useUserPagedList<LedgerEntry>("me/wallet/transactions?" + params);
   return (
     <>
-      <p>
+      <p style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         <Link href="/learn/vouchers" className="btn">
           Đổi voucher bằng Credit →
+        </Link>
+        <Link href="/learn/subscription" className="btn">
+          Quản lý gói thành viên →
         </Link>
       </p>
       <PageHeading
@@ -231,6 +235,7 @@ const referenceLabels: Record<string, string> = {
   DISPUTE: "Vụ việc",
   MATERIAL_ORDER: "Đơn tài liệu",
   VOUCHER_REDEMPTION: "Đổi voucher",
+  SUBSCRIPTION_CHARGE: "Gói thành viên",
   SYSTEM: "Hệ thống",
 };
 function WalletTransactionDetail({

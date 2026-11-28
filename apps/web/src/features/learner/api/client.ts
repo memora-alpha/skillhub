@@ -287,6 +287,50 @@ const messages: Record<string, string> = {
     "Bản ghi chưa sẵn sàng phát lại hoặc đã hết thời hạn lưu trữ.",
   RECORDING_HELD_BY_REPORT:
     "Bản ghi đang được tạm giữ vì buổi học có báo cáo tranh chấp đang mở nên chưa thể xóa.",
+  RECORDING_PLAN_REQUIRED:
+    "Gói hiện tại chưa bao gồm tính năng ghi hình buổi học. Hãy nâng cấp gói thành viên tại mục Gói thành viên.",
+  RECORDING_MINUTES_EXHAUSTED:
+    "Bạn đã dùng hết hạn mức phút ghi hình trong kỳ này. Hãy mua thêm gói phút ghi hình hoặc nâng cấp gói thành viên.",
+  RECORDING_ALREADY_CHARGED: "Bản ghi này đã được tính vào hạn mức phút.",
+  MATERIAL_STORAGE_QUOTA_EXCEEDED:
+    "Bạn đã vượt quá dung lượng lưu trữ tài liệu của gói hiện tại. Hãy xóa bớt tệp cũ hoặc nâng cấp gói thành viên.",
+  SUBSCRIPTIONS_DISABLED:
+    "Tính năng đăng ký và nâng cấp gói thành viên hiện đang tạm đóng.",
+  SUBSCRIPTION_ALREADY_ACTIVE:
+    "Bạn đang có gói thành viên còn hiệu lực. Hãy dùng chức năng nâng cấp hoặc đổi chu kỳ gia hạn.",
+  SUBSCRIPTION_NOT_ACTIVE:
+    "Bạn cần có gói thành viên đang hoạt động để thực hiện thao tác này.",
+  SUBSCRIPTION_NOT_AN_UPGRADE:
+    "Gói đã chọn không cao hơn gói hiện tại. Hãy dùng tùy chọn chuyển gói cho kỳ gia hạn kế tiếp.",
+  SUBSCRIPTION_NOT_FOUND:
+    "Không tìm thấy gói thành viên đang hoạt động của tài khoản.",
+  SUBSCRIPTION_PERMISSION_REQUIRED:
+    "Tài khoản hiện không có quyền quản lý gói thành viên.",
+  SUBSCRIPTION_PLAN_CHANGED:
+    "Giá hoặc phiên bản gói vừa thay đổi. Hãy tải lại trang để xác nhận mức giá mới.",
+  SUBSCRIPTION_PLAN_INVALID:
+    "Cấu hình quyền lợi gói thành viên chưa hợp lệ. Vui lòng thử lại sau.",
+  SUBSCRIPTION_PLAN_NOT_FOUND: "Gói thành viên đã chọn hiện không còn mở bán.",
+  SUBSCRIPTION_QUOTE_CHANGED:
+    "Báo giá nâng cấp đã thay đổi theo thời gian thực. Hãy lấy lại báo giá rồi xác nhận.",
+  SUBSCRIPTION_RENEWAL_PENDING:
+    "Gói của bạn đang trong quá trình xử lý gia hạn cuối kỳ. Vui lòng đợi ít phút rồi tải lại.",
+  SUBSCRIPTION_VERSION_CONFLICT:
+    "Trạng thái gói thành viên vừa được cập nhật. Hãy tải lại trang trước khi tiếp tục.",
+  USE_UPGRADE_ENDPOINT:
+    "Để chuyển lên gói cao hơn ngay lập tức, hãy dùng thao tác Nâng cấp gói.",
+  RECORDING_ADDON_NOT_ALLOWED:
+    "Gói hiện tại chưa hỗ trợ mua thêm phút ghi hình. Hãy nâng cấp lên gói Creator hoặc Creator Pro.",
+  RECORDING_ADDON_PACKS_INVALID:
+    "Số gói phút ghi hình mua mỗi lần phải từ 1 đến 10 gói.",
+  RECORDING_ADDON_PRICE_CHANGED:
+    "Giá gói phút ghi hình vừa thay đổi. Hãy kiểm tra lại giá hiện hành và xác nhận lại.",
+  PAYMENT_CANCELLATION_UNCONFIRMED:
+    "Chưa xác nhận được trạng thái hủy lệnh nạp từ cổng thanh toán. Hãy tải lại kiểm tra sau ít phút.",
+  IDEMPOTENCY_KEY_REQUIRED:
+    "Thiếu khóa chống gửi trùng yêu cầu. Hãy tải lại trang rồi thực hiện lại.",
+  IDEMPOTENCY_KEY_REUSED:
+    "Yêu cầu vừa gửi bị trùng khóa với tham số khác. Hãy tải lại trạng thái rồi thử lại.",
   CHAT_DOWNLOAD_UNAVAILABLE:
     "Dịch vụ tải tệp tin nhắn tạm thời chưa sẵn sàng. Vui lòng thử lại sau.",
   CHAT_REPLICA_SET_OR_INDEXES_UNAVAILABLE:

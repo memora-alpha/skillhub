@@ -24,6 +24,7 @@ const labels: Record<string, string> = {
   MATERIAL_REFUND: "Hoàn tiền tài liệu",
   REVERSAL: "Hoàn tác giao dịch",
   VOUCHER_REDEMPTION: "Đổi voucher",
+  SUBSCRIPTION_CHARGE: "Gói thành viên",
 };
 export function financeLabel(code: string) {
   return labels[code] ?? systemCodeLabel(code, "Nghiệp vụ khác");

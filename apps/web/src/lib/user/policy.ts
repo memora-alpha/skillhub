@@ -39,6 +39,8 @@ const allowed: Record<string, RegExp[]> = {
         uuid +
         "/(download|content|preview|thumbnail)",
     ),
+    route("subscriptions/plans"),
+    route("me/subscription(/(upgrade-quote|charges))?"),
     route("me"),
     route("me/avatar/uploads/" + uuid),
     route("me/(skills|wallet|achievements)"),
@@ -105,6 +107,7 @@ const allowed: Record<string, RegExp[]> = {
     route("me/skills/" + uuid + "/(archive|restore)"),
     route("tag-requests"),
     route("conversations/" + uuid + "/attachments"),
+    route("me/subscription(/(upgrade|recording-minutes))?"),
     route("sessions/paths/" + uuid + "/(settlement|settlement-consent)"),
     route("learning-paths/" + uuid + "/(reviews|termination-requests)"),
     route(
@@ -152,6 +155,7 @@ const allowed: Record<string, RegExp[]> = {
   PATCH: [
     route("material-reviews/" + uuid),
     route("me/notification-preferences"),
+    route("me/subscription"),
     route("me/materials/" + uuid),
     route("me/skills/" + uuid),
     route("me/achievements/selected-title"),
@@ -207,6 +211,7 @@ export function userQuery(search: URLSearchParams) {
     "expectedListingVersion",
     "type",
     "referenceType",
+    "planCode",
   ]) {
     for (const value of search.getAll(name)) result.append(name, value);
   }

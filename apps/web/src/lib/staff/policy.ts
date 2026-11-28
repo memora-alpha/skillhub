@@ -1,6 +1,13 @@
 const uuid = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const routes: [string, RegExp, (path: string) => string][] = [
   ["GET", /^content-moderation\/chat-attachments$/, (p) => p],
+  ["GET", /^subscriptions$/, () => "admin/subscriptions"],
+  ["GET", /^subscriptions\/plans$/, () => "admin/subscriptions/plans"],
+  [
+    "GET",
+    new RegExp(`^subscriptions/users/${uuid}$`, "i"),
+    (p) => `admin/${p}`,
+  ],
   [
     "POST",
     new RegExp(`^content-moderation/chat-attachments/${uuid}/revoke$`, "i"),
@@ -205,6 +212,12 @@ const adminRoutes: [string, RegExp, (path: string) => string][] = [
     (p) => `admin/content-moderation/${p}`,
   ],
   ["GET", /^audit-logs$/, (p) => `admin/${p}`],
+  ["POST", /^subscriptions\/plans$/, () => "admin/subscriptions/plans"],
+  [
+    "POST",
+    new RegExp(`^subscriptions/plans/${uuid}/(approve|retire)$`, "i"),
+    (p) => `admin/${p}`,
+  ],
   ["GET", /^dashboard\/trends$/, (p) => `admin/${p}`],
   ["GET", /^dashboard\/summary$/, (p) => `admin/${p}`],
   ["GET", /^dashboard\/work-items$/, (p) => `admin/${p}`],
