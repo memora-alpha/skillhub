@@ -11,6 +11,14 @@ import { Icon } from "@/components/console/icon";
 import { fmtDateTime } from "@/lib/console/format";
 import { LoadingButton } from "@/components/loading-button";
 import { hasPermission } from "@/lib/staff/permissions";
+import {
+  maxProfanityAliases,
+  maxProfanityRules,
+  maxProfanityTermLength,
+  validateProfanityRuleDraft,
+  validateProfanityRuleSet,
+  type ProfanityRule as Rule,
+} from "@/lib/staff/profanity-rules";
 import { AdminDrawer } from "./admin-ui";
 import { AdminFilterPanel, filterPanelStyles } from "./admin-filter-panel";
 import { DecisionDialog, QueueState } from "./common";
@@ -18,7 +26,6 @@ import { useStaffResource, useStaffTask } from "./hooks";
 import { useStaffSession } from "./session";
 import styles from "./admin-config.module.css";
 
-type Rule = { id: string; term: string; aliases: string[]; enabled: boolean };
 type Snapshot = { version: number; effectiveAt: string; rules: Rule[] };
 type Revisions = {
   items: {
@@ -71,9 +78,7 @@ function Editor({
     aliases: rule.aliases.map((entry) => entry.trim()).filter(Boolean),
   }));
   const changed = JSON.stringify(rules) !== JSON.stringify(value.rules);
-  const hasInvalidRule = rules.some(
-    (rule) => !rule.term.trim() || rule.aliases.length > 20,
-  );
+  const ruleSetError = validateProfanityRuleSet(submittedRules);
 
   const needle = search.trim().toLocaleLowerCase("vi");
   const visible = rules.filter((rule) => {
@@ -90,13 +95,13 @@ function Editor({
   return (
     <div className={styles.workspace}>
       {changed && (
-        <div className={styles.dirtyBanner} role="status">
+        <div className={styles.dirtyBanner}>
           <div className={styles.dirtyBannerInfo}>
             <Icon name="alert" size={16} />
-            <span>
+            <output>
               Bạn có thay đổi chưa áp dụng trên danh sách từ ngữ ({rules.length}{" "}
               quy tắc).
-            </span>
+            </output>
           </div>
           <div className={styles.metaActions}>
             <button
@@ -109,7 +114,7 @@ function Editor({
             <button
               type="button"
               className="btn btn-sm btn-primary"
-              disabled={hasInvalidRule}
+              disabled={Boolean(ruleSetError)}
               onClick={() => setDecision("save")}
             >
               Áp dụng bộ lọc
@@ -118,13 +123,19 @@ function Editor({
         </div>
       )}
 
+      {ruleSetError && (
+        <p className="staff-error" role="alert">
+          {ruleSetError}
+        </p>
+      )}
+
       <Card flush>
         <div className={styles.metaBar}>
           <div className={styles.metaLeft}>
             <Badge tone="brand">Phiên bản v{value.version}</Badge>
             <span>
               <strong>{enabledCount}</strong> đang bật ·{" "}
-              <strong>{rules.length}</strong>/250 quy tắc
+              <strong>{rules.length}</strong>/{maxProfanityRules} quy tắc
             </span>
             <span>· Cập nhật {fmtDateTime(value.effectiveAt)}</span>
           </div>
@@ -148,7 +159,7 @@ function Editor({
             <button
               type="button"
               className="btn btn-sm btn-primary"
-              disabled={rules.length >= 250}
+              disabled={rules.length >= maxProfanityRules}
               onClick={() => setEditing({ mode: "create" })}
             >
               <Icon name="plus" size={14} />
@@ -298,6 +309,7 @@ function Editor({
         <ProfanityRuleDrawer
           mode={editing.mode}
           initial={editing.mode === "edit" ? editing.rule : undefined}
+          existingRules={rules}
           close={() => setEditing(null)}
           onSave={(nextRule) => {
             if (editing.mode === "create") {
@@ -315,6 +327,7 @@ function Editor({
       {testing && (
         <ProfanityPreviewDrawer
           rules={submittedRules}
+          validationError={ruleSetError}
           close={() => setTesting(false)}
         />
       )}
@@ -367,11 +380,13 @@ function Editor({
 function ProfanityRuleDrawer({
   mode,
   initial,
+  existingRules,
   close,
   onSave,
 }: Readonly<{
   mode: "create" | "edit";
   initial?: Rule;
+  existingRules: readonly Rule[];
   close: () => void;
   onSave: (rule: Rule) => void;
 }>) {
@@ -409,12 +424,12 @@ function ProfanityRuleDrawer({
             .split("\n")
             .map((line) => line.trim())
             .filter(Boolean);
-          if (!cleanTerm) {
-            setError("Vui lòng nhập từ hoặc cụm từ cần chặn.");
-            return;
-          }
-          if (cleanAliases.length > 20) {
-            setError("Mỗi quy tắc chỉ hỗ trợ tối đa 20 biến thể.");
+          const draftError = validateProfanityRuleDraft(
+            { id: initial?.id, term: cleanTerm, aliases: cleanAliases },
+            existingRules,
+          );
+          if (draftError) {
+            setError(draftError);
             return;
           }
           onSave({
@@ -429,7 +444,7 @@ function ProfanityRuleDrawer({
           <span>Từ hoặc cụm từ chính</span>
           <input
             required
-            maxLength={120}
+            maxLength={maxProfanityTermLength}
             value={term}
             placeholder="Nhập từ khóa cần chặn…"
             onChange={(event) => {
@@ -437,7 +452,10 @@ function ProfanityRuleDrawer({
               setError("");
             }}
           />
-          <small>Tối đa 120 ký tự.</small>
+          <small>
+            Tối đa {maxProfanityTermLength} ký tự; mỗi từ phải bắt đầu bằng chữ
+            cái hoặc chữ số.
+          </small>
         </label>
 
         <label className={styles.drawerField}>
@@ -450,7 +468,10 @@ function ProfanityRuleDrawer({
               setError("");
             }}
           />
-          <small>Mỗi dòng 1 biến thể, tối đa 20 dòng.</small>
+          <small>
+            Mỗi dòng 1 biến thể, tối đa {maxProfanityAliases} dòng và không
+            trùng từ/biến thể đã có.
+          </small>
         </label>
 
         <label className={filterPanelStyles.checkbox}>
@@ -474,8 +495,13 @@ function ProfanityRuleDrawer({
 
 function ProfanityPreviewDrawer({
   rules,
+  validationError,
   close,
-}: Readonly<{ rules: readonly Rule[]; close: () => void }>) {
+}: Readonly<{
+  rules: readonly Rule[];
+  validationError: string | null;
+  close: () => void;
+}>) {
   const { api } = useStaffSession();
   const command = useStaffTask();
   const [text, setText] = useState("");
@@ -501,7 +527,7 @@ function ProfanityPreviewDrawer({
             type="button"
             className="btn btn-primary"
             loading={command.busy}
-            disabled={!text.trim()}
+            disabled={!text.trim() || Boolean(validationError)}
             onClick={() =>
               void command.run(async () => {
                 const result = await api<PreviewResult>(endpoint + "/preview", {
@@ -518,6 +544,11 @@ function ProfanityPreviewDrawer({
       }
     >
       <div className={styles.drawerForm}>
+        {validationError && (
+          <p className="staff-error" role="alert">
+            {validationError}
+          </p>
+        )}
         <label className={styles.drawerField}>
           <span>Nội dung cần kiểm tra</span>
           <textarea

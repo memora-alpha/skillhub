@@ -165,12 +165,12 @@ function ChatThread({ id }: Readonly<{ id: string }>) {
         <>
           <header className={styles.header}>
             <Link
-              className={styles.iconButton}
+              className={styles.mobileBack}
               href="/learn/messages"
               aria-label="Quay lại tin nhắn"
             >
               <span className={styles.backIcon}>
-                <ProductIcon name="arrow" />
+                <ProductIcon name="arrow" size={19} />
               </span>
             </Link>
             <Link
@@ -201,7 +201,7 @@ function ChatThread({ id }: Readonly<{ id: string }>) {
               }}
               loading={!!opening}
             >
-              <ProductIcon name="check" size={17} />
+              <ProductIcon name="check" size={16} />
               {opening ? "Đang mở…" : "Thỏa thuận"}
             </LoadingButton>
           </header>
@@ -240,14 +240,29 @@ function ChatThread({ id }: Readonly<{ id: string }>) {
             {rows.map((message, index) => {
               const previousMessage = rows[index - 1],
                 next = rows[index + 1];
+              const samePrev =
+                !!previousMessage &&
+                message.messageType !== "SYSTEM" &&
+                previousMessage.messageType !== "SYSTEM" &&
+                previousMessage.senderId === message.senderId &&
+                vietnamDateKey(previousMessage.sentAt) ===
+                  vietnamDateKey(message.sentAt) &&
+                Date.parse(message.sentAt) -
+                  Date.parse(previousMessage.sentAt) <
+                  5 * 60_000;
               const sameNext =
                 !!next &&
+                message.messageType !== "SYSTEM" &&
                 next.messageType !== "SYSTEM" &&
                 next.senderId === message.senderId &&
                 vietnamDateKey(next.sentAt) ===
                   vietnamDateKey(message.sentAt) &&
                 Date.parse(next.sentAt) - Date.parse(message.sentAt) <
                   5 * 60_000;
+              let groupPos: "single" | "first" | "middle" | "last" = "single";
+              if (samePrev && sameNext) groupPos = "middle";
+              else if (!samePrev && sameNext) groupPos = "first";
+              else if (samePrev && !sameNext) groupPos = "last";
               const dayStarts =
                 !previousMessage ||
                 vietnamDateKey(previousMessage.sentAt) !==
@@ -266,6 +281,7 @@ function ChatThread({ id }: Readonly<{ id: string }>) {
                     partner={partner}
                     showAvatar={!sameNext}
                     showTime={!sameNext}
+                    groupPos={groupPos}
                     onOpenAgreement={() => {
                       void openAgreement();
                     }}

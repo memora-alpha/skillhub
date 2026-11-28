@@ -13,59 +13,79 @@ type RuleSpec = {
 
 const splitTerms = (packed: string) => packed.split("|");
 
+// Vietnamese rules are matched strictly WITH diacritics preserved (NFC after NFKC)
+// so polite Vietnamese words ("ngủ", "ngũ", "ngư", "bộ máy", "chỗ để", "vợ học",
+// "chả mấy", "đồ cho", "đủ mà", "cut đi", "còn điện", "còn rảnh", "mà mấy"...)
+// never false-positive. Ambiguous 2-letter acronyms ("dm", "ml", "cc") are also excluded.
 const accentedRules: readonly RuleSpec[] = [
   {
     kind: "profanity",
     terms: splitTerms(
-      "địt mẹ|địt|đụ má|đụ mẹ|đụ|đù má|đù|đéo|vãi lồn|vãi cứt|vãi cặc|vãi|lồn|cặc|buồi|đĩ|con đĩ|đm|đmm|đcm|đcmm|cứt",
+      "địt mẹ|địt con mẹ|địt cụ|địt|đụ má|đụ mẹ|đụ|đù má|đù|đéo|vãi lồn|vãi cứt|vãi cặc|vãi|lồn|cặc|buồi|đĩ|con đĩ|đm|đmm|đcm|đcmm|cứt|dit me|dit con me|dit cu|du ma|du me|vai lon|vai cac|vai cut|dmm|dcm|dcmm|clm|clmm|vcl|vl|vkl|cmm",
     ),
   },
   {
     kind: "harassment",
     terms: splitTerms(
-      "mày ngu|đồ ngu|ngu như chó|ngu vãi|ngu quá|ngu thế|ngu vậy|óc chó|đồ chó|thằng chó|con chó|mặt chó|hi chó|chó chết|chó đẻ|mẹ mày|má mày|bố mày|cha mày|cả nhà mày|câm mõm|ngậm mõm|cút đi|biến đi|súc vật|khốn nạn|mất dạy|vô học|thằng điên|con điên|thằng ranh|con ranh|đập chết|giết mày",
+      "mày ngu|đồ ngu|ngu như chó|ngu vãi|ngu quá|ngu thế|ngu vậy|ngu|óc chó|đồ chó|thằng chó|con chó|mặt chó|hi chó|chó chết|chó đẻ|mẹ mày|má mày|bố mày|cha mày|cả nhà mày|câm mõm|ngậm mõm|cút đi|biến đi|súc vật|khốn nạn|mất dạy|vô học|thằng điên|con điên|thằng ranh|con ranh|đập chết|giết mày|ngu nhu cho|oc cho|cam mom|ngam mom|suc vat|khon nan",
     ),
   },
 ];
 
-// Terms safe to match on accent-folded / leetspeak-normalized ASCII text.
-// Bare Vietnamese words like "lon"/"cac"/"buoi"/"deo" are intentionally excluded
-// to avoid false positives on "lớn", "các", "buổi", "đeo", "lộn".
-const foldedRules: readonly RuleSpec[] = [
+// English profanity/harassment terms checked after leetspeak normalization
+// (still without stripping Vietnamese diacritics).
+const englishRules: readonly RuleSpec[] = [
   {
     kind: "profanity",
     terms: splitTerms(
-      "dit me|dit con me|dit cu|du ma|du me|vai lon|vai cac|vai cut|dm|dmm|dcm|dcmm|clm|clmm|vcl|vl|vkl|cmm|cc|ml|fuck|fucker|fucking|motherfucker|shit|bullshit|bitch|asshole|bastard|cunt|dick|pussy|whore|slut|faggot|nigger|wtf|stfu",
+      "fuck|fucker|fucking|motherfucker|shit|bullshit|bitch|asshole|bastard|cunt|dick|pussy|whore|slut|faggot|nigger|wtf|stfu",
     ),
   },
   {
     kind: "harassment",
-    terms: splitTerms(
-      "may ngu|do ngu|ngu nhu cho|ngu vai|oc cho|do cho|thang cho|mat cho|hi cho|cho chet|cho de|me may|ma may|bo may|cha may|cam mom|ngam mom|cut di|suc vat|khon nan|mat day|vo hoc|thang dien|con dien|thang ranh|con ranh|ngu|retard|kill yourself|kys",
-    ),
+    terms: splitTerms("retard|kill yourself|kys"),
   },
 ];
 
-// Exact standalone insult callouts (whole message after trimming punctuation)
+// Exact standalone insult callouts (whole message after trimming edge symbols/punctuation)
 const standaloneAccentedInsults = new Set(
   splitTerms("chó|ngu|điên|cút|rác|phế"),
 );
 
-const wordChar = String.raw`[\p{L}\p{M}\p{N}_]`;
-const wordJoin = String.raw`[\s\p{P}]+`;
-const sep = String.raw`[\s.*_~/-]`;
-const maskSep = String.raw`[\s._~/-]`;
+// Underscore is intentionally excluded from wordChar so "_ngu" / "test_vcl" cannot bypass.
+const wordChar = String.raw`[\p{L}\p{M}\p{N}]`;
+// Join phrase tokens across whitespace, Unicode punctuation (\p{P}) and symbols (\p{S})
+// so "địt+mẹ", "đụ=má", "câm$mõm", "vô=học" cannot bypass.
+const wordJoin = String.raw`[\s\p{P}\p{S}]+`;
+
+// Disjoint separator classes prevent ReDoS backtracking and avoid matching "/" in "d/m/y".
+const sep = String.raw`[._~+=$^-]`;
+const sepOrStar = String.raw`[.*_~+=$^-]`;
 
 function escapeRegex(text: string): string {
   return text.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`);
 }
 
+function expandTokenWithRepetitions(token: string): string {
+  const chars = [...token];
+  const segments: string[] = [];
+  let index = 0;
+  while (index < chars.length) {
+    const ch = chars[index]!;
+    let count = 1;
+    while (index + count < chars.length && chars[index + count] === ch) {
+      count++;
+    }
+    const escaped = escapeRegex(ch);
+    segments.push(count === 1 ? `${escaped}+` : `${escaped}{${count},}`);
+    index += count;
+  }
+  return segments.join("");
+}
+
 function buildPattern(terms: readonly string[]) {
   const parts = terms.map((term) =>
-    term
-      .split(/\s+/u)
-      .map((part) => [...part].map((ch) => `${escapeRegex(ch)}+`).join(""))
-      .join(wordJoin),
+    term.split(/\s+/u).map(expandTokenWithRepetitions).join(wordJoin),
   );
   return new RegExp(
     `(?<!${wordChar})(?:${parts.join("|")})(?!${wordChar})`,
@@ -78,36 +98,46 @@ const compiledAccented = accentedRules.map((rule) => ({
   pattern: buildPattern(rule.terms),
 }));
 
-const compiledFolded = foldedRules.map((rule) => ({
+const compiledEnglish = englishRules.map((rule) => ({
   kind: rule.kind,
   pattern: buildPattern(rule.terms),
 }));
 
 // Obfuscated slang tokens that explicitly use separators or mask characters
-// (e.g. d.m, d*m, d_m_m, c.l.m, v.c.l, đ*t, l*n, l0n, c*c, c@c, f*ck, sh!t)
-// so plain Vietnamese words like "lớn", "các", "buổi", "đeo" never false-positive.
+// (e.g. đ.m, đ*m, d*m, n.g.u, v.c.l, đ.é.o, đ*o, đ*t, l*n, l0n, c*c, c@c, f*ck, sh!t)
+// matched on accented (NFC) text without "/" so "d/m/y", "lớn", "các", "buổi", "đeo" never false-positive.
 const obfuscatedSlurs = new RegExp(
   `(?<!${wordChar})(?:` +
     [
-      `d+${sep}+m+`,
-      `d+${sep}+c+${sep}*m+`,
-      `c+${sep}+l+${sep}*m+`,
-      `v+${sep}+c+${sep}*l+`,
-      `d+${maskSep}*[1!*@]+${maskSep}*t+`,
-      `d+${sep}+i+${sep}*t+`,
-      `l+${maskSep}*[0*@]+${maskSep}*n+`,
-      `l+${sep}+o+${sep}*n+`,
-      `c+${maskSep}*[4*@]+${maskSep}*c+`,
-      `c+${sep}+a+${sep}*c+`,
-      `f+${maskSep}*[u*@]+${maskSep}*c+${sep}*k+`,
-      `s+${sep}*h+${maskSep}*[1!*]+${maskSep}*t+`,
-      `b+${maskSep}*[1!*]+${maskSep}*t+${sep}*c+${sep}*h+`,
+      `đ+${sepOrStar}+m+`,
+      String.raw`d+\*+m+`,
+      `[dđ]+${sepOrStar}+c+${sepOrStar}*m+`,
+      `c+${sepOrStar}+l+${sepOrStar}*m+`,
+      `v+${sepOrStar}+c+${sepOrStar}*l+`,
+      `n+${sepOrStar}+g+${sepOrStar}+u+`,
+      `đ+${sepOrStar}+é+${sepOrStar}+o+`,
+      String.raw`đ+\*+o+`,
+      `[dđ]+${sep}*[*!@]+${sep}*t+`,
+      `đ+${sep}*1+${sep}*t+`,
+      `d+${sepOrStar}+i+${sepOrStar}+t+`,
+      `đ+${sepOrStar}+ị+${sepOrStar}+t+`,
+      `l+${sep}*[0*@]+${sep}*n+`,
+      `l+${sepOrStar}+o+${sepOrStar}+n+`,
+      `l+${sepOrStar}+ồ+${sepOrStar}+n+`,
+      `c+${sep}*[*@]+${sep}*c+`,
+      `c+${sepOrStar}+a+${sepOrStar}+c+`,
+      `c+${sepOrStar}+ặ+${sepOrStar}+c+`,
+      `f+${sep}*[*@]+${sep}*c+${sepOrStar}*k+`,
+      `f+${sepOrStar}+u+${sepOrStar}*c+${sepOrStar}*k+`,
+      `s+${sepOrStar}*h+${sep}*[1!*]+${sep}*t+`,
+      `s+${sepOrStar}+h+${sepOrStar}+i+${sepOrStar}+t+`,
+      `b+${sep}*[1!*]+${sep}*t+${sepOrStar}*c+${sepOrStar}*h+`,
     ].join("|") +
     `)(?!${wordChar})`,
   "u",
 );
 
-const edgePunctuationChar = /^[\p{P}\s]$/u;
+const edgePunctuationChar = /^[\p{P}\p{S}\s]$/u;
 
 function trimEdgePunctuation(text: string): string {
   const chars = [...text];
@@ -127,19 +157,8 @@ function normalizeAccented(text: string): string {
     .trim();
 }
 
-function normalizeFolded(text: string): string {
+function normalizeLeetspeak(text: string): string {
   return text
-    .normalize("NFKC")
-    .replaceAll(/\p{Cf}/gu, "")
-    .normalize("NFD")
-    .replaceAll(/\p{M}/gu, "")
-    .replaceAll(/đ/gi, "d")
-    .toLowerCase()
-    .trim();
-}
-
-function normalizeLeetspeak(folded: string): string {
-  return folded
     .replaceAll("@", "a")
     .replaceAll("$", "s")
     .replaceAll(/(?<=[a-z])0(?=[a-z])/g, "o")
@@ -149,8 +168,8 @@ function normalizeLeetspeak(folded: string): string {
 }
 
 /**
- * Client-side pre-moderation guard for Vietnamese & English profanity/abuse.
- * Runs synchronously before sending to LiveKit P2P chat or the SkillHub API.
+ * Client-side moderation guard for LiveKit P2P room chat.
+ * Preserves Vietnamese diacritics to avoid false positives on everyday Vietnamese.
  */
 export function detectInappropriateText(
   value: string,
@@ -165,11 +184,10 @@ export function detectInappropriateText(
     if (rule.pattern.test(accented)) return rule.kind;
   }
 
-  const folded = normalizeFolded(value);
-  if (obfuscatedSlurs.test(folded)) return "profanity";
+  if (obfuscatedSlurs.test(accented)) return "profanity";
 
-  const deLeet = normalizeLeetspeak(folded);
-  for (const rule of compiledFolded) {
+  const deLeet = normalizeLeetspeak(accented);
+  for (const rule of compiledEnglish) {
     if (rule.pattern.test(deLeet)) return rule.kind;
   }
 

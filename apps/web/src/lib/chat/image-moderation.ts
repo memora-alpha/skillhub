@@ -2,10 +2,7 @@ import {
   contactPolicyMessage,
   detectContactInformation,
 } from "./contact-policy";
-import {
-  detectInappropriateText,
-  imageModerationBlockedMessage,
-} from "./content-policy";
+import { imageModerationBlockedMessage } from "./content-policy";
 
 export type NsfwPrediction = {
   className: string;
@@ -16,7 +13,7 @@ export type ClientImageModerationResult =
   | { allowed: true; degraded?: boolean }
   | {
       allowed: false;
-      reason: "nsfw" | "image-text-profanity" | "image-text-contact";
+      reason: "nsfw" | "image-text-contact";
       message: string;
     };
 
@@ -170,26 +167,17 @@ export async function moderateImageOnClient(
     degraded = true;
   }
 
-  // 2. OCR text check (catches meme profanity / contact info screenshots)
+  // 2. OCR text check (catches contact info screenshots; profanity rules stay server-authoritative)
   try {
     const worker = await withTimeout(getOcrWorker(), 12_000);
     const result = await withTimeout(worker.recognize(canvas), 8_000);
     const extracted = result.data.text?.trim() ?? "";
-    if (extracted) {
-      if (detectInappropriateText(extracted)) {
-        return {
-          allowed: false,
-          reason: "image-text-profanity",
-          message: imageModerationBlockedMessage,
-        };
-      }
-      if (detectContactInformation(extracted)) {
-        return {
-          allowed: false,
-          reason: "image-text-contact",
-          message: contactPolicyMessage,
-        };
-      }
+    if (extracted && detectContactInformation(extracted)) {
+      return {
+        allowed: false,
+        reason: "image-text-contact",
+        message: contactPolicyMessage,
+      };
     }
   } catch {
     degraded = true;
