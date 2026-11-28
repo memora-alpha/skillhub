@@ -17,38 +17,98 @@ import {
   detectInappropriateText,
 } from "@/lib/chat/content-policy";
 import type { useRoomChat } from "./use-room-chat";
-import { roomChatTextLimit } from "./ephemeral-chat";
+import { roomChatTextLimit, type RoomChatMessage } from "./ephemeral-chat";
+import { formatRoomChatBadge, type RoomChatMode } from "./room-chat-unread";
 import { RoomIcon } from "./room-icon";
 import { RoomAvatar } from "./room-avatar";
 import type { RoomPerson } from "./room-profiles";
 import styles from "./room-chat.module.css";
 
-type WindowMode = "floating" | "minimized" | "maximized";
+export function RoomChatToast({
+  message,
+  unreadCount,
+  peer,
+  onOpen,
+  onDismiss,
+}: Readonly<{
+  message: RoomChatMessage;
+  unreadCount: number;
+  peer: RoomPerson;
+  onOpen: () => void;
+  onDismiss: () => void;
+}>) {
+  const countBadge =
+    unreadCount > 1
+      ? `${formatRoomChatBadge(unreadCount)} mới`
+      : "Tin nhắn mới";
+  return (
+    <div
+      className={styles.toast}
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      <button
+        type="button"
+        className={styles.toastOpen}
+        onClick={onOpen}
+        aria-label={`Mở chat phiên học — tin nhắn mới từ ${peer.name}: ${message.text}`}
+      >
+        <RoomAvatar
+          name={peer.name}
+          avatarUrl={peer.avatarUrl}
+          className={styles.headerAvatar}
+        />
+        <span className={styles.toastContent}>
+          <span className={styles.toastMeta}>
+            <strong>{peer.name}</strong>
+            <span className={styles.toastCount}>{countBadge}</span>
+          </span>
+          <span className={styles.toastText}>{message.text}</span>
+        </span>
+      </button>
+      <button
+        type="button"
+        className={styles.toastDismiss}
+        onClick={onDismiss}
+        title="Ẩn thông báo tin nhắn"
+        aria-label="Ẩn thông báo tin nhắn"
+      >
+        <RoomIcon name="close" />
+      </button>
+    </div>
+  );
+}
 
 export function RoomChat({
   chat,
   close,
   open,
+  mode,
+  unreadCount,
+  latestUnread,
+  onToggleMinimize,
+  onToggleMaximize,
   peer,
   self,
 }: Readonly<{
   chat: ReturnType<typeof useRoomChat>;
   close: () => void;
   open: boolean;
+  mode: RoomChatMode;
+  unreadCount: number;
+  latestUnread?: RoomChatMessage;
+  onToggleMinimize: () => void;
+  onToggleMaximize: () => void;
   peer: RoomPerson;
   self: RoomPerson;
 }>) {
   const [draft, setDraft] = useState("");
   const [policyError, setPolicyError] = useState<string>();
-  const [mode, setMode] = useState<WindowMode>("floating");
-  const [restoreMode, setRestoreMode] = useState<"floating" | "maximized">(
-    "floating",
-  );
-  const [lastReadId, setLastReadId] = useState<string>();
   const log = useRef<HTMLDivElement>(null);
   const bodyId = useId();
   const windowRef = useRef<HTMLElement>(null);
-  const previousMode = useRef<WindowMode>("floating");
+  const previousMode = useRef<RoomChatMode>(mode);
   const floatingSize = useRef({ width: "", height: "" });
   useLayoutEffect(() => {
     const style = windowRef.current?.style;
@@ -64,22 +124,15 @@ export function RoomChat({
     previousMode.current = mode;
   }, [mode]);
   const minimized = mode === "minimized";
-  const seen = chat.messages.findIndex((message) => message.id === lastReadId);
-  const unread = minimized
-    ? chat.messages.slice(seen + 1).filter((message) => !message.own).length
-    : 0;
+  const badge = minimized ? formatRoomChatBadge(unreadCount) : undefined;
+  const headerSubtitle =
+    minimized && latestUnread
+      ? `${peer.name}: ${latestUnread.text}`
+      : peer.name;
   useEffect(() => {
     if (open && !minimized && log.current)
       log.current.scrollTop = log.current.scrollHeight;
   }, [chat.messages, open, minimized]);
-  function toggleMinimize() {
-    if (minimized) setMode(restoreMode);
-    else {
-      setLastReadId(chat.messages.at(-1)?.id);
-      setRestoreMode(mode);
-      setMode("minimized");
-    }
-  }
   async function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const text = draft;
@@ -108,6 +161,7 @@ export function RoomChat({
       className={styles.chat}
       hidden={!open}
       data-mode={mode}
+      data-unread={badge ? "true" : undefined}
       aria-label={"Chat phiên học với " + peer.name}
     >
       <header className={styles.header}>
@@ -119,23 +173,23 @@ export function RoomChat({
         <div className={styles.heading}>
           <h2>
             Chat phiên học{" "}
-            {unread > 0 && (
+            {badge && (
               <span
                 className={styles.badge}
-                aria-label={unread + " tin nhắn mới"}
+                aria-label={unreadCount + " tin nhắn mới"}
               >
-                {unread}
+                {badge}
               </span>
             )}
           </h2>
-          <span className={styles.peerName} title={peer.name}>
-            {peer.name}
+          <span className={styles.peerName} title={headerSubtitle}>
+            {headerSubtitle}
           </span>
         </div>
         <div className={styles.actions}>
           <button
             type="button"
-            onClick={toggleMinimize}
+            onClick={onToggleMinimize}
             aria-controls={bodyId}
             aria-expanded={!minimized}
             title={minimized ? "Mở lại chat" : "Thu nhỏ chat"}
@@ -145,9 +199,7 @@ export function RoomChat({
           </button>
           <button
             type="button"
-            onClick={() =>
-              setMode(mode === "maximized" ? "floating" : "maximized")
-            }
+            onClick={onToggleMaximize}
             aria-pressed={mode === "maximized"}
             title={
               mode === "maximized"
