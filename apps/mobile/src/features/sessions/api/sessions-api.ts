@@ -4,6 +4,7 @@ import type { HttpClient, RequestOptions } from "@/lib/http/client";
 import { AppError } from "@/lib/http/errors";
 import { liveKitTokenSchema } from "./livekit-contract";
 import { createRescheduleApi } from "./reschedule-api";
+import { createClassroomApi } from "./classroom-api";
 import { excuseReceipt } from "./attendance-contract";
 import {
   sessionSchema,
@@ -47,6 +48,7 @@ export function createSessionsApi(
   }
   return {
     ...createRescheduleApi(call),
+    ...createClassroomApi(call),
     async submitExcuse(id: string, reason: string) {
       const body = z
         .object({ reason: z.string().trim().min(10).max(1000) })

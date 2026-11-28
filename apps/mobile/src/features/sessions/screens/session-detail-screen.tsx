@@ -26,6 +26,7 @@ import { isRescheduleEligible } from "../utils/reschedule-form";
 import { SessionAttendancePanel } from "../components/session-attendance-panel";
 import { SessionLimitsPanel } from "../components/session-limits-panel";
 import { LearningChangePanel } from "@/features/learning-paths";
+import { SessionClassroomResources } from "../components/session-classroom-resources";
 
 export function LearningSessionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -120,6 +121,12 @@ export function LearningSessionScreen() {
                 />
               )}
               {session && <SessionContextPanel session={session} />}
+              {session && (
+                <SessionClassroomResources
+                  key={`${runtime.key.join(":")}:${session.id}`}
+                  sessionId={session.id}
+                />
+              )}
               {session && (
                 <>
                   <SessionAttendancePanel

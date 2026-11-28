@@ -8,6 +8,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthSession } from "@/features/auth";
 import { createSessionsApi, type SessionsApi } from "./api/sessions-api";
+import type { BoardScene } from "./api/classroom-contracts";
 
 type Runtime = {
   api: SessionsApi;
@@ -15,6 +16,7 @@ type Runtime = {
   key: readonly [string, string, number];
   enabled: boolean;
   isCurrent: () => boolean;
+  whiteboardDrafts: Map<string, BoardScene>;
 };
 const Context = createContext<Runtime | null>(null);
 export function SessionsProvider({
@@ -34,15 +36,17 @@ export function SessionsProvider({
       key: ["sessions", userId, generation],
       enabled: status === "authenticated",
       isCurrent,
+      whiteboardDrafts: new Map(),
     };
   }, [runtime, userId, generation, status]);
   useEffect(() => {
     const key = value.key;
     return () => {
+      value.whiteboardDrafts.clear();
       void client.cancelQueries({ queryKey: key });
       client.removeQueries({ queryKey: key });
     };
-  }, [client, value.key]);
+  }, [client, value.key, value.whiteboardDrafts]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 export function useSessionsRuntime() {

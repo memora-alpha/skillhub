@@ -1,0 +1,70 @@
+import { StyleSheet } from "react-native";
+import { colors, fonts } from "@/constants/theme";
+
+export const classroomStyles = StyleSheet.create({
+  page: { flex: 1, backgroundColor: colors.cream },
+  header: {
+    padding: 16,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
+  },
+  heading: { fontFamily: fonts.bold, color: colors.ink, fontSize: 18 },
+  body: {
+    fontFamily: fonts.body,
+    color: colors.body,
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  muted: {
+    fontFamily: fonts.body,
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  row: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
+  spread: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  stack: { gap: 12 },
+  content: { padding: 16, gap: 16 },
+  card: {
+    padding: 14,
+    gap: 10,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 14,
+  },
+  toolbar: { padding: 12, gap: 8 },
+  canvas: {
+    width: "100%",
+    aspectRatio: 16 / 9,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: "hidden",
+  },
+  input: {
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    fontFamily: fonts.body,
+    color: colors.ink,
+  },
+  color: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 3,
+    borderColor: "transparent",
+  },
+  selectedColor: { borderColor: colors.brand },
+  recording: { color: colors.error, fontFamily: fonts.bold, fontSize: 14 },
+  player: { width: "100%", aspectRatio: 16 / 9, backgroundColor: "#111111" },
+});

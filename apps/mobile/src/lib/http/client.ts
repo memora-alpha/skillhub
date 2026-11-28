@@ -8,7 +8,7 @@ import { readBinaryResponse } from "./binary-response";
 import { retrySessionRequest } from "./session-request-retry";
 
 export type RequestOptions = {
-  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   multipart?: boolean;
   authenticated?: boolean;

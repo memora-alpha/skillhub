@@ -13,4 +13,5 @@ export type RoomMediaProps = Readonly<{
   onLeave: () => void;
   onRetry: () => void;
   retrying: boolean;
+  recordingCanStart?: boolean;
 }>;

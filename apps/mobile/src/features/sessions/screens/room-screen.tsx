@@ -187,6 +187,9 @@ function SessionRoom({ id }: Readonly<{ id: string }>) {
                   void retry();
                 }}
                 retrying={query.isFetching}
+                recordingCanStart={["READY", "ONGOING"].includes(
+                  session.status,
+                )}
               />
             ) : (
               <RoomLobby
