@@ -1,14 +1,16 @@
 import Link from "next/link";
-import type { Message } from "../types";
+import type { Message, MessageAttachment } from "../types";
 import { ProfileAvatar } from "../components/profile-avatar";
 import { ProductIcon } from "../components/product-icon";
 import { formatTime } from "../components/common";
 import { formatVietnamTime } from "@/lib/vietnam-time";
 import {
   attachmentStatusMessage,
+  isBlockedAttachment,
+  partitionMessageAttachments,
   visibleAttachmentFilename,
 } from "./chat-attachment-display";
-import { ChatDownload, ChatImagePreview } from "./chat-download";
+import { ChatFileAttachment, ChatImageAttachment } from "./chat-download";
 import styles from "./chat.module.css";
 
 export function ChatMessage({
@@ -20,6 +22,7 @@ export function ChatMessage({
   showTime = true,
   groupPos = "single",
   onOpenAgreement,
+  onMediaLoad,
 }: Readonly<{
   message: Message;
   conversationId: string;
@@ -29,6 +32,7 @@ export function ChatMessage({
   showTime?: boolean;
   groupPos?: "single" | "first" | "middle" | "last";
   onOpenAgreement?: () => void;
+  onMediaLoad?: () => void;
 }>) {
   const workflowCard = workflowCardFor(message, onOpenAgreement);
   if (message.messageType === "SYSTEM")
@@ -38,10 +42,19 @@ export function ChatMessage({
         {workflowCard}
       </article>
     );
+
+  const hasText = message.messageText.trim().length > 0;
+  const hasAttachments = message.attachments.length > 0;
+  const { images, files, restricted } = partitionMessageAttachments(
+    message.attachments,
+  );
+  const groupedImages = images.length > 1;
+
   return (
     <div
       className={styles.message + (mine ? " " + styles.mine : "")}
       data-pos={groupPos}
+      data-attachments={hasAttachments || undefined}
     >
       <div className={styles.messageRow}>
         {!mine &&
@@ -54,48 +67,59 @@ export function ChatMessage({
           ) : (
             <span className={styles.avatarSpace} />
           ))}
-        <article className={styles.bubble} title={formatTime(message.sentAt)}>
-          {message.messageText.trim() && <p>{message.messageText}</p>}
-          {message.attachments.map((file) => {
-            const blockedText = attachmentStatusMessage(file);
-            const isImage =
-              file.attachmentType === "IMAGE" ||
-              Boolean(file.mimeType?.startsWith("image/"));
-            return (
-              <div className={styles.fileCard} key={file.attachmentId}>
-                <ProductIcon name="file" size={19} />
-                <div className={styles.fileBody}>
-                  {blockedText ? (
-                    <div className={styles.fileStatusNote}>
-                      <strong>{visibleAttachmentFilename(file, mine)}</strong>
-                      <span>{blockedText}</span>
-                    </div>
-                  ) : (
-                    <>
-                      {isImage && (
-                        <ChatImagePreview
-                          conversationId={conversationId}
-                          messageId={message.id}
-                          attachmentId={file.attachmentId}
-                          filename={file.filename}
-                          width={file.width}
-                          height={file.height}
-                        />
-                      )}
-                      <ChatDownload
-                        conversationId={conversationId}
-                        messageId={message.id}
-                        attachmentId={file.attachmentId}
-                        filename={file.filename}
-                      />
-                    </>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-          {workflowCard}
-        </article>
+        <div className={styles.messageStack} title={formatTime(message.sentAt)}>
+          {(hasText || workflowCard) && (
+            <article className={styles.bubble}>
+              {hasText && <p>{message.messageText}</p>}
+              {workflowCard}
+            </article>
+          )}
+          {images.length > 0 && (
+            <div className={styles.imageGrid} data-count={images.length}>
+              {images.map((file) => (
+                <ChatImageAttachment
+                  key={file.attachmentId}
+                  conversationId={conversationId}
+                  messageId={message.id}
+                  file={file}
+                  mine={mine}
+                  grouped={groupedImages}
+                  onMediaLoad={onMediaLoad}
+                />
+              ))}
+            </div>
+          )}
+          {files.length > 0 && (
+            <div
+              className={styles.fileList}
+              data-multi={files.length > 1 || undefined}
+            >
+              {files.map((file) => (
+                <ChatFileAttachment
+                  key={file.attachmentId}
+                  conversationId={conversationId}
+                  messageId={message.id}
+                  file={file}
+                  mine={mine}
+                />
+              ))}
+            </div>
+          )}
+          {restricted.length > 0 && (
+            <div
+              className={styles.fileList}
+              data-multi={restricted.length > 1 || undefined}
+            >
+              {restricted.map((file) => (
+                <RestrictedAttachmentCard
+                  key={file.attachmentId}
+                  file={file}
+                  mine={mine}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
       {mine && message.readAt && (
         <small className={styles.messageTime}>
@@ -107,6 +131,37 @@ export function ChatMessage({
           {formatVietnamTime(message.sentAt)}
         </time>
       )}
+    </div>
+  );
+}
+
+function RestrictedAttachmentCard({
+  file,
+  mine,
+}: Readonly<{
+  file: MessageAttachment;
+  mine: boolean;
+}>) {
+  const blocked = isBlockedAttachment(file);
+  const status = file.accessStatus ?? file.availability;
+  const note = attachmentStatusMessage(file);
+  let iconName: "lock" | "clock" | "alert" = "alert";
+  if (blocked) iconName = "lock";
+  else if (status === "PENDING_SCAN") iconName = "clock";
+
+  return (
+    <div
+      className={styles.statusCard}
+      data-blocked={blocked || undefined}
+      data-pending={status === "PENDING_SCAN" || undefined}
+    >
+      <span className={styles.statusIcon} aria-hidden="true">
+        <ProductIcon name={iconName} size={17} />
+      </span>
+      <div className={styles.fileStatusNote}>
+        <strong>{visibleAttachmentFilename(file, mine)}</strong>
+        {note && <span>{note}</span>}
+      </div>
     </div>
   );
 }

@@ -1,6 +1,13 @@
 "use client";
 import { LoadingButton } from "@/components/loading-button";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -110,6 +117,12 @@ function ChatThread({ id }: Readonly<{ id: string }>) {
   });
   const following = useRef(true);
   const [atBottom, setAtBottom] = useState(true);
+  const handleMediaLoad = useCallback(() => {
+    const element = timeline.current;
+    if (element && following.current) {
+      element.scrollTop = element.scrollHeight;
+    }
+  }, []);
   useLayoutEffect(() => {
     const element = timeline.current;
     if (!element) return;
@@ -285,6 +298,7 @@ function ChatThread({ id }: Readonly<{ id: string }>) {
                     onOpenAgreement={() => {
                       void openAgreement();
                     }}
+                    onMediaLoad={handleMediaLoad}
                   />
                 </div>
               );
