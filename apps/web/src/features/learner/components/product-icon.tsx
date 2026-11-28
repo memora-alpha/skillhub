@@ -12,6 +12,7 @@ type IconName =
   | "clock"
   | "close"
   | "copy"
+  | "download"
   | "edit"
   | "externalLink"
   | "eye"
@@ -20,6 +21,7 @@ type IconName =
   | "filter"
   | "gift"
   | "home"
+  | "image"
   | "info"
   | "lock"
   | "menu"
@@ -140,6 +142,13 @@ const iconPaths: Record<IconName, ReactNode> = {
       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
     </>
   ),
+  download: (
+    <>
+      <path d="M12 4v11" />
+      <path d="m7.5 11.5 4.5 4.5 4.5-4.5" />
+      <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+    </>
+  ),
   externalLink: (
     <>
       <path d="M14 4h6v6" />
@@ -179,6 +188,13 @@ const iconPaths: Record<IconName, ReactNode> = {
     <>
       <path d="m3 11 9-8 9 8" />
       <path d="M5 10v11h14V10M9 21v-7h6v7" />
+    </>
+  ),
+  image: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <circle cx="8.5" cy="9" r="1.5" />
+      <path d="m21 15-5-5L5 20" />
     </>
   ),
   info: (

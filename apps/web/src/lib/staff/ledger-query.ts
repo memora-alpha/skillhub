@@ -6,6 +6,7 @@ export const ledgerReferenceTypes = [
   "DISPUTE",
   "MATERIAL_ORDER",
   "VOUCHER_REDEMPTION",
+  "SUBSCRIPTION_CHARGE",
   "SYSTEM",
 ] as const;
 export type LedgerFilters = {

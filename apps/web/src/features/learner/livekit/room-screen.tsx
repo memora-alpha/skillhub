@@ -27,7 +27,9 @@ import { useRoomAudio } from "./use-room-audio";
 import { useRoomDevices } from "./use-room-devices";
 import { RoomMediaSettings } from "./room-media-settings";
 import { useRoomChat } from "./use-room-chat";
-import { RoomChat } from "./room-chat";
+import { RoomChat, RoomChatToast } from "./room-chat";
+import { roomChatControlLabel } from "./room-chat-unread";
+import { useRoomChatPanel } from "./use-room-chat-panel";
 import { useRoomWhiteboard } from "./use-room-whiteboard";
 import { WhiteboardCanvas } from "./whiteboard-canvas";
 import { useRoomRecording } from "./use-room-recording";
@@ -37,11 +39,13 @@ function IconButton({
   icon,
   label,
   tone,
+  badge,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   icon: RoomIconName;
   label: string;
   tone?: "danger" | "active" | "off";
+  badge?: string;
 }) {
   return (
     <button
@@ -49,10 +53,16 @@ function IconButton({
       {...props}
       className={styles.iconButton}
       data-tone={tone}
+      data-has-badge={badge ? "true" : undefined}
       aria-label={label}
       title={label}
     >
       <RoomIcon name={icon} />
+      {badge && (
+        <span key={badge} className={styles.iconBadge} aria-hidden="true">
+          {badge}
+        </span>
+      )}
     </button>
   );
 }
@@ -196,8 +206,10 @@ function RoomControls({
   room,
   background,
   audio,
-  chatOpen,
+  chatExpanded,
   chatCount,
+  chatUnreadCount,
+  chatBadge,
   onToggleChat,
   whiteboardOpen,
   onToggleWhiteboard,
@@ -206,8 +218,10 @@ function RoomControls({
   room: ReturnType<typeof useLearningRoom>;
   background: ReturnType<typeof useCameraBackground>;
   audio: ReturnType<typeof useRoomAudio>;
-  chatOpen: boolean;
+  chatExpanded: boolean;
   chatCount: number;
+  chatUnreadCount: number;
+  chatBadge?: string;
   onToggleChat: () => void;
   whiteboardOpen: boolean;
   onToggleWhiteboard: () => void;
@@ -261,9 +275,10 @@ function RoomControls({
       />
       <IconButton
         icon="chat"
-        label={"Chat phiên học (" + chatCount + " tin)"}
-        tone={chatOpen ? "active" : undefined}
-        aria-expanded={chatOpen}
+        label={roomChatControlLabel(chatCount, chatUnreadCount)}
+        tone={chatExpanded ? "active" : undefined}
+        badge={chatBadge}
+        aria-expanded={chatExpanded}
         onClick={onToggleChat}
       />
     </div>
@@ -392,8 +407,8 @@ function RecordingConsentBanners({
       {recording.waitingForPartner && (
         <output className={styles.consentBar}>
           <span>
-            Đang chờ đối phương xác nhận đồng ý ghi hình (yêu cầu tự hết hạn sau
-            2 phút).
+            Đã gửi yêu cầu ghi hình. Đang chờ đối phương đồng ý (hết hạn sau 2
+            phút).
           </span>
         </output>
       )}
@@ -651,7 +666,6 @@ export function LearningRoomScreen({ id }: Readonly<{ id: string }>) {
   const [expanded, setExpanded] = useState(true);
   const [fullscreen, setFullscreen] = useState(false);
   const [displayError, setDisplayError] = useState<string>();
-  const [chatOpen, setChatOpen] = useState(false);
   const [whiteboardOpen, setWhiteboardOpen] = useState(false);
   const { peerId, peerProfile, peer, self } = useRoomPeople(
     id,
@@ -674,6 +688,7 @@ export function LearningRoomScreen({ id }: Readonly<{ id: string }>) {
     "signalReconnecting",
   ].includes(room.status);
   const joined = connected || room.tiles.length > 0;
+  const chatPanel = useRoomChatPanel(chat.messages, joined);
   const whiteboard = useRoomWhiteboard({
     sessionId: id,
     enabled: joined && whiteboardOpen,
@@ -802,9 +817,11 @@ export function LearningRoomScreen({ id }: Readonly<{ id: string }>) {
             room={room}
             background={background}
             audio={audio}
-            chatOpen={chatOpen}
+            chatExpanded={chatPanel.open && chatPanel.mode !== "minimized"}
             chatCount={chat.messages.length}
-            onToggleChat={() => setChatOpen((value) => !value)}
+            chatUnreadCount={chatPanel.unreadCount}
+            chatBadge={chatPanel.badge}
+            onToggleChat={chatPanel.toggleChat}
             whiteboardOpen={whiteboardOpen}
             onToggleWhiteboard={() => {
               const next = !whiteboardOpen;
@@ -823,13 +840,27 @@ export function LearningRoomScreen({ id }: Readonly<{ id: string }>) {
           <span>Chi tiết buổi học</span>
         </Link>
       </footer>
+      {joined && chatPanel.toastMessage && (
+        <RoomChatToast
+          message={chatPanel.toastMessage}
+          unreadCount={chatPanel.unreadCount}
+          peer={peer}
+          onOpen={chatPanel.openChat}
+          onDismiss={chatPanel.dismissToast}
+        />
+      )}
       {joined && (
         <RoomChat
-          open={chatOpen}
+          open={chatPanel.open}
+          mode={chatPanel.mode}
+          unreadCount={chatPanel.unreadCount}
+          latestUnread={chatPanel.latestUnread}
+          onToggleMinimize={chatPanel.toggleMinimize}
+          onToggleMaximize={chatPanel.toggleMaximize}
           chat={chat}
           peer={peer}
           self={self}
-          close={() => setChatOpen(false)}
+          close={chatPanel.closeChat}
         />
       )}
       <p className={styles.footnote}>

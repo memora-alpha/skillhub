@@ -1,13 +1,16 @@
 "use client";
 import { LoadingButton } from "@/components/loading-button";
-
-import { useState } from "react";
-import { UserProfileReference } from "./user-profile-reference";
+import { useId, useState } from "react";
 import Link from "next/link";
-import { Card, DataTable, StatusBadge } from "@/components/console/ui";
+import { StatusBadge } from "@/components/console/ui";
 import { Icon } from "@/components/console/icon";
 import { fmtDateTime } from "@/lib/console/format";
-import { financeLabel, financeNumber } from "@/lib/staff/finance-presentation";
+import {
+  creditDirection,
+  financeLabel,
+  financeNumber,
+  formatSignedCredit,
+} from "@/lib/staff/finance-presentation";
 import {
   readLedgerEntry,
   readLedgerOperation,
@@ -15,11 +18,16 @@ import {
   type LedgerOperation,
 } from "@/lib/staff/ledger-view";
 import { AdminDrawer, AdminField, AdminNotice, RecordId } from "./admin-ui";
-import { AdminFilterPanel, filterPanelStyles } from "./admin-filter-panel";
+import {
+  AdminFilterPanel,
+  AdminFilterTrigger,
+  filterPanelStyles,
+} from "./admin-filter-panel";
 import { QueueState } from "./common";
 import { useStaffResource } from "./hooks";
 import { useStaffPagedList } from "./use-staff-paged-list";
 import { PageNavigation } from "./page-navigation";
+import { UserProfileReference } from "./user-profile-reference";
 import {
   emptyLedgerFilters,
   ledgerHref,
@@ -28,9 +36,11 @@ import {
   ledgerReferenceTypes,
   type LedgerFilters,
 } from "@/lib/staff/ledger-query";
+import styles from "./admin-finance.module.css";
 
 const transactionTypes = [
   "TOP_UP",
+  "SUBSCRIPTION_PURCHASE",
   "VOUCHER_REDEMPTION",
   "DAILY_BONUS",
   "FEEDBACK_BONUS",
@@ -45,13 +55,50 @@ const transactionTypes = [
   "REFUND",
   "PENALTY",
   "ADJUSTMENT",
+] as const;
+
+const statusOptions = [
+  { value: "SUCCESS", label: "Thành công" },
+  { value: "PENDING", label: "Đang xử lý" },
+  { value: "FAILED", label: "Thất bại" },
+  { value: "REVERSED", label: "Đã đảo" },
+] as const;
+
+const statusLabelMap: Record<string, string> = Object.fromEntries(
+  statusOptions.map((item) => [item.value, item.label]),
+);
+
+const advancedKeys: readonly (keyof LedgerFilters)[] = [
+  "from",
+  "before",
+  "operationId",
+  "referenceType",
+  "referenceId",
+  "transactionId",
 ];
-const money = (value: string) => financeNumber(value) + " CR";
+
+const money = (value: string) => `${financeNumber(value)} CR`;
+
+function shortCode(id: string) {
+  return id.length > 16 ? `${id.slice(0, 8)}…${id.slice(-4)}` : id;
+}
+
+function deltaToneClass(value: string, held = false) {
+  const dir = creditDirection(value);
+  if (dir === "zero") return styles.deltaZero;
+  if (held) return styles.deltaHeld;
+  return dir === "positive" ? styles.deltaPositive : styles.deltaNegative;
+}
+
 type Selection = { id: string; kind: "entry" | "operation" };
 
 export function AdminLedgerScreen({
   initialFilters = emptyLedgerFilters,
-}: Readonly<{ initialFilters?: LedgerFilters }>) {
+  onOpenWallet,
+}: Readonly<{
+  initialFilters?: LedgerFilters;
+  onOpenWallet?: (userId: string) => void;
+}>) {
   const [draft, setDraft] = useState(initialFilters);
   const [filters, setFilters] = useState(() => {
     try {
@@ -79,8 +126,14 @@ export function AdminLedgerScreen({
       return undefined;
     }
   });
+  const [advancedOpen, setAdvancedOpen] = useState(() =>
+    advancedKeys.some((key) => Boolean(initialFilters[key].trim())),
+  );
+  const filterPanelId = useId();
+
   const params = ledgerQuery(filters);
   const list = useStaffPagedList<LedgerEntry>("credit/transactions?" + params);
+
   let entries: LedgerEntry[] = [];
   let invalid: string | undefined;
   try {
@@ -89,22 +142,14 @@ export function AdminLedgerScreen({
     invalid =
       "Chưa đọc được đầy đủ dữ liệu giao dịch. Hãy làm mới danh sách trước khi xem chi tiết.";
   }
-  function clear() {
-    setDraft(emptyLedgerFilters);
-    setFilters(emptyLedgerFilters);
-    setFilterError("");
-    setSelected(undefined);
-    window.history.replaceState(null, "", ledgerHref(emptyLedgerFilters));
-  }
-  function update(key: keyof LedgerFilters, value: string) {
-    setDraft((previous) => ({ ...previous, [key]: value }));
-  }
-  function apply() {
+
+  function commitFilters(nextDraft: LedgerFilters) {
     try {
       const next = Object.fromEntries(
-        Object.entries(draft).map(([key, value]) => [key, value.trim()]),
+        Object.entries(nextDraft).map(([key, value]) => [key, value.trim()]),
       ) as LedgerFilters;
       ledgerQuery(next);
+      setDraft(next);
       setFilters(next);
       setFilterError("");
       setSelected(
@@ -119,15 +164,91 @@ export function AdminLedgerScreen({
       );
     }
   }
-  const activeFilterCount = Object.values(filters).filter((value) =>
-    value.trim(),
+
+  function clearAll() {
+    setDraft(emptyLedgerFilters);
+    setFilters(emptyLedgerFilters);
+    setFilterError("");
+    setSelected(undefined);
+    window.history.replaceState(null, "", ledgerHref(emptyLedgerFilters));
+  }
+
+  function removeFilter(key: keyof LedgerFilters) {
+    const next = { ...filters, [key]: "" };
+    commitFilters(next);
+  }
+
+  function updateDraft(key: keyof LedgerFilters, value: string) {
+    setDraft((previous) => ({ ...previous, [key]: value }));
+  }
+
+  const advancedActiveCount = advancedKeys.filter((key) =>
+    filters[key].trim(),
   ).length;
+
+  const activeTags: { key: keyof LedgerFilters; label: string }[] = [];
+  if (filters.type)
+    activeTags.push({
+      key: "type",
+      label: `Loại: ${financeLabel(filters.type)}`,
+    });
+  if (filters.status)
+    activeTags.push({
+      key: "status",
+      label: `Trạng thái: ${statusLabelMap[filters.status] ?? filters.status}`,
+    });
+  if (filters.userId)
+    activeTags.push({
+      key: "userId",
+      label: `Người dùng: ${shortCode(filters.userId)}`,
+    });
+  if (filters.from)
+    activeTags.push({ key: "from", label: `Từ: ${filters.from} UTC` });
+  if (filters.before)
+    activeTags.push({ key: "before", label: `Trước: ${filters.before} UTC` });
+  if (filters.operationId)
+    activeTags.push({
+      key: "operationId",
+      label: `Nghiệp vụ: ${shortCode(filters.operationId)}`,
+    });
+  if (filters.referenceType)
+    activeTags.push({
+      key: "referenceType",
+      label: `Nguồn: ${financeLabel(filters.referenceType)}`,
+    });
+  if (filters.referenceId)
+    activeTags.push({
+      key: "referenceId",
+      label: `Tham chiếu: ${shortCode(filters.referenceId)}`,
+    });
+  if (filters.transactionId)
+    activeTags.push({
+      key: "transactionId",
+      label: `Giao dịch: ${shortCode(filters.transactionId)}`,
+    });
+
   return (
-    <div className="admin-ledger">
-      <AdminFilterPanel
-        activeCount={activeFilterCount}
-        onClear={clear}
-        actions={
+    <section
+      className={styles.sectionCard}
+      aria-label="Sổ cái giao dịch Credit"
+    >
+      <div className={styles.cardHeader}>
+        <div className={styles.cardTitleBlock}>
+          <h2>Sổ cái giao dịch Credit</h2>
+          <p>
+            Theo dõi từng bút toán bất biến, biến động khả dụng/tạm giữ và đối
+            chiếu nghiệp vụ nguồn.
+          </p>
+        </div>
+        <div className={styles.cardHeaderActions}>
+          <AdminFilterTrigger
+            label="Lọc nâng cao"
+            activeCount={advancedActiveCount}
+            open={advancedOpen}
+            onToggle={() => setAdvancedOpen((prev) => !prev)}
+            onClear={activeTags.length > 0 ? clearAll : undefined}
+            panelId={filterPanelId}
+          />
           <LoadingButton
             type="button"
             className="btn"
@@ -138,36 +259,32 @@ export function AdminLedgerScreen({
             }}
             loading={!!list.loading}
           >
-            <Icon name="refresh" size={16} />
+            <Icon name="refresh" size={15} />
             Làm mới
           </LoadingButton>
-        }
+        </div>
+      </div>
+
+      {/* Quick toolbar for the most frequent filters */}
+      <form
+        className={styles.toolbar}
+        onSubmit={(event) => {
+          event.preventDefault();
+          commitFilters(draft);
+        }}
       >
-        <form
-          className={filterPanelStyles.grid}
-          onSubmit={(event) => {
-            event.preventDefault();
-            apply();
-          }}
-        >
-          <label className={filterPanelStyles.field}>
-            <span>Mã người dùng</span>
-            <input
-              value={draft.userId}
-              maxLength={36}
-              placeholder="Nhập mã UUID người dùng…"
-              onChange={(event) => update("userId", event.target.value)}
-            />
-          </label>
-          <label className={filterPanelStyles.field}>
+        <div className={styles.toolbarFields}>
+          <label className={styles.quickField}>
             <span>Loại giao dịch</span>
             <select
               value={draft.type}
               onChange={(event) => {
-                update("type", event.target.value);
+                const next = { ...draft, type: event.target.value };
+                setDraft(next);
+                commitFilters(next);
               }}
             >
-              <option value="">Tất cả loại</option>
+              <option value="">Tất cả loại giao dịch</option>
               {transactionTypes.map((value) => (
                 <option key={value} value={value}>
                   {financeLabel(value)}
@@ -175,202 +292,391 @@ export function AdminLedgerScreen({
               ))}
             </select>
           </label>
-          <label className={filterPanelStyles.field}>
+          <label className={styles.quickField}>
             <span>Trạng thái</span>
             <select
               value={draft.status}
               onChange={(event) => {
-                update("status", event.target.value);
+                const next = { ...draft, status: event.target.value };
+                setDraft(next);
+                commitFilters(next);
               }}
             >
               <option value="">Tất cả trạng thái</option>
-              {["PENDING", "SUCCESS", "FAILED", "REVERSED"].map((value) => (
-                <option key={value} value={value}>
-                  {
-                    (
-                      {
-                        PENDING: "Đang xử lý",
-                        SUCCESS: "Thành công",
-                        FAILED: "Thất bại",
-                        REVERSED: "Đã đảo",
-                      } as Record<string, string>
-                    )[value]
-                  }
+              {statusOptions.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
                 </option>
               ))}
             </select>
           </label>
-          <label className={filterPanelStyles.field}>
-            <span>Từ thời điểm (UTC)</span>
+          <label className={`${styles.quickField} ${styles.quickFieldWide}`}>
+            <span>Mã người dùng (UUID)</span>
             <input
-              type="datetime-local"
-              value={draft.from}
-              onChange={(event) => update("from", event.target.value)}
-            />
-          </label>
-          <label className={filterPanelStyles.field}>
-            <span>Trước thời điểm (UTC)</span>
-            <input
-              type="datetime-local"
-              value={draft.before}
-              onChange={(event) => update("before", event.target.value)}
-            />
-          </label>
-          <label className={filterPanelStyles.field}>
-            <span>Mã nghiệp vụ</span>
-            <input
+              value={draft.userId}
               maxLength={36}
-              value={draft.operationId}
-              onChange={(event) => update("operationId", event.target.value)}
+              placeholder="Dán UUID người dùng rồi nhấn Tra cứu…"
+              onChange={(event) => updateDraft("userId", event.target.value)}
             />
           </label>
-          <label className={filterPanelStyles.field}>
-            <span>Nguồn tham chiếu</span>
-            <select
-              value={draft.referenceType}
-              onChange={(event) => update("referenceType", event.target.value)}
+        </div>
+        <div className={styles.toolbarActions}>
+          <button type="submit" className="btn btn-primary">
+            <Icon name="search" size={15} />
+            Tra cứu
+          </button>
+          {activeTags.length > 0 && (
+            <button type="button" className="btn" onClick={clearAll}>
+              Xóa lọc
+            </button>
+          )}
+        </div>
+      </form>
+
+      {/* Expandable advanced filters */}
+      {advancedOpen && (
+        <div className={styles.advancedDrawer}>
+          <AdminFilterPanel
+            hideBar
+            open={advancedOpen}
+            onOpenChange={setAdvancedOpen}
+            panelId={filterPanelId}
+          >
+            <form
+              className={filterPanelStyles.grid}
+              onSubmit={(event) => {
+                event.preventDefault();
+                commitFilters(draft);
+              }}
             >
-              <option value="">Tất cả nguồn</option>
-              {ledgerReferenceTypes.map((value) => (
-                <option key={value} value={value}>
-                  {financeLabel(value)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className={filterPanelStyles.field}>
-            <span>Mã tham chiếu</span>
-            <input
-              maxLength={255}
-              value={draft.referenceId}
-              onChange={(event) => update("referenceId", event.target.value)}
-            />
-          </label>
-          <label className={filterPanelStyles.field}>
-            <span>Mở giao dịch theo mã</span>
-            <input
-              maxLength={36}
-              value={draft.transactionId}
-              onChange={(event) => update("transactionId", event.target.value)}
-            />
-          </label>
-          <div className={filterPanelStyles.footer}>
-            <p className={filterPanelStyles.note}>
-              Số dư được ghi nhận tại thời điểm giao dịch. Nhập mã giao dịch để
-              mở chi tiết trực tiếp.
-            </p>
-            <div className={filterPanelStyles.footerActions}>
-              <button type="submit" className="btn btn-primary btn-sm">
-                Áp dụng / Tra cứu
+              <label className={filterPanelStyles.field}>
+                <span>Từ thời điểm (UTC)</span>
+                <input
+                  type="datetime-local"
+                  value={draft.from}
+                  onChange={(event) => updateDraft("from", event.target.value)}
+                />
+              </label>
+              <label className={filterPanelStyles.field}>
+                <span>Trước thời điểm (UTC)</span>
+                <input
+                  type="datetime-local"
+                  value={draft.before}
+                  onChange={(event) =>
+                    updateDraft("before", event.target.value)
+                  }
+                />
+              </label>
+              <label className={filterPanelStyles.field}>
+                <span>Mã nghiệp vụ (UUID)</span>
+                <input
+                  maxLength={36}
+                  placeholder="xxxxxxxx-xxxx-…"
+                  value={draft.operationId}
+                  onChange={(event) =>
+                    updateDraft("operationId", event.target.value)
+                  }
+                />
+              </label>
+              <label className={filterPanelStyles.field}>
+                <span>Nguồn tham chiếu</span>
+                <select
+                  value={draft.referenceType}
+                  onChange={(event) =>
+                    updateDraft("referenceType", event.target.value)
+                  }
+                >
+                  <option value="">Tất cả nguồn</option>
+                  {ledgerReferenceTypes.map((value) => (
+                    <option key={value} value={value}>
+                      {financeLabel(value)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className={filterPanelStyles.field}>
+                <span>Mã tham chiếu</span>
+                <input
+                  maxLength={255}
+                  placeholder="Nhập mã đối tượng liên quan…"
+                  value={draft.referenceId}
+                  onChange={(event) =>
+                    updateDraft("referenceId", event.target.value)
+                  }
+                />
+              </label>
+              <label className={filterPanelStyles.field}>
+                <span>Mở thẳng giao dịch theo mã</span>
+                <input
+                  maxLength={36}
+                  placeholder="UUID giao dịch…"
+                  value={draft.transactionId}
+                  onChange={(event) =>
+                    updateDraft("transactionId", event.target.value)
+                  }
+                />
+              </label>
+              <div className={filterPanelStyles.footer}>
+                <p className={filterPanelStyles.note}>
+                  Số dư được ghi nhận chính xác tại thời điểm bút toán phát
+                  sinh. Nhập mã giao dịch để mở nhanh chi tiết.
+                </p>
+                <div className={filterPanelStyles.footerActions}>
+                  <button type="submit" className="btn btn-primary btn-sm">
+                    Áp dụng bộ lọc
+                  </button>
+                  {Object.values(draft).some((v) => v.trim()) && (
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      onClick={clearAll}
+                    >
+                      Xóa lọc
+                    </button>
+                  )}
+                </div>
+              </div>
+            </form>
+          </AdminFilterPanel>
+        </div>
+      )}
+
+      {/* Active filter tags */}
+      {activeTags.length > 0 && (
+        <div className={styles.activeFiltersBar} aria-label="Bộ lọc đang bật">
+          <span className={styles.activeFilterLabel}>Đang lọc:</span>
+          {activeTags.map((tag) => (
+            <span key={tag.key} className={styles.activeFilterTag}>
+              <span>{tag.label}</span>
+              <button
+                type="button"
+                className={styles.activeFilterRemove}
+                aria-label={`Bỏ bộ lọc ${tag.label}`}
+                onClick={() => removeFilter(tag.key)}
+              >
+                <Icon name="x" size={12} />
               </button>
-              {Object.values(draft).some(Boolean) && (
-                <button type="button" className="btn btn-sm" onClick={clear}>
-                  Xóa lọc
-                </button>
-              )}
-            </div>
-          </div>
-        </form>
-      </AdminFilterPanel>
+            </span>
+          ))}
+          <button
+            type="button"
+            className={styles.clearAllLink}
+            onClick={clearAll}
+          >
+            Xóa tất cả
+          </button>
+        </div>
+      )}
+
       {filterError && (
-        <p role="alert" className="staff-error">
+        <p role="alert" className={`staff-error ${styles.inlineError}`}>
           {filterError}
         </p>
       )}
-      <Card flush>
-        <QueueState
-          loading={list.loading}
-          error={list.error ?? invalid}
-          empty={!entries.length}
-          reload={list.reload}
-          emptyTitle="Chưa có giao dịch phù hợp"
-          emptyDescription="Thử bỏ bộ lọc hoặc kiểm tra lại mã người dùng."
-        >
-          <DataTable
-            columns={[
-              "Thời gian / Người dùng",
-              "Loại / Trạng thái",
-              "Số Credit",
-              "Biến động",
-              "Số dư sau giao dịch",
-              "Thao tác",
-            ]}
-            className="table admin-responsive-table admin-ledger-table"
-          >
-            {entries.map((entry) => (
-              <tr key={entry.id}>
-                <td data-label="Thời gian / Người dùng">
-                  <strong>{fmtDateTime(entry.createdAt)}</strong>
-                  <div>
-                    <UserProfileReference userId={entry.userId} />
-                  </div>
-                </td>
-                <td data-label="Loại / Trạng thái">
+
+      <QueueState
+        loading={list.loading}
+        error={list.error ?? invalid}
+        empty={!entries.length}
+        reload={list.reload}
+        emptyTitle="Chưa có giao dịch phù hợp"
+        emptyDescription="Thử điều chỉnh bộ lọc hoặc xóa các tiêu chí đang chọn để xem toàn bộ sổ cái."
+      >
+        {/* Desktop Table */}
+        <div className={styles.desktopTableWrap}>
+          <table className={styles.dataTable}>
+            <thead>
+              <tr>
+                <th scope="col">Thời gian / Người dùng</th>
+                <th scope="col">Loại / Trạng thái</th>
+                <th scope="col" className={styles.numHead}>
+                  Số Credit
+                </th>
+                <th scope="col" className={styles.numHead}>
+                  Biến động
+                </th>
+                <th scope="col" className={styles.numHead}>
+                  Số dư sau GD
+                </th>
+                <th scope="col" className={styles.actionHead}>
+                  Thao tác
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((entry) => (
+                <tr key={entry.id}>
+                  <td>
+                    <div className={styles.primaryStack}>
+                      <strong>{fmtDateTime(entry.createdAt)}</strong>
+                      <UserProfileReference userId={entry.userId} />
+                    </div>
+                  </td>
+                  <td>
+                    <div className={styles.typeCell}>
+                      <span className={styles.typeTitle}>
+                        {financeLabel(entry.type)}
+                      </span>
+                      <StatusBadge status={entry.status} />
+                    </div>
+                  </td>
+                  <td className={styles.numCell}>
+                    <span className={styles.amountPrimary}>
+                      {money(entry.amount)}
+                    </span>
+                  </td>
+                  <td className={styles.numCell}>
+                    <div className={styles.deltaStack}>
+                      <span className={styles.deltaLine}>
+                        <span className={styles.deltaLabel}>Khả dụng</span>
+                        <span className={deltaToneClass(entry.availableDelta)}>
+                          {formatSignedCredit(entry.availableDelta)}
+                        </span>
+                      </span>
+                      <span className={styles.deltaLine}>
+                        <span className={styles.deltaLabel}>Đang giữ</span>
+                        <span className={deltaToneClass(entry.heldDelta, true)}>
+                          {formatSignedCredit(entry.heldDelta)}
+                        </span>
+                      </span>
+                    </div>
+                  </td>
+                  <td className={styles.numCell}>
+                    <div className={styles.deltaStack}>
+                      <span className={styles.deltaLine}>
+                        <span className={styles.deltaLabel}>Khả dụng</span>
+                        <strong>{money(entry.availableAfter)}</strong>
+                      </span>
+                      <span className={styles.deltaLine}>
+                        <span className={styles.deltaLabel}>Đang giữ</span>
+                        <span className={styles.metaText}>
+                          {money(entry.heldAfter)}
+                        </span>
+                      </span>
+                    </div>
+                  </td>
+                  <td className={styles.actionCell}>
+                    <div className={styles.rowActions}>
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        onClick={() =>
+                          setSelected({ id: entry.id, kind: "entry" })
+                        }
+                      >
+                        Chi tiết
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() =>
+                          setSelected({
+                            id: entry.operationId,
+                            kind: "operation",
+                          })
+                        }
+                      >
+                        Nghiệp vụ
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Tablet & Mobile Card Grid */}
+        <div className={styles.mobileCards}>
+          {entries.map((entry) => (
+            <article key={entry.id} className={styles.itemCard}>
+              <div className={styles.itemCardHead}>
+                <div className={styles.itemCardTitle}>
                   <strong>{financeLabel(entry.type)}</strong>
                   <div>
                     <StatusBadge status={entry.status} />
                   </div>
-                </td>
-                <td data-label="Số Credit">
-                  <strong className="admin-money">{money(entry.amount)}</strong>
-                </td>
-                <td data-label="Biến động">
-                  <span>
-                    Khả dụng{" "}
-                    <strong className="admin-money">
-                      {money(entry.availableDelta)}
-                    </strong>
+                </div>
+                <div className={styles.itemCardAmount}>
+                  <span className={styles.amountPrimary}>
+                    {money(entry.amount)}
                   </span>
-                  <small>
-                    Đang giữ{" "}
-                    <span className="admin-money">
-                      {money(entry.heldDelta)}
+                </div>
+              </div>
+
+              <div className={styles.itemCardMetaRow}>
+                <span>{fmtDateTime(entry.createdAt)}</span>
+                <UserProfileReference userId={entry.userId} />
+              </div>
+
+              <div className={styles.itemCardMetrics}>
+                <div className={styles.itemCardMetricCol}>
+                  <span className={styles.itemCardMetricLabel}>Biến động</span>
+                  <span
+                    className={`${styles.deltaLine} ${styles.deltaLineLeft}`}
+                  >
+                    <span className={styles.deltaLabel}>Khả dụng</span>
+                    <span className={deltaToneClass(entry.availableDelta)}>
+                      {formatSignedCredit(entry.availableDelta)}
                     </span>
-                  </small>
-                </td>
-                <td data-label="Số dư sau giao dịch">
-                  <span>
-                    Khả dụng{" "}
-                    <strong className="admin-money">
-                      {money(entry.availableAfter)}
-                    </strong>
                   </span>
-                  <small>
-                    Đang giữ{" "}
-                    <span className="admin-money">
+                  <span
+                    className={`${styles.deltaLine} ${styles.deltaLineLeft}`}
+                  >
+                    <span className={styles.deltaLabel}>Đang giữ</span>
+                    <span className={deltaToneClass(entry.heldDelta, true)}>
+                      {formatSignedCredit(entry.heldDelta)}
+                    </span>
+                  </span>
+                </div>
+                <div className={styles.itemCardMetricCol}>
+                  <span className={styles.itemCardMetricLabel}>
+                    Số dư sau GD
+                  </span>
+                  <span
+                    className={`${styles.deltaLine} ${styles.deltaLineLeft}`}
+                  >
+                    <span className={styles.deltaLabel}>Khả dụng</span>
+                    <strong>{money(entry.availableAfter)}</strong>
+                  </span>
+                  <span
+                    className={`${styles.deltaLine} ${styles.deltaLineLeft}`}
+                  >
+                    <span className={styles.deltaLabel}>Đang giữ</span>
+                    <span className={styles.metaText}>
                       {money(entry.heldAfter)}
                     </span>
-                  </small>
-                </td>
-                <td data-label="Thao tác">
-                  <div className="admin-ledger-actions">
-                    <button
-                      type="button"
-                      className="link ops-text-button"
-                      onClick={() =>
-                        setSelected({ id: entry.id, kind: "entry" })
-                      }
-                    >
-                      Chi tiết
-                    </button>
-                    <button
-                      type="button"
-                      className="link ops-text-button"
-                      onClick={() =>
-                        setSelected({
-                          id: entry.operationId,
-                          kind: "operation",
-                        })
-                      }
-                    >
-                      Nghiệp vụ
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </DataTable>
-        </QueueState>
+                  </span>
+                </div>
+              </div>
+
+              <div className={styles.itemCardFoot}>
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  onClick={() => setSelected({ id: entry.id, kind: "entry" })}
+                >
+                  Chi tiết giao dịch
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() =>
+                    setSelected({
+                      id: entry.operationId,
+                      kind: "operation",
+                    })
+                  }
+                >
+                  Nghiệp vụ
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </QueueState>
+
+      <div className={styles.footerWrap}>
         <PageNavigation
           loading={list.loading}
           pageNumber={list.pageNumber}
@@ -381,40 +687,72 @@ export function AdminLedgerScreen({
             void list.goToPage(page);
           }}
         />
-      </Card>
+      </div>
+
       {selected && !list.error && !invalid && (
         <LedgerDetail
           key={selected.kind + selected.id}
           selection={selected}
+          onSelect={setSelected}
+          onOpenWallet={onOpenWallet}
           close={() => setSelected(undefined)}
         />
       )}
-    </div>
+    </section>
   );
 }
 
-function EntryPresentation({ entry }: Readonly<{ entry: LedgerEntry }>) {
+function EntryPresentation({
+  entry,
+  onSelectOperation,
+  onOpenWallet,
+}: Readonly<{
+  entry: LedgerEntry;
+  onSelectOperation: (operationId: string) => void;
+  onOpenWallet?: (userId: string) => void;
+}>) {
   return (
     <>
-      <div className="admin-hero-amount">
-        <span>{financeLabel(entry.type)}</span>
-        <strong className="admin-money">{money(entry.amount)}</strong>
-        <StatusBadge status={entry.status} />
+      <div className={styles.drawerHero}>
+        <div className={styles.drawerHeroTop}>
+          <span className={styles.drawerHeroEyebrow}>
+            {financeLabel(entry.type)}
+          </span>
+          <StatusBadge status={entry.status} />
+        </div>
+        <strong className={styles.drawerHeroValue}>
+          {money(entry.amount)}
+        </strong>
+        <div className={styles.drawerHeroSub}>
+          <span>{fmtDateTime(entry.createdAt)}</span>
+          <span>·</span>
+          <UserProfileReference userId={entry.userId} />
+        </div>
       </div>
-      <div className="admin-metric-grid">
-        <AdminField label="Biến động khả dụng">
-          <span className="admin-money">{money(entry.availableDelta)}</span>
-        </AdminField>
-        <AdminField label="Biến động đang giữ">
-          <span className="admin-money">{money(entry.heldDelta)}</span>
-        </AdminField>
-        <AdminField label="Khả dụng sau giao dịch">
-          <span className="admin-money">{money(entry.availableAfter)}</span>
-        </AdminField>
-        <AdminField label="Đang giữ sau giao dịch">
-          <span className="admin-money">{money(entry.heldAfter)}</span>
-        </AdminField>
+
+      <div className={styles.drawerMetrics}>
+        <div className={styles.drawerMetricBox}>
+          <span>Biến động khả dụng</span>
+          <strong className={deltaToneClass(entry.availableDelta)}>
+            {formatSignedCredit(entry.availableDelta)}
+          </strong>
+        </div>
+        <div className={styles.drawerMetricBox}>
+          <span>Biến động đang giữ</span>
+          <strong className={deltaToneClass(entry.heldDelta, true)}>
+            {formatSignedCredit(entry.heldDelta)}
+          </strong>
+        </div>
+        <div className={styles.drawerMetricBox}>
+          <span>Khả dụng sau giao dịch</span>
+          <strong>{money(entry.availableAfter)}</strong>
+        </div>
+        <div className={styles.drawerMetricBox}>
+          <span>Đang giữ sau giao dịch</span>
+          <strong>{money(entry.heldAfter)}</strong>
+        </div>
       </div>
+
       <section className="admin-section">
         <h3>Nghiệp vụ liên quan</h3>
         <div className="admin-field-grid">
@@ -433,15 +771,13 @@ function EntryPresentation({ entry }: Readonly<{ entry: LedgerEntry }>) {
               label="tham chiếu"
             />
           </AdminField>
-          <AdminField label="Thời gian giao dịch">
-            {fmtDateTime(entry.createdAt)}
-          </AdminField>
         </div>
       </section>
+
       <details className="admin-record-details">
-        <summary>Mã đối chiếu</summary>
+        <summary>Mã đối chiếu kỹ thuật</summary>
         <div className="admin-field-grid">
-          <AdminField label="Giao dịch">
+          <AdminField label="Mã giao dịch">
             <RecordId id={entry.id} label="giao dịch" />
           </AdminField>
           <AdminField label="Người dùng">
@@ -457,40 +793,74 @@ function EntryPresentation({ entry }: Readonly<{ entry: LedgerEntry }>) {
           )}
         </div>
       </details>
-      <div className="row">
-        <UserProfileReference userId={entry.userId} className="btn">
-          Hồ sơ người dùng
-        </UserProfileReference>
-        <Link
-          className="btn"
-          href={`/admin/credits?tab=wallet&userId=${entry.userId}`}
-        >
-          Xem ví
-        </Link>
-        <ReferenceLink
-          type={entry.operationIdRecord.referenceType}
-          id={entry.operationIdRecord.referenceId}
-        />
-      </div>
+
+      <section className="admin-section">
+        <div className={styles.quickNavRow}>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={() => onSelectOperation(entry.operationId)}
+          >
+            Xem toàn bộ nghiệp vụ
+          </button>
+          <UserProfileReference userId={entry.userId} className="btn btn-sm">
+            Hồ sơ người dùng
+          </UserProfileReference>
+          {onOpenWallet ? (
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={() => onOpenWallet(entry.userId)}
+            >
+              Xem ví
+            </button>
+          ) : (
+            <Link
+              className="btn btn-sm"
+              href={`/admin/credits?tab=wallet&userId=${entry.userId}`}
+            >
+              Xem ví
+            </Link>
+          )}
+          <ReferenceLink
+            type={entry.operationIdRecord.referenceType}
+            id={entry.operationIdRecord.referenceId}
+          />
+        </div>
+      </section>
     </>
   );
 }
+
 function OperationPresentation({
   operation,
-}: Readonly<{ operation: LedgerOperation }>) {
+  onSelectEntry,
+}: Readonly<{
+  operation: LedgerOperation;
+  onSelectEntry: (entryId: string) => void;
+}>) {
   return (
     <>
-      <section className="admin-section">
-        <div className="row">
-          <h3>{financeLabel(operation.operationType)}</h3>
+      <div className={styles.drawerHero}>
+        <div className={styles.drawerHeroTop}>
+          <span className={styles.drawerHeroEyebrow}>Nghiệp vụ Credit</span>
           <StatusBadge status={operation.status} />
         </div>
+        <strong className={styles.drawerHeroValue}>
+          {financeLabel(operation.operationType)}
+        </strong>
+        <div className={styles.drawerHeroSub}>
+          <span>{fmtDateTime(operation.createdAt)}</span>
+          <span>·</span>
+          <span>{operation.entries.length} bút toán</span>
+        </div>
+      </div>
+
+      <section className="admin-section">
+        <h3>Thông tin nguồn</h3>
         <div className="admin-field-grid">
-          <AdminField label="Nghiệp vụ">
+          <AdminField label="Mã nghiệp vụ">
             <RecordId id={operation.id} label="nghiệp vụ" />
-          </AdminField>
-          <AdminField label="Thời gian">
-            {fmtDateTime(operation.createdAt)}
           </AdminField>
           <AdminField label="Nguồn tham chiếu">
             {financeLabel(operation.referenceType)}
@@ -499,39 +869,60 @@ function OperationPresentation({
             <RecordId id={operation.referenceId} label="tham chiếu" />
           </AdminField>
         </div>
+        <div className={styles.quickNavRow} style={{ marginTop: 14 }}>
+          <ReferenceLink
+            type={operation.referenceType}
+            id={operation.referenceId}
+          />
+        </div>
       </section>
-      <ReferenceLink
-        type={operation.referenceType}
-        id={operation.referenceId}
-      />
+
       <section className="admin-section">
-        <h3>Các bút toán liên quan</h3>
+        <h3>Các bút toán trong nghiệp vụ</h3>
         {operation.entries.length ? (
-          <DataTable
-            columns={["Người dùng", "Loại / Trạng thái", "Credit", "Biến động"]}
-            className="table admin-responsive-table"
-          >
+          <div style={{ display: "grid", gap: 10 }}>
             {operation.entries.map((entry) => (
-              <tr key={entry.id}>
-                <td data-label="Người dùng">
-                  <UserProfileReference userId={entry.userId} />
-                </td>
-                <td data-label="Loại / Trạng thái">
-                  {financeLabel(entry.type)}
-                  <div>
+              <div key={entry.id} className={styles.itemCard}>
+                <div className={styles.itemCardHead}>
+                  <div className={styles.itemCardTitle}>
+                    <strong>{financeLabel(entry.type)}</strong>
+                    <UserProfileReference userId={entry.userId} />
+                  </div>
+                  <div className={styles.itemCardAmount}>
+                    <span className={styles.amountPrimary}>
+                      {money(entry.amount)}
+                    </span>
                     <StatusBadge status={entry.status} />
                   </div>
-                </td>
-                <td data-label="Credit" className="admin-money">
-                  {money(entry.amount)}
-                </td>
-                <td data-label="Biến động">
-                  <span>Khả dụng {money(entry.availableDelta)}</span>
-                  <small>Đang giữ {money(entry.heldDelta)}</small>
-                </td>
-              </tr>
+                </div>
+                <div className={styles.itemCardMetaRow}>
+                  <span
+                    className={`${styles.deltaLine} ${styles.deltaLineLeft}`}
+                  >
+                    <span className={styles.deltaLabel}>Khả dụng:</span>
+                    <span className={deltaToneClass(entry.availableDelta)}>
+                      {formatSignedCredit(entry.availableDelta)}
+                    </span>
+                  </span>
+                  <span
+                    className={`${styles.deltaLine} ${styles.deltaLineLeft}`}
+                  >
+                    <span className={styles.deltaLabel}>Đang giữ:</span>
+                    <span className={deltaToneClass(entry.heldDelta, true)}>
+                      {formatSignedCredit(entry.heldDelta)}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    onClick={() => onSelectEntry(entry.id)}
+                  >
+                    Chi tiết
+                  </button>
+                </div>
+              </div>
             ))}
-          </DataTable>
+          </div>
         ) : (
           <p className="muted">Nghiệp vụ chưa có bút toán.</p>
         )}
@@ -539,18 +930,27 @@ function OperationPresentation({
     </>
   );
 }
+
 function ReferenceLink({ type, id }: Readonly<{ type: string; id: string }>) {
   const href = ledgerReferenceHref(type, id);
   return href ? (
-    <Link className="btn" href={href}>
+    <Link className="btn btn-sm" href={href}>
       Mở {financeLabel(type).toLocaleLowerCase("vi")} liên quan
     </Link>
   ) : null;
 }
+
 function LedgerDetail({
   selection,
+  onSelect,
+  onOpenWallet,
   close,
-}: Readonly<{ selection: Selection; close: () => void }>) {
+}: Readonly<{
+  selection: Selection;
+  onSelect: (next: Selection) => void;
+  onOpenWallet?: (userId: string) => void;
+  close: () => void;
+}>) {
   const query = useStaffResource<unknown>(
     `credit/${selection.kind === "entry" ? "transactions" : "operations"}/${selection.id}`,
   );
@@ -607,8 +1007,30 @@ function LedgerDetail({
           </AdminNotice>
         ) : (
           <>
-            {entry && <EntryPresentation entry={entry} />}
-            {operation && <OperationPresentation operation={operation} />}
+            {entry && (
+              <EntryPresentation
+                entry={entry}
+                onSelectOperation={(operationId) =>
+                  onSelect({ id: operationId, kind: "operation" })
+                }
+                onOpenWallet={
+                  onOpenWallet
+                    ? (userId) => {
+                        close();
+                        onOpenWallet(userId);
+                      }
+                    : undefined
+                }
+              />
+            )}
+            {operation && (
+              <OperationPresentation
+                operation={operation}
+                onSelectEntry={(entryId) =>
+                  onSelect({ id: entryId, kind: "entry" })
+                }
+              />
+            )}
           </>
         )}
       </QueueState>

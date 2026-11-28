@@ -25,9 +25,101 @@ const labels: Record<string, string> = {
   REVERSAL: "Hoàn tác giao dịch",
   VOUCHER_REDEMPTION: "Đổi voucher",
   SUBSCRIPTION_CHARGE: "Gói thành viên",
+  SUBSCRIPTION_PURCHASE: "Mua gói thành viên",
+  SUBSCRIPTION_RENEWAL: "Gia hạn gói thành viên",
+  SUBSCRIPTION_UPGRADE: "Nâng cấp gói thành viên",
 };
 export function financeLabel(code: string) {
   return labels[code] ?? systemCodeLabel(code, "Nghiệp vụ khác");
+}
+
+/** Parse exact decimal credit string (up to 2 decimal places) into integer cents. */
+export function parseCreditCents(value: string): bigint | null {
+  const match = /^(-?)(\d+)(?:\.(\d{1,2}))?$/.exec(value.trim());
+  if (!match) return null;
+  const [, sign, whole, frac = ""] = match;
+  const padded = frac.padEnd(2, "0");
+  const magnitude = BigInt(whole!) * 100n + BigInt(padded);
+  return sign === "-" ? -magnitude : magnitude;
+}
+
+export function formatCreditCents(cents: bigint): string {
+  const negative = cents < 0n;
+  const abs = negative ? -cents : cents;
+  const whole = abs / 100n;
+  const frac = (abs % 100n).toString().padStart(2, "0");
+  return `${negative ? "-" : ""}${whole.toString()}.${frac}`;
+}
+
+export function sumCreditStrings(values: readonly string[]): string {
+  let total = 0n;
+  for (const value of values) {
+    const parsed = parseCreditCents(value);
+    if (parsed !== null) total += parsed;
+  }
+  return formatCreditCents(total);
+}
+
+export function creditDirection(
+  value: string,
+): "positive" | "negative" | "zero" {
+  const cents = parseCreditCents(value);
+  if (cents === null || cents === 0n) return "zero";
+  return cents > 0n ? "positive" : "negative";
+}
+
+export function formatSignedCredit(value: string): string {
+  const formatted = financeNumber(value);
+  if (formatted === "—") return "—";
+  const dir = creditDirection(value);
+  if (dir === "positive") return `+${formatted} CR`;
+  return `${formatted} CR`;
+}
+
+export function creditRatioPercent(part: string, total: string): number {
+  const partCents = parseCreditCents(part);
+  const totalCents = parseCreditCents(total);
+  if (partCents === null || totalCents === null || totalCents <= 0n) return 0;
+  if (partCents <= 0n) return 0;
+  const pct = Number((partCents * 100n) / totalCents);
+  return Math.max(0, Math.min(100, pct));
+}
+
+export function creditToVndEstimate(
+  credit: string,
+  vndPerCredit: number,
+): string | null {
+  if (!Number.isInteger(vndPerCredit) || vndPerCredit <= 0) return null;
+  const cents = parseCreditCents(credit);
+  if (cents === null) return null;
+  const vndWhole = (cents * BigInt(vndPerCredit)) / 100n;
+  return `${vndWhole.toLocaleString("vi-VN")} ₫`;
+}
+
+export type RevenuePreset = "7d" | "30d" | "90d" | "thisMonth";
+
+export function utcDatePresetRange(
+  preset: RevenuePreset,
+  now = new Date(),
+): { from: string; to: string; granularity: "day" | "month" } {
+  const todayUtc = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  const to = iso(todayUtc);
+  if (preset === "thisMonth") {
+    const first = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+    );
+    return { from: iso(first), to, granularity: "day" };
+  }
+  const days = preset === "7d" ? 6 : preset === "30d" ? 29 : 89;
+  const start = new Date(todayUtc.getTime() - days * 86400000);
+  return {
+    from: iso(start),
+    to,
+    granularity: preset === "90d" ? "month" : "day",
+  };
 }
 
 /** The report API uses UTC periods and an exclusive upper bound, max 366 days. */
