@@ -9,6 +9,7 @@ import { Feedback, Status } from "../components/common";
 import { ProductIcon } from "../components/product-icon";
 import { safeDownloadUrl } from "./view-policy";
 import type { Material, OwnedMaterial } from "./account-types";
+import styles from "./my-materials.module.css";
 
 export function MaterialCoverStatus({
   cover,
@@ -22,37 +23,58 @@ export function MaterialCoverStatus({
     FAILED: "Chưa tạo được ảnh xem trước",
     REJECTED: "Ảnh bìa không được chấp nhận",
   };
+  const isProcessing = ["PENDING", "PROCESSING"].includes(
+    cover.processingStatus,
+  );
+  const hasIssue =
+    !!cover.failureCode ||
+    ["FAILED", "REJECTED"].includes(cover.processingStatus);
   return (
-    <details>
-      <summary>
-        {["PENDING", "PROCESSING"].includes(cover.processingStatus) ? (
-          <LoadingSkeleton
-            variant="inline"
-            label={labels[cover.processingStatus]}
-          />
-        ) : (
-          (labels[cover.processingStatus] ?? "Chưa có kết quả kiểm tra ảnh bìa")
-        )}
+    <details className={styles.coverDetails} open={hasIssue || undefined}>
+      <summary className={styles.coverSummary}>
+        <span className={styles.coverSummaryLeft}>
+          <ProductIcon name={hasIssue ? "alert" : "eye"} size={15} />
+          {isProcessing ? (
+            <LoadingSkeleton
+              variant="inline"
+              label={labels[cover.processingStatus]}
+            />
+          ) : (
+            <span>
+              {labels[cover.processingStatus] ??
+                "Chưa có kết quả kiểm tra ảnh bìa"}
+            </span>
+          )}
+        </span>
+        <span className={styles.coverChevron} aria-hidden="true">
+          <ProductIcon name="chevron" size={14} />
+        </span>
       </summary>
-      <div style={{ width: "min(100%, 320px)", aspectRatio: "16 / 9" }}>
-        <MaterialThumbnail thumbnail={cover.preview} />
+      <div className={styles.coverBody}>
+        <div className={styles.coverPreviewFrame}>
+          <MaterialThumbnail thumbnail={cover.preview} />
+        </div>
+        <p className={styles.coverMetaLine}>
+          <strong>
+            {cover.file?.originalFilename ?? "Ảnh bìa đã đính kèm"}
+          </strong>
+          {cover.file && (
+            <>
+              <span>· Trạng thái tệp:</span>
+              <Status
+                value={cover.file.state}
+                label={cover.file.state === "READY" ? "Sẵn sàng" : undefined}
+              />
+            </>
+          )}
+        </p>
+        {cover.failureCode && (
+          <p className="learner-error">
+            Ảnh bìa chưa xử lý thành công. Hãy cập nhật trạng thái; nếu vẫn lỗi,
+            liên hệ hỗ trợ. Chỉ thay ảnh khi tài liệu còn cho phép chỉnh sửa.
+          </p>
+        )}
       </div>
-      <p>{cover.file?.originalFilename ?? "Ảnh bìa đã đính kèm"}</p>
-      {cover.file && (
-        <p>
-          Trạng thái tệp:{" "}
-          <Status
-            value={cover.file.state}
-            label={cover.file.state === "READY" ? "Sẵn sàng" : undefined}
-          />
-        </p>
-      )}
-      {cover.failureCode && (
-        <p className="learner-error">
-          Ảnh bìa chưa xử lý thành công. Hãy cập nhật trạng thái; nếu vẫn lỗi,
-          liên hệ hỗ trợ. Chỉ thay ảnh khi tài liệu còn cho phép chỉnh sửa.
-        </p>
-      )}
     </details>
   );
 }

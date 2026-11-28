@@ -15,6 +15,7 @@ import {
 import { UserApiError } from "../api/client";
 import { formText } from "../components/form-data";
 import { MaterialCoverControl, useMaterialCover } from "./material-cover";
+import styles from "./my-materials.module.css";
 
 export function MaterialEditor({
   material,
@@ -49,7 +50,7 @@ export function MaterialEditor({
     return <p className="learner-notice">{materialEditHint(material)}</p>;
   return (
     <form
-      className="learner-form"
+      className={`learner-form ${styles.editorShell}`}
       onSubmit={async (event) => {
         event.preventDefault();
         const form = new FormData(event.currentTarget);
@@ -90,15 +91,18 @@ export function MaterialEditor({
         }
       }}
     >
-      <h3>Sửa tài liệu · phiên bản {material.listingVersion}</h3>
-      <p>
-        Bạn có thể sửa bản nháp hoặc tài liệu bị từ chối trước lần xuất bản đầu
-        tiên.
-      </p>
+      <div className={styles.editorHeader}>
+        <div>
+          <h3>Sửa tài liệu · Phiên bản {material.listingVersion}</h3>
+          <p>
+            Bạn có thể chỉnh sửa bản nháp hoặc tài liệu bị từ chối trước lần
+            xuất bản đầu tiên.
+          </p>
+        </div>
+      </div>
       <fieldset
         disabled={disabled}
-        style={{ border: 0, padding: 0, minWidth: 0 }}
-        className="learner-form"
+        className={`learner-form ${styles.editorFieldset}`}
       >
         <SkillPicker value={skillId} onChange={setSkillId} />
         <label>
@@ -122,92 +126,99 @@ export function MaterialEditor({
             defaultValue={material.description}
           />
         </label>
-        <label>
-          <span>Hình thức</span>
-          <select
-            value={access}
-            onChange={(e) => setAccess(e.target.value as "FREE" | "PAID")}
-          >
-            <option value="FREE">Miễn phí</option>
-            <option value="PAID">Có phí</option>
-          </select>
-        </label>
-        {access === "PAID" && (
+        <div className={styles.editorRow}>
           <label>
-            <span>Giá (CR)</span>
-            <input
-              name="price"
-              type="number"
-              min="0.01"
-              max="9999999999.99"
-              step="0.01"
-              required
-              defaultValue={material.priceCredit}
-            />
-          </label>
-        )}
-        <p>
-          Tệp hiện tại: {material.file?.originalFilename ?? "Chưa có"}. Chỉ chọn
-          tệp nếu muốn thay thế.
-        </p>
-        <UploadControl
-          endpoint="me/materials/files"
-          maxBytes={20000000}
-          accept=".pdf,.docx,.pptx,.xlsx"
-          disabled={disabled}
-          onUploaded={setFileId}
-          onBusyChange={setUploading}
-        />
-        {fileId && (
-          <>
-            <Feedback
-              variant="inline"
-              error={file.error}
-              loading={file.initialLoading}
-              reload={file.reload}
-              refreshing={!!(file.loading && !file.initialLoading)}
-            />
-            <p>
-              Trạng thái tệp:{" "}
-              <Status
-                value={
-                  file.data?.moderationStatus === "REVIEW_REQUIRED"
-                    ? "REVIEW_REQUIRED"
-                    : (file.data?.state ?? "PENDING")
-                }
-                label={
-                  file.data?.moderationStatus === "REVIEW_REQUIRED"
-                    ? "Cần kiểm duyệt thêm, chưa thể lưu tệp này"
-                    : file.data?.state === "READY"
-                      ? "Sẵn sàng"
-                      : undefined
-                }
-              />
-            </p>
-            <LoadingButton
-              type="button"
-              className="btn"
-              onClick={file.reload}
-              loading={!!command.pending}
+            <span>Hình thức</span>
+            <select
+              value={access}
+              onChange={(e) => setAccess(e.target.value as "FREE" | "PAID")}
             >
-              Kiểm tra tệp
-            </LoadingButton>
-            <label className="product-consent">
-              <input type="checkbox" name="rights" required />
-              <span>Tôi có quyền phân phối tệp thay thế.</span>
+              <option value="FREE">Miễn phí</option>
+              <option value="PAID">Có phí</option>
+            </select>
+          </label>
+          {access === "PAID" && (
+            <label>
+              <span>Giá (CR)</span>
+              <input
+                name="price"
+                type="number"
+                min="0.01"
+                max="9999999999.99"
+                step="0.01"
+                required
+                defaultValue={material.priceCredit}
+              />
             </label>
-          </>
-        )}
+          )}
+        </div>
+        <div className={styles.editorFileBox}>
+          <p className={styles.editorFileNote}>
+            Tệp hiện tại:{" "}
+            <strong>{material.file?.originalFilename ?? "Chưa có"}</strong>. Chỉ
+            chọn tệp mới nếu muốn thay thế.
+          </p>
+          <UploadControl
+            endpoint="me/materials/files"
+            maxBytes={20000000}
+            accept=".pdf,.docx,.pptx,.xlsx"
+            disabled={disabled}
+            onUploaded={setFileId}
+            onBusyChange={setUploading}
+          />
+          {fileId && (
+            <>
+              <Feedback
+                variant="inline"
+                error={file.error}
+                loading={file.initialLoading}
+                reload={file.reload}
+                refreshing={!!(file.loading && !file.initialLoading)}
+              />
+              <p className={styles.coverMetaLine}>
+                <span>Trạng thái tệp:</span>
+                <Status
+                  value={
+                    file.data?.moderationStatus === "REVIEW_REQUIRED"
+                      ? "REVIEW_REQUIRED"
+                      : (file.data?.state ?? "PENDING")
+                  }
+                  label={
+                    file.data?.moderationStatus === "REVIEW_REQUIRED"
+                      ? "Cần kiểm duyệt thêm, chưa thể lưu tệp này"
+                      : file.data?.state === "READY"
+                        ? "Sẵn sàng"
+                        : undefined
+                  }
+                />
+              </p>
+              <div>
+                <LoadingButton
+                  type="button"
+                  className="btn"
+                  onClick={file.reload}
+                  loading={!!file.loading}
+                >
+                  Kiểm tra tệp
+                </LoadingButton>
+              </div>
+              <label className="product-consent">
+                <input type="checkbox" name="rights" required />
+                <span>Tôi có quyền phân phối tệp thay thế.</span>
+              </label>
+            </>
+          )}
+        </div>
         <MaterialCoverControl cover={cover} disabled={disabled} existing />
       </fieldset>
       <CommandFeedback command={command} />
       {command.uncertain && (
-        <p>
+        <p className="learner-notice">
           Chưa xác định kết quả lưu. Đóng editor và tải lại để đối chiếu phiên
           bản trước khi sửa tiếp.
         </p>
       )}
-      <div className="learner-actions">
+      <div className={styles.editorFooter}>
         <LoadingButton
           type="submit"
           className="btn btn-primary"
@@ -230,7 +241,7 @@ export function MaterialEditor({
             reload();
             close();
           }}
-          loading={!!command.pending}
+          loading={false}
         >
           Đóng và làm mới
         </LoadingButton>
