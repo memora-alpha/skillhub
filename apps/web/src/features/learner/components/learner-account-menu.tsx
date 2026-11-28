@@ -12,10 +12,12 @@ const accountLinks = [
   ["/learn/skills", "Kỹ năng & xác minh", "check"],
   ["/learn/reputation", "Điểm uy tín", "shield"],
   ["/learn/achievements", "Thành tích & danh hiệu", "award"],
+  ["/learn/reviews", "Đánh giá của tôi", "star"],
   ["/learn/tag-requests", "Đề xuất tag của tôi", "book"],
   ["/learn/materials/mine", "Tài liệu của tôi", "file"],
   ["/learn/wallet", "Ví & giao dịch Credit", "wallet"],
-  ["/learn/reports", "Báo cáo của tôi", "filter"],
+  ["/learn/subscription", "Gói thành viên", "star"],
+  ["/learn/reports", "Báo cáo & hỗ trợ", "filter"],
 ] as const;
 
 function avatarSource(value: string | null) {

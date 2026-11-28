@@ -10,24 +10,29 @@ export type AdminTab = Readonly<{
   view?: ModerationView;
 }>;
 export type AdminSectionGroup =
-  | "Tổng quan & Vận hành"
-  | "Kiểm duyệt & Xử lý"
-  | "Người dùng & Danh mục"
-  | "Hệ thống";
+  "Vận hành & Tài chính" | "Kiểm duyệt & Xử lý" | "Quản trị & Hệ thống";
 
-export const adminSectionGroups: readonly AdminSectionGroup[] = [
-  "Tổng quan & Vận hành",
-  "Kiểm duyệt & Xử lý",
-  "Người dùng & Danh mục",
-  "Hệ thống",
+export type AdminSectionGroupMeta = Readonly<{
+  id: string;
+  group: AdminSectionGroup;
+  defaultOpen: boolean;
+}>;
+
+export const adminSectionGroupConfigs: readonly AdminSectionGroupMeta[] = [
+  { id: "operations", group: "Vận hành & Tài chính", defaultOpen: true },
+  { id: "moderation", group: "Kiểm duyệt & Xử lý", defaultOpen: true },
+  { id: "governance", group: "Quản trị & Hệ thống", defaultOpen: false },
 ];
+
+export const adminSectionGroups: readonly AdminSectionGroup[] =
+  adminSectionGroupConfigs.map((entry) => entry.group);
 
 export type AdminSection = Readonly<{
   id: string;
   href: string;
   label: string;
   icon: IconName;
-  group: AdminSectionGroup;
+  group?: AdminSectionGroup;
   tabs?: readonly AdminTab[];
 }>;
 
@@ -37,28 +42,34 @@ export const adminSections: readonly AdminSection[] = [
     href: "/admin",
     label: "Tổng quan",
     icon: "grid",
-    group: "Tổng quan & Vận hành",
   },
   {
     id: "learning-paths",
     href: "/admin/learning-paths",
     label: "Lộ trình học",
     icon: "book",
-    group: "Tổng quan & Vận hành",
+    group: "Vận hành & Tài chính",
   },
   {
     id: "finance",
     href: "/admin/credits",
     label: "Tài chính & Credit",
     icon: "card",
-    group: "Tổng quan & Vận hành",
+    group: "Vận hành & Tài chính",
+  },
+  {
+    id: "subscriptions",
+    href: "/admin/subscriptions",
+    label: "Gói thành viên",
+    icon: "star",
+    group: "Vận hành & Tài chính",
   },
   {
     id: "rewards",
     href: "/admin/rewards",
     label: "Voucher & phần thưởng",
     icon: "award",
-    group: "Tổng quan & Vận hành",
+    group: "Vận hành & Tài chính",
   },
   {
     id: "moderation",
@@ -140,7 +151,7 @@ export const adminSections: readonly AdminSection[] = [
     href: "/admin/users",
     label: "Người dùng & nhân sự",
     icon: "users",
-    group: "Người dùng & Danh mục",
+    group: "Quản trị & Hệ thống",
     tabs: [
       {
         id: "users",
@@ -161,7 +172,7 @@ export const adminSections: readonly AdminSection[] = [
     href: "/admin/skills",
     label: "Kỹ năng & Tag",
     icon: "tag",
-    group: "Người dùng & Danh mục",
+    group: "Quản trị & Hệ thống",
     tabs: [
       {
         id: "skills",
@@ -188,14 +199,14 @@ export const adminSections: readonly AdminSection[] = [
     href: "/admin/config",
     label: "Quy tắc & Cài đặt",
     icon: "sliders",
-    group: "Hệ thống",
+    group: "Quản trị & Hệ thống",
   },
   {
     id: "audit",
     href: "/admin/audit",
     label: "Nhật ký hoạt động",
     icon: "clock",
-    group: "Hệ thống",
+    group: "Quản trị & Hệ thống",
   },
 ];
 

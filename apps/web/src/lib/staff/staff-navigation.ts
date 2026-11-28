@@ -3,7 +3,13 @@ import { hasAnyPermission } from "./permissions";
 import type { StaffIdentity } from "./types";
 
 export type StaffNavGroup =
-  "Tổng quan" | "Kiểm duyệt nội dung" | "Tranh chấp & Xử lý" | "Hệ thống";
+  "Kiểm duyệt nội dung" | "Tranh chấp & Xử lý" | "Ưu đãi & Gói";
+
+export type StaffNavGroupMeta = Readonly<{
+  id: string;
+  group: StaffNavGroup;
+  defaultOpen: boolean;
+}>;
 
 export type StaffNavItem = Readonly<{
   id: string;
@@ -11,16 +17,18 @@ export type StaffNavItem = Readonly<{
   label: string;
   description: string;
   icon: IconName;
-  group: StaffNavGroup;
+  group?: StaffNavGroup;
   requiredAny?: readonly string[];
 }>;
 
-export const staffNavGroups: readonly StaffNavGroup[] = [
-  "Tổng quan",
-  "Kiểm duyệt nội dung",
-  "Tranh chấp & Xử lý",
-  "Hệ thống",
+export const staffNavGroupConfigs: readonly StaffNavGroupMeta[] = [
+  { id: "moderation", group: "Kiểm duyệt nội dung", defaultOpen: true },
+  { id: "disputes", group: "Tranh chấp & Xử lý", defaultOpen: true },
+  { id: "benefits", group: "Ưu đãi & Gói", defaultOpen: false },
 ];
+
+export const staffNavGroups: readonly StaffNavGroup[] =
+  staffNavGroupConfigs.map((entry) => entry.group);
 
 export const staffNavItems: readonly StaffNavItem[] = [
   {
@@ -29,7 +37,6 @@ export const staffNavItems: readonly StaffNavItem[] = [
     label: "Tổng quan",
     description: "Hàng đợi ưu tiên theo quyền được cấp.",
     icon: "grid",
-    group: "Tổng quan",
   },
   {
     id: "evidence",
@@ -90,15 +97,6 @@ export const staffNavItems: readonly StaffNavItem[] = [
     requiredAny: ["report:moderate"],
   },
   {
-    id: "rewards",
-    href: "/staff/rewards",
-    label: "Voucher & phần thưởng",
-    description: "Quản lý danh mục và xử lý đơn đổi thưởng.",
-    icon: "award",
-    group: "Hệ thống",
-    requiredAny: ["reward:manage"],
-  },
-  {
     id: "restriction-reviews",
     href: "/staff/restriction-reviews",
     label: "Duyệt gỡ hạn chế",
@@ -117,12 +115,22 @@ export const staffNavItems: readonly StaffNavItem[] = [
     requiredAny: ["report:moderate"],
   },
   {
-    id: "notifications",
-    href: "/staff/notifications",
-    label: "Thông báo",
-    description: "Cập nhật vận hành theo thời gian thực.",
-    icon: "bell",
-    group: "Hệ thống",
+    id: "subscriptions",
+    href: "/staff/subscriptions",
+    label: "Gói thành viên",
+    description: "Tra cứu gói thành viên, hạn mức sử dụng và phiên bản gói.",
+    icon: "star",
+    group: "Ưu đãi & Gói",
+    requiredAny: ["subscription:read"],
+  },
+  {
+    id: "rewards",
+    href: "/staff/rewards",
+    label: "Voucher & phần thưởng",
+    description: "Quản lý danh mục và xử lý đơn đổi thưởng.",
+    icon: "award",
+    group: "Ưu đãi & Gói",
+    requiredAny: ["reward:manage"],
   },
 ];
 
