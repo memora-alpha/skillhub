@@ -41,6 +41,7 @@ export function useRoomWhiteboard(options: {
     useState<WhiteboardReadOnlyReason | null>(null);
   const [editableFrom, setEditableFrom] = useState<string | null>(null);
   const [editableUntil, setEditableUntil] = useState<string | null>(null);
+  const [retentionDays, setRetentionDays] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -83,6 +84,7 @@ export function useRoomWhiteboard(options: {
       setReadOnlyReason(data.readOnlyReason);
       setEditableFrom(data.editableFrom);
       setEditableUntil(data.editableUntil);
+      setRetentionDays(data.retentionDays ?? null);
       return nextElements;
     },
     [],
@@ -295,6 +297,7 @@ export function useRoomWhiteboard(options: {
     elements,
     revision,
     updatedAt,
+    retentionDays,
     readOnly,
     readOnlyReason,
     readOnlyNotice,

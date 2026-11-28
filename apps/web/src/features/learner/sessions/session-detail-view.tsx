@@ -6,6 +6,7 @@ import { useUserSession } from "../auth/session";
 import { useUserResource } from "../hooks/use-user-resource";
 import type { LearningSession, LearningPath } from "../types";
 import { Feedback, Panel, formatTime } from "../components/common";
+import { ProductIcon } from "../components/product-icon";
 import { SessionReschedule } from "./session-reschedule";
 import { useClock } from "../hooks/use-clock";
 import { AttendanceRules } from "./attendance-rules";
@@ -28,6 +29,18 @@ import {
   SessionProgress,
 } from "./session-detail-sections";
 import styles from "./session-detail.module.css";
+
+function deadlineLabel(key: string, attendanceCase?: string | null) {
+  if (key === "confirmBy") return "Hạn xác nhận";
+  if (key === "excuseOrReportBy") {
+    return attendanceCase === "BOTH_ABSENT"
+      ? "Hạn báo cáo kết quả điểm danh"
+      : "Hạn giải trình / báo cáo vắng";
+  }
+  if (key === "makeupBy") return "Hạn chốt lịch học bù";
+  if (key === "reportBy") return "Hạn gửi báo cáo buổi học";
+  return key;
+}
 
 export function SessionDetail({ id }: Readonly<{ id: string }>) {
   const now = useClock();
@@ -54,6 +67,7 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
     partnerId ? "profiles/" + partnerId : null,
   );
   const [reschedule, setReschedule] = useState(false);
+
   const plan = path.data?.plans.find((item) => item.id === session?.planId);
   const sessionNo =
     session?.outlineSessionNo ??
@@ -61,25 +75,33 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
   const outline = plan?.sessionOutline.find(
     (item) => item.sessionNo === sessionNo,
   )?.content;
+
   function refresh() {
     query.reload();
     path.reload();
     partner.reload();
   }
+
   if (!session)
     return (
       <div className={styles.page}>
-        <Link href="/learn/calendar" className={styles.link}>
-          ← Lịch học
-        </Link>
+        <nav aria-label="Đường dẫn" className={styles.breadcrumbs}>
+          <Link href="/learn/calendar">← Lịch học</Link>
+          <span className={styles.breadcrumbsSep} aria-hidden="true">
+            /
+          </span>
+          <strong>Chi tiết buổi học</strong>
+        </nav>
         <Feedback
           loading={query.initialLoading}
           error={query.error}
           reload={query.reload}
           refreshing={!!(query.loading && !query.initialLoading)}
+          variant="page"
         />
       </div>
     );
+
   const view = sessionPresentation(session, actor.userId, now, path.data);
   const settled = path.data?.status === "COMPLETED" && !!path.data.settledAt;
   const finished = !!path.data && allSessionsCompleted(path.data);
@@ -92,6 +114,10 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
   const missingPathContent = path.error
     ? "Chưa tải được nội dung lộ trình."
     : "Chưa có nội dung chi tiết cho buổi học này.";
+  const deadlineEntries = Object.entries(session.deadlines ?? {}).filter(
+    ([, value]) => Boolean(value),
+  );
+
   return (
     <div className={styles.page}>
       <SessionDetailHeader
@@ -102,11 +128,31 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
         view={view}
         loading={query.loading || path.loading}
         refresh={refresh}
+        partner={partner.data}
+        conversationId={path.data?.conversationId}
       />
+
       <Feedback error={query.error} reload={refresh} />
       <Feedback error={path.error} reload={path.reload} />
+
       <div className={styles.grid}>
-        <div className={styles.column}>
+        <section
+          className={styles.actionSlot}
+          aria-label="Hành động chính cho buổi học"
+        >
+          <SessionActionCard
+            session={session}
+            view={view}
+            now={now}
+            settled={settled}
+            finished={finished}
+            blocked={
+              !!path.data && !["SCHEDULED", "ACTIVE"].includes(path.data.status)
+            }
+          />
+        </section>
+
+        <div className={styles.mainColumn}>
           <Panel className={styles.card}>
             <SessionCardHeading
               icon="book"
@@ -114,7 +160,7 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
               subtitle="Nội dung đã thống nhất trong lộ trình"
             />
             <div className={styles.content}>
-              <p>
+              <div className={styles.lessonOutlineBox}>
                 {outline ||
                   plan?.learningGoal ||
                   (path.initialLoading ? (
@@ -125,15 +171,28 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
                   ) : (
                     missingPathContent
                   ))}
-              </p>
-              <Link
-                className={styles.link}
-                href={"/learn/paths/" + session.pathId}
-              >
-                Xem lộ trình và kế hoạch →
-              </Link>
+              </div>
+              <div className={styles.cardFooterLinks}>
+                <Link
+                  className={styles.inlineLink}
+                  href={"/learn/paths/" + session.pathId}
+                >
+                  Xem lộ trình và kế hoạch
+                  <ProductIcon name="arrow" size={15} />
+                </Link>
+                {path.data?.conversationId && (
+                  <Link
+                    className={styles.inlineLink}
+                    href={`/learn/messages/${path.data.conversationId}`}
+                  >
+                    <ProductIcon name="chat" size={15} />
+                    Trao đổi với đối tác
+                  </Link>
+                )}
+              </div>
             </div>
           </Panel>
+
           <Panel className={styles.card}>
             <SessionCardHeading
               icon="users"
@@ -149,109 +208,114 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
               partner={partner.data}
             />
           </Panel>
+
           <SessionMakeupPanel
             session={session}
             path={path.data}
             now={now}
             disabled={!!query.error || !!path.error || path.initialLoading}
           />
-          <SessionProgress session={session} />
-          <SessionWhiteboardPanel sessionId={id} />
-          <SessionRecordingsPanel sessionId={id} />
+
           {finished && !settled && (
             <section id="session-settlement" className={styles.after}>
               <SettlementStatusPanel pathId={session.pathId} />
             </section>
           )}
+
           {settled && path.data && (
             <section id="session-review" className={styles.after}>
-              <Panel title="Đánh giá sau lộ trình">
-                <p>
-                  Thỏa thuận đã hoàn tất. Chia sẻ trải nghiệm hoặc xem phản hồi
-                  của đối tác trên trang đánh giá riêng.
-                </p>
-                <Link
-                  className="btn btn-primary"
-                  href={`/learn/paths/${session.pathId}/review`}
-                >
-                  Viết / xem đánh giá
-                </Link>
+              <Panel className={styles.card}>
+                <SessionCardHeading
+                  icon="shield"
+                  tone="sage"
+                  title="Đánh giá sau lộ trình"
+                  subtitle="Thỏa thuận đã hoàn tất và quyết toán"
+                />
+                <div className={`${styles.content} ${styles.reviewCard}`}>
+                  <p>
+                    Thỏa thuận đã hoàn tất. Chia sẻ trải nghiệm hoặc xem phản
+                    hồi của đối tác trên trang đánh giá riêng.
+                  </p>
+                  <div>
+                    <Link
+                      className="btn btn-primary"
+                      href={`/learn/paths/${session.pathId}/review`}
+                    >
+                      Viết / xem đánh giá
+                      <ProductIcon name="arrow" size={15} />
+                    </Link>
+                  </div>
+                </div>
               </Panel>
             </section>
           )}
+
+          <SessionProgress session={session} />
+          <SessionWhiteboardPanel sessionId={id} />
+          <SessionRecordingsPanel sessionId={id} />
         </div>
+
         <aside
-          className={styles.column}
-          aria-label="Hành động và quản lý buổi học"
+          className={styles.sideColumn}
+          aria-label="Lịch và quản lý buổi học"
         >
-          <SessionActionCard
-            session={session}
-            view={view}
-            now={now}
-            settled={settled}
-            finished={finished}
-            blocked={
-              !!path.data && !["SCHEDULED", "ACTIVE"].includes(path.data.status)
-            }
-          />
           <Panel className={styles.card}>
             <SessionCardHeading
               icon="calendar"
               title="Lịch và quản lý buổi học"
-              subtitle="Thông tin lịch đang áp dụng"
+              subtitle="Thông tin lịch và các mốc thời hạn đang áp dụng"
             />
             <div className={styles.content}>
               <dl className={styles.deadlines}>
-                <div>
+                <div className={styles.deadlineRow}>
                   <dt>Lịch hiện tại</dt>
                   <dd>{formatTime(session.startAt)}</dd>
                 </div>
                 {session.originalStartAt && (
-                  <div>
+                  <div className={styles.deadlineRow}>
                     <dt>Lịch ban đầu</dt>
                     <dd>{formatTime(session.originalStartAt)}</dd>
                   </div>
                 )}
-                <div>
+                <div className={styles.deadlineRow}>
                   <dt>Đổi lịch thông thường</dt>
-                  <dd>{session.rescheduleCount ?? "—"} / 3 lần</dd>
+                  <dd>
+                    <span className={styles.quotaPill}>
+                      {session.rescheduleCount ?? "—"} / 3 lần
+                    </span>
+                  </dd>
                 </div>
                 {session.makeupQuota && (
-                  <div>
-                    <dt>Lượt học bù của bạn còn lại</dt>
+                  <div className={styles.deadlineRow}>
+                    <dt>Lượt học bù còn lại</dt>
                     <dd>
-                      {session.makeupQuota.remaining} /{" "}
-                      {session.makeupQuota.limit} lượt
+                      <span className={styles.quotaPill}>
+                        {session.makeupQuota.remaining} /{" "}
+                        {session.makeupQuota.limit} lượt
+                      </span>
                     </dd>
                   </div>
                 )}
-                {Object.entries(session.deadlines ?? {}).map(
-                  ([key, value]) =>
-                    value && (
-                      <div key={key}>
-                        <dt>
-                          {
-                            {
-                              confirmBy: "Hạn xác nhận",
-                              excuseOrReportBy:
-                                session.attendance?.case === "BOTH_ABSENT"
-                                  ? "Hạn báo cáo kết quả điểm danh"
-                                  : "Hạn giải trình / báo cáo vắng",
-                              makeupBy: "Hạn chốt lịch học bù",
-                              reportBy: "Hạn gửi báo cáo buổi học",
-                            }[key]
-                          }
-                        </dt>
-                        <dd>{formatTime(value)}</dd>
-                      </div>
-                    ),
-                )}
+                {deadlineEntries.map(([key, value]) => (
+                  <div
+                    key={key}
+                    className={`${styles.deadlineRow} ${styles.deadlineUrgent}`}
+                  >
+                    <dt>{deadlineLabel(key, session.attendance?.case)}</dt>
+                    <dd>{formatTime(value!)}</dd>
+                  </div>
+                ))}
               </dl>
             </div>
           </Panel>
+
           {canReschedule && (
             <Panel className={styles.card}>
-              <SessionCardHeading icon="calendar" title="Đổi lịch học" />
+              <SessionCardHeading
+                icon="calendar"
+                title="Đổi lịch học"
+                subtitle="Đề xuất thời gian mới cùng đối tác"
+              />
               <div className={styles.content} id="session-reschedule-request">
                 <p>
                   Hai bên cùng xác nhận lịch mới. Lịch hiện tại giữ hiệu lực cho
@@ -264,16 +328,21 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
                   aria-controls="session-reschedule"
                   onClick={() => setReschedule(!reschedule)}
                 >
+                  <ProductIcon name="calendar" size={15} />
                   {reschedule ? "Đóng đề xuất" : "Xem / đề nghị lịch mới"}
                 </button>
                 {reschedule && path.data && (
-                  <div id="session-reschedule">
+                  <div
+                    id="session-reschedule"
+                    className={styles.rescheduleDrawer}
+                  >
                     <SessionReschedule session={session} path={path.data} />
                   </div>
                 )}
               </div>
             </Panel>
           )}
+
           <LearningChangePanel
             pathId={session.pathId}
             sessionId={id}
@@ -281,9 +350,18 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
             canRequest={canRequestCancellation(session, now)}
             blocked={query.loading || !!query.error}
           />
+
           <details className={styles.disclosure}>
-            <summary>Quy tắc tham gia, đổi lịch và học bù</summary>
-            <div>
+            <summary>
+              <span className={styles.disclosureSummaryTitle}>
+                <ProductIcon name="info" size={17} />
+                Quy tắc tham gia, đổi lịch và học bù
+              </span>
+              <span className={styles.chevronIcon} aria-hidden="true">
+                <ProductIcon name="chevron" size={16} />
+              </span>
+            </summary>
+            <div className={styles.disclosureBody}>
               <AttendanceRules />
               <SessionLimits session={session} />
             </div>

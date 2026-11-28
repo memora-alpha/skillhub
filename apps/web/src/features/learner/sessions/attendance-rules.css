@@ -1,3 +1,25 @@
-.attendance-rules { display: grid; gap: 16px; margin-block: 20px; }
-.attendance-rules dt { font-weight: 600; }
-.attendance-rules dd { margin: 6px 0 0; line-height: 1.6; }
+.attendance-rules {
+  display: grid;
+  gap: 10px;
+  margin-block: 14px;
+}
+
+.attendance-rules > div {
+  padding: 11px 13px;
+  border-radius: 10px;
+  border: 1px solid var(--line, #e7ddd2);
+  background: var(--app-cream, #fbf8f3);
+}
+
+.attendance-rules dt {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink, #1b1410);
+}
+
+.attendance-rules dd {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-2, #4b3d33);
+}

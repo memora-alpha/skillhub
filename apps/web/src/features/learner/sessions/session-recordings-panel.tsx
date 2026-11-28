@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useUserResource } from "../hooks/use-user-resource";
 import { useUserSession } from "../auth/session";
 import { UserApiError } from "../api/client";
-import { Feedback, Panel, formatTime } from "../components/common";
+import { Feedback, Panel, Status, formatTime } from "../components/common";
+import { ProductIcon } from "../components/product-icon";
 import { safeDownloadUrl } from "../account/view-policy";
 import type {
   SessionRecording,
@@ -26,6 +27,14 @@ const statusLabels: Record<SessionRecordingStatus, string> = {
   EXPIRED: "Đã hết hạn lưu trữ",
   DELETED: "Đã xóa",
 };
+
+function recordingBadgeValue(status: SessionRecordingStatus) {
+  if (status === "READY") return "COMPLETED";
+  if (status === "RECORDING" || status === "STARTING") return "ONGOING";
+  if (status === "REQUESTED" || status === "STOPPING") return "PENDING";
+  if (status === "FAILED" || status === "DECLINED") return "FAILED";
+  return "ARCHIVED";
+}
 
 function formatDuration(ms: number | null) {
   if (!ms || ms <= 0) return "—";
@@ -135,11 +144,12 @@ export function SessionRecordingsPanel({
   return (
     <Panel className={styles.card}>
       <SessionCardHeading
-        icon="users"
+        icon="video"
+        tone="sage"
         title="Bản ghi buổi học"
         subtitle="Ghi hình có sự đồng ý của cả hai bên để xem lại học tập hoặc làm bằng chứng tranh chấp"
       />
-      <div className={styles.content}>
+      <div className={`${styles.content} ${styles.recordingsList}`}>
         <Feedback
           loading={query.initialLoading}
           error={query.error ?? actionError}
@@ -151,57 +161,43 @@ export function SessionRecordingsPanel({
           </p>
         )}
         {!query.initialLoading && !items.length && !query.error && (
-          <p>Chưa có bản ghi nào cho buổi học này.</p>
+          <div className={styles.recordingEmpty}>
+            <ProductIcon name="video" size={18} />
+            <p>Chưa có bản ghi nào cho buổi học này.</p>
+          </div>
         )}
         {items.map((item) => (
-          <article
-            key={item.id}
-            style={{
-              border: "1px solid var(--line, #e6dfd5)",
-              borderRadius: 10,
-              padding: 12,
-              display: "grid",
-              gap: 8,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                justifyContent: "space-between",
-                gap: 8,
-                alignItems: "center",
-              }}
-            >
-              <strong>{statusLabels[item.status] ?? item.status}</strong>
-              <small style={{ color: "var(--muted)" }}>
+          <article key={item.id} className={styles.recordingCard}>
+            <div className={styles.recordingHead}>
+              <Status
+                value={recordingBadgeValue(item.status)}
+                label={statusLabels[item.status] ?? item.status}
+              />
+              <small className={styles.recordingTime}>
                 Yêu cầu lúc {formatTime(item.requestedAt)}
               </small>
             </div>
-            <div style={{ fontSize: 13, color: "var(--muted)" }}>
-              Thời lượng: {formatDuration(item.durationMs)} · Dung lượng:{" "}
-              {formatBytes(item.bytes)}
-              {item.expiresAt && item.status === "READY"
-                ? ` · Hết hạn: ${formatTime(item.expiresAt)}`
-                : ""}
+
+            <div className={styles.recordingMeta}>
+              <span>Thời lượng: {formatDuration(item.durationMs)}</span>
+              <span>· Dung lượng: {formatBytes(item.bytes)}</span>
+              {typeof item.retentionDays === "number" && (
+                <span>· Lưu {item.retentionDays} ngày</span>
+              )}
+              {item.expiresAt && item.status === "READY" && (
+                <span>· Hết hạn: {formatTime(item.expiresAt)}</span>
+              )}
             </div>
+
             {item.heldByReport && (
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 12,
-                  color: "#8a4b08",
-                  background: "#fef6e7",
-                  padding: "6px 8px",
-                  borderRadius: 6,
-                }}
-              >
+              <p className={styles.recordingHeld}>
                 Bản ghi đang được tạm giữ do buổi học có báo cáo tranh chấp mở
                 (chưa thể xóa và không tự hết hạn cho tới khi vụ việc đóng).
               </p>
             )}
+
             {item.status === "READY" && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              <div className={styles.recordingActions}>
                 <LoadingButton
                   type="button"
                   className="btn btn-primary"
@@ -209,6 +205,7 @@ export function SessionRecordingsPanel({
                   disabled={!!busyId}
                   onClick={() => void openPlayback(item.id)}
                 >
+                  <ProductIcon name="video" size={15} />
                   {playing?.id === item.id
                     ? "Tải lại liên kết phát"
                     : "Xem bản ghi"}
@@ -217,7 +214,7 @@ export function SessionRecordingsPanel({
                   <>
                     <LoadingButton
                       type="button"
-                      className="btn"
+                      className="btn btn-danger"
                       loading={busyId === item.id}
                       disabled={!!busyId}
                       onClick={() => void deleteRecording(item.id)}
@@ -245,19 +242,21 @@ export function SessionRecordingsPanel({
                     }
                     onClick={() => setConfirmDeleteId(item.id)}
                   >
+                    <ProductIcon name="trash" size={15} />
                     Xóa bản ghi
                   </button>
                 )}
               </div>
             )}
+
             {playing?.id === item.id && (
-              <div style={{ display: "grid", gap: 6 }}>
+              <div className={styles.recordingPlayer}>
                 {playing.playback.mime.startsWith("audio/") ? (
                   <audio
                     controls
                     controlsList="nodownload"
                     src={playing.playback.url}
-                    style={{ width: "100%" }}
+                    className={styles.recordingAudio}
                   >
                     <track kind="captions" label="Phụ đề" />
                   </audio>
@@ -267,17 +266,12 @@ export function SessionRecordingsPanel({
                     controlsList="nodownload"
                     playsInline
                     src={playing.playback.url}
-                    style={{
-                      width: "100%",
-                      maxHeight: 420,
-                      borderRadius: 8,
-                      background: "#000",
-                    }}
+                    className={styles.recordingVideo}
                   >
                     <track kind="captions" label="Phụ đề" />
                   </video>
                 )}
-                <small style={{ color: "var(--muted)" }}>
+                <small className={styles.recordingExpiry}>
                   Liên kết phát trực tuyến hết hạn lúc{" "}
                   {formatTime(playing.playback.expiresAt)} (chỉ xem trực tiếp,
                   không hỗ trợ tải tệp).
