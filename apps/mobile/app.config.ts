@@ -28,7 +28,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ...config,
     name: config.name ?? "SkillHub",
     slug: config.slug ?? "skillhub-mobile",
-    plugins: [...(config.plugins ?? []), "./plugins/with-android-gradle.cjs"],
+    plugins: [
+      ...(config.plugins ?? []),
+      "./plugins/with-android-gradle.cjs",
+      "expo-video",
+    ],
     extra: { ...config.extra, paymentQa },
   };
 };

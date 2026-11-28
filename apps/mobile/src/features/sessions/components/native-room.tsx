@@ -30,6 +30,7 @@ import { useRoomChat } from "../hooks/use-room-chat";
 import { useNativeMediaSettings } from "../hooks/use-native-media-settings";
 import { NativeMediaSettings } from "./native-media-settings";
 import { useNativeCameraBackground } from "../hooks/use-native-camera-background";
+import { NativeClassroomTools } from "./native-classroom-tools";
 
 registerGlobals();
 
@@ -90,6 +91,13 @@ export default function NativeRoom(props: RoomMediaProps) {
             Cài đặt quyền camera / micro
           </Button>
         )}
+        <NativeClassroomTools
+          sessionId={props.sessionId}
+          room={call.room}
+          peerIdentity={props.partnerIdentity}
+          connected={call.status === "connected"}
+          recordingCanStart={props.recordingCanStart === true}
+        />
         {call.room && (
           <RoomContext.Provider value={call.room}>
             <NativeRoomStage
